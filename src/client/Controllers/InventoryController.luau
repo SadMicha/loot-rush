@@ -272,7 +272,7 @@ local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
 		local icon = if slot then SLOT_ICON[slot] else "beutel"
-		local b = Kit.iconButton(icon, slot or "Alle", 60, slot == filter, "tab")
+		local b = Kit.iconButton(icon, slot or "Alle", 76, slot == filter, "tab")
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
 			filter = slot
@@ -330,7 +330,7 @@ local function buildGrid(parent: Frame)
 	tabRow = Instance.new("Frame")
 	tabRow.BackgroundTransparency = 1
 	tabRow.Position = UDim2.fromOffset(PAD, 76)
-	tabRow.Size = UDim2.fromOffset(560 - 2 * PAD, 60)
+	tabRow.Size = UDim2.fromOffset(560 - 2 * PAD, 76)
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
 	tl.Padding = UDim.new(0, 8)
@@ -340,7 +340,7 @@ local function buildGrid(parent: Frame)
 
 	local sort = Kit.button("Sortieren: Seltenheit", C.Cyan, Vector2.new(260, 44), "sortieren")
 	Kit.buttonLabel(sort).TextSize = 16
-	sort.Position = UDim2.fromOffset(PAD, 150)
+	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
 		Kit.buttonLabel(sort).Text = if sortByLevel
@@ -353,8 +353,8 @@ local function buildGrid(parent: Frame)
 	gridFrame = Instance.new("ScrollingFrame")
 	gridFrame.BackgroundTransparency = 1
 	gridFrame.BorderSizePixel = 0
-	gridFrame.Position = UDim2.fromOffset(PAD, 212)
-	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - 212 - PAD)
+	gridFrame.Position = UDim2.fromOffset(PAD, 228)
+	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - 228 - PAD)
 	gridFrame.ScrollBarThickness = 6
 	gridFrame.ScrollBarImageColor3 = C.Line2
 	gridFrame.ScrollingDirection = Enum.ScrollingDirection.Y
