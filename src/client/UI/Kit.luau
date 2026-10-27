@@ -615,31 +615,35 @@ function Kit.divider(width: number): GuiObject
 	return img
 end
 
--- Eingabefeld (Suche) mit Lupe im Bild. Gibt Rahmen und TextBox zurück.
+-- Eingabefeld (Suche) im Look des Sortier-Buttons mit Lupe links. Gibt Rahmen und TextBox zurück.
 function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
 	f.BackgroundColor3 = Theme.Color.Bg1
 	f.BorderSizePixel = 0
-	local slice = Assets.Slice.search_field
-	local skin = Kit.skin(f, "search_field", size.Y, 0.5)
-	local s = 1
-	if skin and slice then
-		s = size.Y / slice.size.Y
-		skin.SliceScale = s
-	else
-		skin = Kit.skin(f, "btn_sort", size.Y, 0.5)
-		if not skin then
-			Kit.corner(f, Theme.Radius.M)
-			Kit.stroke(f, Theme.Color.Line2)
-		end
+	if not Kit.skin(f, "btn_sort", size.Y, 0.5) then
+		Kit.corner(f, Theme.Radius.M)
+		Kit.stroke(f, Theme.Color.Line2)
 	end
-	-- Text beginnt hinter der Lupe, endet vor dem rechten Rand
-	local leftW = if skin and slice then slice.center.Min.X * s + 6 else 14
-	local rightW = if skin and slice then (slice.size.X - slice.center.Max.X) * s + 6 else 14
+	local leftW = 14
+	local lens = Assets.Fixed.icon_search
+	if lens then
+		local iconSize = math.floor(size.Y * 0.5)
+		local ic = Instance.new("ImageLabel")
+		ic.Name = "Lupe"
+		ic.BackgroundTransparency = 1
+		ic.AnchorPoint = Vector2.new(0, 0.5)
+		ic.Position = UDim2.new(0, 14, 0.5, 0)
+		ic.Size = UDim2.fromOffset(iconSize, iconSize)
+		ic.Image = lens.id
+		ic.ScaleType = Enum.ScaleType.Fit
+		ic.ZIndex = 2
+		ic.Parent = f
+		leftW = 14 + iconSize + 8
+	end
 	local t = Instance.new("TextBox")
 	t.BackgroundTransparency = 1
-	t.Size = UDim2.new(1, -(leftW + rightW), 1, 0)
+	t.Size = UDim2.new(1, -(leftW + 14), 1, 0)
 	t.Position = UDim2.fromOffset(leftW, 0)
 	t.PlaceholderText = placeholder
 	t.PlaceholderColor3 = Theme.Color.Muted

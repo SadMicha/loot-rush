@@ -216,43 +216,19 @@ local function buildEquip(parent: Frame)
 	viewport.Ambient = Color3.fromRGB(170, 175, 200)
 	viewport.LightColor = Color3.fromRGB(255, 240, 220)
 	viewport.Parent = equipPanel
-	local backdrop = Assets.Slice.stage_backdrop
+	local glow = Assets.Fixed.stage_glow
 	local ring = Assets.Fixed.stage_ring
-	if backdrop and ring then
-		-- Bühne: Hintergrund hinter der Figur, Ring unter den Füßen
-		-- Weiche Ränder, damit der Hintergrund mit dem Fenster verschmilzt
-		local group = Instance.new("CanvasGroup")
-		group.Name = "StageBackdrop"
-		group.BackgroundTransparency = 1
-		group.Position = UDim2.fromOffset(PAD + 96 - 22, 76 - 14)
-		group.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 44, 408)
-		group.ZIndex = 0
-		local fadeX = Instance.new("UIGradient")
-		fadeX.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.18, 0.25),
-			NumberSequenceKeypoint.new(0.82, 0.25),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-		fadeX.Parent = group
+	if glow and ring then
+		-- Bühne: Lichtschein hinter der Figur (läuft zu den Rändern aus), Ring unter den Füßen
 		local back = Instance.new("ImageLabel")
+		back.Name = "StageGlow"
 		back.BackgroundTransparency = 1
-		back.Size = UDim2.fromScale(1, 1)
-		back.Image = backdrop.id
-		back.ScaleType = Enum.ScaleType.Slice
-		back.SliceCenter = backdrop.center
-		back.SliceScale = 0.18
-		local fadeY = Instance.new("UIGradient")
-		fadeY.Rotation = 90
-		fadeY.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.15, 0),
-			NumberSequenceKeypoint.new(0.85, 0),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-		fadeY.Parent = back
-		back.Parent = group
-		group.Parent = equipPanel
+		back.Position = UDim2.fromOffset(PAD + 96 - 40, 76 - 20)
+		back.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 80, 420)
+		back.Image = glow.id
+		back.ScaleType = Enum.ScaleType.Stretch
+		back.ZIndex = 0
+		back.Parent = equipPanel
 		local ringW = 440 - 2 * (PAD + 96) + 24
 		local img = Instance.new("ImageLabel")
 		img.Name = "StageRing"
@@ -265,17 +241,17 @@ local function buildEquip(parent: Frame)
 		img.ZIndex = 0
 		img.Parent = equipPanel
 	else
-		local glow = Instance.new("Frame")
-		glow.AnchorPoint = Vector2.new(0.5, 0.5)
-		glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
-		glow.Size = UDim2.fromOffset(170, 26)
-		glow.BackgroundColor3 = C.Cyan
-		glow.BackgroundTransparency = 0.75
-		glow.BorderSizePixel = 0
-		glow.ZIndex = 0
-		Kit.corner(glow, 13)
-		Kit.stroke(glow, C.Cyan, 2)
-		glow.Parent = equipPanel
+		local fallback = Instance.new("Frame")
+		fallback.AnchorPoint = Vector2.new(0.5, 0.5)
+		fallback.Position = UDim2.new(0.5, 0, 0, 76 + 352)
+		fallback.Size = UDim2.fromOffset(170, 26)
+		fallback.BackgroundColor3 = C.Cyan
+		fallback.BackgroundTransparency = 0.75
+		fallback.BorderSizePixel = 0
+		fallback.ZIndex = 0
+		Kit.corner(fallback, 13)
+		Kit.stroke(fallback, C.Cyan, 2)
+		fallback.Parent = equipPanel
 	end
 
 	-- Werte in einer Reihe (Symbol + Zahl)

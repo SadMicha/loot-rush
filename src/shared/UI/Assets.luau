@@ -189,6 +189,7 @@ Assets.Fixed = table.freeze({
 		id = "rbxassetid://138528434334751",
 		size = Vector2.new(174, 175),
 	}),
+	stage_glow = table.freeze({ id = "rbxassetid://133805688311422", size = Vector2.new(576, 960) }),
 	stage_ring = table.freeze({ id = "rbxassetid://135127539214507", size = Vector2.new(628, 245) }),
 	divider = table.freeze({ id = "rbxassetid://114622747152381", size = Vector2.new(1024, 31) }),
 } :: { [string]: Fixed })
