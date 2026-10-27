@@ -36,6 +36,12 @@ local STAT_ICON: { [string]: string } = {
 	speed = "skill_dash",
 }
 local STAT_ORDER = { "damage", "life", "crit", "speed" }
+local RESISTANCES = {
+	{ attr = "ResFire", icon = "feuer", color = Color3.fromHex("#F2812B") },
+	{ attr = "ResCold", icon = "eis", color = Color3.fromHex("#4FD8F5") },
+	{ attr = "ResLightning", icon = "blitz", color = Color3.fromHex("#FFD86B") },
+	{ attr = "ResPoison", icon = "gift", color = Color3.fromHex("#7FD96A") },
+}
 local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4 }
 
 local gui: ScreenGui
@@ -201,14 +207,14 @@ local function buildEquip(parent: Frame)
 	Kit.stroke(glow, C.Cyan, 2)
 	glow.Parent = equipPanel
 
-	-- Werte 2×2
+	-- Werte in einer Reihe (Symbol + Zahl)
 	for i, stat in STAT_ORDER do
 		local tile = Instance.new("Frame")
-		tile.Size = UDim2.fromOffset(184, 56)
-		tile.Position = UDim2.fromOffset(PAD + ((i - 1) % 2) * 200, 500 + ((i - 1) // 2) * 68)
+		tile.Size = UDim2.fromOffset(90, 52)
+		tile.Position = UDim2.fromOffset(PAD + (i - 1) * 98, 480)
 		tile.BackgroundColor3 = C.Bg2
 		tile.BorderSizePixel = 0
-		if not Kit.skin(tile, "stat_tile", 56, 0.5) then
+		if not Kit.skin(tile, "stat_tile", 52, 0.5) then
 			Kit.corner(tile, Theme.Radius.M)
 			Kit.stroke(tile, C.Line)
 		end
@@ -217,35 +223,38 @@ local function buildEquip(parent: Frame)
 		inner.BackgroundTransparency = 1
 		inner.Size = UDim2.fromScale(1, 1)
 		inner.Parent = tile
-		local p = Instance.new("UIPadding")
-		p.PaddingLeft = UDim.new(0, 20)
-		p.Parent = inner
-		local l = Instance.new("UIListLayout")
-		l.FillDirection = Enum.FillDirection.Horizontal
-		l.VerticalAlignment = Enum.VerticalAlignment.Center
-		l.Padding = UDim.new(0, 10)
-		l.SortOrder = Enum.SortOrder.LayoutOrder
-		l.Parent = inner
-		local sic = Kit.icon(STAT_ICON[stat], 30)
+		Kit.list(inner, Enum.FillDirection.Horizontal, 6)
+		local sic = Kit.icon(STAT_ICON[stat], 26)
 		sic.LayoutOrder = 1
 		sic.Parent = inner
-		local col = Instance.new("Frame")
-		col.BackgroundTransparency = 1
-		col.AutomaticSize = Enum.AutomaticSize.XY
-		col.LayoutOrder = 2
-		local cl = Instance.new("UIListLayout")
-		cl.SortOrder = Enum.SortOrder.LayoutOrder
-		cl.Parent = col
-		local v = Kit.label("+0", 20, C.Text)
-		v.LayoutOrder = 1
-		v.Parent = col
-		local info = Items.Stats[stat]
-		local n = Kit.label(if info then info.label else stat, 13, C.Muted, Theme.Font.Body)
-		n.LayoutOrder = 2
-		n.Parent = col
-		col.Parent = inner
+		local v = Kit.label("+0", 16, C.Text)
+		v.LayoutOrder = 2
+		v.Parent = inner
 		statLabels[stat] = v
 		tile.Parent = equipPanel
+	end
+
+	-- Widerstände: Balken je Element. Werte kommen aus Spieler-Attributen (0 bis 100),
+	-- solange es kein Widerstands-System gibt, bleiben sie leer.
+	for i, res in RESISTANCES do
+		local y = 556 + (i - 1) * 40
+		local ic = Kit.icon(res.icon, 28)
+		ic.Position = UDim2.fromOffset(PAD, y - 2)
+		ic.Parent = equipPanel
+		local back, fill = Kit.bar(Vector2.new(250, 16), res.color)
+		back.Position = UDim2.fromOffset(PAD + 40, y + 4)
+		back.Parent = equipPanel
+		local pct = Kit.label("0 %", 16, C.Muted)
+		pct.AnchorPoint = Vector2.new(1, 0)
+		pct.Position = UDim2.fromOffset(440 - PAD, y)
+		pct.Parent = equipPanel
+		local function refresh()
+			local v = math.clamp((player:GetAttribute(res.attr) or 0) :: number, 0, 100)
+			fill.Size = UDim2.fromScale(v / 100, 1)
+			pct.Text = string.format("%d %%", v)
+		end
+		refresh()
+		player:GetAttributeChangedSignal(res.attr):Connect(refresh)
 	end
 end
 
