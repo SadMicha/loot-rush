@@ -570,10 +570,27 @@ function Kit.iconButton(
 	ic.ZIndex = 2
 	ic.Parent = b
 	if captioned then
-		local t = Kit.label(caption :: string, 14, Theme.Color.GoldHi)
+		-- Inneres Leuchten: Gold am Rand, zur Mitte hin klar
+		local glow = Instance.new("Frame")
+		glow.Name = "Glow"
+		glow.Size = UDim2.fromScale(1, 1)
+		glow.BackgroundColor3 = Theme.Color.Gold
+		glow.BorderSizePixel = 0
+		glow.ZIndex = 1
+		Kit.corner(glow, math.floor(s * 0.22))
+		local fade = Instance.new("UIGradient")
+		fade.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.45),
+			NumberSequenceKeypoint.new(0.5, 0.88),
+			NumberSequenceKeypoint.new(1, 0.45),
+		})
+		fade.Rotation = 90
+		fade.Parent = glow
+		glow.Parent = b
+		local t = Kit.label(caption :: string, 15, Theme.Color.GoldHi, Theme.Font.Title)
 		t.AnchorPoint = Vector2.new(0.5, 1)
-		t.Position = UDim2.new(0.5, 0, 1, -6)
-		t.ZIndex = 2
+		t.Position = UDim2.new(0.5, 0, 1, -5)
+		t.ZIndex = 3
 		t.Parent = b
 	end
 	return b
