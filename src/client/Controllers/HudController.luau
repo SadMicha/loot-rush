@@ -286,7 +286,7 @@ local goldText: TextLabel
 
 local function buildCalmPanels()
 	-- Ressourcen oben mittig
-	local res = clearGroup(Vector2.new(420, 40))
+	local res = clearGroup(Vector2.new(620, 40))
 	Kit.list(res, Enum.FillDirection.Horizontal, 8)
 	for i, spec in
 		{
