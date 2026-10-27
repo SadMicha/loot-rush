@@ -228,7 +228,24 @@ local function buildEquip(parent: Frame)
 		back.Image = glow.id
 		back.ScaleType = Enum.ScaleType.Stretch
 		back.ZIndex = 0
+		-- Oben und unten auslaufen lassen, damit keine harte Kante bleibt
+		local fadeY = Instance.new("UIGradient")
+		fadeY.Rotation = 90
+		fadeY.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.1, 0),
+			NumberSequenceKeypoint.new(0.9, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		fadeY.Parent = back
 		back.Parent = equipPanel
+		-- Trenner aus der Vorlage über der Oberkante kaschiert den Übergang
+		local glowWidth = 440 - 2 * (PAD + 96) + 80
+		local sep = Kit.divider(glowWidth)
+		sep.AnchorPoint = Vector2.new(0.5, 0.5)
+		sep.Position = UDim2.new(0.5, 0, 0, 76 - 14)
+		sep.ZIndex = 3
+		sep.Parent = equipPanel
 		local ringW = 440 - 2 * (PAD + 96) + 24
 		local img = Instance.new("ImageLabel")
 		img.Name = "StageRing"
