@@ -49,30 +49,7 @@ Theme.Font = table.freeze({
 	Body = Font.fromName("Nunito", Enum.FontWeight.Bold),
 })
 
--- Asset-IDs der generierten Icons (tools/icon_prompts.py). Leer = Platzhalter.
--- Nach dem Hochladen einfach hier eintragen, z. B. inventar = "rbxassetid://123456".
-Theme.Icons = {
-	inventar = "",
-	sternennetz = "",
-	skills = "",
-	schmiede = "",
-	dorf = "",
-	begleiter = "",
-	atlas = "",
-	seelenstern = "",
-	gold = "",
-	kristall = "",
-	quest = "",
-	schwert = "",
-	feuer = "",
-	blitz = "",
-	eis = "",
-	trank_leben = "",
-	trank_mana = "",
-	skill_dash = "",
-	portal = "",
-	schliessen = "",
-}
+-- Bilder (9-Slice-Rahmen, Slots, Icons) stehen in Shared.UI.Assets.
 
 -- Animations-Vokabular: überall dieselben Bewegungen
 Theme.Tween = table.freeze({

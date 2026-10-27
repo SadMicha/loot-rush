@@ -2,7 +2,6 @@
 -- Beute: Gegner lassen Gold und manchmal Items fallen. Drops liegen mit Boden-Label (Name in Seltenheitsfarbe)
 -- und gehören dem Töter; wer nah genug herangeht, hebt sie automatisch auf.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 

@@ -27,17 +27,42 @@ local selectedEquipped = false
 
 local COLUMNS, CELL, GAP = 8, 58, 6
 
+-- Icon je Ausrüstungsplatz (Assets.Icon)
+local SLOT_ICON: { [string]: string } = {
+	helm = "slot_helm",
+	ruestung = "slot_brust",
+	waffe = "slot_stab",
+	amulett = "slot_amulett",
+	ring = "slot_ring",
+}
+
 local function rarityColor(item: Items.Item): Color3
 	return Theme.Rarity[item.rarity] or Theme.Rarity.normal
 end
 
-local function itemButton(item: Items.Item?, size: number, caption: string): TextButton
+-- Slot mit Seltenheits-Rahmen und Platz-Icon; ohne Bilder flacher Slot mit Namen
+local function itemButton(
+	item: Items.Item?,
+	slot: string,
+	size: number,
+	caption: string
+): TextButton
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.fromOffset(size, size)
 	b.BackgroundColor3 = C.Bg2
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	b.Text = ""
+	if Kit.slotSkin(b, if item then item.rarity else "normal") then
+		local ic = Kit.icon(SLOT_ICON[slot] or "beutel", math.floor(size * 0.6))
+		ic.AnchorPoint = Vector2.new(0.5, 0.5)
+		ic.Position = UDim2.fromScale(0.5, 0.5)
+		if not item and ic:IsA("ImageLabel") then
+			ic.ImageTransparency = 0.65
+		end
+		ic.Parent = b
+		return b
+	end
 	Kit.corner(b, Theme.Radius.S)
 	Kit.stroke(b, if item then rarityColor(item) else C.Line, if item then 2 else 1)
 	local t = Kit.label(caption, 11, if item then rarityColor(item) else C.Muted, Theme.Font.Body)
@@ -80,7 +105,9 @@ local function actionButton(text: string, color: Color3, order: number, onClick:
 	b.TextColor3 = C.Bg0
 	b.FontFace = Theme.Font.UI
 	b.BorderSizePixel = 0
-	Kit.corner(b, Theme.Radius.M)
+	if not Kit.buttonSkin(b, color) then
+		Kit.corner(b, Theme.Radius.M)
+	end
 	b.Activated:Connect(onClick)
 	b.Parent = detail
 end
@@ -124,7 +151,7 @@ local function renderDetail()
 	end
 end
 
-local function select(item: Items.Item, isEquipped: boolean)
+local function selectItem(item: Items.Item, isEquipped: boolean)
 	selected = item
 	selectedEquipped = isEquipped
 	renderDetail()
@@ -133,10 +160,10 @@ end
 local function render()
 	clear(grid)
 	for i, item in items do
-		local b = itemButton(item, CELL, item.name)
+		local b = itemButton(item, item.slot, CELL, item.name)
 		b.LayoutOrder = i
 		b.Activated:Connect(function()
-			select(item, false)
+			selectItem(item, false)
 		end)
 		b.Parent = grid
 	end
@@ -144,11 +171,11 @@ local function render()
 	clear(equipCol)
 	for i, slot in Items.Slots do
 		local item = equipped[slot]
-		local b = itemButton(item, 72, if item then item.name else Items.SlotName[slot])
+		local b = itemButton(item, slot, 72, if item then item.name else Items.SlotName[slot])
 		b.LayoutOrder = i
 		if item then
 			b.Activated:Connect(function()
-				select(item, true)
+				selectItem(item, true)
 			end)
 		end
 		b.Parent = equipCol
