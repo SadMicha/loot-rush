@@ -238,9 +238,9 @@ local function buildEquip(parent: Frame)
 	-- solange es kein Widerstands-System gibt, bleiben sie leer.
 	for i, res in RESISTANCES do
 		local y = 556 + (i - 1) * 40
-		local ic = Kit.icon(res.icon, 28)
-		ic.Position = UDim2.fromOffset(PAD, y - 2)
-		ic.Parent = equipPanel
+		local resIcon = Kit.icon(res.icon, 28)
+		resIcon.Position = UDim2.fromOffset(PAD, y - 2)
+		resIcon.Parent = equipPanel
 		local back, fill = Kit.bar(Vector2.new(250, 16), res.color)
 		back.Position = UDim2.fromOffset(PAD + 40, y + 4)
 		back.Parent = equipPanel
