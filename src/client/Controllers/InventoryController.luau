@@ -92,7 +92,7 @@ end
 local function title(parent: GuiObject, text: string)
 	-- upper() kennt keine Umlaute
 	local caps = string.upper(text):gsub("ü", "Ü"):gsub("ö", "Ö"):gsub("ä", "Ä")
-	local t = Kit.label(caps, 26, C.Text, Theme.Font.Title)
+	local t = Kit.label(caps, 20, C.Text, Theme.Font.Title)
 	t.Position = UDim2.fromOffset(PAD, 22)
 	t.Parent = parent
 end
@@ -220,17 +220,39 @@ local function buildEquip(parent: Frame)
 	local ring = Assets.Fixed.stage_ring
 	if backdrop and ring then
 		-- Bühne: Hintergrund hinter der Figur, Ring unter den Füßen
+		-- Weiche Ränder, damit der Hintergrund mit dem Fenster verschmilzt
+		local group = Instance.new("CanvasGroup")
+		group.Name = "StageBackdrop"
+		group.BackgroundTransparency = 1
+		group.Position = UDim2.fromOffset(PAD + 96 - 22, 76 - 14)
+		group.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 44, 408)
+		group.ZIndex = 0
+		local fadeX = Instance.new("UIGradient")
+		fadeX.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.18, 0.25),
+			NumberSequenceKeypoint.new(0.82, 0.25),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		fadeX.Parent = group
 		local back = Instance.new("ImageLabel")
-		back.Name = "StageBackdrop"
 		back.BackgroundTransparency = 1
-		back.Position = UDim2.fromOffset(PAD + 96 - 14, 76 - 6)
-		back.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 28, 392)
+		back.Size = UDim2.fromScale(1, 1)
 		back.Image = backdrop.id
 		back.ScaleType = Enum.ScaleType.Slice
 		back.SliceCenter = backdrop.center
 		back.SliceScale = 0.18
-		back.ZIndex = 0
-		back.Parent = equipPanel
+		local fadeY = Instance.new("UIGradient")
+		fadeY.Rotation = 90
+		fadeY.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.15, 0),
+			NumberSequenceKeypoint.new(0.85, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		fadeY.Parent = back
+		back.Parent = group
+		group.Parent = equipPanel
 		local ringW = 440 - 2 * (PAD + 96) + 24
 		local img = Instance.new("ImageLabel")
 		img.Name = "StageRing"
@@ -504,10 +526,10 @@ local function renderDetail()
 	big.Position = UDim2.fromOffset(PAD, PAD)
 	big.Parent = detail
 
-	local name = Kit.label(item.name, 24, color, Theme.Font.Title)
-	name.Position = UDim2.fromOffset(PAD + 126, PAD + 4)
-	name.AutomaticSize = Enum.AutomaticSize.Y
-	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126 - 90, 0)
+	local name = Kit.label(item.name, 17, color, Theme.Font.Title)
+	name.Position = UDim2.fromOffset(PAD + 126, PAD + 2)
+	name.AutomaticSize = Enum.AutomaticSize.None
+	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126 - 90, 56)
 	name.TextWrapped = true
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	name.Parent = detail
@@ -521,7 +543,7 @@ local function renderDetail()
 		color,
 		Theme.Font.Body
 	)
-	sub.Position = UDim2.fromOffset(PAD + 126, PAD + 74)
+	sub.Position = UDim2.fromOffset(PAD + 126, PAD + 80)
 	sub.Parent = detail
 
 	-- Gegenstandsstufe oben rechts, darunter der Unterschied zum angelegten Teil
