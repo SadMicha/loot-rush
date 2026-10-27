@@ -151,7 +151,7 @@ local function renderDetail()
 	end
 end
 
-local function select(item: Items.Item, isEquipped: boolean)
+local function selectItem(item: Items.Item, isEquipped: boolean)
 	selected = item
 	selectedEquipped = isEquipped
 	renderDetail()
@@ -163,7 +163,7 @@ local function render()
 		local b = itemButton(item, item.slot, CELL, item.name)
 		b.LayoutOrder = i
 		b.Activated:Connect(function()
-			select(item, false)
+			selectItem(item, false)
 		end)
 		b.Parent = grid
 	end
@@ -175,7 +175,7 @@ local function render()
 		b.LayoutOrder = i
 		if item then
 			b.Activated:Connect(function()
-				select(item, true)
+				selectItem(item, true)
 			end)
 		end
 		b.Parent = equipCol
