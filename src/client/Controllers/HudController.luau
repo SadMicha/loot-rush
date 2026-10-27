@@ -364,7 +364,9 @@ local function buildCalmPanels()
 	local btn = Kit.button("Rift betreten", C.Gold, Vector2.new(240, 48))
 	btn.Activated:Connect(RiftController.toggle)
 	player:GetAttributeChangedSignal("RiftPhase"):Connect(function()
-		btn.Text = if RiftController.active() then "Rift verlassen" else "Rift betreten"
+		Kit.buttonLabel(btn).Text = if RiftController.active()
+			then "Rift verlassen"
+			else "Rift betreten"
 	end)
 	btn.Parent = rift
 	addFly(rift, Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -160), UDim2.new(0.5, 0, 1, 120), 4)

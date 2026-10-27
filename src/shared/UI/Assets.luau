@@ -1,95 +1,164 @@
 --!strict
--- Hochgeladene UI-Bilder (assets/ui_upload_v2, Hybrid-Stil).
--- Erzeugt aus manifest.json + Upload_Liste_Asset_IDs.csv. Fehlt ein Eintrag, nutzt Kit den flachen Stil.
+-- Hochgeladene UI-Bilder im Mock-up-Look (assets/ui_upload_v3) und Icon-Atlanten (ui_upload_v2).
+-- Slice = dehnbar (ScaleType Slice, center in Quellpixeln), Fixed = feste Größe (ScaleType Fit).
+-- Fehlt ein Eintrag, nutzt Kit den flachen Stil.
 
-export type Slice = { id: string, size: Vector2, center: Rect, scale: number }
+export type Slice = { id: string, size: Vector2, center: Rect }
+export type Fixed = { id: string, size: Vector2 }
 export type Icon = { id: string, offset: Vector2 }
 
 local Assets = {}
 
--- 9-Slice-Rahmen: ScaleType = Slice
 Assets.Slice = table.freeze({
-	panel_main = table.freeze({
-		id = "rbxassetid://86772070147732",
-		size = Vector2.new(691, 409),
-		center = Rect.new(86, 68, 602, 330),
-		scale = 0.5,
+	window_main = table.freeze({
+		id = "rbxassetid://82567780601268",
+		size = Vector2.new(1014, 561),
+		center = Rect.new(70, 70, 944, 491),
 	}),
-	panel_content = table.freeze({
-		id = "rbxassetid://135853567591400",
-		size = Vector2.new(398, 395),
-		center = Rect.new(69, 67, 333, 319),
-		scale = 0.5,
+	window_tall = table.freeze({
+		id = "rbxassetid://133130370315983",
+		size = Vector2.new(426, 647),
+		center = Rect.new(62, 62, 364, 585),
 	}),
-	panel_tall = table.freeze({
-		id = "rbxassetid://76134094802911",
-		size = Vector2.new(313, 528),
-		center = Rect.new(65, 63, 251, 456),
-		scale = 0.5,
+	window_small = table.freeze({
+		id = "rbxassetid://124463441554826",
+		size = Vector2.new(468, 322),
+		center = Rect.new(62, 62, 406, 260),
 	}),
-	panel_title_plain = table.freeze({
-		id = "rbxassetid://136529619337187",
-		size = Vector2.new(705, 114),
-		center = Rect.new(74, 12, 624, 71),
-		scale = 0.5,
+	btn_gold = table.freeze({
+		id = "rbxassetid://125339320044510",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_gold = table.freeze({
-		id = "rbxassetid://133538358751369",
-		size = Vector2.new(404, 115),
-		center = Rect.new(65, 34, 333, 74),
-		scale = 0.42,
+	btn_gold_pressed = table.freeze({
+		id = "rbxassetid://106343024301161",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_gold_active = table.freeze({
-		id = "rbxassetid://119953193506513",
-		size = Vector2.new(404, 115),
-		center = Rect.new(65, 34, 333, 74),
-		scale = 0.42,
+	btn_gold_disabled = table.freeze({
+		id = "rbxassetid://71834594408287",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_gold_dark = table.freeze({
-		id = "rbxassetid://110164888485649",
-		size = Vector2.new(404, 115),
-		center = Rect.new(65, 34, 333, 74),
-		scale = 0.42,
+	btn_blue = table.freeze({
+		id = "rbxassetid://119802837697644",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_blue = table.freeze({
-		id = "rbxassetid://92932532099045",
-		size = Vector2.new(407, 112),
-		center = Rect.new(59, 35, 339, 73),
-		scale = 0.42,
+	btn_blue_pressed = table.freeze({
+		id = "rbxassetid://86069804275693",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_blue_active = table.freeze({
-		id = "rbxassetid://105820133703592",
-		size = Vector2.new(407, 112),
-		center = Rect.new(59, 35, 339, 73),
-		scale = 0.42,
+	btn_blue_disabled = table.freeze({
+		id = "rbxassetid://139332338408263",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_blue_muted = table.freeze({
-		id = "rbxassetid://100997812742845",
-		size = Vector2.new(407, 112),
-		center = Rect.new(59, 35, 339, 73),
-		scale = 0.42,
+	btn_red = table.freeze({
+		id = "rbxassetid://117304138420622",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_red = table.freeze({
-		id = "rbxassetid://139696825752425",
-		size = Vector2.new(397, 106),
-		center = Rect.new(60, 34, 327, 67),
-		scale = 0.42,
+	btn_red_pressed = table.freeze({
+		id = "rbxassetid://99993677429600",
+		size = Vector2.new(672, 152),
+		center = Rect.new(58, 58, 614, 94),
 	}),
-	button_red_active = table.freeze({
-		id = "rbxassetid://135038700104909",
-		size = Vector2.new(397, 106),
-		center = Rect.new(60, 34, 327, 67),
-		scale = 0.42,
+	nav_idle = table.freeze({
+		id = "rbxassetid://138093077358094",
+		size = Vector2.new(234, 263),
+		center = Rect.new(62, 62, 172, 201),
+	}),
+	nav_active = table.freeze({
+		id = "rbxassetid://73325288772564",
+		size = Vector2.new(286, 315),
+		center = Rect.new(76, 76, 210, 239),
+	}),
+	tab_idle = table.freeze({
+		id = "rbxassetid://78960679153232",
+		size = Vector2.new(188, 186),
+		center = Rect.new(52, 52, 136, 134),
+	}),
+	tab_active = table.freeze({
+		id = "rbxassetid://101204472335224",
+		size = Vector2.new(236, 237),
+		center = Rect.new(66, 66, 170, 171),
+	}),
+	btn_sort = table.freeze({
+		id = "rbxassetid://109754724045279",
+		size = Vector2.new(705, 164),
+		center = Rect.new(62, 62, 643, 102),
+	}),
+	pill_gold = table.freeze({
+		id = "rbxassetid://117937349096594",
+		size = Vector2.new(463, 107),
+		center = Rect.new(175, 45, 343, 62),
+	}),
+	pill_purple = table.freeze({
+		id = "rbxassetid://137064645956062",
+		size = Vector2.new(462, 106),
+		center = Rect.new(175, 45, 342, 61),
+	}),
+	pill_cyan = table.freeze({
+		id = "rbxassetid://94941047433713",
+		size = Vector2.new(463, 107),
+		center = Rect.new(175, 45, 343, 62),
+	}),
+	stat_tile = table.freeze({
+		id = "rbxassetid://123010495639775",
+		size = Vector2.new(450, 141),
+		center = Rect.new(58, 58, 392, 83),
+	}),
+	chip_green = table.freeze({
+		id = "rbxassetid://111702894705451",
+		size = Vector2.new(328, 94),
+		center = Rect.new(48, 44, 280, 50),
+	}),
+	chip_red = table.freeze({
+		id = "rbxassetid://134621436900346",
+		size = Vector2.new(328, 93),
+		center = Rect.new(48, 44, 280, 49),
+	}),
+	bar_frame = table.freeze({
+		id = "rbxassetid://127385567684431",
+		size = Vector2.new(1024, 53),
+		center = Rect.new(31, 22, 993, 31),
+	}),
+	bar_fill = table.freeze({
+		id = "rbxassetid://92090882266948",
+		size = Vector2.new(1024, 53),
+		center = Rect.new(31, 22, 993, 31),
+	}),
+	header_banner = table.freeze({
+		id = "rbxassetid://125265440038686",
+		size = Vector2.new(1024, 136),
+		center = Rect.new(61, 51, 963, 85),
 	}),
 } :: { [string]: Slice })
 
--- Item-Slots je Seltenheit: ScaleType = Fit (quadratisch, kein 9-Slice)
-Assets.Slot = table.freeze({
-	normal = "rbxassetid://92092509823361",
-	magic = "rbxassetid://127312815120201",
-	rare = "rbxassetid://72705891689198",
-	epic = "rbxassetid://111314124459203",
-} :: { [string]: string })
+Assets.Fixed = table.freeze({
+	slot_empty = table.freeze({ id = "rbxassetid://125056307032988", size = Vector2.new(192, 192) }),
+	slot_normal = table.freeze({
+		id = "rbxassetid://123965511108242",
+		size = Vector2.new(192, 192),
+	}),
+	slot_magic = table.freeze({ id = "rbxassetid://70717392170486", size = Vector2.new(192, 192) }),
+	slot_rare = table.freeze({ id = "rbxassetid://72707565080469", size = Vector2.new(192, 192) }),
+	slot_epic = table.freeze({ id = "rbxassetid://109297843847039", size = Vector2.new(192, 192) }),
+	slot_unique = table.freeze({ id = "rbxassetid://84255349807067", size = Vector2.new(192, 192) }),
+	slot_legend = table.freeze({
+		id = "rbxassetid://139929493927957",
+		size = Vector2.new(192, 192),
+	}),
+	slot_selected = table.freeze({
+		id = "rbxassetid://98281980680183",
+		size = Vector2.new(224, 224),
+	}),
+	close_dark = table.freeze({ id = "rbxassetid://96979247364085", size = Vector2.new(189, 189) }),
+	close_red = table.freeze({ id = "rbxassetid://114685331210280", size = Vector2.new(189, 188) }),
+	divider = table.freeze({ id = "rbxassetid://114622747152381", size = Vector2.new(1024, 31) }),
+} :: { [string]: Fixed })
 
 local ICON_SIZE = Vector2.new(256, 256)
 Assets.IconSize = ICON_SIZE

@@ -22,7 +22,7 @@ local bossBox: Frame
 local bossFill: Frame
 local bossName: TextLabel
 local choice: Frame
-local deeperButton: TextButton
+local deeperButton: ImageButton
 
 local function phase(): string
 	return (player:GetAttribute("RiftPhase") or "") :: string
@@ -55,7 +55,7 @@ local function refresh()
 		bannerText.Text = string.format("Tiefe %d · Boss", depth)
 	elseif p == "clear" then
 		bannerText.Text = string.format("Tiefe %d geschafft", depth)
-		deeperButton.Text = string.format("Tiefer (Tiefe %d)", depth + 1)
+		Kit.buttonLabel(deeperButton).Text = string.format("Tiefer (Tiefe %d)", depth + 1)
 	elseif p == "failed" then
 		bannerText.Text = "Rift gescheitert"
 	end
