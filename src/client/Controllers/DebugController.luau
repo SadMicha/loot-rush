@@ -75,8 +75,8 @@ function DebugController.init()
 	text.Parent = panel
 
 	local button = Kit.button("Dbg", Theme.Color.Bg3, Vector2.new(48, 30))
-	button.TextColor3 = Theme.Color.Muted
-	button.TextSize = 13
+	Kit.buttonLabel(button).TextColor3 = Theme.Color.Muted
+	Kit.buttonLabel(button).TextSize = 13
 	button.AnchorPoint = Vector2.new(0, 1)
 	button.Position = UDim2.new(0, 28, 1, -28)
 	button.Activated:Connect(toggle)

@@ -204,8 +204,10 @@ local function buildEquip(parent: Frame)
 		tile.Position = UDim2.fromOffset(PAD + ((i - 1) % 2) * 200, 500 + ((i - 1) // 2) * 68)
 		tile.BackgroundColor3 = C.Bg2
 		tile.BorderSizePixel = 0
-		Kit.corner(tile, Theme.Radius.M)
-		Kit.stroke(tile, C.Line)
+		if not Kit.skin(tile, "stat_tile", 56, 0.5) then
+			Kit.corner(tile, Theme.Radius.M)
+			Kit.stroke(tile, C.Line)
+		end
 		local p = Instance.new("UIPadding")
 		p.PaddingLeft = UDim.new(0, 12)
 		p.Parent = tile
@@ -263,7 +265,7 @@ local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
 		local icon = if slot then SLOT_ICON[slot] else "beutel"
-		local b = Kit.iconButton(icon, slot or "Alle", 60, slot == filter)
+		local b = Kit.iconButton(icon, slot or "Alle", 60, slot == filter, "tab")
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
 			filter = slot
@@ -330,11 +332,13 @@ local function buildGrid(parent: Frame)
 	tabRow.Parent = panel
 
 	local sort = Kit.button("Sortieren: Seltenheit", C.Cyan, Vector2.new(260, 44), "sortieren")
-	sort.TextSize = 16
+	Kit.buttonLabel(sort).TextSize = 16
 	sort.Position = UDim2.fromOffset(PAD, 150)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
-		sort.Text = if sortByLevel then "Sortieren: Stufe" else "Sortieren: Seltenheit"
+		Kit.buttonLabel(sort).Text = if sortByLevel
+			then "Sortieren: Stufe"
+			else "Sortieren: Seltenheit"
 		InventoryController.render()
 	end)
 	sort.Parent = panel
@@ -365,8 +369,10 @@ local function chip(text: string, good: boolean, order: number): Frame
 	f.BackgroundTransparency = 0.85
 	f.BorderSizePixel = 0
 	f.LayoutOrder = order
-	Kit.corner(f, 16)
-	Kit.stroke(f, color)
+	if not Kit.skin(f, if good then "chip_green" else "chip_red", 32, 0.5) then
+		Kit.corner(f, 16)
+		Kit.stroke(f, color)
+	end
 	local p = Instance.new("UIPadding")
 	p.PaddingLeft = UDim.new(0, 12)
 	p.PaddingRight = UDim.new(0, 12)
@@ -483,7 +489,7 @@ local function renderDetail()
 	local w = 420 - 2 * PAD
 	if selectedEquipped then
 		local b = Kit.button("Ablegen", C.Cyan, Vector2.new(w, 60), "neu_wuerfeln")
-		b.TextSize = 22
+		Kit.buttonLabel(b).TextSize = 22
 		b.Activated:Connect(function()
 			Net.Unequip:FireServer(item.slot)
 			selected = nil
@@ -491,7 +497,7 @@ local function renderDetail()
 		b.Parent = actions
 	else
 		local b = Kit.button("Ausrüsten", C.Gold, Vector2.new(w, 60), "verbessern")
-		b.TextSize = 22
+		Kit.buttonLabel(b).TextSize = 22
 		b.LayoutOrder = 1
 		b.Activated:Connect(function()
 			Net.Equip:FireServer(item.id)
@@ -574,7 +580,7 @@ function InventoryController.init()
 		end
 	end
 
-	local close = Kit.iconButton("schliessen", "Schließen", 48, false)
+	local close = Kit.iconButton("schliessen", "Schließen", 48, false, "close")
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.new(1, -28, 0, 24)
 	close.Activated:Connect(InventoryController.toggle)
