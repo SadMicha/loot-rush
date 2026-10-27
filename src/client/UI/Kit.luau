@@ -2,10 +2,11 @@
 -- UI-Kit-Bausteine (Luau-Fassung von tools/lr_ui_kit.py).
 -- Jedes UI im Spiel wird hieraus gebaut – nie eigene Farben/Rundungen erfinden.
 -- Maße sind in Design-Pixeln (1600×900); das HUD skaliert per UIScale.
--- Hybrid-Stil: große Fenster, Hauptbuttons und Slots bekommen die goldenen Bilder aus Assets,
--- alles Kleine (Listen, Pills, Balken) bleibt flach. Ohne Bild-ID fällt alles auf flach zurück.
+-- Stil nach den Mockups: große Fenster mit goldenem 9-Slice-Rahmen (Assets), alles andere
+-- (Buttons, Slots, Pills, Balken) per Code mit Verlauf und Kante. Ohne Bild-ID bleibt alles flach.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -169,35 +170,79 @@ function Kit.icon(name: string, size: number, color: Color3?): GuiObject
 	return ph
 end
 
--- Slot-Rahmen je Seltenheit (normal/magic/rare/epic) als unterste Ebene. false = kein Bild.
-function Kit.slotSkin(parent: GuiObject, rarity: string?): boolean
-	local id = Assets.Slot[rarity or "normal"] or Assets.Slot.normal
-	if not id then
-		return false
-	end
-	local img = Instance.new("ImageLabel")
-	img.Name = "Skin"
-	img.BackgroundTransparency = 1
-	img.Size = UDim2.fromScale(1, 1)
-	img.ZIndex = 0
-	img.Image = id
-	img.ScaleType = Enum.ScaleType.Fit
-	img.Parent = parent
-	parent.BackgroundTransparency = 1
-	return true
+-- Leichter Verlauf von oben (hell) nach unten (dunkel) für Buttons und Slots
+local function shade(parent: GuiObject, top: Color3, bottom: Color3)
+	local g = Instance.new("UIGradient")
+	g.Rotation = 90
+	g.Color = ColorSequence.new(top, bottom)
+	g.Parent = parent
 end
 
--- Quadratischer Slot (Skills, Items) mit zentriertem Icon und optionalem Tasten-Label
+export type SlotOptions = {
+	rarity: string?, -- nil = leerer Slot
+	count: number?, -- Stapelzahl unten links
+	selected: boolean?,
+	dim: boolean?, -- Icon abgeschwächt (leerer Ausrüstungsplatz)
+}
+
+-- Item-Slot wie im Inventar-Mockup: dunkle Fläche, Kante in Seltenheitsfarbe, Markierung, Icon
+function Kit.itemSlot(size: number, iconName: string?, opts: SlotOptions?): TextButton
+	local o: SlotOptions = opts or {}
+	local edge = if o.rarity then Theme.Rarity[o.rarity] or Theme.Rarity.normal else nil
+	local b = Instance.new("TextButton")
+	b.Name = "Slot"
+	b.Size = UDim2.fromOffset(size, size)
+	b.BackgroundColor3 = Color3.new(1, 1, 1)
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.Text = ""
+	Kit.corner(b, Theme.Radius.M)
+	shade(b, Theme.Color.Bg3, Theme.Color.Bg1)
+	if o.selected then
+		Kit.stroke(b, Theme.Color.Gold, 3)
+	else
+		Kit.stroke(b, edge or Theme.Color.Line2, if edge then 2 else 1)
+	end
+	if iconName then
+		local ic = Kit.icon(iconName, math.floor(size * 0.72), edge)
+		ic.AnchorPoint = Vector2.new(0.5, 0.5)
+		ic.Position = UDim2.fromScale(0.5, 0.5)
+		if o.dim and ic:IsA("ImageLabel") then
+			ic.ImageTransparency = 0.7
+		end
+		ic.Parent = b
+	end
+	if edge then
+		-- kleine Raute oben links in Seltenheitsfarbe
+		local s = math.max(8, size // 10)
+		local mark = Instance.new("Frame")
+		mark.Name = "Mark"
+		mark.Size = UDim2.fromOffset(s, s)
+		mark.Position = UDim2.fromOffset(8, 8)
+		mark.Rotation = 45
+		mark.BackgroundColor3 = edge
+		mark.BorderSizePixel = 0
+		mark.Parent = b
+	end
+	if o.count then
+		local c = Kit.label(tostring(o.count), math.max(11, size // 6), Theme.Color.Text)
+		c.AnchorPoint = Vector2.new(0, 1)
+		c.Position = UDim2.new(0, 6, 1, -3)
+		c.Parent = b
+	end
+	return b
+end
+
+-- Quadratischer Slot (Skills) mit zentriertem Icon und optionalem Tasten-Label
 function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): Frame
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size, size)
-	f.BackgroundColor3 = Theme.Color.Bg1
+	f.BackgroundColor3 = Color3.new(1, 1, 1)
 	f.BorderSizePixel = 0
 	Kit.corner(f, Theme.Radius.M)
-	if not Kit.slotSkin(f) then
-		Kit.stroke(f, edge or Theme.Color.Line2)
-	end
-	local ic = Kit.icon(iconName, math.floor(size * 0.6), edge)
+	shade(f, Theme.Color.Bg3, Theme.Color.Bg1)
+	Kit.stroke(f, edge or Theme.Color.Line2, 2)
+	local ic = Kit.icon(iconName, math.floor(size * 0.72), edge)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.Parent = f
@@ -210,58 +255,58 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 	return f
 end
 
--- Akzentfarbe -> Button-Bild (Gold = Hauptaktion, Cyan = Zweitaktion, Rot = Gefahr)
-local function buttonSkinName(color: Color3): string?
-	if color == Theme.Color.Gold then
-		return "button_gold"
-	elseif color == Theme.Color.Cyan then
-		return "button_blue"
-	elseif color == Theme.Color.Danger then
-		return "button_red"
+-- Kurzer Druck-Effekt (Button schrumpft kurz)
+local function pressFeedback(b: GuiButton)
+	local scale = Instance.new("UIScale")
+	scale.Parent = b
+	b.MouseButton1Down:Connect(function()
+		TweenService:Create(scale, Theme.Tween.Fast, { Scale = 0.96 }):Play()
+	end)
+	local function release()
+		TweenService:Create(scale, Theme.Tween.Fast, { Scale = 1 }):Play()
 	end
-	return nil
+	b.MouseButton1Up:Connect(release)
+	b.MouseLeave:Connect(release)
 end
 
--- Bestehenden TextButton mit Goldrahmen-Bild versehen (Hover/Druck = _active-Bild).
--- false = für diese Farbe gibt es kein Bild, der Button bleibt flach.
-function Kit.buttonSkin(b: TextButton, color: Color3): boolean
-	local name = buttonSkinName(color)
-	if not name then
-		return false
-	end
-	local img = Kit.skin(b, name)
-	if not img then
-		return false
-	end
+-- Button-Stil auf einen bestehenden TextButton anwenden:
+--   Gold = Hauptaktion (gefüllt, Goldverlauf), jede andere Farbe = dunkler Button mit farbiger Kante.
+-- Der Text bleibt in b.Text; ein Icon sitzt links davon.
+function Kit.styleButton(b: TextButton, color: Color3, iconName: string?)
 	b.AutoButtonColor = false
-	b.TextColor3 = if name == "button_gold" then Theme.Color.Bg0 else Theme.Color.Text
-	local active = Assets.Slice[name .. "_active"]
-	if active then
-		local normalId = img.Image
-		b.MouseEnter:Connect(function()
-			img.Image = active.id
-		end)
-		b.MouseLeave:Connect(function()
-			img.Image = normalId
-		end)
+	b.BorderSizePixel = 0
+	b.FontFace = Theme.Font.UI
+	Kit.corner(b, Theme.Radius.M)
+	if color == Theme.Color.Gold then
+		b.BackgroundColor3 = Color3.new(1, 1, 1)
+		shade(b, Theme.Color.GoldHi, Theme.Color.GoldLo)
+		Kit.stroke(b, Theme.Color.GoldHi, 2)
+		b.TextColor3 = Theme.Color.Bg0
+	else
+		b.BackgroundColor3 = Theme.Color.Bg1
+		Kit.stroke(b, color, 2)
+		b.TextColor3 = if color == Theme.Color.Danger then color else Theme.Color.Text
 	end
-	return true
+	if iconName then
+		local s = math.floor(b.Size.Y.Offset * 0.55)
+		local ic = Kit.icon(iconName, s)
+		ic.AnchorPoint = Vector2.new(0, 0.5)
+		ic.Position = UDim2.new(0, 14, 0.5, 0)
+		ic.Parent = b
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, s + 8)
+		pad.Parent = b
+	end
+	pressFeedback(b)
 end
 
--- Text-Button in Akzentfarbe (Gold = Hauptaktion)
-function Kit.button(text: string, color: Color3, size: Vector2): TextButton
+-- Text-Button in Akzentfarbe (Gold = Hauptaktion), optional mit Icon
+function Kit.button(text: string, color: Color3, size: Vector2, iconName: string?): TextButton
 	local b = Instance.new("TextButton")
 	b.Size = UDim2.fromOffset(size.X, size.Y)
-	b.BackgroundColor3 = color
-	b.AutoButtonColor = true
 	b.Text = text
-	b.TextColor3 = Theme.Color.Bg0
 	b.TextSize = 17
-	b.FontFace = Theme.Font.UI
-	b.BorderSizePixel = 0
-	if not Kit.buttonSkin(b, color) then
-		Kit.corner(b, Theme.Radius.M)
-	end
+	Kit.styleButton(b, color, iconName)
 	return b
 end
 

@@ -143,6 +143,22 @@ function Items.sellValue(item: Item): number
 	return math.max(1, item.ilvl * 2 * mult)
 end
 
+Items.RarityName = table.freeze({
+	normal = "Normal",
+	magic = "Magisch",
+	rare = "Selten",
+	epic = "Episch",
+})
+
+-- Wie gut ist der Wurf? 0..1 relativ zum Höchstwert auf dieser Gegenstandsstufe (für Balken im UI)
+function Items.affixQuality(a: Affix, ilvl: number): number
+	local r = RANGE[a.stat]
+	if not r then
+		return 1
+	end
+	return math.clamp(a.value / (r[2] * (1 + (ilvl - 1) * 0.12)), 0, 1)
+end
+
 -- "+12 Leben" · "+4,5% Schaden"
 function Items.affixText(a: Affix): string
 	local info = Items.Stats[a.stat]
