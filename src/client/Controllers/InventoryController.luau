@@ -7,8 +7,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local RunService = game:GetService("RunService")
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 
@@ -53,6 +55,7 @@ local countLabel: TextLabel
 local ilvlLabel: TextLabel
 local statLabels: { [string]: TextLabel } = {}
 local viewport: ViewportFrame
+local idleConn: RBXScriptConnection?
 
 local items: { Items.Item } = {}
 local equipped: { [string]: Items.Item } = {}
@@ -96,6 +99,10 @@ end
 
 -- ------------------------------------------------------------------ Ausrüstung (links)
 local function refreshViewport()
+	if idleConn then
+		idleConn:Disconnect()
+		idleConn = nil
+	end
 	for _, child in viewport:GetChildren() do
 		child:Destroy()
 	end
@@ -116,6 +123,20 @@ local function refreshViewport()
 	world.Parent = viewport
 	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
+	-- Idle: sanftes Wiegen und Atmen, solange die Figur sichtbar ist
+	local base = clone:GetPivot()
+	local t0 = os.clock()
+	idleConn = RunService.Heartbeat:Connect(function()
+		if not clone.Parent then
+			return
+		end
+		local t = os.clock() - t0
+		clone:PivotTo(
+			base
+				* CFrame.new(0, math.sin(t * 1.6) * 0.04, 0)
+				* CFrame.Angles(0, math.sin(t * 0.7) * 0.18, 0)
+		)
+	end)
 	local camera = Instance.new("Camera")
 	camera.FieldOfView = 30
 	camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.6, -15.5), Vector3.new(0, -0.1, 0))
@@ -195,17 +216,45 @@ local function buildEquip(parent: Frame)
 	viewport.Ambient = Color3.fromRGB(170, 175, 200)
 	viewport.LightColor = Color3.fromRGB(255, 240, 220)
 	viewport.Parent = equipPanel
-	local glow = Instance.new("Frame")
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
-	glow.Size = UDim2.fromOffset(170, 26)
-	glow.BackgroundColor3 = C.Cyan
-	glow.BackgroundTransparency = 0.75
-	glow.BorderSizePixel = 0
-	glow.ZIndex = 0
-	Kit.corner(glow, 13)
-	Kit.stroke(glow, C.Cyan, 2)
-	glow.Parent = equipPanel
+	local backdrop = Assets.Slice.stage_backdrop
+	local ring = Assets.Fixed.stage_ring
+	if backdrop and ring then
+		-- Bühne: Hintergrund hinter der Figur, Ring unter den Füßen
+		local back = Instance.new("ImageLabel")
+		back.Name = "StageBackdrop"
+		back.BackgroundTransparency = 1
+		back.Position = UDim2.fromOffset(PAD + 96 - 14, 76 - 6)
+		back.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 28, 392)
+		back.Image = backdrop.id
+		back.ScaleType = Enum.ScaleType.Slice
+		back.SliceCenter = backdrop.center
+		back.SliceScale = 0.18
+		back.ZIndex = 0
+		back.Parent = equipPanel
+		local ringW = 440 - 2 * (PAD + 96) + 24
+		local img = Instance.new("ImageLabel")
+		img.Name = "StageRing"
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.BackgroundTransparency = 1
+		img.Position = UDim2.new(0.5, 0, 0, 76 + 350)
+		img.Size = UDim2.fromOffset(ringW, math.floor(ringW * ring.size.Y / ring.size.X))
+		img.Image = ring.id
+		img.ScaleType = Enum.ScaleType.Fit
+		img.ZIndex = 0
+		img.Parent = equipPanel
+	else
+		local glow = Instance.new("Frame")
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
+		glow.Size = UDim2.fromOffset(170, 26)
+		glow.BackgroundColor3 = C.Cyan
+		glow.BackgroundTransparency = 0.75
+		glow.BorderSizePixel = 0
+		glow.ZIndex = 0
+		Kit.corner(glow, 13)
+		Kit.stroke(glow, C.Cyan, 2)
+		glow.Parent = equipPanel
+	end
 
 	-- Werte in einer Reihe (Symbol + Zahl)
 	for i, stat in STAT_ORDER do
