@@ -484,13 +484,16 @@ function Kit.iconButton(
 	label: string,
 	size: number?,
 	active: boolean?,
-	kind: IconButtonKind?
+	kind: IconButtonKind?,
+	caption: string?
 ): ImageButton
 	local s = size or 48
 	local k = kind or "nav"
+	-- Aktiver Tab mit Beschriftung wird breiter und zeigt den Namen unter dem Icon
+	local captioned = k == "tab" and active == true and caption ~= nil
 	local b = Instance.new("ImageButton")
 	b.Name = label
-	b.Size = UDim2.fromOffset(s, s)
+	b.Size = UDim2.fromOffset(if captioned then math.floor(s * 1.35) else s, s)
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1
@@ -529,10 +532,44 @@ function Kit.iconButton(
 		if active then Theme.Color.Gold else Theme.Color.Muted
 	)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
-	ic.Position = UDim2.fromScale(0.5, 0.5)
+	ic.Position = UDim2.fromScale(0.5, if captioned then 0.4 else 0.5)
 	ic.ZIndex = 2
 	ic.Parent = b
+	if captioned then
+		local t = Kit.label(caption :: string, 14, Theme.Color.GoldHi)
+		t.AnchorPoint = Vector2.new(0.5, 1)
+		t.Position = UDim2.new(0.5, 0, 1, -6)
+		t.ZIndex = 2
+		t.Parent = b
+	end
 	return b
+end
+
+-- Eingabefeld (Suche) im Look des Sortier-Buttons. Gibt Rahmen und TextBox zurück.
+function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
+	local f = Instance.new("Frame")
+	f.Size = UDim2.fromOffset(size.X, size.Y)
+	f.BackgroundColor3 = Theme.Color.Bg1
+	f.BorderSizePixel = 0
+	if not Kit.skin(f, "btn_sort", size.Y, 0.5) then
+		Kit.corner(f, Theme.Radius.M)
+		Kit.stroke(f, Theme.Color.Line2)
+	end
+	local t = Instance.new("TextBox")
+	t.BackgroundTransparency = 1
+	t.Size = UDim2.new(1, -28, 1, 0)
+	t.Position = UDim2.fromOffset(14, 0)
+	t.PlaceholderText = placeholder
+	t.PlaceholderColor3 = Theme.Color.Muted
+	t.Text = ""
+	t.ClearTextOnFocus = false
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.TextSize = 16
+	t.FontFace = Theme.Font.UI
+	t.TextColor3 = Theme.Color.Text
+	t.ZIndex = 2
+	t.Parent = f
+	return f, t
 end
 
 return Kit

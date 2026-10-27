@@ -54,6 +54,8 @@ local selected: Items.Item? = nil
 local selectedEquipped = false
 local filter: string? = nil -- nil = alle Plätze
 local sortByLevel = false
+local rarityFilter: string? = nil -- nil = alle Seltenheiten
+local searchText = "" -- klein geschrieben
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -106,11 +108,11 @@ local function refreshViewport()
 	end
 	local world = Instance.new("WorldModel")
 	world.Parent = viewport
-	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(180 - 20), 0))
+	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
 	local camera = Instance.new("Camera")
 	camera.FieldOfView = 30
-	camera.CFrame = CFrame.lookAt(Vector3.new(0, 1, -11), Vector3.new(0, 0.3, 0))
+	camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.6, -15.5), Vector3.new(0, -0.1, 0))
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 end
@@ -189,7 +191,7 @@ local function buildEquip(parent: Frame)
 	viewport.Parent = equipPanel
 	local glow = Instance.new("Frame")
 	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.new(0.5, 0, 0, 76 + 360)
+	glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
 	glow.Size = UDim2.fromOffset(170, 26)
 	glow.BackgroundColor3 = C.Cyan
 	glow.BackgroundTransparency = 0.75
@@ -251,7 +253,11 @@ end
 local function sorted(): { Items.Item }
 	local list: { Items.Item } = {}
 	for _, item in items do
-		if not filter or item.slot == filter then
+		if
+			(not filter or item.slot == filter)
+			and (not rarityFilter or item.rarity == rarityFilter)
+			and (searchText == "" or string.find(string.lower(item.name), searchText, 1, true))
+		then
 			table.insert(list, item)
 		end
 	end
@@ -272,7 +278,8 @@ local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
 		local icon = if slot then SLOT_ICON[slot] else "beutel"
-		local b = Kit.iconButton(icon, slot or "Alle", 76, slot == filter, "tab")
+		local name = if slot then Items.SlotName[slot] or slot else "Alle"
+		local b = Kit.iconButton(icon, name, 72, slot == filter, "tab", name)
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
 			filter = slot
@@ -338,17 +345,43 @@ local function buildGrid(parent: Frame)
 	tl.Parent = tabRow
 	tabRow.Parent = panel
 
-	local sort = Kit.button("Sortieren: Seltenheit", C.Cyan, Vector2.new(260, 44), "sortieren")
-	Kit.buttonLabel(sort).TextSize = 16
+	local sort = Kit.button("Seltenheit", C.Cyan, Vector2.new(156, 44), "sortieren")
+	Kit.buttonLabel(sort).TextSize = 15
 	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
-		Kit.buttonLabel(sort).Text = if sortByLevel
-			then "Sortieren: Stufe"
-			else "Sortieren: Seltenheit"
+		Kit.buttonLabel(sort).Text = if sortByLevel then "Stufe" else "Seltenheit"
 		InventoryController.render()
 	end)
 	sort.Parent = panel
+
+	-- Filter nach Seltenheit: Klick schaltet Alle → Normal → Magisch → Selten → Episch weiter
+	local filterBtn = Kit.button("Alle", C.Cyan, Vector2.new(156, 44), "filter")
+	Kit.buttonLabel(filterBtn).TextSize = 15
+	filterBtn.Position = UDim2.fromOffset(PAD + 168, 166)
+	filterBtn.Activated:Connect(function()
+		local order = { "normal", "magic", "rare", "epic" }
+		local nextIndex = 1
+		for i, r in order do
+			if r == rarityFilter then
+				nextIndex = i + 1
+			end
+		end
+		rarityFilter = order[nextIndex]
+		Kit.buttonLabel(filterBtn).Text = if rarityFilter
+			then Items.RarityName[rarityFilter] or rarityFilter
+			else "Alle"
+		InventoryController.render()
+	end)
+	filterBtn.Parent = panel
+
+	local searchFrame, searchBox = Kit.textBox(Vector2.new(168, 44), "Suchen ...")
+	searchFrame.Position = UDim2.fromOffset(PAD + 336, 166)
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		searchText = string.lower(searchBox.Text)
+		InventoryController.render()
+	end)
+	searchFrame.Parent = panel
 
 	gridFrame = Instance.new("ScrollingFrame")
 	gridFrame.BackgroundTransparency = 1
