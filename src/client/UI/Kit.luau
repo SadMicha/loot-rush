@@ -35,6 +35,12 @@ function Kit.padding(parent: GuiObject, px: number)
 	p.PaddingLeft = UDim.new(0, px)
 	p.PaddingRight = UDim.new(0, px)
 	p.Parent = parent
+	-- Das Hintergrundbild soll weiter das ganze Panel füllen, nicht nur die gepolsterte Fläche
+	local skin = parent:FindFirstChild("Skin")
+	if skin and skin:IsA("GuiObject") then
+		skin.Position = UDim2.fromOffset(-px, -px)
+		skin.Size = UDim2.new(1, 2 * px, 1, 2 * px)
+	end
 end
 
 function Kit.list(
@@ -236,6 +242,7 @@ local function slotIcon(b: GuiObject, size: number, iconName: string, edge: Colo
 	local ic = Kit.icon(iconName, math.floor(size * 0.6), edge)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
+	ic.ZIndex = 2
 	if dim and ic:IsA("ImageLabel") then
 		ic.ImageTransparency = 0.7
 	end
@@ -261,7 +268,7 @@ function Kit.itemSlot(size: number, iconName: string?, opts: SlotOptions?): Imag
 			ring.Size = UDim2.fromOffset(size * 224 / 192, size * 224 / 192)
 			ring.Image = sel.id
 			ring.ScaleType = Enum.ScaleType.Fit
-			ring.ZIndex = 3
+			ring.ZIndex = 1
 			ring.Parent = b
 		else
 			Kit.stroke(b, Theme.Color.Gold, 3)

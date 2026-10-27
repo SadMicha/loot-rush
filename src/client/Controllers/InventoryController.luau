@@ -79,7 +79,9 @@ local function fmt(v: number): string
 end
 
 local function title(parent: GuiObject, text: string)
-	local t = Kit.label(string.upper(text), 26, C.Text, Theme.Font.Title)
+	-- upper() kennt keine Umlaute
+	local caps = string.upper(text):gsub("ü", "Ü"):gsub("ö", "Ö"):gsub("ä", "Ä")
+	local t = Kit.label(caps, 26, C.Text, Theme.Font.Title)
 	t.Position = UDim2.fromOffset(PAD, 22)
 	t.Parent = parent
 end
@@ -208,18 +210,23 @@ local function buildEquip(parent: Frame)
 			Kit.corner(tile, Theme.Radius.M)
 			Kit.stroke(tile, C.Line)
 		end
+		-- Inhalt in eigenem Rahmen, damit das Hintergrundbild nicht im Layout landet
+		local inner = Instance.new("Frame")
+		inner.BackgroundTransparency = 1
+		inner.Size = UDim2.fromScale(1, 1)
+		inner.Parent = tile
 		local p = Instance.new("UIPadding")
-		p.PaddingLeft = UDim.new(0, 12)
-		p.Parent = tile
+		p.PaddingLeft = UDim.new(0, 20)
+		p.Parent = inner
 		local l = Instance.new("UIListLayout")
 		l.FillDirection = Enum.FillDirection.Horizontal
 		l.VerticalAlignment = Enum.VerticalAlignment.Center
 		l.Padding = UDim.new(0, 10)
 		l.SortOrder = Enum.SortOrder.LayoutOrder
-		l.Parent = tile
+		l.Parent = inner
 		local sic = Kit.icon(STAT_ICON[stat], 30)
 		sic.LayoutOrder = 1
-		sic.Parent = tile
+		sic.Parent = inner
 		local col = Instance.new("Frame")
 		col.BackgroundTransparency = 1
 		col.AutomaticSize = Enum.AutomaticSize.XY
@@ -234,7 +241,7 @@ local function buildEquip(parent: Frame)
 		local n = Kit.label(if info then info.label else stat, 13, C.Muted, Theme.Font.Body)
 		n.LayoutOrder = 2
 		n.Parent = col
-		col.Parent = tile
+		col.Parent = inner
 		statLabels[stat] = v
 		tile.Parent = equipPanel
 	end
@@ -374,9 +381,14 @@ local function chip(text: string, good: boolean, order: number): Frame
 		Kit.stroke(f, color)
 	end
 	local p = Instance.new("UIPadding")
-	p.PaddingLeft = UDim.new(0, 12)
-	p.PaddingRight = UDim.new(0, 12)
+	p.PaddingLeft = UDim.new(0, 22)
+	p.PaddingRight = UDim.new(0, 22)
 	p.Parent = f
+	local skin = f:FindFirstChild("Skin")
+	if skin and skin:IsA("GuiObject") then
+		skin.Position = UDim2.fromOffset(-22, 0)
+		skin.Size = UDim2.new(1, 44, 1, 0)
+	end
 	local t = Kit.label(text, 15, color)
 	t.Size = UDim2.fromScale(0, 1)
 	t.AutomaticSize = Enum.AutomaticSize.X
