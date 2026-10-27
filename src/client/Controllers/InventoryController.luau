@@ -381,15 +381,15 @@ local function chip(text: string, good: boolean, order: number): Frame
 		Kit.stroke(f, color)
 	end
 	local p = Instance.new("UIPadding")
-	p.PaddingLeft = UDim.new(0, 22)
-	p.PaddingRight = UDim.new(0, 22)
+	p.PaddingLeft = UDim.new(0, 18)
+	p.PaddingRight = UDim.new(0, 18)
 	p.Parent = f
 	local skin = f:FindFirstChild("Skin")
 	if skin and skin:IsA("GuiObject") then
-		skin.Position = UDim2.fromOffset(-22, 0)
-		skin.Size = UDim2.new(1, 44, 1, 0)
+		skin.Position = UDim2.fromOffset(-18, 0)
+		skin.Size = UDim2.new(1, 36, 1, 0)
 	end
-	local t = Kit.label(text, 15, color)
+	local t = Kit.label(text, 14, color)
 	t.Size = UDim2.fromScale(0, 1)
 	t.AutomaticSize = Enum.AutomaticSize.X
 	t.Parent = f
@@ -443,9 +443,11 @@ local function renderDetail()
 	cl.FillDirection = Enum.FillDirection.Horizontal
 	cl.Padding = UDim.new(0, 8)
 	cl.SortOrder = Enum.SortOrder.LayoutOrder
+	cl.Wraps = true
 	cl.Parent = chips
 	chips.Parent = detail
 	local current = equipped[item.slot]
+	local chipCount = 0
 	if not selectedEquipped then
 		local mine = statTotals({ item })
 		local theirs = if current then statTotals({ current }) else {}
@@ -456,6 +458,7 @@ local function renderDetail()
 				local text = fmt(math.abs(d))
 					.. (if info then info.unit .. " " .. info.label else "")
 				chip(if d > 0 then "+" .. text else "−" .. text, d > 0, i).Parent = chips
+				chipCount += 1
 			end
 		end
 	end
@@ -463,7 +466,8 @@ local function renderDetail()
 	-- Affixe mit Balken (Wurfqualität)
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
-	list.Position = UDim2.fromOffset(PAD, PAD + 180)
+	-- Chips brechen um; ab dem dritten Chip reicht die Zeile meist nicht mehr
+	list.Position = UDim2.fromOffset(PAD, PAD + 180 + (if chipCount > 2 then 40 else 0))
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
 	ll.Padding = UDim.new(0, 14)
