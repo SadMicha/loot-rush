@@ -2,9 +2,12 @@
 -- UI-Kit-Bausteine (Luau-Fassung von tools/lr_ui_kit.py).
 -- Jedes UI im Spiel wird hieraus gebaut – nie eigene Farben/Rundungen erfinden.
 -- Maße sind in Design-Pixeln (1600×900); das HUD skaliert per UIScale.
+-- Hybrid-Stil: große Fenster, Hauptbuttons und Slots bekommen die goldenen Bilder aus Assets,
+-- alles Kleine (Listen, Pills, Balken) bleibt flach. Ohne Bild-ID fällt alles auf flach zurück.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 
 local Kit = {}
@@ -83,12 +86,38 @@ function Kit.scaledGui(name: string, order: number): (ScreenGui, Frame)
 	return gui, root
 end
 
--- Standard-Panel: dunkle Fläche, dünne Kante, große Rundung
+-- Ab dieser Höhe ist ein Panel ein "Fenster" und bekommt den Goldrahmen
+local WINDOW_MIN_HEIGHT = 200
+
+-- 9-Slice-Bild als unterste Ebene in parent legen. nil = kein Bild vorhanden.
+function Kit.skin(parent: GuiObject, name: string): ImageLabel?
+	local slice = Assets.Slice[name]
+	if not slice then
+		return nil
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "Skin"
+	img.BackgroundTransparency = 1
+	img.Size = UDim2.fromScale(1, 1)
+	img.ZIndex = 0
+	img.Image = slice.id
+	img.ScaleType = Enum.ScaleType.Slice
+	img.SliceCenter = slice.center
+	img.SliceScale = slice.scale
+	img.Parent = parent
+	parent.BackgroundTransparency = 1
+	return img
+end
+
+-- Standard-Panel: große Fenster mit Goldrahmen, sonst dunkle Fläche, dünne Kante, große Rundung
 function Kit.panel(size: Vector2, accent: Color3?): Frame
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
 	f.BackgroundColor3 = Theme.Color.Bg1
 	f.BorderSizePixel = 0
+	if size.Y >= WINDOW_MIN_HEIGHT and Kit.skin(f, "panel_main") then
+		return f
+	end
 	Kit.corner(f, Theme.Radius.L)
 	Kit.stroke(f, accent or Theme.Color.Line)
 	return f
@@ -117,13 +146,17 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	return t
 end
 
--- Icon: generiertes Bild-Icon aus Theme.Icons, sonst neutraler Platzhalter
+-- Icon aus dem Sammelbild (Assets.Icon), sonst neutraler Platzhalter
 function Kit.icon(name: string, size: number, color: Color3?): GuiObject
-	local id = Theme.Icons[name]
-	if id and id ~= "" then
+	local icon = Assets.Icon[name]
+	if icon then
 		local img = Instance.new("ImageLabel")
+		img.Name = "Icon_" .. name
 		img.BackgroundTransparency = 1
-		img.Image = id
+		img.Image = icon.id
+		img.ImageRectOffset = icon.offset
+		img.ImageRectSize = Assets.IconSize
+		img.ScaleType = Enum.ScaleType.Fit
 		img.Size = UDim2.fromOffset(size, size)
 		return img
 	end
@@ -136,6 +169,24 @@ function Kit.icon(name: string, size: number, color: Color3?): GuiObject
 	return ph
 end
 
+-- Slot-Rahmen je Seltenheit (normal/magic/rare/epic) als unterste Ebene. false = kein Bild.
+function Kit.slotSkin(parent: GuiObject, rarity: string?): boolean
+	local id = Assets.Slot[rarity or "normal"] or Assets.Slot.normal
+	if not id then
+		return false
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "Skin"
+	img.BackgroundTransparency = 1
+	img.Size = UDim2.fromScale(1, 1)
+	img.ZIndex = 0
+	img.Image = id
+	img.ScaleType = Enum.ScaleType.Fit
+	img.Parent = parent
+	parent.BackgroundTransparency = 1
+	return true
+end
+
 -- Quadratischer Slot (Skills, Items) mit zentriertem Icon und optionalem Tasten-Label
 function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): Frame
 	local f = Instance.new("Frame")
@@ -143,8 +194,10 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 	f.BackgroundColor3 = Theme.Color.Bg1
 	f.BorderSizePixel = 0
 	Kit.corner(f, Theme.Radius.M)
-	Kit.stroke(f, edge or Theme.Color.Line2)
-	local ic = Kit.icon(iconName, math.floor(size * 0.5), edge)
+	if not Kit.slotSkin(f) then
+		Kit.stroke(f, edge or Theme.Color.Line2)
+	end
+	local ic = Kit.icon(iconName, math.floor(size * 0.6), edge)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.Parent = f
@@ -155,6 +208,44 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 		k.Parent = f
 	end
 	return f
+end
+
+-- Akzentfarbe -> Button-Bild (Gold = Hauptaktion, Cyan = Zweitaktion, Rot = Gefahr)
+local function buttonSkinName(color: Color3): string?
+	if color == Theme.Color.Gold then
+		return "button_gold"
+	elseif color == Theme.Color.Cyan then
+		return "button_blue"
+	elseif color == Theme.Color.Danger then
+		return "button_red"
+	end
+	return nil
+end
+
+-- Bestehenden TextButton mit Goldrahmen-Bild versehen (Hover/Druck = _active-Bild).
+-- false = für diese Farbe gibt es kein Bild, der Button bleibt flach.
+function Kit.buttonSkin(b: TextButton, color: Color3): boolean
+	local name = buttonSkinName(color)
+	if not name then
+		return false
+	end
+	local img = Kit.skin(b, name)
+	if not img then
+		return false
+	end
+	b.AutoButtonColor = false
+	b.TextColor3 = if name == "button_gold" then Theme.Color.Bg0 else Theme.Color.Text
+	local active = Assets.Slice[name .. "_active"]
+	if active then
+		local normalId = img.Image
+		b.MouseEnter:Connect(function()
+			img.Image = active.id
+		end)
+		b.MouseLeave:Connect(function()
+			img.Image = normalId
+		end)
+	end
+	return true
 end
 
 -- Text-Button in Akzentfarbe (Gold = Hauptaktion)
@@ -168,7 +259,9 @@ function Kit.button(text: string, color: Color3, size: Vector2): TextButton
 	b.TextSize = 17
 	b.FontFace = Theme.Font.UI
 	b.BorderSizePixel = 0
-	Kit.corner(b, Theme.Radius.M)
+	if not Kit.buttonSkin(b, color) then
+		Kit.corner(b, Theme.Radius.M)
+	end
 	return b
 end
 

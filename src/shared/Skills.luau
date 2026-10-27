@@ -8,7 +8,7 @@ export type Kind = "projectile" | "nova" | "chain"
 export type Skill = {
 	id: string,
 	name: string,
-	icon: string, -- Schlüssel in Theme.Icons
+	icon: string, -- Schlüssel in Assets.Icon
 	color: Color3,
 	kind: Kind,
 	damage: number,
