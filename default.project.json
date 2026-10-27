@@ -1,0 +1,51 @@
+{
+  "name": "LootRush",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": { "$path": "src/client" }
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "ClockTime": 17.2,
+        "GeographicLatitude": 30,
+        "Brightness": 2.6,
+        "ExposureCompensation": 0.1,
+        "EnvironmentDiffuseScale": 1,
+        "EnvironmentSpecularScale": 0.5,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.25,
+        "Ambient": [0.27, 0.27, 0.35],
+        "OutdoorAmbient": [0.55, 0.5, 0.6]
+      },
+      "Atmosphere": {
+        "$className": "Atmosphere",
+        "$properties": {
+          "Density": 0.32, "Offset": 0.25, "Glare": 0.4, "Haze": 1.6,
+          "Color": [0.78, 0.86, 0.95], "Decay": [0.95, 0.78, 0.62]
+        }
+      },
+      "Bloom": {
+        "$className": "BloomEffect",
+        "$properties": { "Intensity": 0.7, "Size": 24, "Threshold": 0.95 }
+      },
+      "SunRays": {
+        "$className": "SunRaysEffect",
+        "$properties": { "Intensity": 0.06, "Spread": 0.6 }
+      },
+      "ColorCorrection": {
+        "$className": "ColorCorrectionEffect",
+        "$properties": { "Saturation": 0.15, "Contrast": 0.08, "TintColor": [1, 0.98, 0.95] }
+      }
+    }
+  }
+}
