@@ -227,7 +227,7 @@ local function buildEquip(parent: Frame)
 		local sic = Kit.icon(STAT_ICON[stat], 26)
 		sic.LayoutOrder = 1
 		sic.Parent = inner
-		local v = Kit.label("+0", 16, C.Text)
+		local v = Kit.label("+0", 13, C.Text)
 		v.LayoutOrder = 2
 		v.Parent = inner
 		statLabels[stat] = v
@@ -355,7 +355,7 @@ local function buildGrid(parent: Frame)
 	tabRow.Parent = panel
 
 	local sort = Kit.button("Seltenheit", C.Cyan, Vector2.new(156, 44), "sortieren")
-	Kit.buttonLabel(sort).TextSize = 15
+	Kit.buttonLabel(sort).TextSize = Kit.fontSize(15)
 	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
@@ -366,7 +366,7 @@ local function buildGrid(parent: Frame)
 
 	-- Filter nach Seltenheit: Klick schaltet Alle → Normal → Magisch → Selten → Episch weiter
 	local filterBtn = Kit.button("Alle", C.Cyan, Vector2.new(156, 44), "filter")
-	Kit.buttonLabel(filterBtn).TextSize = 15
+	Kit.buttonLabel(filterBtn).TextSize = Kit.fontSize(15)
 	filterBtn.Position = UDim2.fromOffset(PAD + 168, 166)
 	filterBtn.Activated:Connect(function()
 		local order = { "normal", "magic", "rare", "epic" }
@@ -458,23 +458,58 @@ local function renderDetail()
 	local name = Kit.label(item.name, 24, color, Theme.Font.Title)
 	name.Position = UDim2.fromOffset(PAD + 126, PAD + 4)
 	name.AutomaticSize = Enum.AutomaticSize.Y
-	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126, 0)
+	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126 - 90, 0)
 	name.TextWrapped = true
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	name.Parent = detail
 	local sub = Kit.label(
 		string.format(
-			"%s · %s · Stufe %d",
+			"%s · %s",
 			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot,
-			item.ilvl
+			Items.SlotName[item.slot] or item.slot
 		),
-		15,
-		C.Muted,
+		16,
+		color,
 		Theme.Font.Body
 	)
 	sub.Position = UDim2.fromOffset(PAD + 126, PAD + 74)
 	sub.Parent = detail
+
+	-- Gegenstandsstufe oben rechts, darunter der Unterschied zum angelegten Teil
+	local lvl = Instance.new("Frame")
+	lvl.BackgroundTransparency = 1
+	lvl.AnchorPoint = Vector2.new(1, 0)
+	lvl.Position = UDim2.new(1, -PAD, 0, PAD + 4)
+	lvl.Size = UDim2.fromOffset(80, 56)
+	local lvlList = Kit.list(lvl, Enum.FillDirection.Vertical, 2)
+	lvlList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local lvlRow = Instance.new("Frame")
+	lvlRow.BackgroundTransparency = 1
+	lvlRow.AutomaticSize = Enum.AutomaticSize.X
+	lvlRow.Size = UDim2.fromOffset(0, 28)
+	lvlRow.LayoutOrder = 1
+	Kit.list(lvlRow, Enum.FillDirection.Horizontal, 6)
+	local lvlIcon = Kit.icon("itemstufe", 24)
+	lvlIcon.LayoutOrder = 1
+	lvlIcon.Parent = lvlRow
+	local lvlNum = Kit.label(tostring(item.ilvl), 22, C.Gold)
+	lvlNum.LayoutOrder = 2
+	lvlNum.Parent = lvlRow
+	lvlRow.Parent = lvl
+	local worn = equipped[item.slot]
+	if worn and not selectedEquipped then
+		local d = item.ilvl - worn.ilvl
+		if d ~= 0 then
+			local delta = Kit.label(
+				(if d > 0 then "+" else "−") .. tostring(math.abs(d)),
+				16,
+				if d > 0 then C.Good else C.Danger
+			)
+			delta.LayoutOrder = 2
+			delta.Parent = lvl
+		end
+	end
+	lvl.Parent = detail
 
 	-- Vergleich mit dem angelegten Teil am selben Platz
 	local chips = Instance.new("Frame")
@@ -506,10 +541,14 @@ local function renderDetail()
 	end
 
 	-- Affixe mit Balken (Wurfqualität)
+	local extra = if chipCount > 2 then 40 else 0
+	local divider = Kit.divider(420 - 2 * PAD)
+	divider.Position = UDim2.fromOffset(PAD, PAD + 172 + extra)
+	divider.Parent = detail
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	-- Chips brechen um; ab dem dritten Chip reicht die Zeile meist nicht mehr
-	list.Position = UDim2.fromOffset(PAD, PAD + 180 + (if chipCount > 2 then 40 else 0))
+	list.Position = UDim2.fromOffset(PAD, PAD + 196 + extra)
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
 	ll.Padding = UDim.new(0, 14)
@@ -547,7 +586,7 @@ local function renderDetail()
 	local w = 420 - 2 * PAD
 	if selectedEquipped then
 		local b = Kit.button("Ablegen", C.Cyan, Vector2.new(w, 60), "neu_wuerfeln")
-		Kit.buttonLabel(b).TextSize = 22
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.Activated:Connect(function()
 			Net.Unequip:FireServer(item.slot)
 			selected = nil
@@ -555,7 +594,7 @@ local function renderDetail()
 		b.Parent = actions
 	else
 		local b = Kit.button("Ausrüsten", C.Gold, Vector2.new(w, 60), "verbessern")
-		Kit.buttonLabel(b).TextSize = 22
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.LayoutOrder = 1
 		b.Activated:Connect(function()
 			Net.Equip:FireServer(item.id)

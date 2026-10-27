@@ -43,12 +43,17 @@ function Kit.padding(parent: GuiObject, px: number)
 	end
 end
 
+-- Schriftgröße in Design-Pixeln → tatsächliche TextSize (Theme.FontScale)
+function Kit.fontSize(size: number): number
+	return math.floor(size * Theme.FontScale + 0.5)
+end
+
 function Kit.list(
 	parent: GuiObject,
 	dir: Enum.FillDirection,
 	gap: number,
 	align: Enum.VerticalAlignment?
-)
+): UIListLayout
 	local l = Instance.new("UIListLayout")
 	l.FillDirection = dir
 	l.Padding = UDim.new(0, gap)
@@ -56,6 +61,7 @@ function Kit.list(
 	l.VerticalAlignment = align or Enum.VerticalAlignment.Center
 	l.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	l.Parent = parent
+	return l
 end
 
 -- ScreenGui mit Root-Frame, der auf die Design-Auflösung (1600×900) skaliert.
@@ -169,7 +175,7 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1
 	t.Text = text
-	t.TextSize = size
+	t.TextSize = Kit.fontSize(size)
 	t.TextColor3 = color or Theme.Color.Text
 	t.FontFace = font or Theme.Font.UI
 	t.AutomaticSize = Enum.AutomaticSize.XY
@@ -367,7 +373,7 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
 	label.Text = text
-	label.TextSize = 17
+	label.TextSize = Kit.fontSize(17)
 	label.FontFace = Theme.Font.UI
 	label.TextColor3 = if color == Theme.Color.Gold then Theme.Color.Bg0 else Theme.Color.Text
 	label.ZIndex = 2
@@ -545,6 +551,25 @@ function Kit.iconButton(
 	return b
 end
 
+-- Trennlinie mit Raute (Bild, nur in der Breite gezogen)
+function Kit.divider(width: number): GuiObject
+	local fixed = Assets.Fixed.divider
+	if not fixed then
+		local f = Instance.new("Frame")
+		f.Size = UDim2.fromOffset(width, 1)
+		f.BackgroundColor3 = Theme.Color.Line
+		f.BorderSizePixel = 0
+		return f
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "Divider"
+	img.BackgroundTransparency = 1
+	img.Image = fixed.id
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Size = UDim2.fromOffset(width, math.max(8, math.floor(width * fixed.size.Y / fixed.size.X)))
+	return img
+end
+
 -- Eingabefeld (Suche) im Look des Sortier-Buttons. Gibt Rahmen und TextBox zurück.
 function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	local f = Instance.new("Frame")
@@ -564,7 +589,7 @@ function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	t.Text = ""
 	t.ClearTextOnFocus = false
 	t.TextXAlignment = Enum.TextXAlignment.Left
-	t.TextSize = 16
+	t.TextSize = Kit.fontSize(16)
 	t.FontFace = Theme.Font.UI
 	t.TextColor3 = Theme.Color.Text
 	t.ZIndex = 2
