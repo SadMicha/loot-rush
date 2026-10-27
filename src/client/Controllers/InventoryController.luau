@@ -272,7 +272,7 @@ local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
 		local icon = if slot then SLOT_ICON[slot] else "beutel"
-		local b = Kit.iconButton(icon, slot or "Alle", 60, slot == filter, "tab")
+		local b = Kit.iconButton(icon, slot or "Alle", 76, slot == filter, "tab")
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
 			filter = slot
@@ -330,7 +330,7 @@ local function buildGrid(parent: Frame)
 	tabRow = Instance.new("Frame")
 	tabRow.BackgroundTransparency = 1
 	tabRow.Position = UDim2.fromOffset(PAD, 76)
-	tabRow.Size = UDim2.fromOffset(560 - 2 * PAD, 60)
+	tabRow.Size = UDim2.fromOffset(560 - 2 * PAD, 76)
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
 	tl.Padding = UDim.new(0, 8)
@@ -340,7 +340,7 @@ local function buildGrid(parent: Frame)
 
 	local sort = Kit.button("Sortieren: Seltenheit", C.Cyan, Vector2.new(260, 44), "sortieren")
 	Kit.buttonLabel(sort).TextSize = 16
-	sort.Position = UDim2.fromOffset(PAD, 150)
+	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
 		Kit.buttonLabel(sort).Text = if sortByLevel
@@ -353,8 +353,8 @@ local function buildGrid(parent: Frame)
 	gridFrame = Instance.new("ScrollingFrame")
 	gridFrame.BackgroundTransparency = 1
 	gridFrame.BorderSizePixel = 0
-	gridFrame.Position = UDim2.fromOffset(PAD, 212)
-	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - 212 - PAD)
+	gridFrame.Position = UDim2.fromOffset(PAD, 228)
+	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - 228 - PAD)
 	gridFrame.ScrollBarThickness = 6
 	gridFrame.ScrollBarImageColor3 = C.Line2
 	gridFrame.ScrollingDirection = Enum.ScrollingDirection.Y
@@ -381,15 +381,15 @@ local function chip(text: string, good: boolean, order: number): Frame
 		Kit.stroke(f, color)
 	end
 	local p = Instance.new("UIPadding")
-	p.PaddingLeft = UDim.new(0, 22)
-	p.PaddingRight = UDim.new(0, 22)
+	p.PaddingLeft = UDim.new(0, 18)
+	p.PaddingRight = UDim.new(0, 18)
 	p.Parent = f
 	local skin = f:FindFirstChild("Skin")
 	if skin and skin:IsA("GuiObject") then
-		skin.Position = UDim2.fromOffset(-22, 0)
-		skin.Size = UDim2.new(1, 44, 1, 0)
+		skin.Position = UDim2.fromOffset(-18, 0)
+		skin.Size = UDim2.new(1, 36, 1, 0)
 	end
-	local t = Kit.label(text, 15, color)
+	local t = Kit.label(text, 14, color)
 	t.Size = UDim2.fromScale(0, 1)
 	t.AutomaticSize = Enum.AutomaticSize.X
 	t.Parent = f
@@ -443,9 +443,11 @@ local function renderDetail()
 	cl.FillDirection = Enum.FillDirection.Horizontal
 	cl.Padding = UDim.new(0, 8)
 	cl.SortOrder = Enum.SortOrder.LayoutOrder
+	cl.Wraps = true
 	cl.Parent = chips
 	chips.Parent = detail
 	local current = equipped[item.slot]
+	local chipCount = 0
 	if not selectedEquipped then
 		local mine = statTotals({ item })
 		local theirs = if current then statTotals({ current }) else {}
@@ -456,6 +458,7 @@ local function renderDetail()
 				local text = fmt(math.abs(d))
 					.. (if info then info.unit .. " " .. info.label else "")
 				chip(if d > 0 then "+" .. text else "−" .. text, d > 0, i).Parent = chips
+				chipCount += 1
 			end
 		end
 	end
@@ -463,7 +466,8 @@ local function renderDetail()
 	-- Affixe mit Balken (Wurfqualität)
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
-	list.Position = UDim2.fromOffset(PAD, PAD + 180)
+	-- Chips brechen um; ab dem dritten Chip reicht die Zeile meist nicht mehr
+	list.Position = UDim2.fromOffset(PAD, PAD + 180 + (if chipCount > 2 then 40 else 0))
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
 	ll.Padding = UDim.new(0, 14)

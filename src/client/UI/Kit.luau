@@ -525,7 +525,7 @@ function Kit.iconButton(
 	end
 	local ic = Kit.icon(
 		iconName,
-		math.floor(s * 0.5),
+		math.floor(s * (if k == "tab" then 0.6 else 0.5)),
 		if active then Theme.Color.Gold else Theme.Color.Muted
 	)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
