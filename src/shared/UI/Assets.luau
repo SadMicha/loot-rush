@@ -105,6 +105,31 @@ Assets.Slice = table.freeze({
 		size = Vector2.new(463, 107),
 		center = Rect.new(175, 45, 343, 62),
 	}),
+	pill3_gold = table.freeze({
+		id = "rbxassetid://99369761313861",
+		size = Vector2.new(471, 120),
+		center = Rect.new(62, 44, 409, 76),
+	}),
+	pill3_purple = table.freeze({
+		id = "rbxassetid://93783153686248",
+		size = Vector2.new(471, 120),
+		center = Rect.new(62, 44, 409, 76),
+	}),
+	pill3_cyan = table.freeze({
+		id = "rbxassetid://78380056051436",
+		size = Vector2.new(471, 120),
+		center = Rect.new(62, 44, 409, 76),
+	}),
+	search_field = table.freeze({
+		id = "rbxassetid://134328595926962",
+		size = Vector2.new(764, 152),
+		center = Rect.new(132, 56, 694, 96),
+	}),
+	stage_backdrop = table.freeze({
+		id = "rbxassetid://82665349013008",
+		size = Vector2.new(539, 929),
+		center = Rect.new(50, 50, 489, 879),
+	}),
 	stat_tile = table.freeze({
 		id = "rbxassetid://123010495639775",
 		size = Vector2.new(450, 141),
@@ -157,6 +182,14 @@ Assets.Fixed = table.freeze({
 	}),
 	close_dark = table.freeze({ id = "rbxassetid://96979247364085", size = Vector2.new(189, 189) }),
 	close_red = table.freeze({ id = "rbxassetid://114685331210280", size = Vector2.new(189, 188) }),
+	plus_gold = table.freeze({ id = "rbxassetid://97395908772157", size = Vector2.new(88, 87) }),
+	plus_purple = table.freeze({ id = "rbxassetid://122971756198736", size = Vector2.new(88, 87) }),
+	plus_cyan = table.freeze({ id = "rbxassetid://96095283592925", size = Vector2.new(88, 87) }),
+	icon_search = table.freeze({
+		id = "rbxassetid://138528434334751",
+		size = Vector2.new(174, 175),
+	}),
+	stage_ring = table.freeze({ id = "rbxassetid://135127539214507", size = Vector2.new(628, 245) }),
 	divider = table.freeze({ id = "rbxassetid://114622747152381", size = Vector2.new(1024, 31) }),
 } :: { [string]: Fixed })
 

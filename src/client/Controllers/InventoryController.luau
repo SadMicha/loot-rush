@@ -7,8 +7,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local RunService = game:GetService("RunService")
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 
@@ -53,6 +55,7 @@ local countLabel: TextLabel
 local ilvlLabel: TextLabel
 local statLabels: { [string]: TextLabel } = {}
 local viewport: ViewportFrame
+local idleConn: RBXScriptConnection?
 
 local items: { Items.Item } = {}
 local equipped: { [string]: Items.Item } = {}
@@ -96,6 +99,10 @@ end
 
 -- ------------------------------------------------------------------ Ausrüstung (links)
 local function refreshViewport()
+	if idleConn then
+		idleConn:Disconnect()
+		idleConn = nil
+	end
 	for _, child in viewport:GetChildren() do
 		child:Destroy()
 	end
@@ -116,6 +123,20 @@ local function refreshViewport()
 	world.Parent = viewport
 	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
+	-- Idle: sanftes Wiegen und Atmen, solange die Figur sichtbar ist
+	local base = clone:GetPivot()
+	local t0 = os.clock()
+	idleConn = RunService.Heartbeat:Connect(function()
+		if not clone.Parent then
+			return
+		end
+		local t = os.clock() - t0
+		clone:PivotTo(
+			base
+				* CFrame.new(0, math.sin(t * 1.6) * 0.04, 0)
+				* CFrame.Angles(0, math.sin(t * 0.7) * 0.18, 0)
+		)
+	end)
 	local camera = Instance.new("Camera")
 	camera.FieldOfView = 30
 	camera.CFrame = CFrame.lookAt(Vector3.new(0, 0.6, -15.5), Vector3.new(0, -0.1, 0))
@@ -195,17 +216,45 @@ local function buildEquip(parent: Frame)
 	viewport.Ambient = Color3.fromRGB(170, 175, 200)
 	viewport.LightColor = Color3.fromRGB(255, 240, 220)
 	viewport.Parent = equipPanel
-	local glow = Instance.new("Frame")
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
-	glow.Size = UDim2.fromOffset(170, 26)
-	glow.BackgroundColor3 = C.Cyan
-	glow.BackgroundTransparency = 0.75
-	glow.BorderSizePixel = 0
-	glow.ZIndex = 0
-	Kit.corner(glow, 13)
-	Kit.stroke(glow, C.Cyan, 2)
-	glow.Parent = equipPanel
+	local backdrop = Assets.Slice.stage_backdrop
+	local ring = Assets.Fixed.stage_ring
+	if backdrop and ring then
+		-- Bühne: Hintergrund hinter der Figur, Ring unter den Füßen
+		local back = Instance.new("ImageLabel")
+		back.Name = "StageBackdrop"
+		back.BackgroundTransparency = 1
+		back.Position = UDim2.fromOffset(PAD + 96 - 14, 76 - 6)
+		back.Size = UDim2.fromOffset(440 - 2 * (PAD + 96) + 28, 392)
+		back.Image = backdrop.id
+		back.ScaleType = Enum.ScaleType.Slice
+		back.SliceCenter = backdrop.center
+		back.SliceScale = 0.18
+		back.ZIndex = 0
+		back.Parent = equipPanel
+		local ringW = 440 - 2 * (PAD + 96) + 24
+		local img = Instance.new("ImageLabel")
+		img.Name = "StageRing"
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.BackgroundTransparency = 1
+		img.Position = UDim2.new(0.5, 0, 0, 76 + 350)
+		img.Size = UDim2.fromOffset(ringW, math.floor(ringW * ring.size.Y / ring.size.X))
+		img.Image = ring.id
+		img.ScaleType = Enum.ScaleType.Fit
+		img.ZIndex = 0
+		img.Parent = equipPanel
+	else
+		local glow = Instance.new("Frame")
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.new(0.5, 0, 0, 76 + 352)
+		glow.Size = UDim2.fromOffset(170, 26)
+		glow.BackgroundColor3 = C.Cyan
+		glow.BackgroundTransparency = 0.75
+		glow.BorderSizePixel = 0
+		glow.ZIndex = 0
+		Kit.corner(glow, 13)
+		Kit.stroke(glow, C.Cyan, 2)
+		glow.Parent = equipPanel
+	end
 
 	-- Werte in einer Reihe (Symbol + Zahl)
 	for i, stat in STAT_ORDER do
@@ -227,7 +276,7 @@ local function buildEquip(parent: Frame)
 		local sic = Kit.icon(STAT_ICON[stat], 26)
 		sic.LayoutOrder = 1
 		sic.Parent = inner
-		local v = Kit.label("+0", 16, C.Text)
+		local v = Kit.label("+0", 13, C.Text)
 		v.LayoutOrder = 2
 		v.Parent = inner
 		statLabels[stat] = v
@@ -355,7 +404,7 @@ local function buildGrid(parent: Frame)
 	tabRow.Parent = panel
 
 	local sort = Kit.button("Seltenheit", C.Cyan, Vector2.new(156, 44), "sortieren")
-	Kit.buttonLabel(sort).TextSize = 15
+	Kit.buttonLabel(sort).TextSize = Kit.fontSize(15)
 	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
@@ -366,7 +415,7 @@ local function buildGrid(parent: Frame)
 
 	-- Filter nach Seltenheit: Klick schaltet Alle → Normal → Magisch → Selten → Episch weiter
 	local filterBtn = Kit.button("Alle", C.Cyan, Vector2.new(156, 44), "filter")
-	Kit.buttonLabel(filterBtn).TextSize = 15
+	Kit.buttonLabel(filterBtn).TextSize = Kit.fontSize(15)
 	filterBtn.Position = UDim2.fromOffset(PAD + 168, 166)
 	filterBtn.Activated:Connect(function()
 		local order = { "normal", "magic", "rare", "epic" }
@@ -458,23 +507,58 @@ local function renderDetail()
 	local name = Kit.label(item.name, 24, color, Theme.Font.Title)
 	name.Position = UDim2.fromOffset(PAD + 126, PAD + 4)
 	name.AutomaticSize = Enum.AutomaticSize.Y
-	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126, 0)
+	name.Size = UDim2.fromOffset(420 - 2 * PAD - 126 - 90, 0)
 	name.TextWrapped = true
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	name.Parent = detail
 	local sub = Kit.label(
 		string.format(
-			"%s · %s · Stufe %d",
+			"%s · %s",
 			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot,
-			item.ilvl
+			Items.SlotName[item.slot] or item.slot
 		),
-		15,
-		C.Muted,
+		16,
+		color,
 		Theme.Font.Body
 	)
 	sub.Position = UDim2.fromOffset(PAD + 126, PAD + 74)
 	sub.Parent = detail
+
+	-- Gegenstandsstufe oben rechts, darunter der Unterschied zum angelegten Teil
+	local lvl = Instance.new("Frame")
+	lvl.BackgroundTransparency = 1
+	lvl.AnchorPoint = Vector2.new(1, 0)
+	lvl.Position = UDim2.new(1, -PAD, 0, PAD + 4)
+	lvl.Size = UDim2.fromOffset(80, 56)
+	local lvlList = Kit.list(lvl, Enum.FillDirection.Vertical, 2)
+	lvlList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local lvlRow = Instance.new("Frame")
+	lvlRow.BackgroundTransparency = 1
+	lvlRow.AutomaticSize = Enum.AutomaticSize.X
+	lvlRow.Size = UDim2.fromOffset(0, 28)
+	lvlRow.LayoutOrder = 1
+	Kit.list(lvlRow, Enum.FillDirection.Horizontal, 6)
+	local lvlIcon = Kit.icon("itemstufe", 24)
+	lvlIcon.LayoutOrder = 1
+	lvlIcon.Parent = lvlRow
+	local lvlNum = Kit.label(tostring(item.ilvl), 22, C.Gold)
+	lvlNum.LayoutOrder = 2
+	lvlNum.Parent = lvlRow
+	lvlRow.Parent = lvl
+	local worn = equipped[item.slot]
+	if worn and not selectedEquipped then
+		local d = item.ilvl - worn.ilvl
+		if d ~= 0 then
+			local delta = Kit.label(
+				(if d > 0 then "+" else "−") .. tostring(math.abs(d)),
+				16,
+				if d > 0 then C.Good else C.Danger
+			)
+			delta.LayoutOrder = 2
+			delta.Parent = lvl
+		end
+	end
+	lvl.Parent = detail
 
 	-- Vergleich mit dem angelegten Teil am selben Platz
 	local chips = Instance.new("Frame")
@@ -506,10 +590,14 @@ local function renderDetail()
 	end
 
 	-- Affixe mit Balken (Wurfqualität)
+	local extra = if chipCount > 2 then 40 else 0
+	local divider = Kit.divider(420 - 2 * PAD)
+	divider.Position = UDim2.fromOffset(PAD, PAD + 172 + extra)
+	divider.Parent = detail
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	-- Chips brechen um; ab dem dritten Chip reicht die Zeile meist nicht mehr
-	list.Position = UDim2.fromOffset(PAD, PAD + 180 + (if chipCount > 2 then 40 else 0))
+	list.Position = UDim2.fromOffset(PAD, PAD + 196 + extra)
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
 	ll.Padding = UDim.new(0, 14)
@@ -547,7 +635,7 @@ local function renderDetail()
 	local w = 420 - 2 * PAD
 	if selectedEquipped then
 		local b = Kit.button("Ablegen", C.Cyan, Vector2.new(w, 60), "neu_wuerfeln")
-		Kit.buttonLabel(b).TextSize = 22
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.Activated:Connect(function()
 			Net.Unequip:FireServer(item.slot)
 			selected = nil
@@ -555,7 +643,7 @@ local function renderDetail()
 		b.Parent = actions
 	else
 		local b = Kit.button("Ausrüsten", C.Gold, Vector2.new(w, 60), "verbessern")
-		Kit.buttonLabel(b).TextSize = 22
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.LayoutOrder = 1
 		b.Activated:Connect(function()
 			Net.Equip:FireServer(item.id)

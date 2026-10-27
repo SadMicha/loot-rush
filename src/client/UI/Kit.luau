@@ -43,12 +43,17 @@ function Kit.padding(parent: GuiObject, px: number)
 	end
 end
 
+-- Schriftgröße in Design-Pixeln → tatsächliche TextSize (Theme.FontScale)
+function Kit.fontSize(size: number): number
+	return math.floor(size * Theme.FontScale + 0.5)
+end
+
 function Kit.list(
 	parent: GuiObject,
 	dir: Enum.FillDirection,
 	gap: number,
 	align: Enum.VerticalAlignment?
-)
+): UIListLayout
 	local l = Instance.new("UIListLayout")
 	l.FillDirection = dir
 	l.Padding = UDim.new(0, gap)
@@ -56,6 +61,7 @@ function Kit.list(
 	l.VerticalAlignment = align or Enum.VerticalAlignment.Center
 	l.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	l.Parent = parent
+	return l
 end
 
 -- ScreenGui mit Root-Frame, der auf die Design-Auflösung (1600×900) skaliert.
@@ -169,7 +175,7 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1
 	t.Text = text
-	t.TextSize = size
+	t.TextSize = Kit.fontSize(size)
 	t.TextColor3 = color or Theme.Color.Text
 	t.FontFace = font or Theme.Font.UI
 	t.AutomaticSize = Enum.AutomaticSize.XY
@@ -367,7 +373,7 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
 	label.Text = text
-	label.TextSize = 17
+	label.TextSize = Kit.fontSize(17)
 	label.FontFace = Theme.Font.UI
 	label.TextColor3 = if color == Theme.Color.Gold then Theme.Color.Bg0 else Theme.Color.Text
 	label.ZIndex = 2
@@ -436,36 +442,64 @@ function Kit.bar(size: Vector2, color: Color3): (Frame, Frame)
 	return back, fill
 end
 
-local PILL_SKIN = { gold = "pill_gold", cyan = "pill_cyan", purple = "pill_purple" }
+local PILL_KEY = { gold = "gold", cyan = "cyan", purple = "purple" }
 local PILL_HEIGHT = 40
+local PILL_PLUS = 32
 
--- Ressourcen-Anzeige: Kapsel mit Icon-Fassung links, Zahl in der Mitte und +-Knopf rechts (im Bild)
-function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextLabel)
+-- Ressourcen-Anzeige: Kapsel mit Icon links, Zahl in der Mitte und eigenem +-Knopf rechts.
+-- Gibt Kapsel, Zahlen-Label und +-Knopf zurück (Knopf nil ohne Bild).
+function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextLabel, ImageButton?)
 	local c = color or Theme.Color.Gold
-	local skinName = if c == Theme.Color.Cyan
-		then PILL_SKIN.cyan
-		elseif c == Theme.Rarity.epic then PILL_SKIN.purple
-		else PILL_SKIN.gold
+	local key = if c == Theme.Color.Cyan
+		then PILL_KEY.cyan
+		elseif c == Theme.Rarity.epic then PILL_KEY.purple
+		else PILL_KEY.gold
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(190, PILL_HEIGHT)
 	f.BackgroundColor3 = Theme.Color.Bg1
 	f.BorderSizePixel = 0
-	local slice = Assets.Slice[skinName]
-	-- Ränder links/rechts in Anzeigepixeln (Skalierung wie im Bild)
-	local s = if slice then sliceScale(slice, PILL_HEIGHT, 0.5) else 1
-	local leftW = if slice then slice.center.Min.X * s else 44
-	local rightW = if slice then (slice.size.X - slice.center.Max.X) * s else 36
-	if slice then
-		Kit.skin(f, skinName, PILL_HEIGHT, 0.5)
+	local skin = Kit.skin(f, "pill3_" .. key, PILL_HEIGHT, 0.5)
+	local slice = Assets.Slice["pill3_" .. key]
+	local plusFixed = Assets.Fixed["plus_" .. key]
+	if skin and slice then
+		-- Kapsel nie verzerren: Skalierung = Anzeigehöhe / Bildhöhe
+		skin.SliceScale = PILL_HEIGHT / slice.size.Y
 	else
 		Kit.corner(f, PILL_HEIGHT // 2)
 		Kit.stroke(f, Theme.Color.Line)
 	end
 	local ic = Kit.icon(iconName, math.floor(PILL_HEIGHT * 0.62), c)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
-	ic.Position = UDim2.new(0, math.floor(PILL_HEIGHT * 0.5), 0.5, 0)
+	ic.Position = UDim2.new(0, math.floor(PILL_HEIGHT * 0.5) + 2, 0.5, 0)
 	ic.ZIndex = 2
 	ic.Parent = f
+	local plus: ImageButton? = nil
+	if plusFixed then
+		local pb = Instance.new("ImageButton")
+		pb.Name = "Plus"
+		pb.AnchorPoint = Vector2.new(1, 0.5)
+		pb.Position = UDim2.new(1, -5, 0.5, 0)
+		pb.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+		pb.BackgroundTransparency = 1
+		pb.AutoButtonColor = false
+		pb.Image = plusFixed.id
+		pb.ScaleType = Enum.ScaleType.Fit
+		pb.ZIndex = 3
+		pb.MouseButton1Down:Connect(function()
+			pb.Size = UDim2.fromOffset(PILL_PLUS - 4, PILL_PLUS - 4)
+			pb.ImageColor3 = Color3.fromRGB(190, 190, 190)
+		end)
+		local function release()
+			pb.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+			pb.ImageColor3 = Color3.new(1, 1, 1)
+		end
+		pb.MouseButton1Up:Connect(release)
+		pb.MouseLeave:Connect(release)
+		pb.Parent = f
+		plus = pb
+	end
+	local leftW = PILL_HEIGHT + 4
+	local rightW = if plus then PILL_PLUS + 10 else 20
 	local t = Kit.label(text, 16)
 	t.AutomaticSize = Enum.AutomaticSize.None
 	t.Size = UDim2.new(1, -(leftW + rightW), 1, 0)
@@ -473,7 +507,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	t.TextXAlignment = Enum.TextXAlignment.Center
 	t.ZIndex = 2
 	t.Parent = f
-	return f, t
+	return f, t, plus
 end
 
 export type IconButtonKind = "nav" | "tab" | "close"
@@ -545,26 +579,57 @@ function Kit.iconButton(
 	return b
 end
 
--- Eingabefeld (Suche) im Look des Sortier-Buttons. Gibt Rahmen und TextBox zurück.
+-- Trennlinie mit Raute (Bild, nur in der Breite gezogen)
+function Kit.divider(width: number): GuiObject
+	local fixed = Assets.Fixed.divider
+	if not fixed then
+		local f = Instance.new("Frame")
+		f.Size = UDim2.fromOffset(width, 1)
+		f.BackgroundColor3 = Theme.Color.Line
+		f.BorderSizePixel = 0
+		return f
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = "Divider"
+	img.BackgroundTransparency = 1
+	img.Image = fixed.id
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Size = UDim2.fromOffset(width, math.max(8, math.floor(width * fixed.size.Y / fixed.size.X)))
+	return img
+end
+
+-- Eingabefeld (Suche) mit Lupe im Bild. Gibt Rahmen und TextBox zurück.
 function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
 	f.BackgroundColor3 = Theme.Color.Bg1
 	f.BorderSizePixel = 0
-	if not Kit.skin(f, "btn_sort", size.Y, 0.5) then
-		Kit.corner(f, Theme.Radius.M)
-		Kit.stroke(f, Theme.Color.Line2)
+	local slice = Assets.Slice.search_field
+	local skin = Kit.skin(f, "search_field", size.Y, 0.5)
+	local s = 1
+	if skin and slice then
+		s = size.Y / slice.size.Y
+		skin.SliceScale = s
+	else
+		skin = Kit.skin(f, "btn_sort", size.Y, 0.5)
+		if not skin then
+			Kit.corner(f, Theme.Radius.M)
+			Kit.stroke(f, Theme.Color.Line2)
+		end
 	end
+	-- Text beginnt hinter der Lupe, endet vor dem rechten Rand
+	local leftW = if skin and slice then slice.center.Min.X * s + 6 else 14
+	local rightW = if skin and slice then (slice.size.X - slice.center.Max.X) * s + 6 else 14
 	local t = Instance.new("TextBox")
 	t.BackgroundTransparency = 1
-	t.Size = UDim2.new(1, -28, 1, 0)
-	t.Position = UDim2.fromOffset(14, 0)
+	t.Size = UDim2.new(1, -(leftW + rightW), 1, 0)
+	t.Position = UDim2.fromOffset(leftW, 0)
 	t.PlaceholderText = placeholder
 	t.PlaceholderColor3 = Theme.Color.Muted
 	t.Text = ""
 	t.ClearTextOnFocus = false
 	t.TextXAlignment = Enum.TextXAlignment.Left
-	t.TextSize = 16
+	t.TextSize = Kit.fontSize(16)
 	t.FontFace = Theme.Font.UI
 	t.TextColor3 = Theme.Color.Text
 	t.ZIndex = 2

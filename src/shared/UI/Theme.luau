@@ -41,6 +41,10 @@ Theme.Rarity = table.freeze({
 -- Design-Auflösung der Mockups. Das HUD wird per UIScale darauf skaliert.
 Theme.DesignSize = Vector2.new(1600, 900)
 
+-- Schriftgröße: Der Bildschirm wird auf 1600×900 herunterskaliert, kleine Fenster machen Text winzig.
+-- Alle Texte laufen deshalb über Kit.label / Kit.fontSize und werden um diesen Faktor vergrößert.
+Theme.FontScale = 1.25
+
 Theme.Radius = table.freeze({ S = 8, M = 12, L = 18 })
 Theme.Stroke = 1
 
