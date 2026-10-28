@@ -81,8 +81,8 @@ local function height(col: number, row: number): number
 end
 
 local function groundAt(x: number, z: number): number
-	local col = math.clamp(math.floor(x / T + 8.5) + 1, 1, N)
-	local row = math.clamp(math.floor(8.5 - z / T) + 1, 1, N)
+	local col = math.clamp(math.floor(x / T + 9), 1, N)
+	local row = math.clamp(math.floor(9 - z / T), 1, N)
 	return height(col, row)
 end
 
@@ -574,9 +574,14 @@ local function buildTown(parent: Instance)
 	local far = Instance.new("Folder")
 	far.Name = "Fernkulisse"
 	far.Parent = parent
-	place(far, Props.island(2.2, true), Vector3.new(-120, 50, -170))
-	place(far, Props.island(2.8, false), Vector3.new(60, 64, -210))
-	place(far, Props.island(1.6, true), Vector3.new(170, 44, -90))
+	-- Inseln haben ihren Pivot oben auf dem Gras (Felsen hängen darunter): direkt per Pivot setzen
+	local function island(m: Model, pos: Vector3)
+		m:PivotTo(CFrame.new(origin + pos))
+		m.Parent = far
+	end
+	island(Props.island(2.2, true), Vector3.new(-120, 50, -170))
+	island(Props.island(2.8, false), Vector3.new(60, 64, -210))
+	island(Props.island(1.6, true), Vector3.new(170, 44, -90))
 end
 
 function Hub.init()
