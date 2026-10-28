@@ -19,13 +19,14 @@ import urllib.error
 import urllib.request
 
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "src", "shared", "UI", "Assets.luau")
+LOGGED: set = set()
 TYPE_NAME = {1: "Image", 13: "Decal", 11: "Shirt", 12: "Pants", 2: "T-Shirt"}
 
 
 def get(url: str, retries: int = 4):
     headers = {"User-Agent": "loot-rush-asset-check", "Accept": "application/json"}
     key = os.environ.get("ROBLOX_API_KEY")
-    if key and "apis.roblox.com" in url:
+    if key and ("apis.roblox.com" in url or "assetdelivery" in url):
         headers["x-api-key"] = key
     for attempt in range(retries):
         try:
@@ -78,6 +79,9 @@ def image_of_decal(decal_id: int, info) -> tuple:
         f"https://apis.roblox.com/asset-delivery-api/v1/assetId/{decal_id}",
     ):
         status, body = get(url)
+        if decal_id not in LOGGED:
+            # Einmal je Decal: warum die Auflösung scheitert (401/403 = Key fehlt/Recht fehlt)
+            print(f"  {url.split('/')[2]} → HTTP {status}: {body[:160]!r}")
         if status == 200:
             text = body.decode("utf-8", "replace")
             loc = re.search(r'"location"\s*:\s*"([^"]+)"', text)
@@ -93,6 +97,7 @@ def image_of_decal(decal_id: int, info) -> tuple:
         d = details(cand)
         if d and d.get("AssetTypeId") == 1 and d.get("Creator", {}).get("Id") == creator:
             return cand, f"Nachbar-ID ({decal_id - cand} davor, gleicher Ersteller)"
+    LOGGED.add(decal_id)
     return None, "nicht gefunden"
 
 
