@@ -1,5 +1,5 @@
 --!strict
--- Dash: Leertaste / Shift / Gamepad B / Mobile-Button. 2 Ladungen (+ Sternennetz „StatDash“), laden nach.
+-- Dash: Leertaste / Shift / Gamepad B / Tipp auf den Dash-Slot der Skillleiste (HUD). 2 Ladungen (+ Sternennetz „StatDash“), laden nach.
 -- Ladungen werden als lokale Player-Attribute veröffentlicht, das HUD liest sie.
 -- Die Unverwundbarkeit vergibt der Server (Systems/Combat), nicht dieser Controller.
 
@@ -42,7 +42,7 @@ local function parts(): (Humanoid?, BasePart?)
 	return humanoid, nil
 end
 
-local function tryDash()
+function DashController.dash()
 	if charges <= 0 then
 		return
 	end
@@ -72,7 +72,7 @@ local function onAction(
 	_input: InputObject
 ): Enum.ContextActionResult
 	if state == Enum.UserInputState.Begin then
-		tryDash()
+		DashController.dash()
 	end
 	return Enum.ContextActionResult.Sink
 end
@@ -85,13 +85,12 @@ function DashController.start()
 	ContextActionService:BindActionAtPriority(
 		"LootRushDash",
 		onAction,
-		true,
+		false, -- kein runder Roblox-Knopf: auf Touch dient der Dash-Slot im HUD als Knopf
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.Space,
 		Enum.KeyCode.LeftShift,
 		Enum.KeyCode.ButtonB
 	)
-	ContextActionService:SetTitle("LootRushDash", "Dash")
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		if charges < maxCharges() then

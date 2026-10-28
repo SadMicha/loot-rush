@@ -3,11 +3,19 @@
 local HANDY = Vector2.new(844, 390)
 local DESKTOP = Vector2.new(1920, 1080)
 local STRICT = { offscreen = true, ["text-small"] = true, ["touch-target"] = true }
+-- Fürs HUD zusätzlich: nichts unter den Roblox-Knöpfen oben links, keine überlappenden Gruppen
+local HUD_STRICT = {
+	offscreen = true,
+	["text-small"] = true,
+	["touch-target"] = true,
+	topbar = true,
+	overlap = true,
+}
 
-local function problems(where)
+local function problems(where, strict)
 	local out = {}
 	for _, f in layoutCheck(HANDY, true) do
-		if STRICT[f.kind] then
+		if (strict or STRICT)[f.kind] then
 			table.insert(out, string.format("%s: [%s] %s %s", where, f.kind, f.path, f.message))
 		end
 	end
@@ -24,7 +32,7 @@ end
 describe("Handy-Layout", function()
 	it("HUD", function()
 		sim:boot({ seconds = 2 })
-		expectClean(problems("HUD"))
+		expectClean(problems("HUD", HUD_STRICT))
 	end)
 
 	it("Inventar", function()

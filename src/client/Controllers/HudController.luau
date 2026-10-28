@@ -5,17 +5,20 @@
 -- Kampf/Ruhe kommt vom Server (Player-Attribut "InCombat").
 
 local CollectionService = game:GetService("CollectionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local CameraController = require(script.Parent.CameraController)
+local DashController = require(script.Parent.DashController)
 local SkillController = require(script.Parent.SkillController)
 local InventoryController = require(script.Parent.InventoryController)
 local RiftController = require(script.Parent.RiftController)
@@ -72,16 +75,22 @@ local function clearGroup(size: Vector2): CanvasGroup
 end
 
 -- ------------------------------------------------------------------ Leben (oben links)
+local lifeBox: Frame
+local lifeBack: Frame
 local lifeFill: Frame
 local lifeText: TextLabel
 local lvlLabel: TextLabel
 local xpFill: Frame
+local LIFE_BAR = 300 -- Breite des Lebensbalkens (wird schmaler, wenn oben zu wenig Platz ist)
+local LIFE_BAR_MIN = 150
 
 local function buildLife()
 	local box = Instance.new("Frame")
 	box.BackgroundTransparency = 1
-	box.Size = UDim2.fromOffset(380, 60)
+	box.Size = UDim2.fromOffset(80 + LIFE_BAR, 60)
+	box.Name = "Life"
 	place(box, Vector2.new(0, 0), UDim2.fromOffset(28, 24))
+	lifeBox = box
 
 	local diamond = Instance.new("Frame")
 	diamond.Size = UDim2.fromOffset(38, 38)
@@ -97,9 +106,10 @@ local function buildLife()
 	lvlLabel.Position = UDim2.fromOffset(27, 27)
 	lvlLabel.Parent = box
 
-	local back, fill = Kit.bar(Vector2.new(300, 16), C.Life)
+	local back, fill = Kit.bar(Vector2.new(LIFE_BAR, 16), C.Life)
 	back.Position = UDim2.fromOffset(66, 12)
 	back.Parent = box
+	lifeBack = back
 	lifeFill = fill
 	lifeText = Kit.label("", 13)
 	lifeText.Position = UDim2.fromOffset(66, 34)
@@ -127,6 +137,7 @@ local MAP_RANGE = 70 -- Studs vom Mittelpunkt bis zum Rand
 
 local function buildMinimap()
 	mapFrame = Instance.new("Frame")
+	mapFrame.Name = "Minimap"
 	mapFrame.Size = UDim2.fromOffset(MAP_SIZE, MAP_SIZE)
 	mapFrame.BackgroundColor3 = Color3.fromHex("#1E3A54")
 	mapFrame.BorderSizePixel = 0
@@ -193,35 +204,47 @@ end
 
 -- ------------------------------------------------------------------ Skillleiste (unten)
 local dashCount: TextLabel
-local lifeLiquid: Frame
+local potionCd: Frame
+local potionCdText: TextLabel
 local cdOverlays: { Frame } = {}
 local cdTexts: { TextLabel } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
 
-local function flask(color: Color3, fillRatio: number, key: string): Frame
-	local f = Instance.new("Frame")
-	f.Size = UDim2.fromOffset(36, 60)
-	f.BackgroundColor3 = C.Bg1
-	f.BorderSizePixel = 0
-	f.ClipsDescendants = true
-	Kit.corner(f, 12)
-	Kit.stroke(f, C.Line2)
-	local liquid = Instance.new("Frame")
-	liquid.AnchorPoint = Vector2.new(0, 1)
-	liquid.Position = UDim2.fromScale(0, 1)
-	liquid.Size = UDim2.fromScale(1, fillRatio)
-	liquid.BackgroundColor3 = color
-	liquid.BorderSizePixel = 0
-	liquid.Parent = f
-	local k = Kit.label(key, 12, C.Muted)
-	k.AnchorPoint = Vector2.new(0.5, 0)
-	k.Position = UDim2.new(0.5, 0, 1, 4)
-	k.Parent = f
-	return f
+-- Abklingzeit-Schleier (wächst von unten) und Restzeit über einem Slot
+local function cooldownLayer(slot: GuiObject): (Frame, TextLabel)
+	local cd = Instance.new("Frame")
+	cd.AnchorPoint = Vector2.new(0, 1)
+	cd.Position = UDim2.fromScale(0, 1)
+	cd.Size = UDim2.fromScale(1, 0)
+	cd.BackgroundColor3 = C.Bg0
+	cd.BackgroundTransparency = 0.3
+	cd.BorderSizePixel = 0
+	Kit.corner(cd, Theme.Radius.M)
+	cd.Parent = slot
+	local cdText = Kit.label("", 18, C.Text)
+	cdText.AnchorPoint = Vector2.new(0.5, 0.5)
+	cdText.Position = UDim2.fromScale(0.5, 0.5)
+	cdText.ZIndex = 2
+	cdText.Parent = slot
+	return cd, cdText
+end
+
+-- Slot auf Klick oder Tipp auslösen
+local function onTap(slot: GuiObject, fn: () -> ())
+	slot.Active = true
+	slot.InputBegan:Connect(function(input: InputObject)
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			fn()
+		end
+	end)
 end
 
 local function buildSkillbar()
 	local bar = Instance.new("Frame")
+	bar.Name = "Skillbar"
 	bar.AutomaticSize = Enum.AutomaticSize.X
 	bar.Size = UDim2.fromOffset(0, 104)
 	bar.BackgroundColor3 = C.Bg0
@@ -237,49 +260,24 @@ local function buildSkillbar()
 	Kit.list(bar, Enum.FillDirection.Horizontal, 12)
 	place(bar, Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -30))
 
-	local lifeFlask = flask(C.Life, 1, "1")
-	lifeFlask.Active = true
-	lifeFlask.InputBegan:Connect(function(input: InputObject)
-		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
-		then
-			SkillController.potion()
-		end
-	end)
-	lifeLiquid = lifeFlask:FindFirstChildOfClass("Frame") :: Frame
+	-- Tränke als Slots wie im Mock-up (Reihe 1 · 2 · Q · E · R · F); Manatrank hat noch keine Funktion
+	local lifePotion = Kit.slot(72, "trank_leben", C.Life, "1")
+	potionCd, potionCdText = cooldownLayer(lifePotion)
+	onTap(lifePotion, SkillController.potion)
+	local items: { GuiObject } = { lifePotion, Kit.slot(72, "trank_mana", C.Mana, "2") }
 
-	local items: { GuiObject } = { lifeFlask, flask(C.Mana, 0.4, "2") }
 	for i, skill in Skills.bar do
 		local slot = Kit.slot(72, skill.icon, skill.color, SLOT_KEYS[i])
-		slot.Active = true
-		local cd = Instance.new("Frame")
-		cd.AnchorPoint = Vector2.new(0, 1)
-		cd.Position = UDim2.fromScale(0, 1)
-		cd.Size = UDim2.fromScale(1, 0)
-		cd.BackgroundColor3 = C.Bg0
-		cd.BackgroundTransparency = 0.3
-		cd.BorderSizePixel = 0
-		Kit.corner(cd, Theme.Radius.M)
-		cd.Parent = slot
-		local cdText = Kit.label("", 18, C.Text)
-		cdText.AnchorPoint = Vector2.new(0.5, 0.5)
-		cdText.Position = UDim2.fromScale(0.5, 0.5)
-		cdText.ZIndex = 2
-		cdText.Parent = slot
-		cdOverlays[i] = cd
-		cdTexts[i] = cdText
-		slot.InputBegan:Connect(function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				SkillController.cast(i)
-			end
+		cdOverlays[i], cdTexts[i] = cooldownLayer(slot)
+		onTap(slot, function()
+			SkillController.cast(i)
 		end)
 		table.insert(items, slot)
 	end
-	table.insert(items, Kit.slot(72, "skill_dash", C.Text, "Leer"))
+	-- Dash-Slot ist auf Touch der Dash-Knopf (statt des runden Roblox-Knopfs)
+	local dash = Kit.slot(72, "skill_dash", C.Text, "Leer")
+	onTap(dash, DashController.dash)
+	table.insert(items, dash)
 	for i, it in items do
 		it.LayoutOrder = i
 		it.Parent = bar
@@ -292,16 +290,26 @@ local function buildSkillbar()
 	local xpBack, fill = Kit.bar(Vector2.new(520, 4), C.Cyan)
 	xpFill = fill
 	xpFill.Size = UDim2.fromScale(0, 1)
+	xpBack.Name = "XP"
 	place(xpBack, Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -18))
 end
 
 -- ------------------------------------------------------------------ Ruhe-Panels (fliegen ein)
 local goldText: TextLabel
 local shardText: TextLabel
+local resGroup: CanvasGroup
+local menuGroup: CanvasGroup
+local menuGrid: UIGridLayout
+local MENU_ITEMS =
+	{ "inventar", "sternennetz", "skills", "schmiede", "dorf", "begleiter", "atlas", "seelenstern" }
+local MENU_CELL = 48
+local MENU_GAP = 8
+local RES_WIDTH = 620 -- drei Kapseln mit Abstand
 
 local function buildCalmPanels()
 	-- Ressourcen oben mittig
-	local res = clearGroup(Vector2.new(620, 40))
+	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
+	res.Name = "Resources"
 	Kit.list(res, Enum.FillDirection.Horizontal, 8)
 	for i, spec in
 		{
@@ -319,24 +327,23 @@ local function buildCalmPanels()
 		pill.LayoutOrder = i
 		pill.Parent = res
 	end
-	place(res, Vector2.new(0.5, 0), UDim2.new(0.5, 0, 0, 28)) -- bleibt auch im Kampf sichtbar
+	place(res, Vector2.new(0, 0), UDim2.new(0.5, -RES_WIDTH / 2, 0, 28)) -- bleibt auch im Kampf sichtbar
+	resGroup = res
 
 	-- Menü links
-	local menu = clearGroup(Vector2.new(48, 8 * 48 + 7 * 8))
-	Kit.list(menu, Enum.FillDirection.Vertical, 8)
-	for i, name in
-		{
-			"inventar",
-			"sternennetz",
-			"skills",
-			"schmiede",
-			"dorf",
-			"begleiter",
-			"atlas",
-			"seelenstern",
-		}
-	do
-		local b = Kit.iconButton(name, name, 48, false)
+	-- Raster statt Liste: wird es zu hoch (Handy), bricht es in eine zweite Spalte um (siehe layoutHud)
+	local menu = clearGroup(Vector2.new(MENU_CELL, #MENU_ITEMS * (MENU_CELL + MENU_GAP) - MENU_GAP))
+	menu.AutomaticSize = Enum.AutomaticSize.None
+	menu.Name = "Menu"
+	menuGrid = Instance.new("UIGridLayout")
+	menuGrid.CellSize = UDim2.fromOffset(MENU_CELL, MENU_CELL)
+	menuGrid.CellPadding = UDim2.fromOffset(MENU_GAP, MENU_GAP)
+	menuGrid.FillDirection = Enum.FillDirection.Vertical
+	menuGrid.SortOrder = Enum.SortOrder.LayoutOrder
+	menuGrid.Parent = menu
+	menuGroup = menu
+	for i, name in MENU_ITEMS do
+		local b = Kit.iconButton(name, name, MENU_CELL, false)
 		b.LayoutOrder = i
 		b.Parent = menu
 		local open = MENU_ACTION[name]
@@ -344,10 +351,11 @@ local function buildCalmPanels()
 			b.Activated:Connect(open)
 		end
 	end
-	addFly(menu, Vector2.new(0, 0.5), UDim2.new(0, 28, 0.5, 0), UDim2.new(0, -120, 0.5, 0), 2)
+	addFly(menu, Vector2.new(0, 0), UDim2.fromOffset(28, 200), UDim2.fromOffset(-200, 200), 2)
 
 	-- Quests rechts
 	local quests = Kit.flyPanel(Vector2.new(260, 170))
+	quests.Name = "Quests"
 	Kit.padding(quests, 14)
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
@@ -375,10 +383,11 @@ local function buildCalmPanels()
 		back.LayoutOrder = i * 2
 		back.Parent = list
 	end
-	addFly(quests, Vector2.new(1, 0), UDim2.new(1, -28, 0, 222), UDim2.new(1, 300, 0, 222), 3)
+	addFly(quests, Vector2.new(1, 0), UDim2.new(1, -28, 0, 236), UDim2.new(1, 300, 0, 236), 3)
 
 	-- Rift-Button unten
 	local rift = clearGroup(Vector2.new(240, 48))
+	rift.Name = "Rift"
 	local btn = Kit.button("Rift betreten", C.Gold, Vector2.new(240, 48))
 	btn.Activated:Connect(RiftController.toggle)
 	player:GetAttributeChangedSignal("RiftPhase"):Connect(function()
@@ -388,6 +397,67 @@ local function buildCalmPanels()
 	end)
 	btn.Parent = rift
 	addFly(rift, Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -160), UDim2.new(0.5, 0, 1, 120), 4)
+end
+
+-- ------------------------------------------------------------------ Platz neben der Roblox-Leiste
+-- Oben links liegen die Roblox-Knöpfe (Logo, Menü, Chat); GuiService.TopbarInset ist der freie Rest
+-- der Leiste. Leben beginnt rechts davon, die Ressourcen rücken bei Bedarf bis vor die Minimap,
+-- und erst wenn auch das nicht reicht, wird der Lebensbalken schmaler.
+local function layoutHud()
+	local camera = workspace.CurrentCamera
+	local scale = root:FindFirstChildOfClass("UIScale")
+	if not camera or not scale then
+		return
+	end
+	local s = scale.Scale
+	local width = camera.ViewportSize.X / s
+	local inset = GuiService.TopbarInset
+	local left = if inset.Height > 0 then math.max(28, inset.Min.X / s + 12) else 28
+	local resMax = width - 28 - MAP_SIZE - 16 - RES_WIDTH -- direkt vor der Minimap
+	local resLeft = math.max((width - RES_WIDTH) / 2, left + 80 + LIFE_BAR + 16)
+	local bar = LIFE_BAR
+	if resLeft > resMax then
+		bar = math.max(LIFE_BAR_MIN, LIFE_BAR - (resLeft - resMax))
+		resLeft = math.max(resMax, left + 80 + bar + 16)
+	end
+	lifeBox.Position = UDim2.fromOffset(left, 24)
+	lifeBox.Size = UDim2.fromOffset(80 + bar, 60)
+	lifeBack.Size = UDim2.fromOffset(bar, 16)
+	local fillImage = lifeFill:FindFirstChildOfClass("ImageLabel")
+	if fillImage then
+		fillImage.Size = UDim2.fromOffset(bar, 16)
+	end
+	resGroup.Position = UDim2.fromOffset(resLeft, 28)
+
+	-- Menü links: unter der Roblox-Leiste beginnen; auf Touch über dem Bewegungs-Stick enden
+	-- (Stick-Bereich ≈ untere 28 % links). Passt es nicht in eine Spalte, zwei Spalten.
+	local height = camera.ViewportSize.Y / s
+	local cell = if UserInputService.TouchEnabled
+		then math.max(MENU_CELL, math.ceil(Kit.MIN_TOUCH_PX / s))
+		else MENU_CELL
+	local top = math.max(24, if inset.Height > 0 then inset.Max.Y / s + 12 else 0)
+	local bottom = if UserInputService.TouchEnabled then height * 0.72 else height - 90
+	local count = #MENU_ITEMS
+	local rows = math.clamp(math.floor((bottom - top + MENU_GAP) / (cell + MENU_GAP)), 1, count)
+	local cols = math.ceil(count / rows)
+	rows = math.ceil(count / cols)
+	local w = cols * (cell + MENU_GAP) - MENU_GAP
+	local h = rows * (cell + MENU_GAP) - MENU_GAP
+	menuGrid.CellSize = UDim2.fromOffset(cell, cell)
+	menuGrid.FillDirectionMaxCells = rows
+	menuGroup.Size = UDim2.fromOffset(w, h)
+	local y = math.clamp((height - h) / 2, top, math.max(top, bottom - h))
+	for _, fly in flies do
+		if fly.group == menuGroup then
+			fly.home = UDim2.fromOffset(28, y)
+			fly.away = UDim2.fromOffset(-w - 80, y)
+			if not fly.tween or fly.tween.PlaybackState ~= Enum.PlaybackState.Playing then
+				menuGroup.Position = if menuGroup.GroupTransparency < 0.5
+					then fly.home
+					else fly.away
+			end
+		end
+	end
 end
 
 -- ------------------------------------------------------------------ Ein-/Ausflug
@@ -437,6 +507,13 @@ function HudController.init()
 	buildCalmPanels()
 
 	gui.Parent = player:WaitForChild("PlayerGui")
+
+	layoutHud()
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(layoutHud)
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutHud) -- nach Kit.scaledGui (neue Skalierung)
+	end
 end
 
 function HudController.start()
@@ -485,7 +562,11 @@ function HudController.start()
 				then string.format("%.1f", SkillController.remaining(i))
 				else ""
 		end
-		lifeLiquid.Size = UDim2.fromScale(1, 1 - SkillController.potionRatio())
+		local potion = SkillController.potionRatio()
+		potionCd.Size = UDim2.fromScale(1, potion)
+		potionCdText.Text = if potion > 0
+			then string.format("%.1f", SkillController.potionRemaining())
+			else ""
 		acc += dt
 		if acc >= 0.15 then
 			acc = 0

@@ -92,6 +92,10 @@ function SkillController.potionRatio(): number
 	return math.clamp((potionUntil - os.clock()) / total, 0, 1)
 end
 
+function SkillController.potionRemaining(): number
+	return math.max(0, potionUntil - os.clock())
+end
+
 function SkillController.cast(slot: number)
 	local skill = Skills.bar[slot]
 	local now = os.clock()

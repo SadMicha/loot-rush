@@ -274,6 +274,71 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 			end
 		end
 	end
+
+	-- 6. Unter den Roblox-Knöpfen oben links (Logo, Menü, Chat) – dort kann man nichts sehen oder tippen.
+	-- 7. Überlappende Bausteine: direkte Kinder des Root-Frames einer ScreenGui (HUD-Gruppen, Fenster).
+	local bar = sb:topbarButtons()
+	for _, gui in root:GetChildren() do
+		if gui:IsA("ScreenGui") and get(gui, "Enabled", true) then
+			local top = gui:FindFirstChild("Root") or gui
+			local boxes = {}
+			for _, n in top:GetChildren() do
+				local r = n:IsA("GuiObject") and Layout.isShown(n) and layout:rect(n)
+				-- Vollbild-Flächen (abgedunkelter Hintergrund) und Weggeflogenes zählen nicht
+				local full = r and r.w * r.h >= vw * vh * 0.9
+				local onScreen = r and r.x < vw and r.y < vh and r.x + r.w > 0 and r.y + r.h > 0
+				if r and r.w > 0 and r.h > 0 and not full and onScreen then
+					table.insert(boxes, { n = n, r = r })
+				end
+			end
+			for _, b in boxes do
+				for _, d in b.n:GetDescendants() do
+					if d:IsA("GuiObject") and hasContent(d) and Layout.isShown(d) then
+						local r = layout:rect(d)
+						if
+							r
+							and r.x < bar.X - 2
+							and r.y < bar.Y - 2
+							and r.x + r.w > 2
+							and r.y + r.h > 2
+						then
+							add(
+								"warn",
+								"topbar",
+								d,
+								string.format(
+									"liegt unter den Roblox-Knöpfen oben links (bis %d×%dpx)",
+									bar.X,
+									bar.Y
+								)
+							)
+							break
+						end
+					end
+				end
+			end
+			for i = 1, #boxes do
+				for j = i + 1, #boxes do
+					local a, b = boxes[i].r, boxes[j].r
+					local w = math.min(a.x + a.w, b.x + b.w) - math.max(a.x, b.x)
+					local h = math.min(a.y + a.h, b.y + b.h) - math.max(a.y, b.y)
+					if w > 2 and h > 2 then
+						add(
+							"warn",
+							"overlap",
+							boxes[i].n,
+							string.format(
+								"überlappt %s um %d×%dpx",
+								boxes[j].n.Name,
+								math.floor(w + 0.5),
+								math.floor(h + 0.5)
+							)
+						)
+					end
+				end
+			end
+		end
+	end
 	return findings
 end
 
