@@ -54,3 +54,7 @@ bash tools/check.sh test ui      # nur einzelne Schritte
 **Eigene Tests:** neue Datei `tests/Name.spec.luau`. `require("ReplicatedStorage.Shared.Items")` lädt Module über ihren Spielpfad; `sim:boot()` startet das ganze Spiel, `sim:runAs("server", function(req) … end)` führt Code auf dem Server aus.
 
 **Windows:** `rokit install` installiert dieselben Werkzeuge; `bash tools/setup.sh --data-only` (Git Bash) lädt nur die Roblox-Daten. CI führt `tools/check.sh` bei jedem Push/PR aus und hängt den UI-Bericht als Artefakt `ui-check` an.
+
+## Veröffentlichen
+
+Jeder Push auf `main` lädt das Spiel automatisch auf den Test-Place hoch (Workflow `Veröffentlichen`, lokal `bash tools/publish.sh`). Einrichtung und Secrets: [docs/PUBLISH.md](docs/PUBLISH.md).
