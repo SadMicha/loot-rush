@@ -1,16 +1,19 @@
 --!strict
 -- Sternennetz-Fenster nach Mockup „Sternennetz“ (Taste N oder Menü-Button):
 --   links das Netz mit Sternen und Verbindungen, rechts Punkte, Stern-Details und Aktionen.
--- Vorschau ohne Server-System: Punkte = Spieler-Level, Zuweisungen leben nur im Client und wirken
--- noch nicht. Sobald es ein System gibt, ersetzt ein Net-Schnappschuss `allocated`.
+-- Zuweisungen prüft und speichert der Server (Systems/Progress); das Fenster zeigt den Schnappschuss
+-- aus ProgressController und schickt nur Wünsche (Net.Star).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local StarNet = require(ReplicatedStorage.Shared.StarNet)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local ProgressController = require(script.Parent.ProgressController)
 
 local StarNetController = {}
 
@@ -32,6 +35,18 @@ local side: Frame
 local allocated: { [string]: boolean } = { herz = true }
 local selected = "eisenhaut"
 
+-- Schnappschuss → Nachschlage-Tabelle inkl. Herz
+local function refreshAllocated()
+	allocated = { herz = true }
+	for id in ProgressController.data().stars do
+		allocated[id] = true
+	end
+end
+
+local function level(): number
+	return (player:GetAttribute("Level") or 1) :: number
+end
+
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
 		if child:IsA("GuiObject") and child.Name ~= "Skin" then
@@ -40,37 +55,16 @@ local function clear(parent: Instance)
 	end
 end
 
-local function spent(): number
-	local n = 0
-	for id in allocated do
-		n += StarNet.Cost[StarNet.ById[id].kind]
-	end
-	return n
-end
-
 local function points(): number
-	local level = (player:GetAttribute("Level") or 1) :: number
-	return level - spent()
+	return Progression.starPoints(ProgressController.data(), level())
 end
 
 local function canAllocate(s: StarNet.Star): boolean
-	return not allocated[s.id]
-		and s.from ~= nil
-		and allocated[s.from] == true
-		and points() >= StarNet.Cost[s.kind]
+	return (Progression.canAllocate(ProgressController.data(), s.id, level()))
 end
 
--- Entfernen nur am Ende eines Astes, damit nichts in der Luft hängt
 local function canRemove(s: StarNet.Star): boolean
-	if not allocated[s.id] or s.kind == "core" then
-		return false
-	end
-	for _, other in StarNet.Stars do
-		if other.from == s.id and allocated[other.id] then
-			return false
-		end
-	end
-	return true
+	return (Progression.canRemove(ProgressController.data(), s.id))
 end
 
 -- ------------------------------------------------------------------ Netz
@@ -226,7 +220,7 @@ local function renderSide()
 	end
 
 	local note = Kit.label(
-		"Vorschau: Sterne wirken noch nicht und werden nicht gespeichert.",
+		"Ein Punkt je Level ab Level 2. Zurücksetzen gibt alle Punkte zurück.",
 		14,
 		C.Muted,
 		Theme.Font.Body
@@ -255,27 +249,25 @@ local function renderSide()
 		if not main.Active then
 			return
 		end
-		if remove then
-			allocated[s.id] = nil
-		else
-			allocated[s.id] = true
-		end
-		StarNetController.render()
+		Net.Star:FireServer(if remove then "remove" else "alloc", s.id)
 	end)
 	main.Parent = side
 
 	local reset = Kit.button("Zurücksetzen", C.Danger, Vector2.new(w, 50), "neu_wuerfeln")
 	reset.AnchorPoint = Vector2.new(0, 1)
 	reset.Position = UDim2.new(0, PAD, 1, -PAD)
+	Kit.setEnabled(reset, next(ProgressController.data().stars) ~= nil)
 	reset.Activated:Connect(function()
-		allocated = { herz = true }
-		StarNetController.render()
+		if reset.Active then
+			Net.Star:FireServer("reset")
+		end
 	end)
 	reset.Parent = side
 end
 
 -- ------------------------------------------------------------------ Ablauf
 function StarNetController.render()
+	refreshAllocated()
 	renderNet()
 	renderSide()
 end
@@ -302,11 +294,13 @@ function StarNetController.init()
 	side.Parent = win.root
 
 	win.onOpen(StarNetController.render)
-	player:GetAttributeChangedSignal("Level"):Connect(function()
+	local function refresh()
 		if win.isOpen() then
 			StarNetController.render()
 		end
-	end)
+	end
+	player:GetAttributeChangedSignal("Level"):Connect(refresh)
+	ProgressController.changed:Connect(refresh)
 	StarNetController.render()
 end
 

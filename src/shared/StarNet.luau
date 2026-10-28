@@ -2,8 +2,9 @@
 -- Sternennetz (passiver Baum) nach Mockup „Sternennetz“.
 -- Ein Herz in der Mitte, drei Äste: Kraft (unten links), Geschick (unten rechts), Weisheit (oben).
 -- Jeder Stern hängt an genau einem Vorgänger (`from`); zuweisen geht nur neben schon zugewiesenen.
--- `pos` in Design-Pixeln der Netz-Fläche (1060×800). Noch ohne Server-System: das Fenster zeigt
--- eine Vorschau, Zuweisungen wirken noch nicht und werden nicht gespeichert.
+-- `pos` in Design-Pixeln der Netz-Fläche (1060×800). Zuweisen prüft und speichert der Server
+-- (Systems/Progress), Regeln in Shared.Progression. Punkte: 1 je Level ab Level 2 (Balancing).
+-- `mods` = Wirkung (Schlüssel siehe Progression.StarStats); Zeilen mit „(folgt)“ wirken noch nicht.
 
 export type Branch = "kraft" | "geschick" | "weisheit"
 export type Kind = "core" | "small" | "big"
@@ -16,6 +17,7 @@ export type Star = {
 	pos: Vector2,
 	icon: string, -- Schlüssel in Assets.Icon
 	stats: { string },
+	mods: { [string]: number }?,
 	flavor: string?,
 }
 
@@ -45,7 +47,8 @@ local function small(
 	from: string,
 	x: number,
 	y: number,
-	stat: string
+	stat: string,
+	mods: { [string]: number }
 ): Star
 	local icon = if branch == "kraft"
 		then "feuer"
@@ -60,6 +63,7 @@ local function small(
 		pos = Vector2.new(x, y),
 		icon = icon,
 		stats = { stat },
+		mods = mods,
 	})
 end
 
@@ -75,8 +79,8 @@ StarNet.Stars = table.freeze({
 	}),
 
 	-- Kraft
-	small("k1", "kraft", "herz", 450, 450, "+3 % Schaden"),
-	small("k2", "kraft", "k1", 380, 520, "+20 Leben"),
+	small("k1", "kraft", "herz", 450, 450, "+3 % Schaden", { damage = 3 }),
+	small("k2", "kraft", "k1", 380, 520, "+20 Leben", { life = 20 }),
 	star({
 		id = "eisenhaut",
 		name = "Eisenhaut",
@@ -85,10 +89,11 @@ StarNet.Stars = table.freeze({
 		from = "k2",
 		pos = Vector2.new(300, 600),
 		icon = "schild_buff",
-		stats = { "+20 % Rüstung", "+10 % maximales Leben" },
+		stats = { "+20 % Rüstung (folgt)", "+10 % maximales Leben" },
+		mods = { lifePct = 10 },
 		flavor = "Deine Haut wird so hart wie das Gestein der alten Berge.",
 	}),
-	small("k3", "kraft", "eisenhaut", 220, 670, "+20 Leben"),
+	small("k3", "kraft", "eisenhaut", 220, 670, "+20 Leben", { life = 20 }),
 	star({
 		id = "unaufhaltsam",
 		name = "Unaufhaltsam",
@@ -98,8 +103,9 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(140, 740),
 		icon = "leben",
 		stats = { "+15 % maximales Leben", "Unter 30 % Leben: +10 % Schaden" },
+		mods = { lifePct = 15, lowLifeDamage = 10 },
 	}),
-	small("k4", "kraft", "k1", 450, 580, "+3 % Schaden"),
+	small("k4", "kraft", "k1", 450, 580, "+3 % Schaden", { damage = 3 }),
 	star({
 		id = "schildwall",
 		name = "Schildwall",
@@ -108,12 +114,12 @@ StarNet.Stars = table.freeze({
 		from = "k4",
 		pos = Vector2.new(480, 700),
 		icon = "krone",
-		stats = { "+25 % Blockchance mit Schild" },
+		stats = { "+25 % Blockchance mit Schild (folgt)" },
 	}),
 
 	-- Geschick
-	small("g1", "geschick", "herz", 610, 450, "+3 % Tempo"),
-	small("g2", "geschick", "g1", 680, 520, "+2 % Krit-Chance"),
+	small("g1", "geschick", "herz", 610, 450, "+3 % Angriffstempo", { attackSpeed = 3 }),
+	small("g2", "geschick", "g1", 680, 520, "+2 % Krit-Chance", { crit = 2 }),
 	star({
 		id = "kristallklinge",
 		name = "Kristallklinge",
@@ -122,9 +128,10 @@ StarNet.Stars = table.freeze({
 		from = "g2",
 		pos = Vector2.new(760, 600),
 		icon = "schwert",
-		stats = { "+15 % Krit-Schaden", "Krits werfen einen Splitter" },
+		stats = { "+15 % Krit-Schaden", "Krits werfen einen Splitter (folgt)" },
+		mods = { critDamage = 15 },
 	}),
-	small("g3", "geschick", "kristallklinge", 840, 530, "+3 % Tempo"),
+	small("g3", "geschick", "kristallklinge", 840, 530, "+3 % Angriffstempo", { attackSpeed = 3 }),
 	star({
 		id = "windlaeufer",
 		name = "Windläufer",
@@ -134,8 +141,9 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(910, 450),
 		icon = "skill_dash",
 		stats = { "+1 Dash-Ladung", "+8 % Lauftempo" },
+		mods = { dash = 1, speed = 8 },
 	}),
-	small("g4", "geschick", "kristallklinge", 840, 670, "+2 % Krit-Chance"),
+	small("g4", "geschick", "kristallklinge", 840, 670, "+2 % Krit-Chance", { crit = 2 }),
 	star({
 		id = "kristallherz",
 		name = "Kristallherz",
@@ -144,9 +152,10 @@ StarNet.Stars = table.freeze({
 		from = "g4",
 		pos = Vector2.new(920, 740),
 		icon = "kristall",
-		stats = { "+10 % Kristallfund" },
+		stats = { "+10 % Kristallsplitter beim Verwerten" },
+		mods = { shardFind = 10 },
 	}),
-	small("g5", "geschick", "g1", 610, 600, "+3 % Tempo"),
+	small("g5", "geschick", "g1", 610, 600, "+3 % Angriffstempo", { attackSpeed = 3 }),
 	star({
 		id = "doppelschlag",
 		name = "Doppelschlag",
@@ -156,10 +165,11 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(590, 720),
 		icon = "neu_wuerfeln",
 		stats = { "10 % Chance, dass der Grundangriff doppelt trifft" },
+		mods = { double = 10 },
 	}),
 
 	-- Weisheit
-	small("w1", "weisheit", "herz", 530, 290, "+3 % Skill-Schaden"),
+	small("w1", "weisheit", "herz", 530, 290, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "resonanz",
 		name = "Resonanz",
@@ -169,6 +179,7 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(530, 200),
 		icon = "wirbel",
 		stats = { "−10 % Abklingzeit" },
+		mods = { cdr = 10 },
 	}),
 	star({
 		id = "sturmgeist",
@@ -179,8 +190,9 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(530, 80),
 		icon = "portal",
 		stats = { "Kettenblitz springt +2 Mal" },
+		mods = { ["kettenblitz.chains"] = 2 },
 	}),
-	small("w2", "weisheit", "herz", 440, 320, "+3 % Skill-Schaden"),
+	small("w2", "weisheit", "herz", 440, 320, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "funkenfluss",
 		name = "Funkenfluss",
@@ -190,8 +202,9 @@ StarNet.Stars = table.freeze({
 		pos = Vector2.new(360, 240),
 		icon = "blitz",
 		stats = { "+20 % Schaden von Funkenball" },
+		mods = { ["funkenball.damage"] = 20 },
 	}),
-	small("w3", "weisheit", "herz", 620, 320, "+3 % Skill-Schaden"),
+	small("w3", "weisheit", "herz", 620, 320, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "arkanerschild",
 		name = "Arkaner Schild",
@@ -200,7 +213,7 @@ StarNet.Stars = table.freeze({
 		from = "w3",
 		pos = Vector2.new(700, 240),
 		icon = "schild_buff",
-		stats = { "Nach einem Skill: Schild für 5 % Leben" },
+		stats = { "Nach einem Skill: Schild für 5 % Leben (folgt)" },
 	}),
 } :: { Star })
 

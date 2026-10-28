@@ -669,7 +669,11 @@ local function renderDetail()
 		end)
 		b.Parent = actions
 		local s = Kit.button(
-			"Verkaufen · " .. tostring(Items.sellValue(item)) .. " Gold",
+			string.format(
+				"Verwerten · %d Gold + %d Splitter",
+				Items.sellValue(item),
+				(Items.Salvage[item.rarity] or Items.Salvage.normal).shards
+			),
 			C.Danger,
 			Vector2.new(w, 50),
 			"verwerten"

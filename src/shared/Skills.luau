@@ -20,6 +20,8 @@ export type Skill = {
 	chains: number?, -- chain: Anzahl Treffer
 	slow: number?, -- Tempo-Faktor auf Getroffene (0.5 = halb so schnell)
 	slowTime: number?,
+	echo: number?, -- nova: zweiter Wirbel mit diesem Schadensanteil (Skill-Blüte)
+	lastHit: number?, -- chain: Zusatzschaden des letzten Sprungs als Anteil (Skill-Blüte)
 }
 
 local function def(s: Skill): Skill
@@ -99,19 +101,32 @@ Skills.bar = table.freeze({
 	}),
 })
 
--- Skill-Blüten (Fähigkeiten-Fenster): je Skill ein Stamm und zwei Äste à max. 5 Punkte.
--- Noch ohne System dahinter – das Fenster zeigt sie als Vorschau.
-export type BloomNode = { name: string, text: string }
+-- Skill-Blüten (Fähigkeiten-Fenster): je Skill ein Stamm (3 Knoten) und zwei Äste (je 2), max. 5 Punkte
+-- je Knoten. Ein Knoten braucht einen Punkt im Knoten davor. Schlüssel: "trunk1" … "right2".
+-- `effect` = Wirkung je Punkt (siehe Progression.effectiveSkill); ohne `effect` ist der Knoten
+-- noch gesperrt („kommt bald“), bis seine Sonderwirkung gebaut ist.
+--   damage: +Anteil Schaden · radius: +Studs · cooldown: −Sekunden · chains: +Sprünge
+--   speed: +Anteil Fluggeschwindigkeit · slowTime: +Sekunden · echo / lastHit: siehe Skill-Typ
+export type BloomEffect = { stat: string, per: number }
+export type BloomNode = { name: string, text: string, effect: BloomEffect? }
+export type BloomBranch = { name: string, nodes: { BloomNode } }
 export type Bloom = {
-	trunk: { name: string, nodes: { BloomNode } },
-	left: { name: string, nodes: { BloomNode } },
-	right: { name: string, nodes: { BloomNode } },
+	trunk: BloomBranch,
+	left: BloomBranch,
+	right: BloomBranch,
 }
 
 Skills.BloomMax = 5
+Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
+Skills.MaxLevel = 20
+Skills.DamagePerLevel = 0.05 -- +5 % Schaden je Skill-Stufe über 1
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)
+end
+
+local function fx(stat: string, per: number): BloomEffect
+	return { stat = stat, per = per }
 end
 
 Skills.Blooms = table.freeze({
@@ -119,9 +134,21 @@ Skills.Blooms = table.freeze({
 		trunk = {
 			name = "Wucht",
 			nodes = {
-				{ name = "Schwere Klingen", text = "+10 % Schaden je Punkt" },
-				{ name = "Weiter Kreis", text = "+1 Stud Radius je Punkt" },
-				{ name = "Nachhall", text = "Zweiter Wirbel mit 30 % Schaden" },
+				{
+					name = "Schwere Klingen",
+					text = "+10 % Schaden je Punkt",
+					effect = fx("damage", 0.1),
+				},
+				{
+					name = "Weiter Kreis",
+					text = "+1 Stud Radius je Punkt",
+					effect = fx("radius", 1),
+				},
+				{
+					name = "Nachhall",
+					text = "Zweiter Wirbel mit 6 % Schaden je Punkt",
+					effect = fx("echo", 0.06),
+				},
 			},
 		},
 		left = {
@@ -134,7 +161,11 @@ Skills.Blooms = table.freeze({
 		right = {
 			name = "Tempo",
 			nodes = {
-				{ name = "Schwung", text = "−0,2 s Abklingzeit je Punkt" },
+				{
+					name = "Schwung",
+					text = "−0,2 s Abklingzeit je Punkt",
+					effect = fx("cooldown", 0.2),
+				},
 				{ name = "Tanz", text = "+15 % Tempo nach Treffer" },
 			},
 		},
@@ -143,8 +174,16 @@ Skills.Blooms = table.freeze({
 		trunk = {
 			name = "Glut",
 			nodes = {
-				{ name = "Heißer Kern", text = "+10 % Schaden je Punkt" },
-				{ name = "Großer Knall", text = "+1 Stud Explosion je Punkt" },
+				{
+					name = "Heißer Kern",
+					text = "+10 % Schaden je Punkt",
+					effect = fx("damage", 0.1),
+				},
+				{
+					name = "Großer Knall",
+					text = "+1 Stud Explosion je Punkt",
+					effect = fx("radius", 1),
+				},
 				{ name = "Brand", text = "Getroffene brennen 2 s" },
 			},
 		},
@@ -158,7 +197,11 @@ Skills.Blooms = table.freeze({
 		right = {
 			name = "Flug",
 			nodes = {
-				{ name = "Rückenwind", text = "+15 % Fluggeschwindigkeit" },
+				{
+					name = "Rückenwind",
+					text = "+3 % Fluggeschwindigkeit je Punkt",
+					effect = fx("speed", 0.03),
+				},
 				{ name = "Durchschlag", text = "Fliegt durch den ersten Gegner" },
 			},
 		},
@@ -167,9 +210,17 @@ Skills.Blooms = table.freeze({
 		trunk = {
 			name = "Spannung",
 			nodes = {
-				{ name = "Hochspannung", text = "+10 % Schaden je Punkt" },
-				{ name = "Lange Kette", text = "+1 Sprung je Punkt" },
-				{ name = "Überladung", text = "Letzter Sprung trifft doppelt" },
+				{
+					name = "Hochspannung",
+					text = "+10 % Schaden je Punkt",
+					effect = fx("damage", 0.1),
+				},
+				{ name = "Lange Kette", text = "+1 Sprung je Punkt", effect = fx("chains", 1) },
+				{
+					name = "Überladung",
+					text = "Letzter Sprung +20 % Schaden je Punkt",
+					effect = fx("lastHit", 0.2),
+				},
 			},
 		},
 		left = {
@@ -182,8 +233,16 @@ Skills.Blooms = table.freeze({
 		right = {
 			name = "Tempo",
 			nodes = {
-				{ name = "Schnelle Ladung", text = "−0,3 s Abklingzeit je Punkt" },
-				{ name = "Weite Sprünge", text = "+2 Studs Sprungweite" },
+				{
+					name = "Schnelle Ladung",
+					text = "−0,3 s Abklingzeit je Punkt",
+					effect = fx("cooldown", 0.3),
+				},
+				{
+					name = "Weite Sprünge",
+					text = "+1 Stud Sprungweite je Punkt",
+					effect = fx("radius", 1),
+				},
 			},
 		},
 	}),
@@ -191,9 +250,17 @@ Skills.Blooms = table.freeze({
 		trunk = {
 			name = "Kälte",
 			nodes = {
-				{ name = "Eiskern", text = "+10 % Schaden je Punkt" },
-				{ name = "Weiter Frost", text = "+1 Stud Radius je Punkt" },
-				{ name = "Tiefkühlung", text = "Verlangsamung hält 1 s länger" },
+				{ name = "Eiskern", text = "+10 % Schaden je Punkt", effect = fx("damage", 0.1) },
+				{
+					name = "Weiter Frost",
+					text = "+1 Stud Radius je Punkt",
+					effect = fx("radius", 1),
+				},
+				{
+					name = "Tiefkühlung",
+					text = "Verlangsamung +0,2 s je Punkt",
+					effect = fx("slowTime", 0.2),
+				},
 			},
 		},
 		left = {
@@ -207,10 +274,35 @@ Skills.Blooms = table.freeze({
 			name = "Schutz",
 			nodes = {
 				{ name = "Eispanzer", text = "+10 % Rüstung für 3 s" },
-				{ name = "Kalter Atem", text = "−0,5 s Abklingzeit je Punkt" },
+				{
+					name = "Kalter Atem",
+					text = "−0,5 s Abklingzeit je Punkt",
+					effect = fx("cooldown", 0.5),
+				},
 			},
 		},
 	}),
 } :: { [string]: Bloom })
+
+-- Knoten zu einem Schlüssel wie "left2" (nil, wenn es ihn nicht gibt)
+function Skills.bloomNode(skillId: string, key: string): (BloomNode?, string?, number?)
+	local b = Skills.Blooms[skillId]
+	local branch, n = string.match(key, "^(%a+)(%d)$")
+	if not b or not branch or not n then
+		return nil, nil, nil
+	end
+	local spec = (b :: any)[branch] :: BloomBranch?
+	local index = tonumber(n) :: number
+	if not spec or not spec.nodes[index] then
+		return nil, nil, nil
+	end
+	return spec.nodes[index], branch, index
+end
+
+local barIndex: { [string]: number } = {}
+for i, s in Skills.bar do
+	barIndex[s.id] = i
+end
+Skills.BarIndex = table.freeze(barIndex)
 
 return table.freeze(Skills)

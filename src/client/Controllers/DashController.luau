@@ -1,5 +1,5 @@
 --!strict
--- Dash: Leertaste / Shift / Gamepad B / Mobile-Button. 2 Ladungen, laden nach.
+-- Dash: Leertaste / Shift / Gamepad B / Mobile-Button. 2 Ladungen (+ Sternennetz „StatDash“), laden nach.
 -- Ladungen werden als lokale Player-Attribute veröffentlicht, das HUD liest sie.
 -- Die Unverwundbarkeit vergibt der Server (Systems/Combat), nicht dieser Controller.
 
@@ -18,6 +18,11 @@ local charges = Config.DASH_CHARGES
 local recharge = 0
 local dashUntil = 0
 local dashDir = Vector3.zero
+
+local function maxCharges(): number
+	local bonus = player:GetAttribute("StatDash")
+	return Config.DASH_CHARGES + (if typeof(bonus) == "number" then bonus else 0)
+end
 
 local function publish()
 	player:SetAttribute("DashCharges", charges)
@@ -89,12 +94,15 @@ function DashController.start()
 	ContextActionService:SetTitle("LootRushDash", "Dash")
 
 	RunService.Heartbeat:Connect(function(dt: number)
-		if charges < Config.DASH_CHARGES then
+		if charges < maxCharges() then
 			recharge += dt
 			if recharge >= Config.DASH_RECHARGE then
 				recharge = 0
 				charges += 1
 			end
+			publish()
+		elseif charges > maxCharges() then -- Stern entfernt
+			charges = maxCharges()
 			publish()
 		end
 		if os.clock() < dashUntil then
