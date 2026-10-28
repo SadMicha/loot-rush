@@ -1,7 +1,7 @@
 name: Veröffentlichen
 
 # Baut das Spiel mit Rojo und lädt es per Open Cloud auf den Place hoch.
-# Secrets (Settings → Secrets and variables → Actions): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
+# Secrets im Environment "Roblox" (Settings → Environments): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
 # Anleitung: docs/PUBLISH.md
 
 on:
@@ -22,6 +22,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: Roblox
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
       ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
