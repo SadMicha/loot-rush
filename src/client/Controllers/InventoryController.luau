@@ -706,6 +706,18 @@ function InventoryController.render()
 	renderDetail()
 end
 
+-- Für andere Fenster (Schmiede): aktueller Schnappschuss, Änderungs-Signal, Icon je Platz
+local changed = Instance.new("BindableEvent")
+InventoryController.changed = changed.Event
+
+function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item })
+	return items, equipped
+end
+
+function InventoryController.slotIcon(slot: string): string
+	return SLOT_ICON[slot] or "beutel"
+end
+
 function InventoryController.toggle()
 	gui.Enabled = not gui.Enabled
 	if gui.Enabled then
@@ -759,6 +771,7 @@ function InventoryController.start()
 		items = data.items or {}
 		equipped = data.equipped or {}
 		InventoryController.render()
+		changed:Fire()
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if not processed and input.KeyCode == Enum.KeyCode.I then

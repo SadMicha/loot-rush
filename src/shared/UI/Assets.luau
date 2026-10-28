@@ -363,4 +363,44 @@ Assets.Icon = table.freeze({
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
 } :: { [string]: Icon })
 
+-- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede und Atlas
+-- (Upload-Paket LootRush_Upload_v8_Fenster). Einträge ohne ID werden ignoriert; die Fenster
+-- zeigen dann den flachen Stil (Knoten als Slots, Linien als dünne Striche).
+local ART: { [string]: Fixed } = {
+	bg_skills = { id = "", size = Vector2.new(1024, 576) },
+	bg_starnet = { id = "", size = Vector2.new(1024, 576) },
+	bg_forge = { id = "", size = Vector2.new(1024, 576) },
+	bg_atlas = { id = "", size = Vector2.new(1024, 576) },
+	node_ring = { id = "", size = Vector2.new(342, 344) },
+	node_ring_active = { id = "", size = Vector2.new(397, 399) },
+	node_ring_locked = { id = "", size = Vector2.new(341, 344) },
+	star_small = { id = "", size = Vector2.new(164, 164) },
+	star_small_active = { id = "", size = Vector2.new(176, 182) },
+	star_big = { id = "", size = Vector2.new(290, 293) },
+	star_big_active = { id = "", size = Vector2.new(320, 325) },
+	star_core = { id = "", size = Vector2.new(426, 449) },
+	plaque_region = { id = "", size = Vector2.new(543, 230) },
+	plaque_status = { id = "", size = Vector2.new(818, 282) },
+	forge_anvil = { id = "", size = Vector2.new(1000, 536) },
+	island_gruene_ebenen = { id = "", size = Vector2.new(493, 485) },
+	island_kristallhoehlen = { id = "", size = Vector2.new(471, 474) },
+	island_pilzsumpf = { id = "", size = Vector2.new(479, 480) },
+	island_feuerwueste = { id = "", size = Vector2.new(512, 518) },
+	island_himmelsinseln = { id = "", size = Vector2.new(512, 497) },
+	island_veraenderte_welt = { id = "", size = Vector2.new(498, 481) },
+	region_gruene_ebenen = { id = "", size = Vector2.new(768, 432) },
+	region_kristallhoehlen = { id = "", size = Vector2.new(768, 432) },
+	region_pilzsumpf = { id = "", size = Vector2.new(768, 432) },
+	region_feuerwueste = { id = "", size = Vector2.new(768, 432) },
+	region_himmelsinseln = { id = "", size = Vector2.new(768, 432) },
+	region_veraenderte_welt = { id = "", size = Vector2.new(768, 432) },
+}
+local art: { [string]: Fixed } = {}
+for name, a in ART do
+	if a.id ~= "" then
+		art[name] = table.freeze(a)
+	end
+end
+Assets.Art = table.freeze(art)
+
 return table.freeze(Assets)
