@@ -65,6 +65,7 @@ end
 local function clearGroup(size: Vector2): CanvasGroup
 	local g = Instance.new("CanvasGroup")
 	g.Size = UDim2.fromOffset(size.X, size.Y)
+	g.AutomaticSize = Enum.AutomaticSize.XY -- wächst mit, wenn Knöpfe auf Touch größer werden
 	g.BackgroundTransparency = 1
 	g.BorderSizePixel = 0
 	return g

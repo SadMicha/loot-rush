@@ -143,7 +143,9 @@ function Layout.sizeIn(
 
 	local auto = get(inst, "AutomaticSize", Enum.AutomaticSize.None)
 	if auto ~= Enum.AutomaticSize.None then
-		local cw, ch = self:contentExtent(inst, s)
+		-- Nur Y wächst: umbrochener Text bricht an der festen Breite um
+		local wrapW = if auto == Enum.AutomaticSize.Y then w else nil
+		local cw, ch = self:contentExtent(inst, s, wrapW)
 		if auto == Enum.AutomaticSize.X or auto == Enum.AutomaticSize.XY then
 			w = math.max(w, cw)
 		end
@@ -187,11 +189,16 @@ function Layout.sizeIn(
 end
 
 -- Mindestgröße für AutomaticSize: Text oder Kinder
-function Layout.contentExtent(self: Layout, inst: any, s: number): (number, number)
+function Layout.contentExtent(self: Layout, inst: any, s: number, wrapW: number?): (number, number)
 	local w, h = 0, 0
 	if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then
 		local size = get(inst, "TextSize", 14) * s
-		local b = Layout.textBounds(get(inst, "Text", ""), size, Layout.isBold(inst))
+		local b = Layout.textBounds(
+			get(inst, "Text", ""),
+			size,
+			Layout.isBold(inst),
+			if get(inst, "TextWrapped", false) then wrapW else nil
+		)
 		w, h = b.X, b.Y
 	end
 	local list = firstChild(inst, "UIListLayout")
@@ -362,6 +369,39 @@ function Layout.arrange(self: Layout, parent: any, layout: any, P: Rect)
 		== Enum.FillDirection.Horizontal
 	local pad: UDim = get(layout, "Padding", UDim.new())
 	local gap = (if horizontal then P.w else P.h) * pad.Scale + pad.Offset * s
+
+	-- Wraps: waagerechte Liste bricht in Zeilen um (Zeilenabstand = Padding)
+	if horizontal and get(layout, "Wraps", false) then
+		local rows, row, rowW = {}, {}, 0
+		for _, c in items do
+			local w, h, us = self:sizeIn(c, P.w, P.h, s)
+			local need = if #row > 0 then rowW + gap + w else w
+			if #row > 0 and need > P.w + 0.5 then
+				table.insert(rows, { items = row, w = rowW })
+				row, rowW = {}, w
+			else
+				rowW = need
+			end
+			table.insert(row, { c, w, h, us })
+		end
+		if #row > 0 then
+			table.insert(rows, { items = row, w = rowW })
+		end
+		local y = P.y
+		for _, r in rows do
+			local x = align(P.x, P.w, r.w, ha, H.Left, H.Right)
+			local rowH = 0
+			for _, e in r.items do
+				local c, w, h, us = e[1], e[2], e[3], e[4]
+				self.cache[id(c)] = { x = x, y = y, w = w, h = h, s = s * us }
+				x += w + gap
+				rowH = math.max(rowH, h)
+			end
+			y += rowH + gap
+		end
+		return
+	end
+
 	local sizes = {}
 	local total = 0
 	for i, c in items do

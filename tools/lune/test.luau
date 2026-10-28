@@ -7,6 +7,7 @@
 --   describe(name, fn) · it(name, fn) · expect(wert).toBe(…) (siehe lib/Expect.luau)
 --   require("ReplicatedStorage.Shared.Items") – Pfad im Spiel (wie im Rojo-Build)
 --   sim – die Sandbox: sim:boot(), sim:run(sek), sim.player, sim:runAs("server", fn), sim.issues …
+--   layoutCheck(größe, touch) – Layout-Befunde des aktuellen UI wie im UI-Check (lib/Checks.luau)
 --   alle Roblox-Globals der Sandbox (game, Instance, Vector3, task, Random …)
 -- Jede Spec-Datei bekommt eine frische Sandbox; jeder Test läuft in einem eigenen Thread.
 
@@ -14,6 +15,7 @@ local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local process = require("@lune/process")
 
+local Checks = require("./lib/Checks")
 local Expect = require("./lib/Expect")
 local Place = require("./lib/Place")
 local Sandbox = require("./lib/Sandbox")
@@ -54,6 +56,10 @@ for _, file in findSpecs("tests", {}) do
 
 	local env = sb:makeEnv(nil, "server")
 	env.sim = sb
+	env.layoutCheck = function(size, touch)
+		sb:setViewport(size, touch)
+		return Checks.run(sb, { name = "test", touch = touch })
+	end
 	env.expect = Expect
 	env.describe = function(name, fn)
 		table.insert(prefix, name)

@@ -8,6 +8,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -64,9 +65,89 @@ function Kit.list(
 	return l
 end
 
+-- Mindestgrößen in echten Bildschirmpixeln (nach UIScale). Auf kleinen Bildschirmen wächst
+-- kleine Schrift immer, mit Kit.touchTarget markierte Knöpfe nur auf Touch-Geräten.
+Kit.MIN_TEXT_PX = 9.5
+Kit.MIN_TOUCH_PX = 33
+
+-- Knopf auf Touch-Geräten mindestens Kit.MIN_TOUCH_PX groß machen (nur Offset-Größen)
+function Kit.touchTarget(b: GuiButton)
+	b:SetAttribute("TouchTarget", true)
+end
+
+-- Hält Schrift und markierte Knöpfe unter `root` über den Mindestgrößen; gibt die Neu-Anwenden-Funktion zurück.
+-- Die Design-Größe merkt sich jedes Objekt selbst (Attribute), damit sie Umhängen und spätere Änderungen übersteht.
+local function minimums(root: Frame, scale: UIScale): () -> ()
+	local texts: { [Instance]: true } = {}
+	local hits: { [GuiButton]: true } = {}
+
+	local function fitText(t: any)
+		if t.TextScaled then
+			return
+		end
+		if t.TextSize ~= t:GetAttribute("FitTextSize") then
+			t:SetAttribute("BaseTextSize", t.TextSize) -- Größe wurde von außen neu gesetzt
+		end
+		local want =
+			math.max(t:GetAttribute("BaseTextSize"), math.ceil(Kit.MIN_TEXT_PX / scale.Scale))
+		t:SetAttribute("FitTextSize", want)
+		t.TextSize = want
+	end
+
+	local function fitHit(b: GuiButton)
+		local base = b:GetAttribute("BaseSize") :: Vector2
+		local min = if UserInputService.TouchEnabled
+			then math.ceil(Kit.MIN_TOUCH_PX / scale.Scale)
+			else 0
+		b.Size = UDim2.fromOffset(math.max(base.X, min), math.max(base.Y, min))
+	end
+
+	local function track(d: Instance)
+		if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+			if d:GetAttribute("BaseTextSize") == nil then
+				local t: any = d
+				d:SetAttribute("BaseTextSize", t.TextSize)
+				d:GetPropertyChangedSignal("TextSize"):Connect(function()
+					if texts[d] and t.TextSize ~= d:GetAttribute("FitTextSize") then
+						fitText(t)
+					end
+				end)
+			end
+			texts[d] = true
+			fitText(d)
+		end
+		if d:IsA("GuiButton") and d:GetAttribute("TouchTarget") then
+			local size = d.Size
+			if d:GetAttribute("BaseSize") == nil and size.X.Scale == 0 and size.Y.Scale == 0 then
+				d:SetAttribute("BaseSize", Vector2.new(size.X.Offset, size.Y.Offset))
+			end
+			if d:GetAttribute("BaseSize") ~= nil then
+				hits[d] = true
+				fitHit(d)
+			end
+		end
+	end
+	root.DescendantAdded:Connect(track)
+	root.DescendantRemoving:Connect(function(d: Instance)
+		texts[d] = nil
+		hits[d :: GuiButton] = nil
+	end)
+
+	return function()
+		for t in texts do
+			fitText(t)
+		end
+		for b in hits do
+			fitHit(b)
+		end
+	end
+end
+
 -- ScreenGui mit Root-Frame, der auf die Design-Auflösung (1600×900) skaliert.
 -- UIScale skaliert auch den Root selbst, darum bekommt er die Gegengröße 1/s und füllt den Bildschirm.
-function Kit.scaledGui(name: string, order: number): (ScreenGui, Frame)
+-- fit = true (Vollbild-Fenster): nie kleiner als die Design-Fläche, auch wenn der Bildschirm
+-- dafür stärker verkleinert werden muss (Handy); das HUD bleibt bei mindestens 0.55.
+function Kit.scaledGui(name: string, order: number, fit: boolean?): (ScreenGui, Frame)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
 	gui.ResetOnSpawn = false
@@ -81,15 +162,20 @@ function Kit.scaledGui(name: string, order: number): (ScreenGui, Frame)
 	root.Parent = gui
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
+	local reapply = minimums(root, scale)
 
 	local function rescale()
 		local camera = workspace.CurrentCamera
 		if camera then
 			local v = camera.ViewportSize
-			local s =
-				math.clamp(math.min(v.X / Theme.DesignSize.X, v.Y / Theme.DesignSize.Y), 0.55, 1.4)
+			local s = math.clamp(
+				math.min(v.X / Theme.DesignSize.X, v.Y / Theme.DesignSize.Y),
+				if fit then 0.3 else 0.55,
+				1.4
+			)
 			scale.Scale = s
 			root.Size = UDim2.fromScale(1 / s, 1 / s)
+			reapply()
 		end
 	end
 	rescale()
@@ -358,6 +444,7 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1
 	b:SetAttribute("Skin", skinName)
+	Kit.touchTarget(b)
 	local normal = Assets.Slice[skinName]
 	local pressed = Assets.Slice[skinName .. "_pressed"]
 	if normal then
@@ -476,6 +563,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	ic.Parent = f
 	local plus: ImageButton? = nil
 	if plusFixed then
+		-- Unsichtbare Trefferfläche (wächst auf Touch), das Bild sitzt fest am rechten Rand
 		local pb = Instance.new("ImageButton")
 		pb.Name = "Plus"
 		pb.AnchorPoint = Vector2.new(1, 0.5)
@@ -483,16 +571,25 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 		pb.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
 		pb.BackgroundTransparency = 1
 		pb.AutoButtonColor = false
-		pb.Image = plusFixed.id
-		pb.ScaleType = Enum.ScaleType.Fit
 		pb.ZIndex = 3
+		Kit.touchTarget(pb)
+		local img = Instance.new("ImageLabel")
+		img.Name = "Bild"
+		img.AnchorPoint = Vector2.new(1, 0.5)
+		img.Position = UDim2.fromScale(1, 0.5)
+		img.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+		img.BackgroundTransparency = 1
+		img.Image = plusFixed.id
+		img.ScaleType = Enum.ScaleType.Fit
+		img.ZIndex = 3
+		img.Parent = pb
 		pb.MouseButton1Down:Connect(function()
-			pb.Size = UDim2.fromOffset(PILL_PLUS - 4, PILL_PLUS - 4)
-			pb.ImageColor3 = Color3.fromRGB(190, 190, 190)
+			img.Size = UDim2.fromOffset(PILL_PLUS - 4, PILL_PLUS - 4)
+			img.ImageColor3 = Color3.fromRGB(190, 190, 190)
 		end)
 		local function release()
-			pb.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
-			pb.ImageColor3 = Color3.new(1, 1, 1)
+			img.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+			img.ImageColor3 = Color3.new(1, 1, 1)
 		end
 		pb.MouseButton1Up:Connect(release)
 		pb.MouseLeave:Connect(release)
@@ -529,6 +626,7 @@ function Kit.iconButton(
 	local b = Instance.new("ImageButton")
 	b.Name = label
 	b.Size = UDim2.fromOffset(if captioned then math.floor(s * 1.35) else s, s)
+	Kit.touchTarget(b)
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1

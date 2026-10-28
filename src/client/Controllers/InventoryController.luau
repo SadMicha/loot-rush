@@ -13,6 +13,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Window = require(script.Parent.Parent.UI.Window)
 
 local InventoryController = {}
 
@@ -476,6 +477,7 @@ end
 local function chip(text: string, good: boolean, order: number): Frame
 	local color = if good then C.Good else C.Danger
 	local f = Instance.new("Frame")
+	f.Name = "Chip"
 	f.AutomaticSize = Enum.AutomaticSize.X
 	f.Size = UDim2.fromOffset(0, 32)
 	f.BackgroundColor3 = color
@@ -587,11 +589,12 @@ local function renderDetail()
 	cl.Wraps = true
 	cl.Parent = chips
 	chips.Parent = detail
+	-- Ohne angelegtes Teil gäbe es nur die Affixe ein zweites Mal (doppeltes „+42 Leben“)
 	local current = equipped[item.slot]
 	local chipCount = 0
-	if not selectedEquipped then
+	if current and not selectedEquipped then
 		local mine = statTotals({ item })
-		local theirs = if current then statTotals({ current }) else {}
+		local theirs = statTotals({ current })
 		for i, stat in STAT_ORDER do
 			local d = (mine[stat] or 0) - (theirs[stat] or 0)
 			if math.abs(d) >= 0.05 then
@@ -605,7 +608,7 @@ local function renderDetail()
 	end
 
 	-- Affixe mit Balken (Wurfqualität)
-	local extra = if chipCount > 2 then 40 else 0
+	local extra = if chipCount == 0 then -44 elseif chipCount > 2 then 40 else 0
 	local divider = Kit.divider(420 - 2 * PAD)
 	divider.Position = UDim2.fromOffset(PAD, PAD + 172 + extra)
 	divider.Parent = detail
@@ -675,6 +678,7 @@ local function renderDetail()
 			Vector2.new(w, 50),
 			"verwerten"
 		)
+		Kit.buttonLabel(s).TextSize = Kit.fontSize(15) -- langer Text (Gold + Splitter) muss in eine Zeile
 		s.LayoutOrder = 2
 		s.Activated:Connect(function()
 			Net.Sell:FireServer(item.id)
@@ -725,14 +729,18 @@ end
 function InventoryController.toggle()
 	gui.Enabled = not gui.Enabled
 	if gui.Enabled then
+		Window.closeCurrent() -- immer nur ein Vollbild-Fenster
 		refreshViewport()
 	end
 end
 
 function InventoryController.init()
 	local root: Frame
-	gui, root = Kit.scaledGui("LootRushInventory", 5)
+	gui, root = Kit.scaledGui("LootRushInventory", 5, true)
 	gui.Enabled = false
+	Window.exclusive(function()
+		gui.Enabled = false
+	end)
 
 	local window = Instance.new("Frame")
 	window.BackgroundTransparency = 1
