@@ -3,9 +3,13 @@
 -- Grasblöcke 8×8, Terrassen, Steinweg, Ruinen, runde Bäume, Kristall-Pylone, Fern-Inseln
 -- (Gegner kommen aus Systems/Enemies).
 -- Requisiten kommen aus Shared/Models (Part-Builder); die Platzierung bleibt hier.
+-- Bis es eigene Karten je Gebiet gibt, färbt World.theme die Arena passend zum Gebiet
+-- (Rasen + Farbkorrektur in Lighting).
 
+local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
 
@@ -16,12 +20,16 @@ local block = Models.Kit.block
 local Props = Models.Props
 
 local rng = Random.new(7)
+local lawn: { [BasePart]: Color3 } = {} -- Rasen-Oberseiten mit Grundfarbe
+local mood: ColorCorrectionEffect
 
 local function tile(parent: Instance, x: number, z: number, height: number)
 	local t = Config.TILE_SIZE
 	local top = if (x + z) % 2 == 0 then C.grass else C.grass2
 	top = Models.Kit.shade(top, rng:NextNumber(-0.03, 0.03))
-	block(parent, Vector3.new(t, 0.7, t), CFrame.new(x * t, height - 0.35, z * t), top)
+	local grass =
+		block(parent, Vector3.new(t, 0.7, t), CFrame.new(x * t, height - 0.35, z * t), top)
+	lawn[grass] = top
 	block(
 		parent,
 		Vector3.new(t + 0.05, 0.2, t + 0.05),
@@ -75,6 +83,19 @@ function World.init()
 	local baseplate = workspace:FindFirstChild("Baseplate")
 	if baseplate then
 		baseplate:Destroy()
+	end
+end
+
+-- Färbt die Arena für ein Gebiet ein (nil = Grundzustand)
+function World.theme(region: Atlas.Region?)
+	local start = region == nil or region.id == Atlas.Start
+	for p, base in lawn do
+		p.Color = if start or not region then base else base:Lerp(region.tint, 0.55)
+	end
+	if mood then
+		mood.TintColor = if start or not region
+			then Color3.new(1, 1, 1)
+			else Color3.new(1, 1, 1):Lerp(region.tint, 0.35)
 	end
 end
 
@@ -161,6 +182,9 @@ function World.start()
 	spawn.Parent = arena
 
 	arena.Parent = workspace
+	mood = Instance.new("ColorCorrectionEffect")
+	mood.Name = "Gebiet"
+	mood.Parent = Lighting
 	print("[LootRush] Testarena gebaut")
 end
 

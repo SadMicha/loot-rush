@@ -1,8 +1,10 @@
 --!strict
 -- Atlas-Fenster nach Mockup „Atlas“ (Taste M oder Menü-Button):
 --   links die Karte mit Gebieten und Pfaden, rechts Steckbrief des gewählten Gebiets und „Reisen“.
--- Reisen startet das bisher einzige Rift (Net.Rift „enter“); andere Gebiete sind gesperrt.
+-- Reisen startet das Rift des Gebiets (Net.Rift „enter“, Gebiet). Ob ein Gebiet offen ist, folgt aus
+-- den Bestleistungen, die der Server als Attribute AtlasBest_<Gebiet> setzt (Regel in Shared/Atlas).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
@@ -24,7 +26,15 @@ local win: Window.Window
 local map: Frame
 local side: Frame
 
-local selected = "gruene_ebenen"
+local selected = Atlas.Start
+
+local function best(id: string): number
+	return (Players.LocalPlayer:GetAttribute(Atlas.attr(id)) or 0) :: number
+end
+
+local function isOpen(r: Atlas.Region): boolean
+	return Atlas.isOpen(r.id, best)
+end
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -47,7 +57,7 @@ end
 local function path(a: Atlas.Region, b: Atlas.Region)
 	local d = b.pos - a.pos
 	local n = math.floor(d.Magnitude / DOT_GAP)
-	local lit = a.open and b.open
+	local lit = isOpen(a) and isOpen(b)
 	for i = 1, n - 1 do
 		local p = a.pos + d * (i / n)
 		local dot = Instance.new("Frame")
@@ -123,7 +133,7 @@ local function renderMap()
 
 		-- Raute oder Schloss unter dem Schild
 		local mark: GuiObject
-		if r.open then
+		if isOpen(r) then
 			local diamond = Instance.new("Frame")
 			diamond.Size = UDim2.fromOffset(22, 22)
 			diamond.Rotation = 45
@@ -196,7 +206,11 @@ local function renderSide()
 
 	local half = (w - 10) / 2
 	local top = row(PAD + 262, w)
-	infoTile("portal", r.levels, half, 1).Parent = top
+	local record = best(r.id)
+	local depthText = if record > 0
+		then string.format("Rekord: Tiefe %d", record)
+		else string.format("Ab Tiefe %d", r.depth)
+	infoTile("portal", depthText, half, 1).Parent = top
 	infoTile(r.bossIcon, r.boss, half, 2).Parent = top
 	local mods = row(PAD + 328, w)
 	for i, m in r.mods do
@@ -220,17 +234,21 @@ local function renderSide()
 	end
 
 	local inRift = RiftController.active()
-	local text = if not r.open then "Gesperrt" elseif inRift then "Schon im Rift" else "Reisen"
-	local go = Kit.button(text, C.Gold, Vector2.new(w, 64), if r.open then "portal" else "schloss")
+	local open = isOpen(r)
+	local text = if not open
+		then string.format("Erst Tiefe %d schaffen", r.depth - 1)
+		elseif inRift then "Schon im Rift"
+		else "Reisen"
+	local go = Kit.button(text, C.Gold, Vector2.new(w, 64), if open then "portal" else "schloss")
 	Kit.buttonLabel(go).TextSize = Kit.fontSize(24)
 	go.AnchorPoint = Vector2.new(0, 1)
 	go.Position = UDim2.new(0, PAD, 1, -PAD)
-	Kit.setEnabled(go, r.open and not inRift)
+	Kit.setEnabled(go, open and not inRift)
 	go.Activated:Connect(function()
 		if not go.Active then
 			return
 		end
-		Net.Rift:FireServer("enter")
+		Net.Rift:FireServer("enter", r.id)
 		win.close()
 	end)
 	go.Parent = side

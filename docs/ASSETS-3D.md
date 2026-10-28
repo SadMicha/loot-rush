@@ -65,3 +65,19 @@ Nächster Batch, wenn die Optik passt: Loot-Geschenkbox an `Loot.luau` anschlie�
 - `Creatures`: Kristallschleim (aus `Enemies.luau` herausgelöst, Augen schauen jetzt in Laufrichtung) und Stachelkäfer für die Sonnenwiese (nur Modell, spawnt noch nicht). Pivot hier in der Körpermitte, weil die Gegner-KI damit hüpft.
 
 Nächster Batch: Käfer als Gegnertyp in `Enemies`/`Rift`, Gebäude im Hub platzieren und an den Dorf-Ausbau koppeln, Splitter/Bonbons als Drops, sobald es Craft-Material gibt.
+
+## Dritter Batch: Gegner aller Gebiete
+
+`Creatures` hat jetzt je Gebiet aus dem Atlas eigene Gegner (Archetyp in Klammern, Werte aus dem Balancing-Blatt „Archetypen“):
+
+| Gebiet | Gegner | Boss |
+|---|---|---|
+| Grüne Ebenen | Kristallschleim (Schwarm), Stachelkäfer (Lader) | Kristallkönig |
+| Kristallhöhlen | Kristallkrabbe (Tank), Fledermaus-Lampion (Fernkämpfer) | Splitterwurm |
+| Pilzsumpf | Sporenfrosch (Lader), Giftschnecke (Beschwörer, ruft Sporlinge) | Sporenmutter |
+| Feuerwüste | Toast-Golem (Tank), Funkenwicht (Fernkämpfer) | Ofenfürst Krust |
+| Himmelsinseln | Windgeist (Fernkämpfer), Wächterstatue (Tank) | Wolkenkönigin |
+| Veränderte Welt | Mischung aus allen | Der Riss |
+
+Bosse sind dieselben Bauten, größer und mit `Creatures.crown`. Alle stehen in der Vorschau (`showcase()`).
+Gegnertypen, KI und Werte: `Systems/Enemies.luau`; Gegner-Mix, Start-Tiefe und Freischalten: `Shared/Atlas.luau`.

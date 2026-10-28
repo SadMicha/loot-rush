@@ -7,6 +7,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -41,6 +42,8 @@ end
 local function refresh()
 	local p = phase()
 	local depth = (player:GetAttribute("RiftDepth") or 1) :: number
+	local region = Atlas.ById[(player:GetAttribute("RiftRegion") or "") :: string]
+	local where = if region then region.name .. " · " else ""
 	banner.Visible = p ~= ""
 	bossBox.Visible = p == "boss"
 	choice.Visible = p == "clear"
@@ -50,11 +53,11 @@ local function refresh()
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
 		bannerText.Text =
-			string.format("Tiefe %d · Welle %d/%d · Gegner %d", depth, wave, waves, left)
+			string.format("%sTiefe %d · Welle %d/%d · Gegner %d", where, depth, wave, waves, left)
 	elseif p == "boss" then
-		bannerText.Text = string.format("Tiefe %d · Boss", depth)
+		bannerText.Text = string.format("%sTiefe %d · Boss", where, depth)
 	elseif p == "clear" then
-		bannerText.Text = string.format("Tiefe %d geschafft", depth)
+		bannerText.Text = string.format("%sTiefe %d geschafft", where, depth)
 		Kit.buttonLabel(deeperButton).Text = string.format("Tiefer (Tiefe %d)", depth + 1)
 	elseif p == "failed" then
 		bannerText.Text = "Rift gescheitert"
@@ -76,7 +79,7 @@ end
 function RiftController.init()
 	local gui, root = Kit.scaledGui("LootRushRift", 3)
 
-	banner = Kit.panel(Vector2.new(400, 44), C.Gold)
+	banner = Kit.panel(Vector2.new(480, 44), C.Gold)
 	banner.AnchorPoint = Vector2.new(0.5, 0)
 	banner.Position = UDim2.new(0.5, 0, 0, 84)
 	banner.Visible = false
@@ -126,7 +129,7 @@ function RiftController.init()
 end
 
 function RiftController.start()
-	for _, attr in { "RiftPhase", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
+	for _, attr in { "RiftPhase", "RiftRegion", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
 	refresh()
