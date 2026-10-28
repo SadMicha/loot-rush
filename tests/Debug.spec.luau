@@ -25,6 +25,19 @@ local function state()
 			skill = if skill then skill.level else 1,
 			items = #p.inventory,
 			atlas = player:GetAttribute("AtlasBest_himmelsinseln"),
+			allOpen = (function()
+				local Atlas = req("ReplicatedStorage.Shared.Atlas")
+				for _, region in Atlas.Regions do
+					if
+						not Atlas.isOpen(region.id, function(id)
+							return p.atlas[id] or 0
+						end)
+					then
+						return false
+					end
+				end
+				return true
+			end)(),
 			tools = player:GetAttribute("DebugTools"),
 		}
 	end)
@@ -63,6 +76,7 @@ describe("Debug-Menü", function()
 		expect(after.skill).toBe(before.skill + 2)
 		expect(after.items).toBe(before.items + 3)
 		expect(after.atlas).toBeGreaterThanOrEqual(21) -- Start-Tiefe der Himmelsinseln
+		expect(after.allOpen).toBe(true)
 	end)
 
 	it("lehnt unsinnige Werte ab", function()

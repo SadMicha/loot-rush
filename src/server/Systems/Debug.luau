@@ -74,8 +74,14 @@ local function unlockAtlas(player: Player)
 	if not profile then
 		return
 	end
+	-- Freischalten prüft die Bestleistung im Vorgänger, und Nachfolger können tiefer starten
+	-- (Feuerwüste 16 → Veränderte Welt 26): darum überall die tiefste Start-Tiefe eintragen.
+	local deepest = 0
 	for _, region in Atlas.Regions do
-		local depth = math.max(profile.atlas[region.id] or 0, region.depth + REGION_SPAN - 1)
+		deepest = math.max(deepest, region.depth + REGION_SPAN - 1)
+	end
+	for _, region in Atlas.Regions do
+		local depth = math.max(profile.atlas[region.id] or 0, deepest)
 		profile.atlas[region.id] = depth
 		player:SetAttribute(Atlas.attr(region.id), depth)
 	end
