@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -79,7 +80,10 @@ local CHARGE_TIME = 0.3
 local MAX_MINIONS = 4
 local BOSS_SUMMONS = 4
 local BASE_BODY_Y = Creatures.BODY_Y
-local MIN_Z, MAX_Z, MAX_X = -26, 36, 42
+-- Laufbereich: Arena-Raster ohne erhöhten Nordrand und Seitenklippen (siehe Systems/World)
+local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
+local MAX_Z = math.floor(Config.ARENA_TILES_Z / 2) * Config.TILE_SIZE - 6
+local MIN_Z = -MAX_Z + 6
 local DANGER = Color3.fromHex("#FF6A3A")
 local DANGER_CORE = Color3.fromHex("#FF3A2A")
 
@@ -457,6 +461,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 	model:SetAttribute("MaxHealth", health)
 	model:SetAttribute("XP", math.floor(kind.xp * (1 + Config.RIFT_XP_PER_DEPTH * steps)))
 	model:SetAttribute("Color", kind.color)
+	model:SetAttribute("Depth", depth)
 	if kind.boss then
 		model:SetAttribute("Boss", true)
 	end
@@ -482,6 +487,16 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 		dashEnd = 0,
 	})
 	return model
+end
+
+-- Gebiet am Gegner vermerken (Beute-Boni in Systems/Loot) und den Erfahrungs-Bonus anwenden
+function Enemies.setRegion(model: Model, regionId: string)
+	model:SetAttribute("Region", regionId)
+	local region = Atlas.ById[regionId]
+	local xp = region and region.bonus.xp
+	if xp then
+		model:SetAttribute("XP", math.floor((model:GetAttribute("XP") or 0) :: number * (1 + xp)))
+	end
 end
 
 function Enemies.clear()
@@ -644,6 +659,10 @@ local function summon(e: Enemy, around: Vector3, count: number)
 		local at = clampArena(around + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6))
 		local m = Enemies.spawn(addKind, Vector3.new(at.X, 0, at.Z), e.depth)
 		if m then
+			local region = e.model:GetAttribute("Region")
+			if typeof(region) == "string" then
+				Enemies.setRegion(m, region) -- Gebiets-Boni gelten auch für Helfer
+			end
 			table.insert(e.minions, m)
 		end
 	end

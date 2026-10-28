@@ -26,8 +26,8 @@ return table.freeze({
 
 	-- Welt
 	TILE_SIZE = 8,
-	ARENA_TILES_X = 11,
-	ARENA_TILES_Z = 9,
+	ARENA_TILES_X = 17, -- Kacheln je Gebiets-Arena (Raster gleich in allen Gebieten)
+	ARENA_TILES_Z = 15,
 
 	-- Kampf (Spieler)
 	RESPAWN_TIME = 3,
@@ -43,16 +43,16 @@ return table.freeze({
 	DAMAGE_PER_LEVEL = 0.1, -- +10 % Schaden je Level
 
 	-- Gegner
-	ENEMY_ZONE = Vector3.new(0, 0, -18), -- Mittelpunkt des Spawn-Bereichs
-	ENEMY_ZONE_RADIUS = 10,
+	ENEMY_ZONE = Vector3.new(0, 0, -20), -- Mittelpunkt des Spawn-Bereichs
+	ENEMY_ZONE_RADIUS = 16,
 	AGGRO_RADIUS = 45,
 
 	-- Messung (M5): Debug-Overlay mit F3 oder dem „Dbg“-Knopf unten links
 	DEBUG_OVERLAY = true,
 
 	-- Rift (Wellen → Boss → tiefer oder zurück)
-	RIFT_START = Vector3.new(0, 4, 12), -- hier landet der Spieler beim Betreten
-	HUB_POS = Vector3.new(0, 4, 28), -- Rückkehr (SpawnLocation der Arena)
+	RIFT_START = Vector3.new(0, 4, 16), -- hier landet der Spieler beim Betreten
+	HUB_POS = Vector3.new(0, 4, 50), -- Rückkehr (SpawnLocation der Arena)
 	RIFT_WAVES = 3, -- Wellen vor dem Boss
 	RIFT_WAVE_BASE = 6, -- Gegner in Welle 1 auf Tiefe 1
 	RIFT_WAVE_STEP = 2, -- zusätzliche Gegner je Welle und je Tiefe
@@ -61,4 +61,12 @@ return table.freeze({
 	RIFT_HP_PER_DEPTH = 0.35, -- +35 % Leben je Tiefe
 	RIFT_DMG_PER_DEPTH = 0.15,
 	RIFT_XP_PER_DEPTH = 0.25,
+
+	-- Beute (eigene Annahmen): skaliert mit der Rift-Tiefe des Gegners, nicht mit dem Spieler-Level
+	LOOT_ILVL_PER_DEPTH = 2, -- Gegenstandsstufe = Tiefe × 2 − 1 (Tiefe 1 → 1, Tiefe 6 → 11)
+	LOOT_BOSS_ILVL = 2, -- Boss-Items liegen so viele Stufen darüber
+	LOOT_GOLD_PER_DEPTH = 2, -- Gold je Drop: 2–4 + Tiefe × 2 (Boss × 2 je Münze)
+	LOOT_ITEM_CHANCE = 0.35, -- Chance auf ein Item je normalem Gegner
+	LOOT_FIND_PER_DEPTH = 0.04, -- +4 % Gewicht für Magisch/Selten/Episch je Tiefe
+	LOOT_BOSS_FIND = 0.5, -- Bosse: zusätzlich +50 %
 })

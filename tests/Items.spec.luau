@@ -37,6 +37,19 @@ describe("Items.roll", function()
 			expect(seen[id]).toBe(true)
 		end
 	end)
+
+	it("würfelt mit Fundbonus öfter seltene Items", function()
+		local function rare(find)
+			local n = 0
+			for seed = 1, 1500 do
+				if Items.roll(5, Random.new(seed), find).rarity ~= "normal" then
+					n += 1
+				end
+			end
+			return n
+		end
+		expect(rare(1)).toBeGreaterThan(rare(0) + 150)
+	end)
 end)
 
 describe("Items.sellValue", function()

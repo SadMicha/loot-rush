@@ -84,6 +84,12 @@ local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftPhase", phase)
 end
 
+local function mark(r: Run, model: Model?)
+	if model then
+		Enemies.setRegion(model, r.region.id)
+	end
+end
+
 local function enemiesLeft(): number
 	return #CollectionService:GetTagged("Enemy")
 end
@@ -128,7 +134,7 @@ local function finish(r: Run, failed: boolean)
 		string.format("Tiefe %d %s", r.depth, if failed then "gescheitert" else "verlassen")
 	)
 	Enemies.clear()
-	World.theme(nil)
+	World.build(nil)
 	local owner = r.owner
 	owner:SetAttribute("RiftRegion", nil)
 	if not owner.Parent then
@@ -160,7 +166,7 @@ local function play(r: Run)
 		)
 		local mix = r.region.enemies
 		for _ = 1, count do
-			Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth)
+			mark(r, Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth))
 		end
 		if not waitClear(r) then
 			return finish(r, true)
@@ -172,7 +178,7 @@ local function play(r: Run)
 	end
 
 	publish(r, "boss")
-	Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth)
+	mark(r, Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth))
 	if not waitClear(r) then
 		return finish(r, true)
 	end
@@ -193,7 +199,7 @@ local function begin(player: Player, regionId: any)
 	end
 	local r: Run = { owner = player, region = region, depth = region.depth, wave = 0 }
 	run = r
-	World.theme(region)
+	World.build(region)
 	model:PivotTo(CFrame.new(Config.RIFT_START))
 	task.spawn(play, r)
 end

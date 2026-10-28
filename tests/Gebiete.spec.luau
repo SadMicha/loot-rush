@@ -15,6 +15,12 @@ local function server(fn)
 	return table.unpack(out, 1, out.n)
 end
 
+local function arenaHas(name: string): boolean
+	return server(function()
+		return workspace.Arena:FindFirstChild(name) ~= nil
+	end)
+end
+
 local function enter(id: string?)
 	sim:runAs("client", function(req)
 		req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", id)
@@ -89,6 +95,19 @@ describe("Gebiete im Spiel", function()
 		enter("kristallhoehlen")
 		expect(sim.player:GetAttribute("RiftRegion")).toBe("kristallhoehlen")
 		expect(sim.player:GetAttribute("RiftDepth")).toBe(6)
+		expect(arenaHas("Gebiet_kristallhoehlen")).toBe(true)
+		expect(arenaHas("Gebiet_gruene_ebenen")).toBe(false)
+		local tagged = server(function()
+			local out = {}
+			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
+				table.insert(out, { e:GetAttribute("Depth"), e:GetAttribute("Region") })
+			end
+			return out
+		end)
+		for _, t in tagged do
+			expect(t[1]).toBe(6)
+			expect(t[2]).toBe("kristallhoehlen")
+		end
 		local names = server(function()
 			local out = {}
 			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
@@ -96,7 +115,8 @@ describe("Gebiete im Spiel", function()
 			end
 			return out
 		end)
-		local allowed = { Kristallschleim = true, Kristallkrabbe = true, ["Fledermaus-Lampion"] = true }
+		local allowed =
+			{ Kristallschleim = true, Kristallkrabbe = true, ["Fledermaus-Lampion"] = true }
 		local count = 0
 		for name in names do
 			count += 1
@@ -106,6 +126,47 @@ describe("Gebiete im Spiel", function()
 		sim:run(4) -- KI greift an (Telegraph, Geschosse)
 		leave()
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
+		expect(arenaHas("Gebiet_gruene_ebenen")).toBe(true)
+		expect(arenaHas("Gebiet_kristallhoehlen")).toBe(false)
+	end)
+
+	it("baut jedes Gebiet als eigene Arena ohne Fehler", function()
+		local built = server(function(req)
+			local World = req("ServerScriptService.Server.Systems.World")
+			local out = {}
+			for _, r in Atlas.Regions do
+				World.build(r)
+				local folder = workspace.Arena:FindFirstChild("Gebiet_" .. r.id)
+				out[r.id] = if folder then #folder:GetDescendants() else 0
+			end
+			World.build(nil)
+			return out
+		end)
+		for _, r in Atlas.Regions do
+			expect(built[r.id]).toBeGreaterThan(1000) -- Boden 17×15 Kacheln, Umgebung + Deko
+			expect(built[r.id]).toBeLessThan(4500) -- Teile-Budget fürs Handy
+		end
+		for _, issue in sim.issues do
+			expect(issue.level).never.toBe("error")
+		end
+	end)
+
+	it("lässt Beute mit der Tiefe und den Gebiets-Boni wachsen", function()
+		local a, b, boss, gold = server(function(req)
+			local Loot = req("ServerScriptService.Server.Systems.Loot")
+			return Loot.forDepth(1, nil, false),
+				Loot.forDepth(10, nil, false),
+				Loot.forDepth(10, nil, true),
+				Loot.forDepth(10, "veraenderte_welt", false)
+		end)
+		expect(a.ilvl).toBe(1)
+		expect(b.ilvl).toBe(19) -- Tiefe 10 = Kristallhöhlen-Ende (Stufen 11–20)
+		expect(boss.ilvl).toBeGreaterThan(b.ilvl)
+		expect(b.gold).toBeGreaterThan(a.gold)
+		expect(b.find).toBeGreaterThan(a.find)
+		expect(boss.find).toBeGreaterThan(b.find)
+		expect(gold.goldMult).toBeGreaterThan(b.goldMult)
+		expect(gold.itemChance).toBeGreaterThan(b.itemChance)
 	end)
 
 	it("lässt jeden Gegnertyp ohne Fehler kämpfen", function()
