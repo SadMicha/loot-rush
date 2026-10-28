@@ -19,7 +19,7 @@ local AbilitiesController = {}
 local C = Theme.Color
 local KEYS = { "Q", "E", "R", "F" }
 local PAD = 28
-local LEFT_W, SIDE_W, TOP = 440, 420, 100
+local LEFT_W, SIDE_W = 440, 420
 local TREE_W, TREE_H = 620, 700
 -- Icons der Knoten je Ast
 local BRANCH_ICON: { [string]: string } =
@@ -408,13 +408,15 @@ function AbilitiesController.init()
 		background = "bg_skills",
 	})
 
-	listPanel = Kit.panel(Vector2.new(LEFT_W, 770))
-	listPanel.Position = UDim2.fromOffset(40, TOP)
-	listPanel.Parent = win.root
+	local body = Window.BODY
+	listPanel = Kit.panel(Vector2.new(LEFT_W, body.Y))
+	listPanel.Parent = win.body
 
-	local center =
-		Window.frame(UDim2.fromOffset(TREE_W, 770), UDim2.fromOffset(40 + LEFT_W + 20, TOP))
-	center.Parent = win.root
+	-- Baum mittig zwischen den beiden Panels
+	local center = Window.frame(UDim2.fromOffset(TREE_W, body.Y))
+	center.AnchorPoint = Vector2.new(0.5, 0)
+	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
+	center.Parent = win.body
 	local treeTitle = Window.heading("Skill-Blüte", 26, C.Text)
 	treeTitle.AnchorPoint = Vector2.new(0.5, 0)
 	treeTitle.Position = UDim2.new(0.5, 0, 0, 0)
@@ -429,10 +431,10 @@ function AbilitiesController.init()
 	hint.Position = UDim2.new(0.5, 0, 1, 0)
 	hint.Parent = center
 
-	detail = Kit.panel(Vector2.new(SIDE_W, 770))
+	detail = Kit.panel(Vector2.new(SIDE_W, body.Y))
 	detail.AnchorPoint = Vector2.new(1, 0)
-	detail.Position = UDim2.new(1, -40, 0, TOP)
-	detail.Parent = win.root
+	detail.Position = UDim2.fromScale(1, 0)
+	detail.Parent = win.body
 
 	win.onOpen(AbilitiesController.render)
 	ProgressController.changed:Connect(function()

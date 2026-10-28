@@ -1,8 +1,11 @@
 --!strict
 -- Gemeinsamer Rahmen der Vollbild-Fenster (Fähigkeiten, Sternennetz, Schmiede, Atlas):
--- Szenenbild oder Abdunklung, Titel oben links, Schließen oben rechts, eigene Taste.
+-- Szenenbild oder Abdunklung, Titel oben links (neben den Roblox-Knöpfen), Schließen oben rechts,
+-- eigene Taste. Der Inhalt liegt in `body` (feste Design-Fläche Window.BODY), die unter der Kopfzeile
+-- zentriert und bei Bedarf verkleinert wird – so passt er auf Handy, Tablet und PC.
 -- Es ist immer nur eines dieser Fenster offen; Öffnen schließt das vorige.
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -12,6 +15,10 @@ local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Kit)
 
 local Window = {}
+
+Window.BODY = Vector2.new(1520, 790) -- Inhaltsfläche in Design-Pixeln
+local MARGIN = 40 -- Abstand links/rechts
+local HEAD = 48 -- Höhe der Kopfzeile (Titel, Schließen)
 
 export type Options = {
 	name: string,
@@ -24,6 +31,7 @@ export type Options = {
 export type Window = {
 	gui: ScreenGui,
 	root: Frame,
+	body: Frame,
 	isOpen: () -> boolean,
 	toggle: () -> (),
 	close: () -> (),
@@ -80,6 +88,22 @@ function Window.art(name: string, size: Vector2): ImageLabel?
 	img.ScaleType = Enum.ScaleType.Fit
 	img.Size = UDim2.fromOffset(size.X, size.Y)
 	return img
+end
+
+-- `fn` ausführen, sobald das Bild wirklich geladen ist (Ersatz aus Code bis dahin sichtbar lassen;
+-- ein Bild in Moderation oder mit falscher ID lädt nie)
+function Window.whenLoaded(img: ImageLabel | ImageButton, fn: () -> ())
+	if img.IsLoaded then
+		fn()
+		return
+	end
+	local conn: RBXScriptConnection
+	conn = img:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+		if img.IsLoaded then
+			conn:Disconnect()
+			fn()
+		end
+	end)
 end
 
 -- Gerade Linie zwischen zwei Punkten (Design-Pixel), z. B. Verbindungen im Baum
@@ -159,6 +183,16 @@ function Window.caption(
 	return t
 end
 
+-- Roblox-Knöpfe oben links (Logo, Menü, Chat) in Bildschirmpunkten: rechter Rand und Höhe
+function Window.topbar(): (number, number)
+	local inset: any = GuiService.TopbarInset
+	if typeof(inset) == "Rect" and inset.Height > 0 then
+		return inset.Min.X, inset.Max.Y
+	end
+	local h = GuiService:GetGuiInset().Y
+	return h * 3.2, h
+end
+
 function Window.new(opts: Options): Window
 	local gui, root = Kit.scaledGui("LootRush" .. opts.name, 6, true)
 	gui.Enabled = false
@@ -180,7 +214,9 @@ function Window.new(opts: Options): Window
 	end
 	back.Parent = root
 
-	local head = Window.frame(UDim2.fromOffset(600, 48), UDim2.fromOffset(40, 24))
+	local head = Window.frame(UDim2.fromOffset(600, HEAD))
+	head.Name = "Kopf"
+	head.AnchorPoint = Vector2.new(0, 0.5)
 	local hl = Kit.list(head, Enum.FillDirection.Horizontal, 12)
 	hl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	if opts.icon then
@@ -192,6 +228,13 @@ function Window.new(opts: Options): Window
 	t.LayoutOrder = 2
 	t.Parent = head
 	head.Parent = root
+
+	local body = Window.frame(UDim2.fromOffset(Window.BODY.X, Window.BODY.Y))
+	body.Name = "Inhalt"
+	body.AnchorPoint = Vector2.new(0.5, 0.5)
+	local bodyScale = Instance.new("UIScale")
+	bodyScale.Parent = body
+	body.Parent = root
 
 	local openFns: { () -> () } = {}
 	local win: Window
@@ -220,6 +263,7 @@ function Window.new(opts: Options): Window
 	win = {
 		gui = gui,
 		root = root,
+		body = body,
 		isOpen = function()
 			return gui.Enabled
 		end,
@@ -236,11 +280,42 @@ function Window.new(opts: Options): Window
 		end,
 	}
 
-	local x = Kit.iconButton("schliessen", "Schließen", 48, false, "close")
-	x.AnchorPoint = Vector2.new(1, 0)
-	x.Position = UDim2.new(1, -28, 0, 24)
+	local x = Kit.iconButton("schliessen", "Schließen", HEAD, false, "close")
+	x.AnchorPoint = Vector2.new(1, 0.5)
 	x.Activated:Connect(close)
 	x.Parent = root
+
+	-- Kopfzeile neben die Roblox-Knöpfe, Inhalt in den Rest einpassen (alles in Design-Pixeln)
+	local scale = root:FindFirstChildOfClass("UIScale") :: UIScale
+	local function arrange()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local s = scale.Scale
+		local view = camera.ViewportSize / s
+		local barRight, barH = Window.topbar()
+		barRight, barH = barRight / s, barH / s
+		local mid = math.max(MARGIN + HEAD / 2 - 16, barH / 2)
+		local left = math.max(MARGIN, barRight + 16)
+		head.Position = UDim2.fromOffset(left, mid)
+		head.Size = UDim2.fromOffset(math.max(200, view.X - left - 120), HEAD)
+		x.Position = UDim2.new(1, -28, 0, mid)
+
+		local top = math.max(mid + HEAD / 2 + 16, barH + 8)
+		local availW, availH = view.X - 2 * MARGIN, view.Y - top - 16
+		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
+		bodyScale.Scale = k
+		body.Position = UDim2.fromOffset(view.X / 2, top + availH / 2)
+		Kit.refit(root)
+	end
+	arrange()
+	scale:GetPropertyChangedSignal("Scale"):Connect(arrange)
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
+	end
 
 	if opts.key then
 		local key = opts.key

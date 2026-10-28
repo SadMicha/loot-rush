@@ -10,6 +10,7 @@ local STRICT = {
 	["text-small"] = true,
 	["touch-target"] = true,
 	topbar = true,
+	overlap = true,
 	["text-covered"] = true,
 	["text-overlap"] = true,
 	["text-outside"] = true,
@@ -18,22 +19,15 @@ local STRICT = {
 	["empty-row"] = true,
 }
 
--- Bekannte Befunde auf main, die der Thread „Nächste UI-Fenster bauen“ gerade behebt.
--- Nach dessen Merge Einträge löschen; neue Einträge nur mit Grund.
+-- Bekannte, noch offene Befunde auf main (Stand nach PR #23/#24). Nach dem Beheben Eintrag löschen;
+-- neue Einträge nur mit Grund. Inventar: Titel „Ausrüstung“ unter der Topbar. Fähigkeiten: Werte-Zeile
+-- läuft unter das Tasten-Kästchen. Schmiede: Affix-Zeilen-Knöpfe auf Handy 22 px hoch.
+-- Atlas: Mod-/Boss-Texte ragen aus ihrer Kapsel.
 local KNOWN: { [string]: { [string]: boolean } } = {
-	HUD = { topbar = true },
 	Inventar = { topbar = true },
-	Abilities = { topbar = true, ["text-overlap"] = true, ["text-outside"] = true },
-	StarNet = { topbar = true },
-	Forge = {
-		topbar = true,
-		offscreen = true,
-		["touch-target"] = true,
-		["text-covered"] = true,
-		["text-outside"] = true,
-		["empty-row"] = true,
-	},
-	Atlas = { topbar = true, ["text-outside"] = true },
+	Abilities = { ["text-overlap"] = true, ["text-outside"] = true },
+	Forge = { ["touch-target"] = true },
+	Atlas = { ["text-covered"] = true, ["text-outside"] = true },
 }
 
 local closeLooks = {}

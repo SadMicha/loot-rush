@@ -166,7 +166,7 @@ local DEFAULTS = {
 		MouseDeltaSensitivity = 1,
 		PreferredInput = Enum.PreferredInput.KeyboardAndMouse,
 	},
-	GuiService = { MenuIsOpen = false, TopbarInset = false },
+	GuiService = { MenuIsOpen = false },
 }
 
 local VALUE_DEFAULTS = {
@@ -1123,15 +1123,17 @@ function Sandbox:installCustom()
 		})
 	end
 
+	-- Roblox-Leiste oben: links Logo + Menü/Chat-Kapsel (~176 px breit), 58 px hoch.
+	-- TopbarInset = freier Rest der Leiste rechts davon (wie im echten Client).
+	self:custom("GuiService", "TopbarInset", {
+		get = function()
+			local bar = self:topbarButtons()
+			return roblox.Rect.new(bar.X, 0, self.viewport.X, bar.Y)
+		end,
+	})
 	self:custom("GuiService", "GetGuiInset", {
 		method = function()
 			return Vector2.new(0, 58), Vector2.zero
-		end,
-	})
-	-- Freier Platz in der Topbar: links davon Roblox-Menü/Chat (gleiche Maße wie Checks.TOPBAR)
-	self:custom("GuiService", "TopbarInset", {
-		get = function()
-			return roblox.Rect.new(180, 0, self.viewport.X - 60, 58)
 		end,
 	})
 	self:custom("UserInputService", "TouchEnabled", {
@@ -2179,6 +2181,11 @@ end
 
 function Sandbox:run(seconds: number)
 	self.sched:run(seconds)
+end
+
+-- Fläche der Roblox-Knöpfe oben links (Breite, Höhe) in Bildschirmpixeln
+function Sandbox:topbarButtons(): Vector2
+	return Vector2.new(176, 58)
 end
 
 function Sandbox:setViewport(v: Vector2, touch: boolean?)

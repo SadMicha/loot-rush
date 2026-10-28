@@ -15,9 +15,6 @@ local function id(inst): string
 	return inst:GetDebugId()
 end
 
--- Roblox-Topbar oben links (Menü, Chat, …). Bei IgnoreGuiInset liegt dort nichts Eigenes.
--- Gleiche Maße wie GuiService.TopbarInset in der Sandbox (frei ab x = 180, Höhe 58).
-Checks.TOPBAR = { w = 180, h = 58 }
 
 export type Finding = { level: string, kind: string, path: string, message: string }
 
@@ -503,8 +500,9 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 	end
 	entries = visible
 
-	-- 6. Roblox-Topbar oben links verdeckt Text, Knöpfe und Icons
-	local tb = { x = 0, y = 0, w = Checks.TOPBAR.w, h = Checks.TOPBAR.h }
+	-- 6. Roblox-Knöpfe oben links (Logo, Menü, Chat) verdecken Text, Knöpfe und Icons
+	local bar = sb:topbarButtons()
+	local tb = { x = 0, y = 0, w = bar.X, h = bar.Y }
 	for _, e in entries do
 		local n = e.n
 		if e.gui and get(e.gui, "IgnoreGuiInset", false) then
@@ -524,8 +522,8 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							if e.text
 								then "Text „" .. short(get(n, "Text", ""), 30) .. "“"
 								else n.ClassName,
-							Checks.TOPBAR.w,
-							Checks.TOPBAR.h
+							bar.X,
+							bar.Y
 						)
 					)
 				end
@@ -774,6 +772,43 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"empty-row",
 							row.n,
 							"Zeile ohne Text, die anderen Zeilen haben Text"
+						)
+					end
+				end
+			end
+		end
+	end
+
+	-- 11. Überlappende Bausteine: direkte Kinder des Root-Frames einer ScreenGui (HUD-Gruppen, Fenster)
+	for _, gui in root:GetChildren() do
+		if gui:IsA("ScreenGui") and get(gui, "Enabled", true) then
+			local top = gui:FindFirstChild("Root") or gui
+			local boxes = {}
+			for _, n in top:GetChildren() do
+				local r = n:IsA("GuiObject") and Layout.isShown(n) and layout:rect(n)
+				-- Vollbild-Flächen (abgedunkelter Hintergrund) und Weggeflogenes zählen nicht
+				local full = r and r.w * r.h >= vw * vh * 0.9
+				local onScreen = r and r.x < vw and r.y < vh and r.x + r.w > 0 and r.y + r.h > 0
+				if r and r.w > 0 and r.h > 0 and not full and onScreen then
+					table.insert(boxes, { n = n, r = r })
+				end
+			end
+			for i = 1, #boxes do
+				for j = i + 1, #boxes do
+					local a, b = boxes[i].r, boxes[j].r
+					local w = math.min(a.x + a.w, b.x + b.w) - math.max(a.x, b.x)
+					local h = math.min(a.y + a.h, b.y + b.h) - math.max(a.y, b.y)
+					if w > 2 and h > 2 then
+						add(
+							"warn",
+							"overlap",
+							boxes[i].n,
+							string.format(
+								"überlappt %s um %d×%dpx",
+								boxes[j].n.Name,
+								math.floor(w + 0.5),
+								math.floor(h + 0.5)
+							)
 						)
 					end
 				end

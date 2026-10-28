@@ -18,9 +18,10 @@ local AtlasController = {}
 
 local C = Theme.Color
 local PAD = 28
-local SIDE_W, TOP = 440, 90
+local SIDE_W = 440
 local LABEL = Vector2.new(230, 98) -- Seitenverhältnis wie plaque_region
 local DOT_GAP = 18
+local MARK_Y = 22 -- Raute/Schloss sitzt so weit unter dem Schild
 
 local win: Window.Window
 local map: Frame
@@ -54,12 +55,31 @@ local function wrapLabel(text: string, size: number, color: Color3, width: numbe
 end
 
 -- ------------------------------------------------------------------ Karte
+-- Liegt der Punkt auf einem Namensschild oder einer Markierung? Dort keine Pfad-Punkte.
+local function covered(p: Vector2): boolean
+	for _, r in Atlas.Regions do
+		local dx, dy = math.abs(p.X - r.pos.X), r.pos.Y - p.Y
+		if dx < LABEL.X / 2 + 8 and dy > -8 and dy < LABEL.Y + 8 then
+			return true
+		end
+		if (p - (r.pos + Vector2.new(0, MARK_Y))).Magnitude < 26 then
+			return true
+		end
+	end
+	return false
+end
+
+-- Gepunkteter Pfad von Markierung zu Markierung
 local function path(a: Atlas.Region, b: Atlas.Region)
+	local from = a.pos + Vector2.new(0, MARK_Y)
 	local d = b.pos - a.pos
 	local n = math.floor(d.Magnitude / DOT_GAP)
 	local lit = isOpen(a) and isOpen(b)
 	for i = 1, n - 1 do
-		local p = a.pos + d * (i / n)
+		local p = from + d * (i / n)
+		if covered(p) then
+			continue
+		end
 		local dot = Instance.new("Frame")
 		dot.Name = "Pfad"
 		dot.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -102,18 +122,24 @@ local function renderMap()
 		plate.Position = UDim2.fromOffset(r.pos.X, r.pos.Y)
 		plate.Size = UDim2.fromOffset(LABEL.X, LABEL.Y)
 		plate.ZIndex = 2
+		-- Ersatz-Schild aus Code, bis das Bild geladen ist
+		plate.BackgroundColor3 = C.Bg1
+		plate.BackgroundTransparency = 0.1
+		Kit.corner(plate, LABEL.Y // 2)
+		Kit.stroke(plate, if on then C.GoldHi else r.color, if on then 3 else 2)
 		local art = Window.art("plaque_region", LABEL)
 		if art then
-			plate.BackgroundTransparency = 1
 			art.ScaleType = Enum.ScaleType.Stretch
 			art.Size = UDim2.fromScale(1, 1)
 			art.ImageColor3 = if on then C.GoldHi else r.color
 			art.Parent = plate
-		else
-			plate.BackgroundColor3 = C.Bg1
-			plate.BackgroundTransparency = 0.1
-			Kit.corner(plate, LABEL.Y // 2)
-			Kit.stroke(plate, if on then C.GoldHi else r.color, if on then 3 else 2)
+			Window.whenLoaded(art, function()
+				plate.BackgroundTransparency = 1
+				local stroke = plate:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					stroke.Enabled = false
+				end
+			end)
 		end
 		local name = Kit.label(r.name, 18, if on then C.GoldHi else C.Text)
 		name.AnchorPoint = Vector2.new(0.5, 0)
@@ -145,7 +171,7 @@ local function renderMap()
 			mark = Kit.icon("schloss", 34)
 		end
 		mark.AnchorPoint = Vector2.new(0.5, 0.5)
-		mark.Position = UDim2.fromOffset(r.pos.X, r.pos.Y + 22)
+		mark.Position = UDim2.fromOffset(r.pos.X, r.pos.Y + MARK_Y)
 		mark.ZIndex = 3
 		mark.Parent = map
 	end
@@ -182,23 +208,24 @@ local function renderSide()
 	local r = Atlas.ById[selected]
 	local w = SIDE_W - 2 * PAD
 
-	-- Vorschaubild
+	-- Vorschaubild; darunter immer der Ersatz (Gebietsfarbe + Boss), falls das Bild nicht lädt
+	local ph = Window.frame(UDim2.fromOffset(w, 200), UDim2.fromOffset(PAD, PAD))
+	ph.Name = "Vorschau"
+	ph.BackgroundTransparency = 0.8
+	ph.BackgroundColor3 = r.color
+	Kit.corner(ph, Theme.Radius.M)
+	local ic = Kit.icon(r.bossIcon, 110)
+	ic.AnchorPoint = Vector2.new(0.5, 0.5)
+	ic.Position = UDim2.fromScale(0.5, 0.5)
+	ic.Parent = ph
 	local picture = Window.art("region_" .. r.id, Vector2.new(w, 200))
 	if picture then
 		picture.ScaleType = Enum.ScaleType.Crop
-		picture.Position = UDim2.fromOffset(PAD, PAD)
-		picture.Parent = side
-	else
-		local ph = Window.frame(UDim2.fromOffset(w, 200), UDim2.fromOffset(PAD, PAD))
-		ph.BackgroundTransparency = 0.8
-		ph.BackgroundColor3 = r.color
-		Kit.corner(ph, Theme.Radius.M)
-		local ic = Kit.icon(r.bossIcon, 110)
-		ic.AnchorPoint = Vector2.new(0.5, 0.5)
-		ic.Position = UDim2.fromScale(0.5, 0.5)
-		ic.Parent = ph
-		ph.Parent = side
+		picture.Size = UDim2.fromScale(1, 1)
+		picture.ZIndex = 2
+		picture.Parent = ph
 	end
+	ph.Parent = side
 
 	local name = Window.heading(r.name, 26, C.GoldHi)
 	name.Position = UDim2.fromOffset(PAD, PAD + 214)
@@ -273,13 +300,13 @@ function AtlasController.init()
 		background = "bg_atlas",
 	})
 
-	map = Window.frame(UDim2.fromOffset(Atlas.Size.X, Atlas.Size.Y), UDim2.fromOffset(40, TOP))
-	map.Parent = win.root
+	map = Window.frame(UDim2.fromOffset(Atlas.Size.X, Atlas.Size.Y))
+	map.Parent = win.body
 
-	side = Kit.panel(Vector2.new(SIDE_W, 790))
+	side = Kit.panel(Vector2.new(SIDE_W, Window.BODY.Y))
 	side.AnchorPoint = Vector2.new(1, 0)
-	side.Position = UDim2.new(1, -40, 0, TOP)
-	side.Parent = win.root
+	side.Position = UDim2.fromScale(1, 0)
+	side.Parent = win.body
 
 	win.onOpen(AtlasController.render)
 	AtlasController.render()
