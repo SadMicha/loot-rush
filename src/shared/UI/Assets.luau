@@ -363,7 +363,7 @@ Assets.Icon = table.freeze({
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
 } :: { [string]: Icon })
 
--- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede und Atlas
+-- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede, Atlas und Shop
 -- (Upload-Paket LootRush_Upload_v8_Fenster). Einträge ohne ID werden ignoriert; die Fenster
 -- zeigen dann den flachen Stil (Knoten als Slots, Linien als dünne Striche).
 local ART: { [string]: Fixed } = {
@@ -394,6 +394,20 @@ local ART: { [string]: Fixed } = {
 	region_feuerwueste = { id = "rbxassetid://93215591727537", size = Vector2.new(768, 432) },
 	region_himmelsinseln = { id = "rbxassetid://124701035949548", size = Vector2.new(768, 432) },
 	region_veraenderte_welt = { id = "rbxassetid://90616033141647", size = Vector2.new(768, 432) },
+	-- Shop (Prompts: art-prompts/UI_Prompts_Shop.md, Blätter M und N) – IDs fehlen noch
+	bg_shop = { id = "", size = Vector2.new(1920, 1080) },
+	shop_potion_1 = { id = "", size = Vector2.new(256, 256) },
+	shop_potion_5 = { id = "", size = Vector2.new(256, 256) },
+	shop_potion_10 = { id = "", size = Vector2.new(256, 256) },
+	shop_shards = { id = "", size = Vector2.new(256, 256) },
+	shop_candy = { id = "", size = Vector2.new(256, 256) },
+	shop_dust = { id = "", size = Vector2.new(256, 256) },
+	shop_gold_s = { id = "", size = Vector2.new(256, 256) },
+	shop_gold_m = { id = "", size = Vector2.new(256, 256) },
+	shop_gold_l = { id = "", size = Vector2.new(256, 256) },
+	shop_stars_s = { id = "", size = Vector2.new(256, 256) },
+	shop_stars_m = { id = "", size = Vector2.new(256, 256) },
+	shop_stars_l = { id = "", size = Vector2.new(256, 256) },
 }
 local art: { [string]: Fixed } = {}
 for name, a in ART do

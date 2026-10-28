@@ -81,17 +81,19 @@ local function claim(player: Player): (string, ProfileSchema.Record?)
 	return status, record
 end
 
-local function save(player: Player, release: boolean)
+-- true, wenn der Stand im DataStore liegt
+local function save(player: Player, release: boolean): boolean
 	local session = sessions[player]
 	if not session then
-		return
+		return false
 	end
 	while session.saving do
 		task.wait(0.1)
 	end
 	if session.readOnly or session.released then
-		return
+		return false
 	end
+	local saved = false
 	session.saving = true
 	if release then
 		session.released = true -- danach keine weiteren Saves mehr
@@ -114,6 +116,7 @@ local function save(player: Player, release: boolean)
 			end)
 		end)
 		if ok then
+			saved = not lost
 			if lost then
 				warn(
 					"[LootRush] Lock verloren, Spielstand wird hier nicht mehr gespeichert:",
@@ -134,6 +137,7 @@ local function save(player: Player, release: boolean)
 		end
 	end
 	session.saving = false
+	return saved
 end
 
 local KICK = {
@@ -185,6 +189,11 @@ end
 function Data.get(player: Player): Profile?
 	local session = sessions[player]
 	return session and session.data
+end
+
+-- Sofort speichern (Robux-Käufe erst bestätigen, wenn sie sicher im Spielstand liegen)
+function Data.saveNow(player: Player): boolean
+	return save(player, false)
 end
 
 -- Wartet, bis der Stand geladen ist (nil, wenn der Spieler vorher geht oder gekickt wird)

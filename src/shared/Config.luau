@@ -36,6 +36,8 @@ return table.freeze({
 	CRIT_MULT = 2,
 	POTION_HEAL = 0.35, -- Anteil der max. Lebenspunkte
 	POTION_COOLDOWN = 6,
+	POTION_START = 5, -- Heiltränke für neue Spielstände (Nachschub im Shop)
+	POTION_MAX = 20, -- so viele trägt man höchstens
 	BASE_HEALTH = 100,
 	HEALTH_PER_LEVEL = 10,
 	DAMAGE_PER_LEVEL = 0.1, -- +10 % Schaden je Level
