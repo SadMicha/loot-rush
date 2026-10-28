@@ -19,6 +19,10 @@ local CameraController = require(script.Parent.CameraController)
 local SkillController = require(script.Parent.SkillController)
 local InventoryController = require(script.Parent.InventoryController)
 local RiftController = require(script.Parent.RiftController)
+local AbilitiesController = require(script.Parent.AbilitiesController)
+local StarNetController = require(script.Parent.StarNetController)
+local ForgeController = require(script.Parent.ForgeController)
+local AtlasController = require(script.Parent.AtlasController)
 
 local HudController = {}
 
@@ -31,6 +35,15 @@ type Fly = {
 	away: UDim2,
 	order: number,
 	tween: Tween?,
+}
+
+-- Menü-Buttons → Fenster
+local MENU_ACTION: { [string]: () -> () } = {
+	inventar = InventoryController.toggle,
+	sternennetz = StarNetController.toggle,
+	skills = AbilitiesController.toggle,
+	schmiede = ForgeController.toggle,
+	atlas = AtlasController.toggle,
 }
 
 local flies: { Fly } = {}
@@ -322,8 +335,9 @@ local function buildCalmPanels()
 		local b = Kit.iconButton(name, name, 48, false)
 		b.LayoutOrder = i
 		b.Parent = menu
-		if name == "inventar" then
-			b.Activated:Connect(InventoryController.toggle)
+		local open = MENU_ACTION[name]
+		if open then
+			b.Activated:Connect(open)
 		end
 	end
 	addFly(menu, Vector2.new(0, 0.5), UDim2.new(0, 28, 0.5, 0), UDim2.new(0, -120, 0.5, 0), 2)

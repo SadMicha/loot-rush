@@ -363,4 +363,12 @@ Assets.Icon = table.freeze({
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
 } :: { [string]: Icon })
 
+-- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede und Atlas.
+-- Kommen von ChatGPT (art-prompts/UI_Prompts_Fenster.md, Blätter I–L). Bis die IDs hier stehen,
+-- zeigen die Fenster den flachen Stil (Knoten als Slots, Linien als dünne Striche).
+-- Erwartete Namen: bg_skills, bg_starnet, bg_forge, bg_atlas, node_ring, node_ring_active,
+-- node_ring_locked, star_small, star_small_active, star_big, star_big_active, star_core,
+-- plaque_region, plaque_status, forge_anvil, island_<regionId>, region_<regionId>
+Assets.Art = table.freeze({} :: { [string]: Fixed })
+
 return table.freeze(Assets)
