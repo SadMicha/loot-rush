@@ -678,6 +678,7 @@ local function renderDetail()
 			Vector2.new(w, 50),
 			"verwerten"
 		)
+		Kit.buttonLabel(s).TextSize = Kit.fontSize(15) -- langer Text (Gold + Splitter) muss in eine Zeile
 		s.LayoutOrder = 2
 		s.Activated:Connect(function()
 			Net.Sell:FireServer(item.id)
