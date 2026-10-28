@@ -4,7 +4,16 @@
 
 local HttpService = game:GetService("HttpService")
 
-export type Affix = { stat: string, value: number, implicit: boolean? }
+-- tier: 1 (beste) bis 7, fehlt bei Grundwerten (implicit) und alten Items (= 7)
+-- sealed: von der Schmiede versiegelt (fest, belegt keinen Affix-Platz)
+export type Affix = {
+	stat: string,
+	value: number,
+	implicit: boolean?,
+	tier: number?,
+	sealed: boolean?,
+}
+-- charges: Glitzer-Ladungen für die Schmiede; fehlt bei alten Items (= Startwert der Seltenheit)
 export type Item = {
 	id: string,
 	slot: string,
@@ -12,6 +21,7 @@ export type Item = {
 	name: string,
 	ilvl: number,
 	affixes: { Affix },
+	charges: number?,
 }
 
 local Items = {}
@@ -35,6 +45,7 @@ Items.Stats = table.freeze({
 })
 
 local STAT_LIST = { "damage", "life", "crit", "speed" }
+Items.StatList = table.freeze(table.clone(STAT_LIST))
 local RANGE: { [string]: { number } } = {
 	damage = { 3, 6 },
 	life = { 8, 14 },
@@ -75,13 +86,73 @@ local TITLES = {
 	"Wolkenreißer",
 }
 
-local function value(stat: string, ilvl: number, rng: Random, scale: number): number
-	local r = RANGE[stat]
-	local v = rng:NextNumber(r[1], r[2]) * (1 + (ilvl - 1) * 0.12) * scale
+-- Affix-Tiers (Balancing: Loot · Affixe): Wert-Faktor je Tier und ab welcher Item-Power es fällt
+Items.TierMult = table.freeze({ 2.4, 2.05, 1.75, 1.5, 1.3, 1.15, 1 })
+Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
+Items.IP_PER_LEVEL = 10 -- Item-Power = Gegenstandsstufe × 10
+
+-- Glitzer-Ladungen neuer Items je Seltenheit (Balancing: Loot · Affixe & Verwerten)
+Items.Charges = table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5 } :: { [string]: number })
+
+-- Ausbeute beim Verwerten: Splitter fest, Runen-Bonbons als Erwartungswert, Glitzerstaub als Chance
+Items.Salvage = table.freeze({
+	normal = { shards = 2, candy = 0, dust = 0 },
+	magic = { shards = 5, candy = 0, dust = 0 },
+	rare = { shards = 12, candy = 0.1, dust = 0 },
+	epic = { shards = 30, candy = 1, dust = 0.15 },
+} :: { [string]: { shards: number, candy: number, dust: number } })
+
+local function round(stat: string, v: number): number
 	if stat == "life" then
-		return math.floor(v + 0.5)
+		return math.max(1, math.floor(v + 0.5))
 	end
 	return math.floor(v * 10 + 0.5) / 10
+end
+
+local function value(stat: string, ilvl: number, rng: Random, scale: number): number
+	local r = RANGE[stat]
+	return round(stat, rng:NextNumber(r[1], r[2]) * (1 + (ilvl - 1) * 0.12) * scale)
+end
+
+-- Bestes Tier, das auf dieser Gegenstandsstufe fallen kann
+function Items.tierCap(ilvl: number): number
+	local ip = ilvl * Items.IP_PER_LEVEL
+	for tier, min in Items.TierMinIP do
+		if ip >= min then
+			return tier
+		end
+	end
+	return 7
+end
+
+function Items.tierOf(a: Affix): number
+	return if typeof(a.tier) == "number" then math.clamp(a.tier, 1, 7) else 7
+end
+
+function Items.chargesOf(item: Item): number
+	return if typeof(item.charges) == "number"
+		then item.charges
+		else Items.Charges[item.rarity] or 3
+end
+
+-- Neuer Zusatzwert auf einem Tier
+function Items.rollAffix(stat: string, ilvl: number, tier: number, rng: Random): Affix
+	return {
+		stat = stat,
+		value = value(stat, ilvl, rng, Items.TierMult[tier] or 1),
+		tier = tier,
+	}
+end
+
+-- Wert beim Tier-Wechsel mitziehen (gleicher Wurf, anderer Faktor)
+function Items.retier(a: Affix, tier: number): Affix
+	local old = Items.TierMult[Items.tierOf(a)]
+	return {
+		stat = a.stat,
+		value = round(a.stat, a.value * (Items.TierMult[tier] or 1) / old),
+		tier = tier,
+		sealed = a.sealed,
+	}
 end
 
 function Items.roll(ilvl: number, rng: Random): Item
@@ -110,10 +181,14 @@ function Items.roll(ilvl: number, rng: Random): Item
 	local pool = table.clone(STAT_LIST)
 	local count = rng:NextInteger(rarity.affixes[1], rarity.affixes[2])
 	local firstExplicit: string? = nil
+	local cap = Items.tierCap(ilvl)
 	for _ = 1, count do
 		local stat = table.remove(pool, rng:NextInteger(1, #pool)) :: string
 		firstExplicit = firstExplicit or stat
-		table.insert(affixes, { stat = stat, value = value(stat, ilvl, rng, 1) })
+		table.insert(
+			affixes,
+			Items.rollAffix(stat, ilvl, math.min(7, cap + rng:NextInteger(0, 2)), rng)
+		)
 	end
 
 	local name = base
@@ -130,6 +205,7 @@ function Items.roll(ilvl: number, rng: Random): Item
 		name = name,
 		ilvl = ilvl,
 		affixes = affixes,
+		charges = Items.Charges[rarity.id],
 	}
 end
 
@@ -156,7 +232,8 @@ function Items.affixQuality(a: Affix, ilvl: number): number
 	if not r then
 		return 1
 	end
-	return math.clamp(a.value / (r[2] * (1 + (ilvl - 1) * 0.12)), 0, 1)
+	local tier = if a.implicit then 1.5 else Items.TierMult[Items.tierOf(a)]
+	return math.clamp(a.value / (r[2] * (1 + (ilvl - 1) * 0.12) * tier), 0, 1)
 end
 
 -- "+12 Leben" · "+4,5% Schaden"

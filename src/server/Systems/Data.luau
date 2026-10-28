@@ -9,12 +9,15 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Items = require(ReplicatedStorage.Shared.Items)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 
 export type Profile = {
 	version: number,
 	gold: number,
 	inventory: { Items.Item },
 	equipped: { [string]: Items.Item },
+	progress: Progression.Data,
+	materials: Progression.Materials,
 }
 
 local Data = {}
@@ -27,7 +30,14 @@ local profiles: { [Player]: Profile } = {}
 local readOnly: { [Player]: boolean } = {}
 
 local function fresh(): Profile
-	return { version = 1, gold = 0, inventory = {}, equipped = {} }
+	return {
+		version = 1,
+		gold = 0,
+		inventory = {},
+		equipped = {},
+		progress = Progression.fresh(),
+		materials = Progression.freshMaterials(),
+	}
 end
 
 local function reconcile(raw: any): Profile
@@ -44,6 +54,8 @@ local function reconcile(raw: any): Profile
 	if typeof(raw.equipped) == "table" then
 		p.equipped = raw.equipped
 	end
+	p.progress = Progression.reconcile(raw.progress)
+	p.materials = Progression.reconcileMaterials(raw.materials)
 	return p
 end
 

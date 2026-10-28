@@ -8,7 +8,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local Data = require(script.Parent.Data)
 
 type PState = {
 	cdUntil: { number },
@@ -20,7 +22,8 @@ type PState = {
 }
 
 local Combat = {
-	EnemyKilled = Instance.new("BindableEvent"), -- (player, position, playerLevel, boss), für Systems/Loot
+	-- (player, position, playerLevel, boss, skillId, xp), für Systems/Loot und Systems/Progress
+	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), für Systems/Metrics
 }
 
@@ -63,6 +66,24 @@ local function body(player: Player): (BasePart?, Humanoid?)
 	return nil, nil
 end
 
+local function num(player: Player, attr: string): number
+	local v = player:GetAttribute(attr)
+	return if typeof(v) == "number" then v else 0
+end
+
+-- Skill mit Stufe, Skill-Blüte und Sternennetz verrechnet (Shared.Progression)
+local function effective(player: Player, skill: Skills.Skill): Skills.Skill
+	local profile = Data.get(player)
+	if not profile then
+		return skill
+	end
+	return Progression.effectiveSkill(skill, profile.progress)
+end
+
+local function dashMax(player: Player): number
+	return Config.DASH_CHARGES + num(player, "StatDash")
+end
+
 -- ------------------------------------------------------------------ Level & XP
 local function xpFor(level: number): number
 	return math.floor(40 * level ^ 1.5)
@@ -76,7 +97,8 @@ local function applyLevelStats(player: Player, fill: boolean)
 	end
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local bonus = (player:GetAttribute("StatLife") or 0) :: number
-	humanoid.MaxHealth = Config.BASE_HEALTH + (level - 1) * Config.HEALTH_PER_LEVEL + bonus
+	humanoid.MaxHealth = (Config.BASE_HEALTH + (level - 1) * Config.HEALTH_PER_LEVEL + bonus)
+		* (1 + num(player, "StatLifePct") / 100)
 	if fill then
 		humanoid.Health = humanoid.MaxHealth
 	end
@@ -119,10 +141,14 @@ local function damageEnemy(enemy: Model, base: number, player: Player, skill: Sk
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local critChance = Config.CRIT_CHANCE + ((player:GetAttribute("StatCrit") or 0) :: number) / 100
 	local bonus = ((player:GetAttribute("StatDamage") or 0) :: number) / 100
+	local _, humanoid = body(player)
+	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
+		bonus += num(player, "StatLowLife") / 100
+	end
 	local crit = rng:NextNumber() < critChance
 	local amount = base
 		* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
-		* (if crit then Config.CRIT_MULT else 1)
+		* (if crit then Config.CRIT_MULT + num(player, "StatCritDamage") / 100 else 1)
 	amount = math.max(1, math.floor(amount + 0.5))
 	hp = math.max(0, hp - amount)
 	enemy:SetAttribute("Health", hp)
@@ -152,7 +178,9 @@ local function damageEnemy(enemy: Model, base: number, player: Player, skill: Sk
 				player,
 				pos,
 				(player:GetAttribute("Level") or 1) :: number,
-				boss
+				boss,
+				if skill then skill.id else nil,
+				xp
 			)
 		end
 	end
@@ -261,6 +289,23 @@ local function castNova(player: Player, root: BasePart, skill: Skills.Skill): bo
 	for _, e in enemiesNear(center, skill.radius) do
 		damageEnemy(e, skill.damage, player, skill)
 	end
+	-- Skill-Blüte „Nachhall“: zweiter Wirbel kurz danach
+	local echo = skill.echo
+	if echo then
+		task.delay(0.35, function()
+			local r = body(player)
+			if not r or not player.Parent then
+				return
+			end
+			Net.Fx:FireAllClients(
+				"nova",
+				{ pos = ground(r.Position), radius = skill.radius, color = skill.color }
+			)
+			for _, e in enemiesNear(r.Position, skill.radius) do
+				damageEnemy(e, skill.damage * echo, player, skill)
+			end
+		end)
+	end
 	return true
 end
 
@@ -290,7 +335,8 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 		hit[e] = true
 		local p = enemyPos(e)
 		table.insert(points, p)
-		damageEnemy(e, skill.damage, player, skill)
+		local last = if left == 1 then skill.lastHit else nil
+		damageEnemy(e, skill.damage * (if last then 1 + last else 1), player, skill)
 		left -= 1
 		current = nil
 		local nearest = skill.radius
@@ -309,12 +355,13 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 end
 
 local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
-	local skill = Skills.bar[slot]
+	local base = Skills.bar[slot]
 	local st = states[player]
 	local root = body(player)
-	if not skill or not st or not root then
+	if not base or not st or not root then
 		return
 	end
+	local skill = effective(player, base)
 	local now = os.clock()
 	if now < st.cdUntil[slot] then
 		return
@@ -343,14 +390,15 @@ local function dash(player: Player)
 		return
 	end
 	local now = os.clock()
-	if st.dashCharges < Config.DASH_CHARGES then
+	local max = dashMax(player)
+	if st.dashCharges < max then
 		local gained = math.floor((now - st.dashStamp) / Config.DASH_RECHARGE)
 		if gained > 0 then
-			st.dashCharges = math.min(Config.DASH_CHARGES, st.dashCharges + gained)
+			st.dashCharges = math.min(max, st.dashCharges + gained)
 			st.dashStamp += gained * Config.DASH_RECHARGE
 		end
 	end
-	if st.dashCharges >= Config.DASH_CHARGES then
+	if st.dashCharges >= max then
 		st.dashStamp = now
 	end
 	if st.dashCharges <= 0 then
@@ -430,7 +478,6 @@ function Combat.start()
 	Players.PlayerAdded:Connect(onPlayer)
 
 	-- Grundangriff: automatisch auf den nächsten Gegner in Reichweite
-	local basic = Skills.basic
 	while true do
 		task.wait(0.1)
 		local now = os.clock()
@@ -439,6 +486,7 @@ function Combat.start()
 			if now >= st.basicUntil then
 				local root = body(player)
 				if root then
+					local basic = effective(player, Skills.basic)
 					local target: Model? = nil
 					local best = basic.range
 					for _, e in pool do
@@ -450,6 +498,12 @@ function Combat.start()
 					end
 					if target then
 						st.basicUntil = now + basic.cooldown
+						-- Stern „Doppelschlag“: Chance auf doppelten Treffer
+						if rng:NextNumber() < num(player, "StatDouble") / 100 then
+							local double = table.clone(basic)
+							double.damage *= 2
+							basic = double
+						end
 						castProjectile(player, root, basic, enemyPos(target), root.Position)
 					end
 				end

@@ -2,16 +2,19 @@
 -- Schmiede-Fenster nach Mockup „Glitzer-Schmiede“ (Taste B oder Menü-Button):
 --   links Gegenstand wählen und seine Affixe, Mitte der Gegenstand auf dem Amboss mit Status,
 --   rechts die Aktionen mit Kosten. Gegenstände kommen aus dem Inventar-Schnappschuss.
--- Das Schmiede-System fehlt noch: Aktionen sind sichtbar, aber gesperrt.
+-- Geschmiedet wird auf dem Server (Systems/Forge): das Fenster schickt Aktion + Item + Affix (Net.ForgeAct),
+-- zeigt Material aus ProgressController und die Rückmeldung (Net.ForgeResult).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Forge = require(ReplicatedStorage.Shared.Forge)
 local Items = require(ReplicatedStorage.Shared.Items)
+local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
 local InventoryController = require(script.Parent.InventoryController)
+local ProgressController = require(script.Parent.ProgressController)
 
 local ForgeController = {}
 
@@ -28,6 +31,9 @@ local side: Frame
 
 local selectedItem: string? = nil -- Item-ID
 local selectedAffix: number? = nil
+local lastResult: { ok: boolean, text: string }? = nil
+local MAT_COLOR: { [string]: Color3 } =
+	{ candy = Theme.Rarity.epic, shards = C.Cyan, dust = C.Gold }
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -98,6 +104,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		b.Activated:Connect(function()
 			selectedItem = it.id
 			selectedAffix = nil
+			lastResult = nil
 			ForgeController.render()
 		end)
 		b.Parent = picker
@@ -119,13 +126,14 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	local name = Window.heading(item.name, 22, Theme.Rarity[item.rarity] or C.Text)
 	name.Position = UDim2.fromOffset(PAD, PAD + PICK + 48)
 	name.Parent = left
-	local max = Forge.MaxAffixes[item.rarity] or #item.affixes
+	local max = Forge.MaxAffixes[item.rarity] or 0
+	local open = Forge.openCount(item)
 	local sub = Kit.label(
 		string.format(
 			"%s · %s · %d/%d Affixe",
 			Items.RarityName[item.rarity] or item.rarity,
 			Items.SlotName[item.slot] or item.slot,
-			#item.affixes,
+			open,
 			max
 		),
 		15,
@@ -154,14 +162,35 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		t.Position = UDim2.new(0, 18, 0.5, 0)
 		t.ZIndex = 2
 		t.Parent = row
+		-- Tier rechts, Schloss bei versiegelten; Grundwerte lassen sich nicht schmieden
+		local tag = Kit.label(
+			if a.implicit then "Grundwert" else "T" .. tostring(Items.tierOf(a)),
+			15,
+			if a.implicit then C.Muted else C.Cyan
+		)
+		tag.AnchorPoint = Vector2.new(1, 0.5)
+		tag.Position = UDim2.new(1, if a.sealed then -54 else -18, 0.5, 0)
+		tag.ZIndex = 2
+		tag.Parent = row
+		if a.sealed then
+			local lock = Kit.icon("schloss", 26)
+			lock.AnchorPoint = Vector2.new(1, 0.5)
+			lock.Position = UDim2.new(1, -16, 0.5, 0)
+			lock.ZIndex = 2
+			lock.Parent = row
+		end
 		row.Activated:Connect(function()
+			if a.implicit then
+				return
+			end
 			selectedAffix = if on then nil else i
+			lastResult = nil
 			ForgeController.render()
 		end)
 		row.Parent = rows
 	end
 	-- Freier Affix-Platz
-	if #item.affixes < max then
+	if open < max then
 		local free = Window.frame(UDim2.fromOffset(w, 56))
 		free.LayoutOrder = #item.affixes + 1
 		Kit.skin(free, "stat_tile", 56, 0.4)
@@ -178,6 +207,19 @@ end
 -- ------------------------------------------------------------------ Mitte: Amboss und Status
 local function renderCenter(item: Items.Item?)
 	clear(center)
+	-- Material oben
+	local mats = Window.frame(UDim2.fromOffset(CENTER_W, 44), UDim2.fromOffset(0, 40))
+	Kit.list(mats, Enum.FillDirection.Horizontal, 8)
+	for i, key in { "candy", "shards", "dust" } do
+		local have = (ProgressController.materials() :: any)[key] :: number
+		local pill, _, plus = Kit.pill(Forge.MaterialIcon[key], tostring(have), MAT_COLOR[key])
+		if plus then
+			plus:Destroy()
+		end
+		pill.LayoutOrder = i
+		pill.Parent = mats
+	end
+	mats.Parent = center
 	if item then
 		local big = Kit.itemSlot(220, InventoryController.slotIcon(item.slot), {
 			rarity = item.rarity,
@@ -206,9 +248,10 @@ local function renderCenter(item: Items.Item?)
 	else
 		Kit.skin(plaque, "header_banner", 110, 0.5)
 	end
-	local ready = item ~= nil and selectedAffix ~= nil
+	local charges = if item then Items.chargesOf(item) else 0
+	local ready = item ~= nil and charges > 0
 	local head = Window.heading(
-		if item == nil then "Leer" elseif ready then "Bereit" else "Wähle ein Affix",
+		if item == nil then "Leer" elseif ready then "Bereit" else "Fertig geschmiedet",
 		26,
 		if ready then C.Good else C.GoldHi
 	)
@@ -216,8 +259,19 @@ local function renderCenter(item: Items.Item?)
 	head.Position = UDim2.new(0.5, 0, 0, 18)
 	head.ZIndex = 2
 	head.Parent = plaque
-	local sub =
-		Kit.label("Die Schmiede öffnet bald – Aktionen folgen.", 15, C.Text, Theme.Font.Body)
+	local subText = if lastResult
+		then lastResult.text
+		elseif item then string.format(
+			"Glitzer-Ladungen: %d · jede Aktion kostet 0–2",
+			charges
+		)
+		else "Wähle einen Gegenstand"
+	local sub = Kit.label(
+		subText,
+		15,
+		if lastResult and not lastResult.ok then C.Danger else C.Text,
+		Theme.Font.Body
+	)
 	sub.AnchorPoint = Vector2.new(0.5, 0)
 	sub.Position = UDim2.new(0.5, 0, 0, 64)
 	sub.ZIndex = 2
@@ -261,8 +315,15 @@ local function renderSide(item: Items.Item?)
 		n.Position = UDim2.fromOffset(94, 18)
 		n.ZIndex = 2
 		n.Parent = row
+		local price = Forge.cost(action, item, selectedAffix)
 		local cost = Kit.label(
-			string.format("%d %s", action.cost, action.currency),
+			string.format(
+				"%d %s",
+				price,
+				if price == 1
+					then Forge.MaterialName[action.material]
+					else Forge.MaterialPlural[action.material]
+			),
 			14,
 			C.Gold,
 			Theme.Font.Body
@@ -279,14 +340,27 @@ local function renderSide(item: Items.Item?)
 		go.AnchorPoint = Vector2.new(1, 0.5)
 		go.Position = UDim2.new(1, -14, 0.5, 0)
 		go.ZIndex = 2
-		Kit.setEnabled(go, false) -- Schmiede-System folgt
+		local ok, why = false, nil
+		if item then
+			ok, why = Forge.check(action.id, item, selectedAffix, ProgressController.materials())
+		end
+		Kit.setEnabled(go, ok)
+		go.Activated:Connect(function()
+			if go.Active and item then
+				Net.ForgeAct:FireServer(action.id, item.id, selectedAffix)
+			end
+		end)
 		go.Parent = row
+		if why and item then
+			cost.Text ..= " · " .. why
+			cost.TextColor3 = C.Muted
+		end
 		row.Parent = rows
 	end
 	rows.Parent = side
 
 	local note = wrapLabel(
-		"Vorschau: Schmieden wird mit dem Schmiede-System freigeschaltet.",
+		"Material: Verwerten im Inventar und Bosse. Versiegeln kostet keine Ladung.",
 		14,
 		C.Muted,
 		w
@@ -331,10 +405,27 @@ function ForgeController.init()
 	side.Parent = win.root
 
 	win.onOpen(ForgeController.render)
-	InventoryController.changed:Connect(function()
+	local function refresh()
 		if win.isOpen() then
 			ForgeController.render()
 		end
+	end
+	InventoryController.changed:Connect(refresh)
+	ProgressController.changed:Connect(refresh)
+	Net.ForgeResult.OnClientEvent:Connect(function(data: any)
+		if typeof(data) ~= "table" or typeof(data.text) ~= "string" then
+			return
+		end
+		lastResult = { ok = data.ok == true, text = data.text }
+		if data.ok == true and data.itemId == selectedItem then
+			-- Neues Affix: nichts gewählt lassen; sonst bleibt die Auswahl am selben Platz
+			local list = allItems()
+			local it = current(list)
+			if it and selectedAffix and not it.affixes[selectedAffix] then
+				selectedAffix = nil
+			end
+		end
+		refresh()
 	end)
 	ForgeController.render()
 end

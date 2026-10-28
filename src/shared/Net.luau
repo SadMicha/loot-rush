@@ -7,11 +7,31 @@
 --   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item } }
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
 --   Rift      (C→S): action: "enter" | "deeper" | "leave" – Zustand kommt über Player-Attribute (Types.luau)
+--   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
+--   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill-Blüte)
+--   Star      (C→S): action: "alloc" | "remove" | "reset", starId: string? (Sternennetz)
+--   ForgeAct  (C→S): actionId: string, itemId: string, affix: number? (Schmiede)
+--   ForgeResult (S→C): { ok, text, itemId?, used? } – Rückmeldung der Schmiede
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "CastSkill", "UsePotion", "Dash", "Fx", "Inv", "Equip", "Unequip", "Sell", "Rift" }
+local NAMES = {
+	"CastSkill",
+	"UsePotion",
+	"Dash",
+	"Fx",
+	"Inv",
+	"Equip",
+	"Unequip",
+	"Sell",
+	"Rift",
+	"Progress",
+	"Bloom",
+	"Star",
+	"ForgeAct",
+	"ForgeResult",
+}
 
 local folder: Instance
 if RunService:IsServer() then
@@ -43,4 +63,9 @@ return table.freeze({
 	Unequip = get("Unequip"),
 	Sell = get("Sell"),
 	Rift = get("Rift"),
+	Progress = get("Progress"),
+	Bloom = get("Bloom"),
+	Star = get("Star"),
+	ForgeAct = get("ForgeAct"),
+	ForgeResult = get("ForgeResult"),
 })
