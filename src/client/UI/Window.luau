@@ -31,6 +31,19 @@ export type Window = {
 }
 
 local current: Window? = nil
+local others: { () -> () } = {} -- weitere Vollbild-Fenster (Inventar), die beim Öffnen zugehen
+
+-- Offenes Fenster schließen (z. B. wenn das Inventar aufgeht)
+function Window.closeCurrent()
+	if current then
+		current.close()
+	end
+end
+
+-- Ein Fenster außerhalb dieses Moduls mitschließen, sobald eines von hier öffnet
+function Window.exclusive(close: () -> ())
+	table.insert(others, close)
+end
 
 -- upper() kennt keine Umlaute
 function Window.caps(text: string): string
@@ -121,6 +134,7 @@ function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOpt
 		})
 	end
 	b.Name = "Knoten"
+	Kit.touchTarget(b)
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = UDim2.fromOffset(pos.X, pos.Y)
 	b.ZIndex = 2
@@ -146,17 +160,18 @@ function Window.caption(
 end
 
 function Window.new(opts: Options): Window
-	local gui, root = Kit.scaledGui("LootRush" .. opts.name, 6)
+	local gui, root = Kit.scaledGui("LootRush" .. opts.name, 6, true)
 	gui.Enabled = false
 
 	-- Szenenbild über den ganzen Bildschirm, sonst nur abdunkeln
 	local back = Instance.new("ImageLabel")
 	back.Name = "Hintergrund"
 	back.BackgroundColor3 = Theme.Color.Bg0
-	back.BackgroundTransparency = 0.25
+	back.BackgroundTransparency = 0.1 -- HUD darunter soll nicht durchscheinen
 	back.BorderSizePixel = 0
 	back.Size = UDim2.fromScale(1, 1)
 	back.ZIndex = 0
+	back.Active = true -- Klicks nicht an das HUD darunter durchreichen
 	local art = if opts.background then Assets.Art[opts.background] else nil
 	if art then
 		back.Image = art.id
@@ -191,6 +206,9 @@ function Window.new(opts: Options): Window
 	local function open()
 		if current and current ~= win then
 			current.close()
+		end
+		for _, closeOther in others do
+			closeOther()
 		end
 		current = win
 		gui.Enabled = true
