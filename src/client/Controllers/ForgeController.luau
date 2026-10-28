@@ -190,21 +190,21 @@ local function renderCenter(item: Items.Item?)
 	local anvil = Window.art("forge_anvil", Vector2.new(420, 260))
 	if anvil then
 		anvil.AnchorPoint = Vector2.new(0.5, 0)
-		anvil.Position = UDim2.new(0.5, 0, 0, 330)
+		anvil.Position = UDim2.new(0.5, 0, 0, 300)
 		anvil.Parent = center
 	end
 
 	-- Status-Tafel
-	local plaque = Window.frame(UDim2.fromOffset(460, 110))
+	local plaque = Window.frame(UDim2.fromOffset(460, 158))
 	plaque.AnchorPoint = Vector2.new(0.5, 0)
 	plaque.Position = UDim2.new(0.5, 0, 0, 560)
-	local plaqueArt = Window.art("plaque_status", Vector2.new(460, 110))
+	local plaqueArt = Window.art("plaque_status", Vector2.new(460, 158))
 	if plaqueArt then
 		plaqueArt.ScaleType = Enum.ScaleType.Stretch
 		plaqueArt.Size = UDim2.fromScale(1, 1)
 		plaqueArt.Parent = plaque
 	else
-		Kit.skin(plaque, "header_banner", 110, 0.5)
+		Kit.skin(plaque, "header_banner", 158, 0.5)
 	end
 	local ready = item ~= nil and selectedAffix ~= nil
 	local head = Window.heading(
@@ -213,13 +213,13 @@ local function renderCenter(item: Items.Item?)
 		if ready then C.Good else C.GoldHi
 	)
 	head.AnchorPoint = Vector2.new(0.5, 0)
-	head.Position = UDim2.new(0.5, 0, 0, 18)
+	head.Position = UDim2.new(0.5, 0, 0, 38)
 	head.ZIndex = 2
 	head.Parent = plaque
 	local sub =
 		Kit.label("Die Schmiede öffnet bald – Aktionen folgen.", 15, C.Text, Theme.Font.Body)
 	sub.AnchorPoint = Vector2.new(0.5, 0)
-	sub.Position = UDim2.new(0.5, 0, 0, 64)
+	sub.Position = UDim2.new(0.5, 0, 0, 88)
 	sub.ZIndex = 2
 	sub.Parent = plaque
 	plaque.Parent = center
