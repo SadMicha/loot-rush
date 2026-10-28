@@ -84,15 +84,9 @@ local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftPhase", phase)
 end
 
--- Gebiet am Gegner vermerken (Beute-Boni in Systems/Loot) und den Erfahrungs-Bonus anwenden
 local function mark(r: Run, model: Model?)
-	if not model then
-		return
-	end
-	model:SetAttribute("Region", r.region.id)
-	local xp = r.region.bonus.xp
-	if xp then
-		model:SetAttribute("XP", math.floor((model:GetAttribute("XP") or 0) :: number * (1 + xp)))
+	if model then
+		Enemies.setRegion(model, r.region.id)
 	end
 end
 

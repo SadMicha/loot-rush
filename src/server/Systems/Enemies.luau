@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -488,6 +489,16 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 	return model
 end
 
+-- Gebiet am Gegner vermerken (Beute-Boni in Systems/Loot) und den Erfahrungs-Bonus anwenden
+function Enemies.setRegion(model: Model, regionId: string)
+	model:SetAttribute("Region", regionId)
+	local region = Atlas.ById[regionId]
+	local xp = region and region.bonus.xp
+	if xp then
+		model:SetAttribute("XP", math.floor((model:GetAttribute("XP") or 0) :: number * (1 + xp)))
+	end
+end
+
 function Enemies.clear()
 	for _, e in list do
 		e.model:Destroy() -- step() räumt Liste und Telegraphen beim nächsten Frame auf
@@ -648,7 +659,10 @@ local function summon(e: Enemy, around: Vector3, count: number)
 		local at = clampArena(around + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6))
 		local m = Enemies.spawn(addKind, Vector3.new(at.X, 0, at.Z), e.depth)
 		if m then
-			m:SetAttribute("Region", e.model:GetAttribute("Region")) -- Gebiets-Boni gelten auch für Helfer
+			local region = e.model:GetAttribute("Region")
+			if typeof(region) == "string" then
+				Enemies.setRegion(m, region) -- Gebiets-Boni gelten auch für Helfer
+			end
 			table.insert(e.minions, m)
 		end
 	end
