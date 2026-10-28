@@ -20,6 +20,7 @@ export type Data = {
 	equipped: { [string]: Items.Item }, -- Slot → Item
 	progress: Progression.Data, -- Skill-Stufen, Skill-Blüten, Sternennetz
 	materials: Progression.Materials, -- Schmiede-Material
+	atlas: { [string]: number }, -- Gebiet → höchste geschaffte Rift-Tiefe (Shared/Atlas)
 }
 
 export type Lock = { job: string, t: number }
@@ -41,6 +42,7 @@ local DEFAULTS: Data = {
 	equipped = {},
 	progress = Progression.fresh(), -- Inhalt prüft Progression.reconcile
 	materials = Progression.freshMaterials(),
+	atlas = {},
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -86,6 +88,18 @@ function Profile.reconcile(raw: any): Data
 	data.xp = math.max(0, data.xp)
 	data.progress = Progression.reconcile(data.progress)
 	data.materials = Progression.reconcileMaterials(data.materials)
+	local atlas = {}
+	for id, depth in data.atlas do
+		if
+			typeof(id) == "string"
+			and typeof(depth) == "number"
+			and depth == depth
+			and depth >= 1
+		then
+			atlas[id] = math.floor(math.min(depth, 1e6))
+		end
+	end
+	data.atlas = atlas
 	return data :: Data
 end
 

@@ -1,5 +1,7 @@
 --!strict
--- Rift-Ablauf: Betreten → Wellen → Boss → Wahl „tiefer“ oder „zurück ins Dorf“.
+-- Rift-Ablauf: Gebiet wählen (Atlas) → Wellen → Boss → Wahl „tiefer“ oder „zurück ins Dorf“.
+-- Jedes Gebiet startet auf seiner eigenen Tiefe und würfelt die Wellen aus seinem Gegner-Mix
+-- (Shared/Atlas). Geschaffte Tiefen landen im Spielstand (atlas) und schalten Folgegebiete frei.
 -- Ein Rift gleichzeitig pro Server; der Starter ist der Besitzer. Zustand liegt als Attribute am
 -- Besitzer (siehe Types.luau), der Client liest nur. Tod, Verlassen oder Abbruch beenden den Lauf.
 
@@ -7,16 +9,20 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
+local Data = require(script.Parent.Data)
 local Metrics = require(script.Parent.Metrics)
 local Enemies = require(script.Parent.Enemies)
+local World = require(script.Parent.World)
 
 type Run = {
 	owner: Player,
-	depth: number,
+	region: Atlas.Region,
+	depth: number, -- absolute Tiefe (skaliert die Gegner)
 	wave: number,
 }
 
@@ -46,7 +52,32 @@ local function alive(r: Run): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
+-- Bestleistung je Gebiet (0 = nie geschafft)
+local function bestOf(player: Player): (string) -> number
+	local profile = Data.get(player)
+	return function(id: string): number
+		return if profile then profile.atlas[id] or 0 else 0
+	end
+end
+
+local function publishBest(player: Player)
+	local best = bestOf(player)
+	for _, region in Atlas.Regions do
+		local depth = best(region.id)
+		player:SetAttribute(Atlas.attr(region.id), if depth > 0 then depth else nil)
+	end
+end
+
+local function record(r: Run)
+	local profile = Data.get(r.owner)
+	if profile and r.depth > (profile.atlas[r.region.id] or 0) then
+		profile.atlas[r.region.id] = r.depth
+		r.owner:SetAttribute(Atlas.attr(r.region.id), r.depth)
+	end
+end
+
 local function publish(r: Run, phase: string)
+	r.owner:SetAttribute("RiftRegion", r.region.id)
 	r.owner:SetAttribute("RiftDepth", r.depth)
 	r.owner:SetAttribute("RiftWave", r.wave)
 	r.owner:SetAttribute("RiftWaves", Config.RIFT_WAVES)
@@ -97,7 +128,9 @@ local function finish(r: Run, failed: boolean)
 		string.format("Tiefe %d %s", r.depth, if failed then "gescheitert" else "verlassen")
 	)
 	Enemies.clear()
+	World.theme(nil)
 	local owner = r.owner
+	owner:SetAttribute("RiftRegion", nil)
 	if not owner.Parent then
 		return
 	end
@@ -120,12 +153,14 @@ local function play(r: Run)
 	for wave = 1, Config.RIFT_WAVES do
 		r.wave = wave
 		publish(r, "wave")
+		local sinceStart = r.depth - r.region.depth -- Tiefen seit Gebietsbeginn
 		local count = math.min(
-			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + (r.depth - 1)),
+			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + sinceStart),
 			Config.RIFT_WAVE_MAX
 		)
+		local mix = r.region.enemies
 		for _ = 1, count do
-			Enemies.spawn("slime", spawnPoint(), r.depth)
+			Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth)
 		end
 		if not waitClear(r) then
 			return finish(r, true)
@@ -137,21 +172,28 @@ local function play(r: Run)
 	end
 
 	publish(r, "boss")
-	Enemies.spawn("boss", Config.ENEMY_ZONE, r.depth)
+	Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth)
 	if not waitClear(r) then
 		return finish(r, true)
 	end
+	record(r)
 	Metrics.report(string.format("Tiefe %d geschafft", r.depth))
 	publish(r, "clear")
 end
 
-local function begin(player: Player)
+local function begin(player: Player, regionId: any)
 	local model, _, humanoid = character(player)
 	if run or not model or not humanoid or humanoid.Health <= 0 then
 		return
 	end
-	local r: Run = { owner = player, depth = 1, wave = 0 }
+	local id = if typeof(regionId) == "string" then regionId else Atlas.Start
+	local region = Atlas.ById[id]
+	if not region or not Atlas.isOpen(id, bestOf(player)) then
+		return
+	end
+	local r: Run = { owner = player, region = region, depth = region.depth, wave = 0 }
 	run = r
+	World.theme(region)
 	model:PivotTo(CFrame.new(Config.RIFT_START))
 	task.spawn(play, r)
 end
@@ -167,9 +209,9 @@ local function deeper(player: Player)
 	task.spawn(play, r)
 end
 
-local function onAction(player: Player, action: any)
+local function onAction(player: Player, action: any, regionId: any)
 	if action == "enter" then
-		begin(player)
+		begin(player, regionId)
 	elseif action == "deeper" then
 		deeper(player)
 	elseif action == "leave" then
@@ -187,6 +229,21 @@ function Rift.init()
 		if r and r.owner == player then
 			finish(r, false)
 		end
+	end)
+end
+
+-- Bestleistungen für den Atlas (Client liest die Attribute)
+function Rift.start()
+	local function onPlayer(player: Player)
+		if Data.waitFor(player) then
+			publishBest(player)
+		end
+	end
+	for _, player in Players:GetPlayers() do
+		task.spawn(onPlayer, player)
+	end
+	Players.PlayerAdded:Connect(function(player: Player)
+		task.spawn(onPlayer, player)
 	end)
 end
 
