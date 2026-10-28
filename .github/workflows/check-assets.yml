@@ -23,6 +23,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Manuell mit Key aus dem Environment „Roblox“ (Decal → Bild-ID über Open Cloud, braucht Lese-Recht für Assets)
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'Roblox' || '' }}
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
