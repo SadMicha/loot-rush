@@ -12,6 +12,9 @@
 --   Star      (C→S): action: "alloc" | "remove" | "reset", starId: string? (Sternennetz)
 --   ForgeAct  (C→S): actionId: string, itemId: string, affix: number? (Schmiede)
 --   ForgeResult (S→C): { ok, text, itemId?, used? } – Rückmeldung der Schmiede
+--   Buy       (C→S): offerId: string – Ingame-Kauf im Shop (Systems/Shop)
+--   ShopResult (S→C): { ok, text, offerId? } – Rückmeldung des Shops
+--   Debug     (C→S): command: string, value: number? – Test-Befehle, nur Studio/DEV_USERS (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -31,6 +34,9 @@ local NAMES = {
 	"Star",
 	"ForgeAct",
 	"ForgeResult",
+	"Buy",
+	"ShopResult",
+	"Debug",
 }
 
 local folder: Instance
@@ -68,4 +74,7 @@ return table.freeze({
 	Star = get("Star"),
 	ForgeAct = get("ForgeAct"),
 	ForgeResult = get("ForgeResult"),
+	Buy = get("Buy"),
+	ShopResult = get("ShopResult"),
+	Debug = get("Debug"),
 })

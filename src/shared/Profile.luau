@@ -7,6 +7,7 @@
 -- Feld umbenennen/umbauen? VERSION erhöhen und einen Schritt in MIGRATIONS anlegen.
 -- Nur JSON-taugliche Werte: Zahlen, Strings, Bools, Listen und Tabellen mit String-Schlüsseln.
 
+local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
 local Progression = require(script.Parent.Progression)
 
@@ -21,6 +22,9 @@ export type Data = {
 	progress: Progression.Data, -- Skill-Stufen, Skill-Blüten, Sternennetz
 	materials: Progression.Materials, -- Schmiede-Material
 	atlas: { [string]: number }, -- Gebiet → höchste geschaffte Rift-Tiefe (Shared/Atlas)
+	potions: number, -- Heiltränke (Shop, Taste 1)
+	soulstars: number, -- Seelensterne (Shop, später auch für Robux)
+	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
 }
 
 export type Lock = { job: string, t: number }
@@ -33,6 +37,7 @@ export type Record = {
 }
 
 Profile.VERSION = 2
+Profile.MAX_RECEIPTS = 50
 
 local DEFAULTS: Data = {
 	gold = 0,
@@ -43,6 +48,9 @@ local DEFAULTS: Data = {
 	progress = Progression.fresh(), -- Inhalt prüft Progression.reconcile
 	materials = Progression.freshMaterials(),
 	atlas = {},
+	potions = Config.POTION_START,
+	soulstars = 0,
+	receipts = {},
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -81,6 +89,14 @@ local function fill(target: { [any]: any }, defaults: { [any]: any })
 	end
 end
 
+-- Ganze Zahl ≥ 0 (NaN und Unendlich → 0)
+local function whole(v: number): number
+	if v ~= v or v < 0 or v == math.huge then
+		return 0
+	end
+	return math.floor(v)
+end
+
 function Profile.reconcile(raw: any): Data
 	local data = if typeof(raw) == "table" then raw else {}
 	fill(data, DEFAULTS)
@@ -100,6 +116,18 @@ function Profile.reconcile(raw: any): Data
 		end
 	end
 	data.atlas = atlas
+	data.potions = math.clamp(whole(data.potions), 0, Config.POTION_MAX)
+	data.soulstars = whole(data.soulstars)
+	local receipts = {}
+	for _, id in data.receipts do
+		if typeof(id) == "string" and #id <= 128 then
+			table.insert(receipts, id)
+		end
+	end
+	while #receipts > Profile.MAX_RECEIPTS do
+		table.remove(receipts, 1)
+	end
+	data.receipts = receipts
 	return data :: Data
 end
 

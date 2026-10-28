@@ -363,7 +363,7 @@ Assets.Icon = table.freeze({
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
 } :: { [string]: Icon })
 
--- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede und Atlas
+-- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede, Atlas und Shop
 -- (Upload-Paket LootRush_Upload_v8_Fenster). Einträge ohne ID werden ignoriert; die Fenster
 -- zeigen dann den flachen Stil (Knoten als Slots, Linien als dünne Striche).
 local ART: { [string]: Fixed } = {

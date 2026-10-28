@@ -26,6 +26,7 @@ local AbilitiesController = require(script.Parent.AbilitiesController)
 local StarNetController = require(script.Parent.StarNetController)
 local ForgeController = require(script.Parent.ForgeController)
 local AtlasController = require(script.Parent.AtlasController)
+local ShopController = require(script.Parent.ShopController)
 
 local HudController = {}
 
@@ -79,6 +80,9 @@ local lifeBox: Frame
 local lifeBack: Frame
 local lifeFill: Frame
 local lifeText: TextLabel
+local shieldFill: Frame
+local shieldText: TextLabel
+local lifeHumanoid: Humanoid? = nil
 local lvlLabel: TextLabel
 local xpFill: Frame
 local LIFE_BAR = 300 -- Breite des Lebensbalkens (wird schmaler, wenn oben zu wenig Platz ist)
@@ -114,9 +118,46 @@ local function buildLife()
 	lifeText = Kit.label("", 13)
 	lifeText.Position = UDim2.fromOffset(66, 34)
 	lifeText.Parent = box
+
+	-- Arkaner Schild (Player-Attribut „Shield“, setzt Systems/Combat): Kristall-Streifen über dem
+	-- Lebensbalken, Breite = Schild im Verhältnis zum maximalen Leben, Zahl rechts darunter
+	shieldFill = Instance.new("Frame")
+	shieldFill.Name = "Schild"
+	shieldFill.Size = UDim2.fromScale(0, 0.45)
+	shieldFill.BackgroundColor3 = C.Cyan
+	shieldFill.BorderSizePixel = 0
+	shieldFill.ZIndex = 4
+	shieldFill.Visible = false
+	Kit.corner(shieldFill, 4)
+	shieldFill.Parent = back
+	shieldText = Kit.label("", 13, C.Cyan)
+	shieldText.Name = "SchildText"
+	shieldText.AnchorPoint = Vector2.new(1, 0)
+	shieldText.Position = UDim2.new(1, -14, 0, 34)
+	shieldText.TextXAlignment = Enum.TextXAlignment.Right
+	shieldText.Visible = false
+	shieldText.Parent = box
+end
+
+local function refreshShield()
+	local shield = player:GetAttribute("Shield")
+	local amount = if typeof(shield) == "number" then shield else 0
+	local max = if lifeHumanoid then lifeHumanoid.MaxHealth else 0
+	local show = amount > 0 and max > 0
+	shieldFill.Visible = show
+	shieldText.Visible = show
+	if show then
+		TweenService:Create(
+			shieldFill,
+			Theme.Tween.Bar,
+			{ Size = UDim2.fromScale(math.clamp(amount / max, 0.04, 1), 0.45) }
+		):Play()
+		shieldText.Text = "+" .. Format.int(amount) .. " Schild"
+	end
 end
 
 local function bindHumanoid(humanoid: Humanoid)
+	lifeHumanoid = humanoid
 	local function refresh()
 		local ratio = if humanoid.MaxHealth > 0
 			then math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
@@ -126,7 +167,9 @@ local function bindHumanoid(humanoid: Humanoid)
 	end
 	humanoid.HealthChanged:Connect(refresh)
 	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refresh)
+	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refreshShield)
 	refresh()
+	refreshShield()
 end
 
 -- ------------------------------------------------------------------ Minimap (oben rechts)
@@ -206,6 +249,7 @@ end
 local dashCount: TextLabel
 local potionCd: Frame
 local potionCdText: TextLabel
+local potionCount: TextLabel
 local cdOverlays: { Frame } = {}
 local cdTexts: { TextLabel } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
@@ -263,6 +307,13 @@ local function buildSkillbar()
 	-- Tränke als Slots wie im Mock-up (Reihe 1 · 2 · Q · E · R · F); Manatrank hat noch keine Funktion
 	local lifePotion = Kit.slot(72, "trank_leben", C.Life, "1")
 	potionCd, potionCdText = cooldownLayer(lifePotion)
+	potionCount = Kit.label("", 14, C.Text)
+	potionCount.Name = "Anzahl"
+	potionCount.AnchorPoint = Vector2.new(1, 0)
+	potionCount.Position = UDim2.new(1, -6, 0, 4)
+	potionCount.TextStrokeTransparency = 0.3
+	potionCount.ZIndex = 3
+	potionCount.Parent = lifePotion
 	onTap(lifePotion, SkillController.potion)
 	local items: { GuiObject } = { lifePotion, Kit.slot(72, "trank_mana", C.Mana, "2") }
 
@@ -297,6 +348,7 @@ end
 -- ------------------------------------------------------------------ Ruhe-Panels (fliegen ein)
 local goldText: TextLabel
 local shardText: TextLabel
+local starText: TextLabel
 local resGroup: CanvasGroup
 local menuGroup: CanvasGroup
 local menuGrid: UIGridLayout
@@ -311,18 +363,30 @@ local function buildCalmPanels()
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
 	res.Name = "Resources"
 	Kit.list(res, Enum.FillDirection.Horizontal, 8)
+	-- Kapsel, Attribut, Farbe, Shop-Reiter hinter dem +
 	for i, spec in
 		{
-			{ "gold", Format.big((player:GetAttribute("Gold") or 0) :: number), C.Gold },
-			{ "kristall", Format.big((player:GetAttribute("Shards") or 0) :: number), C.Cyan },
-			{ "seelenstern", "7", Theme.Rarity.epic },
+			{ "gold", "Gold", C.Gold, "gold" },
+			{ "kristall", "Shards", C.Cyan, "material" },
+			{ "seelenstern", "Soulstars", Theme.Rarity.epic, "seelensterne" },
 		} :: { { any } }
 	do
-		local pill, pillText = Kit.pill(spec[1] :: string, spec[2] :: string, spec[3] :: Color3)
+		local value = (player:GetAttribute(spec[2] :: string) or 0) :: number
+		local pill, pillText, plus =
+			Kit.pill(spec[1] :: string, Format.big(value), spec[3] :: Color3)
 		if spec[1] == "gold" then
 			goldText = pillText
 		elseif spec[1] == "kristall" then
 			shardText = pillText
+		else
+			starText = pillText
+		end
+		if plus then
+			plus.Name = "Shop_" .. (spec[1] :: string)
+			local tabId = spec[4] :: string
+			plus.Activated:Connect(function()
+				ShopController.open(tabId)
+			end)
 		end
 		pill.LayoutOrder = i
 		pill.Parent = res
@@ -528,6 +592,16 @@ function HudController.start()
 	player:GetAttributeChangedSignal("Shards"):Connect(function()
 		shardText.Text = Format.big((player:GetAttribute("Shards") or 0) :: number)
 	end)
+	player:GetAttributeChangedSignal("Soulstars"):Connect(function()
+		starText.Text = Format.big((player:GetAttribute("Soulstars") or 0) :: number)
+	end)
+	local function refreshPotions()
+		local n = player:GetAttribute("Potions")
+		potionCount.Text = if typeof(n) == "number" then tostring(n) else ""
+		potionCount.TextColor3 = if n == 0 then C.Danger else C.Text
+	end
+	player:GetAttributeChangedSignal("Potions"):Connect(refreshPotions)
+	refreshPotions()
 
 	local function refreshLevel()
 		lvlLabel.Text = tostring(player:GetAttribute("Level") or 1)
@@ -540,6 +614,7 @@ function HudController.start()
 	end
 	refreshLevel()
 
+	player:GetAttributeChangedSignal("Shield"):Connect(refreshShield)
 	player:GetAttributeChangedSignal("DashCharges"):Connect(function()
 		dashCount.Text = tostring(player:GetAttribute("DashCharges") or 0)
 	end)

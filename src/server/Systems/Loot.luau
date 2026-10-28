@@ -2,10 +2,14 @@
 -- Beute: Gegner lassen Gold und manchmal Items fallen. Drops liegen mit Boden-Label (Name in Seltenheitsfarbe)
 -- und gehören dem Töter; wer nah genug herangeht, hebt sie automatisch auf.
 -- Optik: Items als Geschenkbox in Seltenheitsfarbe, Gold als Münze (Shared/Models/Loot).
+-- Menge und Güte richten sich nach der Rift-Tiefe des Gegners (Config.LOOT_*) und den Boni des
+-- Gebiets (Atlas.bonus): tiefer = höhere Gegenstandsstufe, mehr Gold, öfter seltene Items.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -26,7 +30,6 @@ local Loot = {}
 
 local PICKUP_RADIUS = 6
 local LIFETIME = 60
-local ITEM_CHANCE = 0.35
 local BOSS_GOLD_DROPS = 5
 local BOSS_ITEM_DROPS = 3
 
@@ -99,23 +102,55 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	})
 end
 
-local function onKilled(player: any, pos: any, level: any, boss: any)
-	if typeof(player) ~= "Instance" or typeof(pos) ~= "Vector3" or typeof(level) ~= "number" then
+-- Was ein Gegner auf dieser Tiefe in diesem Gebiet fallen lässt (rein, für Tests)
+function Loot.forDepth(depth: number, regionId: string?, boss: boolean)
+	local region = if regionId then Atlas.ById[regionId] else nil
+	local bonus: Atlas.Bonus = if region then region.bonus else {}
+	local d = math.max(1, math.floor(depth))
+	local ilvl = Items.levelForDepth(d, Config.LOOT_ILVL_PER_DEPTH)
+	return {
+		ilvl = if boss then ilvl + Config.LOOT_BOSS_ILVL else ilvl,
+		gold = d * Config.LOOT_GOLD_PER_DEPTH * (if boss then 2 else 1),
+		goldMult = 1 + (bonus.gold or 0),
+		itemChance = math.min(1, Config.LOOT_ITEM_CHANCE * (1 + (bonus.items or 0))),
+		find = Config.LOOT_FIND_PER_DEPTH * (d - 1) + (if boss then Config.LOOT_BOSS_FIND else 0),
+	}
+end
+
+local function onKilled(
+	player: any,
+	pos: any,
+	_level: any,
+	boss: any,
+	_skill: any,
+	_xp: any,
+	depth: any,
+	region: any
+)
+	if typeof(player) ~= "Instance" or typeof(pos) ~= "Vector3" then
 		return
 	end
 	local owner = player :: Player
+	local t = Loot.forDepth(
+		if typeof(depth) == "number" then depth else 1,
+		if typeof(region) == "string" then region else nil,
+		boss == true
+	)
+	local function gold(lo: number, hi: number): number
+		return math.floor((rng:NextInteger(lo, hi) + t.gold) * t.goldMult + 0.5)
+	end
 	if boss == true then
 		for _ = 1, BOSS_GOLD_DROPS do
-			makeDrop(pos, owner, rng:NextInteger(8, 12) + level * 4, nil)
+			makeDrop(pos, owner, gold(8, 12), nil)
 		end
 		for _ = 1, BOSS_ITEM_DROPS do
-			makeDrop(pos, owner, 0, Items.roll(level + 2, rng))
+			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, t.find))
 		end
 		return
 	end
-	makeDrop(pos, owner, rng:NextInteger(2, 4) + level * 2, nil)
-	if rng:NextNumber() < ITEM_CHANCE then
-		makeDrop(pos, owner, 0, Items.roll(level, rng))
+	makeDrop(pos, owner, gold(2, 4), nil)
+	if rng:NextNumber() < t.itemChance then
+		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, t.find))
 	end
 end
 

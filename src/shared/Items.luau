@@ -155,15 +155,25 @@ function Items.retier(a: Affix, tier: number): Affix
 	}
 end
 
-function Items.roll(ilvl: number, rng: Random): Item
+-- Gegenstandsstufe für Beute auf einer Rift-Tiefe (Config.LOOT_ILVL_PER_DEPTH)
+function Items.levelForDepth(depth: number, perDepth: number): number
+	return math.max(1, math.floor(depth) * perDepth - 1)
+end
+
+-- find: Bonus auf die Gewichte aller Seltenheiten über Normal (0.5 = +50 %)
+function Items.roll(ilvl: number, rng: Random, find: number?): Item
+	local boost = 1 + math.max(0, find or 0)
+	local function weight(r: { id: string, weight: number }): number
+		return if r.id == "normal" then r.weight else r.weight * boost
+	end
 	local total = 0
 	for _, r in RARITIES do
-		total += r.weight
+		total += weight(r)
 	end
 	local pick = rng:NextNumber(0, total)
 	local rarity = RARITIES[1]
 	for _, r in RARITIES do
-		pick -= r.weight
+		pick -= weight(r)
 		if pick <= 0 then
 			rarity = r
 			break

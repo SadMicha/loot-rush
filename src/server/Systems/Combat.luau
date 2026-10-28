@@ -29,7 +29,7 @@ type PState = {
 }
 
 local Combat = {
-	-- (player, position, playerLevel, boss, skillId, xp), für Systems/Loot und Systems/Progress
+	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?), für Systems/Loot und Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), für Systems/Metrics
 }
@@ -112,6 +112,7 @@ end
 local function xpFor(level: number): number
 	return math.floor(40 * level ^ 1.5)
 end
+Combat.xpFor = xpFor
 
 local function applyLevelStats(player: Player, fill: boolean)
 	local character = player.Character
@@ -316,6 +317,8 @@ damageEnemy = function(
 		)
 		local xp = (enemy:GetAttribute("XP") or 0) :: number
 		local boss = enemy:GetAttribute("Boss") == true
+		local depth = enemy:GetAttribute("Depth")
+		local region = enemy:GetAttribute("Region")
 		local burst = shatterOn[enemy]
 		shatterOn[enemy] = nil
 		enemy:Destroy()
@@ -330,7 +333,9 @@ damageEnemy = function(
 				(player:GetAttribute("Level") or 1) :: number,
 				boss,
 				if skill then skill.id else nil,
-				xp
+				xp,
+				if typeof(depth) == "number" then depth else 1,
+				region
 			)
 		end
 	end
@@ -765,10 +770,18 @@ local function usePotion(player: Player)
 	if not st or not root or not humanoid then
 		return
 	end
+	local profile = Data.get(player)
 	local now = os.clock()
-	if now < st.potionUntil or humanoid.Health >= humanoid.MaxHealth then
+	if
+		not profile
+		or profile.potions < 1
+		or now < st.potionUntil
+		or humanoid.Health >= humanoid.MaxHealth
+	then
 		return
 	end
+	profile.potions -= 1
+	player:SetAttribute("Potions", profile.potions)
 	st.potionUntil = now + Config.POTION_COOLDOWN
 	local heal = math.floor(humanoid.MaxHealth * Config.POTION_HEAL)
 	humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + heal)
