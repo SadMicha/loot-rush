@@ -8,6 +8,7 @@
 -- Nur JSON-taugliche Werte: Zahlen, Strings, Bools, Listen und Tabellen mit String-Schlüsseln.
 
 local Items = require(script.Parent.Items)
+local Progression = require(script.Parent.Progression)
 
 local Profile = {}
 
@@ -17,6 +18,8 @@ export type Data = {
 	xp: number,
 	inventory: { Items.Item },
 	equipped: { [string]: Items.Item }, -- Slot → Item
+	progress: Progression.Data, -- Skill-Stufen, Skill-Blüten, Sternennetz
+	materials: Progression.Materials, -- Schmiede-Material
 }
 
 export type Lock = { job: string, t: number }
@@ -36,6 +39,8 @@ local DEFAULTS: Data = {
 	xp = 0,
 	inventory = {},
 	equipped = {},
+	progress = Progression.fresh(), -- Inhalt prüft Progression.reconcile
+	materials = Progression.freshMaterials(),
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -79,6 +84,8 @@ function Profile.reconcile(raw: any): Data
 	fill(data, DEFAULTS)
 	data.level = math.max(1, math.floor(data.level))
 	data.xp = math.max(0, data.xp)
+	data.progress = Progression.reconcile(data.progress)
+	data.materials = Progression.reconcileMaterials(data.materials)
 	return data :: Data
 end
 

@@ -1,16 +1,15 @@
 --!strict
--- Inventar & Ausrüstung: Items aufnehmen, anlegen, ablegen, verkaufen.
--- Rechnet Ausrüstungswerte in Player-Attribute um (StatDamage/StatLife/StatCrit/StatSpeed),
--- die Systems/Combat und PlayerSetup lesen. Der Client bekommt nur Schnappschüsse (Net.Inv).
+-- Inventar & Ausrüstung: Items aufnehmen, anlegen, ablegen, verkaufen (= verwerten: Gold + Material).
+-- Werte rechnet Systems/Stats in Player-Attribute um. Der Client bekommt nur Schnappschüsse (Net.Inv).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
-local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
+local Progress = require(script.Parent.Progress)
+local Stats = require(script.Parent.Stats)
 
 local Inventory = {}
 
@@ -23,29 +22,10 @@ local function snapshot(player: Player)
 	end
 end
 
-local function recompute(player: Player, fill: boolean)
-	local profile = Data.get(player)
-	if not profile then
-		return
-	end
-	local sum: { [string]: number } = { damage = 0, life = 0, crit = 0, speed = 0 }
-	for _, item in profile.equipped do
-		for _, a in item.affixes do
-			if sum[a.stat] then
-				sum[a.stat] += a.value
-			end
-		end
-	end
-	player:SetAttribute("StatDamage", sum.damage)
-	player:SetAttribute("StatLife", sum.life)
-	player:SetAttribute("StatCrit", sum.crit)
-	player:SetAttribute("StatSpeed", sum.speed)
+Inventory.sync = snapshot
 
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.WalkSpeed = Config.WALK_SPEED * (1 + sum.speed / 100)
-	end
-	Combat.refreshStats(player, fill)
+local function recompute(player: Player, fill: boolean)
+	Stats.refresh(player, fill)
 end
 
 local function findIndex(list: { Items.Item }, id: string): number?
@@ -124,6 +104,7 @@ local function onSell(player: Player, id: any)
 	end
 	local item = table.remove(profile.inventory, index) :: Items.Item
 	Inventory.addGold(player, Items.sellValue(item))
+	Progress.salvage(player, item)
 	snapshot(player)
 end
 

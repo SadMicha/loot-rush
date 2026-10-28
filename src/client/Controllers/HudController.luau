@@ -296,6 +296,7 @@ end
 
 -- ------------------------------------------------------------------ Ruhe-Panels (fliegen ein)
 local goldText: TextLabel
+local shardText: TextLabel
 
 local function buildCalmPanels()
 	-- Ressourcen oben mittig
@@ -304,13 +305,15 @@ local function buildCalmPanels()
 	for i, spec in
 		{
 			{ "gold", Format.big((player:GetAttribute("Gold") or 0) :: number), C.Gold },
-			{ "kristall", "1.280", C.Cyan },
+			{ "kristall", Format.big((player:GetAttribute("Shards") or 0) :: number), C.Cyan },
 			{ "seelenstern", "7", Theme.Rarity.epic },
 		} :: { { any } }
 	do
 		local pill, pillText = Kit.pill(spec[1] :: string, spec[2] :: string, spec[3] :: Color3)
 		if spec[1] == "gold" then
 			goldText = pillText
+		elseif spec[1] == "kristall" then
+			shardText = pillText
 		end
 		pill.LayoutOrder = i
 		pill.Parent = res
@@ -443,6 +446,9 @@ function HudController.start()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
 		goldText.Text = Format.big((player:GetAttribute("Gold") or 0) :: number)
+	end)
+	player:GetAttributeChangedSignal("Shards"):Connect(function()
+		shardText.Text = Format.big((player:GetAttribute("Shards") or 0) :: number)
 	end)
 
 	local function refreshLevel()
