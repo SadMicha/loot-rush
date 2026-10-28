@@ -116,7 +116,8 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 }
 
 local function onCommand(player: Player, command: any, value: any)
-	if not Debug.allowed(player) or not allow(player) then
+	-- Ohne geladenen Spielstand würde jeder Befehl still ins Leere laufen
+	if not Debug.allowed(player) or not allow(player) or not Data.get(player) then
 		return
 	end
 	local entry = if typeof(command) == "string" then COMMANDS[command] else nil
@@ -135,8 +136,9 @@ local function onCommand(player: Player, command: any, value: any)
 	print(string.format("[Debug] %s: %s %s", player.Name, command, tostring(value or "")))
 end
 
+-- Menü erst freigeben, wenn der Spielstand geladen ist
 local function onPlayer(player: Player)
-	if Debug.allowed(player) then
+	if Debug.allowed(player) and Data.waitFor(player) then
 		player:SetAttribute("DebugTools", true)
 	end
 end
@@ -147,9 +149,11 @@ end
 
 function Debug.start()
 	for _, player in Players:GetPlayers() do
-		onPlayer(player)
+		task.spawn(onPlayer, player)
 	end
-	Players.PlayerAdded:Connect(onPlayer)
+	Players.PlayerAdded:Connect(function(player: Player)
+		task.spawn(onPlayer, player)
+	end)
 end
 
 return Debug
