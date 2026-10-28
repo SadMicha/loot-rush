@@ -189,3 +189,36 @@ describe("Gebiete im Spiel", function()
 		end
 	end)
 end)
+
+describe("Hub Lumenhafen", function()
+	it("steht als eigene Map mit Spawn und Stationen", function()
+		sim:boot({ seconds = 1 })
+		local info = server(function(req)
+			local Config = req("ReplicatedStorage.Shared.Config")
+			local hub = workspace:FindFirstChild("Lumenhafen")
+			local out = { hub = hub ~= nil, windows = {}, spawnDist = math.huge }
+			if hub then
+				for _, d in hub:GetDescendants() do
+					if d:IsA("ProximityPrompt") then
+						out.windows[d:GetAttribute("Fenster")] = true
+					elseif d:IsA("SpawnLocation") then
+						local p = d.CFrame.Position
+						out.spawnDist = (Vector3.new(p.X, 0, p.Z) - Vector3.new(
+							Config.HUB_POS.X,
+							0,
+							Config.HUB_POS.Z
+						)).Magnitude
+					end
+				end
+			end
+			out.apart = (Config.HUB_ORIGIN - Config.ENEMY_ZONE).Magnitude
+			return out
+		end)
+		expect(info.hub).toBe(true)
+		expect(info.spawnDist).toBeLessThan(1)
+		expect(info.apart).toBeGreaterThan(300)
+		for _, w in { "Atlas", "Forge", "Shop", "Inventory" } do
+			expect(info.windows[w]).toBe(true)
+		end
+	end)
+end)
