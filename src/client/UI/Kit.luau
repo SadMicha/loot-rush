@@ -116,10 +116,11 @@ local function applySlice(
 	maxScale: number
 )
 	local slice = Assets.Slice[name]
-	img.Image = slice.id
-	img.ScaleType = Enum.ScaleType.Slice
-	img.SliceCenter = slice.center
-	img.SliceScale = sliceScale(slice, height, maxScale)
+	local target = img :: ImageLabel -- gleiche Bild-Properties wie ImageButton
+	target.Image = slice.id
+	target.ScaleType = Enum.ScaleType.Slice
+	target.SliceCenter = slice.center
+	target.SliceScale = sliceScale(slice, height, maxScale)
 end
 
 -- 9-Slice-Bild als unterste Ebene in parent legen (nur für Frames, die selbst keinen Text haben).

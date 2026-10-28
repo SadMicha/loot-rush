@@ -133,11 +133,11 @@ local function buildMinimap()
 end
 
 local function dot(i: number): Frame
-	local d = dots[i]
-	if d then
-		return d
+	local existing = dots[i]
+	if existing then
+		return existing
 	end
-	d = Instance.new("Frame")
+	local d = Instance.new("Frame")
 	d.Size = UDim2.fromOffset(8, 8)
 	d.AnchorPoint = Vector2.new(0.5, 0.5)
 	d.BackgroundColor3 = C.Life
@@ -293,7 +293,7 @@ local function buildCalmPanels()
 			{ "gold", Format.big((player:GetAttribute("Gold") or 0) :: number), C.Gold },
 			{ "kristall", "1.280", C.Cyan },
 			{ "seelenstern", "7", Theme.Rarity.epic },
-		}
+		} :: { { any } }
 	do
 		local pill, pillText = Kit.pill(spec[1] :: string, spec[2] :: string, spec[3] :: Color3)
 		if spec[1] == "gold" then
@@ -347,7 +347,7 @@ local function buildCalmPanels()
 			{ "Besiege 50 Kristallschleime", 0.64 },
 			{ "Sammle 20 Kristalle", 0.25 },
 			{ "Erreiche die Ruinen", 0.04 },
-		}
+		} :: { { any } }
 	do
 		local t = Kit.label(q[1] :: string, 13, C.Muted, Theme.Font.Body)
 		t.LayoutOrder = i * 2 - 1
