@@ -29,7 +29,7 @@ type PState = {
 }
 
 local Combat = {
-	-- (player, position, playerLevel, boss, skillId, xp), für Systems/Loot und Systems/Progress
+	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?), für Systems/Loot und Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), für Systems/Metrics
 }
@@ -317,6 +317,8 @@ damageEnemy = function(
 		)
 		local xp = (enemy:GetAttribute("XP") or 0) :: number
 		local boss = enemy:GetAttribute("Boss") == true
+		local depth = enemy:GetAttribute("Depth")
+		local region = enemy:GetAttribute("Region")
 		local burst = shatterOn[enemy]
 		shatterOn[enemy] = nil
 		enemy:Destroy()
@@ -331,7 +333,9 @@ damageEnemy = function(
 				(player:GetAttribute("Level") or 1) :: number,
 				boss,
 				if skill then skill.id else nil,
-				xp
+				xp,
+				if typeof(depth) == "number" then depth else 1,
+				region
 			)
 		end
 	end

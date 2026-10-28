@@ -207,4 +207,260 @@ function Props.fence(): Model
 	return Kit.finish(m, false, 1)
 end
 
+-- ------------------------------------------------------------------ Gebiets-Kits (Arenen)
+
+-- Felsbrocken aus 2–4 gekippten Blöcken; `color` = Gestein des Bioms.
+function Props.rock(s: number, seed: number, color: Color3?): Model
+	local m = Instance.new("Model")
+	m.Name = "Fels"
+	local rng = Random.new(seed)
+	local tint = color or C.stone
+	for i = 1, rng:NextInteger(2, 4) do
+		local w = (if i == 1 then 3.4 else rng:NextNumber(1.6, 2.6)) * s
+		local h = (if i == 1 then 2.6 else rng:NextNumber(1.2, 2)) * s
+		local off = if i == 1
+			then Vector3.zero
+			else v(rng:NextNumber(-1.6, 1.6), 0, rng:NextNumber(-1.6, 1.6)) * s
+		block(
+			m,
+			v(w, h, w * rng:NextNumber(0.8, 1.1)),
+			CFrame.new(off + v(0, h / 2 - 0.2 * s, 0))
+				* CFrame.Angles(
+					rng:NextNumber(-0.2, 0.2),
+					rng:NextNumber(0, 3),
+					rng:NextNumber(-0.2, 0.2)
+				),
+			Kit.shade(tint, rng:NextNumber(-0.08, 0.06))
+		)
+	end
+	return Kit.finish(m, false, 1.2)
+end
+
+-- Tropfstein: gestapelte, schmaler werdende Blöcke, Spitze optional leuchtend.
+function Props.stalagmite(s: number, color: Color3, glow: Color3?): Model
+	local m = Instance.new("Model")
+	m.Name = "Tropfstein"
+	local y = 0
+	local w = 2.6 * s
+	for i = 1, 4 do
+		local h = (2.4 - i * 0.3) * s
+		local c = if i == 4 and glow then glow else Kit.shade(color, (i - 2) * 0.04)
+		block(
+			m,
+			v(w, h, w),
+			CFrame.new(0, y + h / 2, 0)
+				* CFrame.Angles(0, math.rad(i * 23), math.rad((i % 2) * 4 - 2)),
+			c,
+			if i == 4 and glow then Enum.Material.Neon else nil
+		)
+		y += h * 0.92
+		w *= 0.68
+	end
+	return Kit.finish(m, false, 1)
+end
+
+-- Riesenpilz: Stiel, kugeliger Hut mit hellen Tupfen; leuchtet leicht von unten.
+function Props.mushroom(s: number, cap: Color3, seed: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Riesenpilz"
+	local rng = Random.new(seed)
+	local h = rng:NextNumber(4, 7) * s
+	block(m, v(1.4, h, 1.4) * Vector3.new(s, 1, s), CFrame.new(0, h / 2, 0), C.cream)
+	local hat = ball(m, 6 * s, v(0, h + 0.6 * s, 0), cap)
+	block(m, v(6.4, 0.4, 6.4) * s, CFrame.new(0, h - 0.6 * s, 0), Kit.shade(cap, -0.25))
+	for _ = 1, 5 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(1.2, 2.6) * s
+		ball(
+			m,
+			rng:NextNumber(0.7, 1.1) * s,
+			v(math.cos(a) * r, h + 1.6 * s, math.sin(a) * r),
+			C.cream
+		)
+	end
+	Kit.light(hat, cap, 12 * s, 0.6)
+	return Kit.finish(m, false, 1.2)
+end
+
+-- Schilf/Gras-Büschel (Deko ohne Kollision).
+function Props.reeds(s: number, color: Color3, seed: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Schilf"
+	local rng = Random.new(seed)
+	for _ = 1, 6 do
+		local h = rng:NextNumber(1.6, 3.2) * s
+		block(
+			m,
+			v(0.25, h, 0.25) * Vector3.new(s, 1, s),
+			CFrame.new(rng:NextNumber(-1, 1) * s, h / 2, rng:NextNumber(-1, 1) * s)
+				* CFrame.Angles(rng:NextNumber(-0.25, 0.25), 0, rng:NextNumber(-0.25, 0.25)),
+			Kit.shade(color, rng:NextNumber(-0.1, 0.05))
+		)
+	end
+	return Kit.finish(m, true)
+end
+
+-- Wolke aus weißen Kugeln (Himmelsinseln, Deko ohne Kollision).
+function Props.cloud(s: number, seed: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Wolke"
+	local rng = Random.new(seed)
+	for i = 1, 5 do
+		local d = (if i == 1 then 6 else rng:NextNumber(3.5, 5)) * s
+		ball(m, d, v(rng:NextNumber(-4, 4) * s, d / 3, rng:NextNumber(-2, 2) * s), C.cream)
+	end
+	for _, d in m:GetChildren() do
+		if d:IsA("BasePart") then
+			d.Color = Color3.new(1, 1, 1)
+			d.Transparency = 0.1
+		end
+	end
+	return Kit.finish(m, true)
+end
+
+-- Ofen-Schlot der Lava-Backstube: Basalt-Kamin mit glühender Öffnung und Lichtschein.
+function Props.chimney(s: number): Model
+	local m = Instance.new("Model")
+	m.Name = "OfenSchlot"
+	local basalt = Color3.fromHex("#4A2E26")
+	block(m, v(5, 1, 5) * s, CFrame.new(0, 0.5 * s, 0), Kit.shade(basalt, -0.05))
+	block(m, v(4, 5, 4) * s, CFrame.new(0, 3.5 * s, 0) * CFrame.Angles(0, 0.2, 0), basalt)
+	block(
+		m,
+		v(3, 3, 3) * s,
+		CFrame.new(0, 7.2 * s, 0) * CFrame.Angles(0, -0.15, 0.04),
+		Kit.shade(basalt, 0.05)
+	)
+	local glow =
+		block(m, v(2.2, 0.4, 2.2) * s, CFrame.new(0, 8.8 * s, 0), C.fire, Enum.Material.Neon)
+	block(m, v(1.2, 1.2, 0.3) * s, CFrame.new(0, 2.4 * s, 2.05 * s), C.ember, Enum.Material.Neon)
+	Kit.light(glow, C.fire, 18 * s, 1.6)
+	return Kit.finish(m, false, 1)
+end
+
+-- Gebrochener Torbogen (Himmelsinseln-Ruine), ca. 12 Studs breit, Durchgang entlang Z.
+function Props.arch(s: number, color: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "Torbogen"
+	for _, x in { -5, 5 } do
+		block(m, v(2.4, 0.8, 2.4) * s, CFrame.new(x * s, 0.4 * s, 0), Kit.shade(color, -0.1))
+		block(m, v(1.8, 8, 1.8) * s, CFrame.new(x * s, 4.6 * s, 0), color)
+	end
+	block(m, v(7, 1.4, 2) * s, CFrame.new(-2 * s, 9.2 * s, 0) * CFrame.Angles(0, 0, 0.12), color)
+	block(m, v(2.4, 0.5, 2.2) * s, CFrame.new(-5 * s, 8.8 * s, 0), C.gold)
+	return Kit.finish(m, false, 1)
+end
+
+-- Instabiler Splitter der Veränderten Welt: schwebender, gekippter Würfel mit Neon-Kante.
+function Props.riftShard(s: number, seed: number, glow: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "RissSplitter"
+	local rng = Random.new(seed)
+	local h = rng:NextNumber(2, 5) * s
+	local tilt = CFrame.Angles(rng:NextNumber(0, 1), rng:NextNumber(0, 3), rng:NextNumber(0, 1))
+	block(m, v(2.4, 2.4, 2.4) * s, CFrame.new(0, h, 0) * tilt, C.ink)
+	block(m, v(2.6, 0.3, 2.6) * s, CFrame.new(0, h, 0) * tilt, glow, Enum.Material.Neon)
+	local core = ball(m, 0.6 * s, v(0, h, 0), glow, Enum.Material.Neon)
+	Kit.light(core, glow, 10 * s, 1)
+	return Kit.finish(m, true)
+end
+
+-- Blume (Bodendetail ohne Kollision): Stiel mit farbiger Blüte.
+function Props.flower(seed: number, color: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "Blume"
+	local rng = Random.new(seed)
+	for _ = 1, rng:NextInteger(2, 4) do
+		local x, z = rng:NextNumber(-0.8, 0.8), rng:NextNumber(-0.8, 0.8)
+		local h = rng:NextNumber(0.6, 1.2)
+		block(m, v(0.15, h, 0.15), CFrame.new(x, h / 2, z), C.leafDark)
+		ball(
+			m,
+			rng:NextNumber(0.45, 0.7),
+			v(x, h + 0.1, z),
+			Kit.shade(color, rng:NextNumber(-0.1, 0.1))
+		)
+	end
+	return Kit.finish(m, true, 2)
+end
+
+-- Kiesel (Bodendetail ohne Kollision), `glow` lässt sie leuchten (Kristall, Glut, Riss).
+function Props.pebbles(seed: number, color: Color3, glow: boolean?): Model
+	local m = Instance.new("Model")
+	m.Name = "Kiesel"
+	local rng = Random.new(seed)
+	for _ = 1, rng:NextInteger(2, 5) do
+		local d = rng:NextNumber(0.4, 1)
+		block(
+			m,
+			v(d, d * 0.6, d * rng:NextNumber(0.7, 1.2)),
+			CFrame.new(rng:NextNumber(-1.2, 1.2), d * 0.25, rng:NextNumber(-1.2, 1.2))
+				* CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			Kit.shade(color, rng:NextNumber(-0.08, 0.08)),
+			if glow then Enum.Material.Neon else nil
+		)
+	end
+	return Kit.finish(m, true, 2)
+end
+
+-- Schlossturm (Himmelsinseln): runder Eindruck aus gedrehten Blöcken, spitzes Dach, Fahne.
+function Props.tower(s: number, wall: Color3, roof: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "Schlossturm"
+	local h = 18 * s
+	for i = 0, 2 do
+		block(
+			m,
+			v(6, h, 6) * Vector3.new(s, 1, s),
+			CFrame.new(0, h / 2, 0) * CFrame.Angles(0, math.rad(i * 30), 0),
+			wall
+		)
+	end
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		block(
+			m,
+			v(1.2, 1.4, 1.2) * s,
+			CFrame.new(math.cos(a) * 3.2 * s, h + 0.7 * s, math.sin(a) * 3.2 * s),
+			wall
+		)
+	end
+	for i = 1, 4 do
+		local w = (7.4 - i * 1.6) * s
+		block(
+			m,
+			v(w, 2 * s, w),
+			CFrame.new(0, h + (i * 1.8 + 0.4) * s, 0) * CFrame.Angles(0, math.rad(45), 0),
+			roof
+		)
+	end
+	block(m, v(0.2, 3, 0.2) * s, CFrame.new(0, h + 9.5 * s, 0), C.woodDark)
+	block(m, v(1.6, 0.9, 0.1) * s, CFrame.new(0.8 * s, h + 10.4 * s, 0), C.gold)
+	block(m, v(1.6, 2.4, 0.3) * s, CFrame.new(0, 1.2 * s, 3.1 * s), C.woodDark)
+	for _, y in { 0.45, 0.7 } do
+		block(m, v(0.8, 1.4, 0.3) * s, CFrame.new(0, h * y, 3.1 * s), C.ink)
+	end
+	return Kit.finish(m, false, 1)
+end
+
+-- Toter Baum (Pilzsumpf): kahler Stamm mit zwei Ästen.
+function Props.deadTree(s: number): Model
+	local m = Instance.new("Model")
+	m.Name = "ToterBaum"
+	block(m, v(1.2, 9, 1.2) * s, CFrame.new(0, 4.5 * s, 0) * CFrame.Angles(0, 0, 0.1), C.woodDark)
+	block(
+		m,
+		v(0.6, 4, 0.6) * s,
+		CFrame.new(1.2 * s, 7 * s, 0) * CFrame.Angles(0, 0, -0.8),
+		C.woodDark
+	)
+	block(
+		m,
+		v(0.5, 3, 0.5) * s,
+		CFrame.new(-1 * s, 6 * s, 0) * CFrame.Angles(0.2, 0, 0.9),
+		C.woodDark
+	)
+	return Kit.finish(m, false, 1)
+end
+
 return Props

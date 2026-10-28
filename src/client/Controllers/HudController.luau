@@ -79,6 +79,9 @@ local lifeBox: Frame
 local lifeBack: Frame
 local lifeFill: Frame
 local lifeText: TextLabel
+local shieldFill: Frame
+local shieldText: TextLabel
+local lifeHumanoid: Humanoid? = nil
 local lvlLabel: TextLabel
 local xpFill: Frame
 local LIFE_BAR = 300 -- Breite des Lebensbalkens (wird schmaler, wenn oben zu wenig Platz ist)
@@ -114,9 +117,46 @@ local function buildLife()
 	lifeText = Kit.label("", 13)
 	lifeText.Position = UDim2.fromOffset(66, 34)
 	lifeText.Parent = box
+
+	-- Arkaner Schild (Player-Attribut „Shield“, setzt Systems/Combat): Kristall-Streifen über dem
+	-- Lebensbalken, Breite = Schild im Verhältnis zum maximalen Leben, Zahl rechts darunter
+	shieldFill = Instance.new("Frame")
+	shieldFill.Name = "Schild"
+	shieldFill.Size = UDim2.fromScale(0, 0.45)
+	shieldFill.BackgroundColor3 = C.Cyan
+	shieldFill.BorderSizePixel = 0
+	shieldFill.ZIndex = 4
+	shieldFill.Visible = false
+	Kit.corner(shieldFill, 4)
+	shieldFill.Parent = back
+	shieldText = Kit.label("", 13, C.Cyan)
+	shieldText.Name = "SchildText"
+	shieldText.AnchorPoint = Vector2.new(1, 0)
+	shieldText.Position = UDim2.new(1, -14, 0, 34)
+	shieldText.TextXAlignment = Enum.TextXAlignment.Right
+	shieldText.Visible = false
+	shieldText.Parent = box
+end
+
+local function refreshShield()
+	local shield = player:GetAttribute("Shield")
+	local amount = if typeof(shield) == "number" then shield else 0
+	local max = if lifeHumanoid then lifeHumanoid.MaxHealth else 0
+	local show = amount > 0 and max > 0
+	shieldFill.Visible = show
+	shieldText.Visible = show
+	if show then
+		TweenService:Create(
+			shieldFill,
+			Theme.Tween.Bar,
+			{ Size = UDim2.fromScale(math.clamp(amount / max, 0.04, 1), 0.45) }
+		):Play()
+		shieldText.Text = "+" .. Format.int(amount) .. " Schild"
+	end
 end
 
 local function bindHumanoid(humanoid: Humanoid)
+	lifeHumanoid = humanoid
 	local function refresh()
 		local ratio = if humanoid.MaxHealth > 0
 			then math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
@@ -126,7 +166,9 @@ local function bindHumanoid(humanoid: Humanoid)
 	end
 	humanoid.HealthChanged:Connect(refresh)
 	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refresh)
+	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refreshShield)
 	refresh()
+	refreshShield()
 end
 
 -- ------------------------------------------------------------------ Minimap (oben rechts)
@@ -540,6 +582,7 @@ function HudController.start()
 	end
 	refreshLevel()
 
+	player:GetAttributeChangedSignal("Shield"):Connect(refreshShield)
 	player:GetAttributeChangedSignal("DashCharges"):Connect(function()
 		dashCount.Text = tostring(player:GetAttribute("DashCharges") or 0)
 	end)

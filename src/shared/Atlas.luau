@@ -7,6 +7,9 @@
 -- Tiefe `depth − 1` geschafft ist. Die Bestwerte je Gebiet speichert der Spielstand (atlas).
 
 export type Mod = { icon: string, text: string }
+-- Echte Gebiets-Boni (Anteile, 0.1 = +10 %): gold = Gold je Drop, xp = Erfahrung je Gegner,
+-- items = Chance auf Item-Drops. Fehlt ein Feld, gibt es keinen Bonus.
+export type Bonus = { gold: number?, xp: number?, items: number? }
 export type Region = {
 	id: string,
 	name: string,
@@ -21,7 +24,8 @@ export type Region = {
 	depth: number, -- Start-Tiefe des Rifts
 	enemies: { string }, -- Gegner-Mix der Wellen
 	bossKind: string, -- Boss am Ende jeder Tiefe
-	tint: Color3, -- Farbstimmung der Arena (Boden + Farbkorrektur)
+	tint: Color3, -- Grundfarbe des Gebiets (Arena-Look: Systems/World)
+	bonus: Bonus,
 	rewards: { { icon: string, rarity: string } },
 }
 
@@ -53,6 +57,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "slime", "slime", "slime", "beetle" },
 		bossKind = "kristallkoenig",
 		tint = Color3.fromHex("#FFE9B0"),
+		bonus = { gold = 0.1 },
 		rewards = {
 			{ icon = "slot_helm", rarity = "magic" },
 			{ icon = "slot_ring", rarity = "rare" },
@@ -67,7 +72,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "kristall",
 		mods = {
 			{ icon = "eis", text = "Kalte Luft" },
-			{ icon = "kristall", text = "+15 % Kristalle" },
+			{ icon = "kristall", text = "+15 % Beute" },
 		},
 		desc = "Leuchtende Höhlen voller Kristalle. Jeder Schritt hallt durch die Tiefe.",
 		pos = Vector2.new(330, 330),
@@ -77,6 +82,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "crab", "crab", "lantern", "lantern", "slime" },
 		bossKind = "splitterwurm",
 		tint = Color3.fromHex("#9FE6FF"),
+		bonus = { items = 0.15 },
 		rewards = {
 			{ icon = "kristall", rarity = "magic" },
 			{ icon = "slot_amulett", rarity = "rare" },
@@ -98,6 +104,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "frog", "frog", "frog", "snail" },
 		bossKind = "sporenmutter",
 		tint = Color3.fromHex("#E6B8FF"),
+		bonus = {},
 		rewards = {
 			{ icon = "trank_leben", rarity = "magic" },
 			{ icon = "slot_brust", rarity = "rare" },
@@ -123,6 +130,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "imp", "imp", "imp", "golem", "golem" },
 		bossKind = "ofenfuerst",
 		tint = Color3.fromHex("#FFB27A"),
+		bonus = { xp = 0.25 },
 		rewards = {
 			{ icon = "begleiter", rarity = "unique" },
 			{ icon = "slot_ring", rarity = "rare" },
@@ -147,6 +155,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "wisp", "wisp", "wisp", "statue", "statue" },
 		bossKind = "wolkenkoenigin",
 		tint = Color3.fromHex("#DDF4FF"),
+		bonus = { items = 0.25 },
 		rewards = {
 			{ icon = "fluegel", rarity = "epic" },
 			{ icon = "slot_amulett", rarity = "unique" },
@@ -161,7 +170,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "portal",
 		mods = {
 			{ icon = "portal", text = "Instabile Risse" },
-			{ icon = "pokal", text = "Bestenliste" },
+			{ icon = "pokal", text = "+20 % Gold & Beute" },
 		},
 		desc = "Hinter dem letzten Riss ist nichts mehr, wie es war. Hier zählt nur, wie tief du kommst.",
 		pos = Vector2.new(940, 680),
@@ -171,6 +180,7 @@ Atlas.Regions = table.freeze({
 		enemies = { "beetle", "lantern", "snail", "golem", "statue", "wisp" },
 		bossKind = "riss",
 		tint = Color3.fromHex("#FF8AE0"),
+		bonus = { gold = 0.2, items = 0.2 },
 		rewards = {
 			{ icon = "portal", rarity = "epic" },
 			{ icon = "pokal", rarity = "legend" },
