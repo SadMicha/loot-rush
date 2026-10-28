@@ -1,18 +1,21 @@
 --!strict
 -- Beute: Gegner lassen Gold und manchmal Items fallen. Drops liegen mit Boden-Label (Name in Seltenheitsfarbe)
 -- und gehören dem Töter; wer nah genug herangeht, hebt sie automatisch auf.
+-- Optik: Items als Geschenkbox in Seltenheitsfarbe, Gold als Münze (Shared/Models/Loot).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Items = require(ReplicatedStorage.Shared.Items)
+local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Combat = require(script.Parent.Combat)
 local Inventory = require(script.Parent.Inventory)
 
 type Drop = {
-	part: Part,
+	model: Model,
+	part: BasePart, -- verankerter Kern der Box/Münze
 	owner: Player,
 	gold: number,
 	item: Items.Item?,
@@ -32,36 +35,28 @@ local folder: Folder
 local rng = Random.new()
 
 local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.Item?)
-	local part = Instance.new("Part")
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.Material = Enum.Material.Neon
-
 	local text: string
 	local color: Color3
+	local model: Model
 	if item then
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 		text = item.name
-		part.Size = Vector3.one * 1.4
-		if item.rarity == "normal" then
-			part.Material = Enum.Material.SmoothPlastic
-		end
+		model = LootModels.giftBox(color, item.rarity ~= "normal")
 	else
 		color = Theme.Color.Gold
 		text = tostring(gold) .. " Gold"
-		part.Shape = Enum.PartType.Ball
-		part.Size = Vector3.one * 1.2
+		model = LootModels.coin()
 	end
-	part.Color = color
+	local part = model.PrimaryPart :: BasePart
 
-	local target = Vector3.new(pos.X + rng:NextNumber(-3, 3), 1.2, pos.Z + rng:NextNumber(-3, 3))
-	part.Position = target + Vector3.new(0, 3, 0)
-	part.Parent = folder
+	local target = Vector3.new(pos.X + rng:NextNumber(-3, 3), 0.2, pos.Z + rng:NextNumber(-3, 3))
+	local yaw = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	model:PivotTo(CFrame.new(target + Vector3.new(0, 3, 0)) * yaw)
+	model.Parent = folder
 	TweenService:Create(
 		part,
 		TweenInfo.new(0.45, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out),
-		{ Position = target }
+		{ CFrame = CFrame.new(target) * yaw * part.PivotOffset:Inverse() }
 	):Play()
 
 	local gui = Instance.new("BillboardGui")
@@ -94,10 +89,14 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 		beam.Parent = part
 	end
 
-	table.insert(
-		drops,
-		{ part = part, owner = owner, gold = gold, item = item, expires = os.clock() + LIFETIME }
-	)
+	table.insert(drops, {
+		model = model,
+		part = part,
+		owner = owner,
+		gold = gold,
+		item = item,
+		expires = os.clock() + LIFETIME,
+	})
 end
 
 local function onKilled(player: any, pos: any, level: any, boss: any)
@@ -124,8 +123,8 @@ local function sweep()
 	local now = os.clock()
 	for i = #drops, 1, -1 do
 		local d = drops[i]
-		if not d.part.Parent or now > d.expires or not d.owner.Parent then
-			d.part:Destroy()
+		if not d.model.Parent or now > d.expires or not d.owner.Parent then
+			d.model:Destroy()
 			table.remove(drops, i)
 			continue
 		end
@@ -157,7 +156,7 @@ local function sweep()
 			"dmg",
 			{ pos = root.Position + Vector3.new(0, 4, 0), text = text, color = color }
 		)
-		d.part:Destroy()
+		d.model:Destroy()
 		table.remove(drops, i)
 	end
 end
