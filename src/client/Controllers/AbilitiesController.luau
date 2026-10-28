@@ -147,10 +147,10 @@ local function renderTree()
 	local bloom = Skills.Blooms[skill.id]
 
 	local cx = TREE_W / 2
-	local root = Vector2.new(cx, 560)
-	local trunk = { Vector2.new(cx, 430), Vector2.new(cx, 315), Vector2.new(cx, 200) }
-	local left = { Vector2.new(cx - 120, 500), Vector2.new(cx - 240, 470) }
-	local right = { Vector2.new(cx + 120, 500), Vector2.new(cx + 240, 470) }
+	local root = Vector2.new(cx, 600)
+	local trunk = { Vector2.new(cx, 470), Vector2.new(cx, 345), Vector2.new(cx, 220) }
+	local left = { Vector2.new(cx - 120, 540), Vector2.new(cx - 240, 500) }
+	local right = { Vector2.new(cx + 120, 540), Vector2.new(cx + 240, 500) }
 	local lineColor = C.Gold
 
 	-- Verbindungen zuerst, damit die Knoten darüber liegen
@@ -195,14 +195,26 @@ local function renderTree()
 				AbilitiesController.render()
 			end)
 			b.Parent = tree
-			Window.caption(
+			-- Am Stamm stehen die Texte rechts, damit die Verbindungslinie frei bleibt
+			local side = key == "trunk"
+			local ptsLabel = Window.caption(
 				tree,
 				if n.effect then string.format("%d/%d", pts, Skills.BloomMax) else "bald",
-				p + Vector2.new(0, 46),
+				p + (if side then Vector2.new(52, -24) else Vector2.new(0, 46)),
 				15,
 				if pts > 0 then C.GoldHi else C.Muted
 			)
-			Window.caption(tree, n.name, p + Vector2.new(0, 70), 14, C.Text)
+			local title = Window.caption(
+				tree,
+				n.name,
+				p + (if side then Vector2.new(52, 0) else Vector2.new(0, 70)),
+				14,
+				C.Text
+			)
+			if side then
+				ptsLabel.AnchorPoint = Vector2.zero
+				title.AnchorPoint = Vector2.zero
+			end
 		end
 	end
 	branch(bloom.trunk, trunk, "trunk")
@@ -212,15 +224,15 @@ local function renderTree()
 	-- Ast-Namen
 	local trunkName = Window.heading(bloom.trunk.name, 22, C.Cyan)
 	trunkName.AnchorPoint = Vector2.new(0.5, 0)
-	trunkName.Position = UDim2.fromOffset(cx, 96)
+	trunkName.Position = UDim2.fromOffset(cx, 130)
 	trunkName.Parent = tree
 	local leftName = Window.heading(bloom.left.name, 20, C.Gold)
 	leftName.AnchorPoint = Vector2.new(0.5, 0)
-	leftName.Position = UDim2.fromOffset(left[2].X + 20, 360)
+	leftName.Position = UDim2.fromOffset(left[2].X + 20, 400)
 	leftName.Parent = tree
 	local rightName = Window.heading(bloom.right.name, 20, C.Gold)
 	rightName.AnchorPoint = Vector2.new(0.5, 0)
-	rightName.Position = UDim2.fromOffset(right[2].X - 20, 360)
+	rightName.Position = UDim2.fromOffset(right[2].X - 20, 400)
 	rightName.Parent = tree
 
 	local node = if selectedNode then Skills.bloomNode(skill.id, selectedNode) else nil

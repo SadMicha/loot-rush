@@ -26,6 +26,12 @@ Kit.C = table.freeze({
 	magic = Color3.fromHex("#9B6BFF"),
 	water = Color3.fromHex("#8FD8F5"),
 	ink = Color3.fromHex("#1B1830"),
+	cream = Color3.fromHex("#FFF1D0"),
+	fire = Color3.fromHex("#FF8A3D"),
+	ember = Color3.fromHex("#E8502E"),
+	roof = Color3.fromHex("#C8553D"),
+	roofDark = Color3.fromHex("#9A3B2C"),
+	metal = Color3.fromHex("#5A5F70"),
 })
 
 function Kit.block(
@@ -90,6 +96,26 @@ function Kit.finish(model: Model, deco: boolean, smallShadow: number?): Model
 			end
 		end
 	end
+	return model
+end
+
+-- Macht ein Modell beweglich: nur `root` bleibt verankert, alle anderen Teile hängen per
+-- WeldConstraint daran. Dann reicht ein Tween auf root.CFrame. Der Pivot bleibt dort, wo
+-- Kit.finish ihn gesetzt hat (unten mittig), über root.PivotOffset.
+function Kit.rig(model: Model, root: BasePart): Model
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root then
+			d.Anchored = false
+			d.Massless = true
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = root
+			w.Part1 = d
+			w.Parent = d
+		end
+	end
+	local pivot = model.WorldPivot
+	model.PrimaryPart = root
+	root.PivotOffset = root.CFrame:ToObjectSpace(pivot)
 	return model
 end
 

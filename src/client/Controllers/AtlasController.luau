@@ -17,7 +17,7 @@ local AtlasController = {}
 local C = Theme.Color
 local PAD = 28
 local SIDE_W, TOP = 440, 90
-local LABEL = Vector2.new(210, 64)
+local LABEL = Vector2.new(230, 98) -- Seitenverhältnis wie plaque_region
 local DOT_GAP = 18
 
 local win: Window.Window
@@ -107,12 +107,12 @@ local function renderMap()
 		end
 		local name = Kit.label(r.name, 18, if on then C.GoldHi else C.Text)
 		name.AnchorPoint = Vector2.new(0.5, 0)
-		name.Position = UDim2.new(0.5, 0, 0, 8)
+		name.Position = UDim2.new(0.5, 0, 0, 20)
 		name.ZIndex = 3
 		name.Parent = plate
 		local lv = Kit.label("Stufe " .. r.levels, 14, C.Muted, Theme.Font.Body)
 		lv.AnchorPoint = Vector2.new(0.5, 1)
-		lv.Position = UDim2.new(0.5, 0, 1, -8)
+		lv.Position = UDim2.new(0.5, 0, 1, -22)
 		lv.ZIndex = 3
 		lv.Parent = plate
 		plate.Activated:Connect(function()

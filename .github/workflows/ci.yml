@@ -6,18 +6,47 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchain
-        uses: CompeyDev/setup-rokit@v0.1.2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Werkzeuge laden (rojo, selene, stylua, lune, luau-lsp)
+        run: bash tools/setup.sh
 
-      - name: Check formatting
-        run: stylua --check src
+      - name: Formatierung
+        run: bash tools/check.sh format
 
       - name: Lint
-        run: selene src
+        if: ${{ !cancelled() }}
+        run: bash tools/check.sh lint
+
+      - name: Typecheck
+        if: ${{ !cancelled() }}
+        run: bash tools/check.sh types
+
+      - name: Rojo-Build
+        if: ${{ !cancelled() }}
+        run: bash tools/check.sh build
+
+      - name: Unit-Tests
+        if: ${{ !cancelled() }}
+        run: bash tools/check.sh test
+
+      - name: Playwright für UI-Screenshots
+        if: ${{ !cancelled() }}
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+
+      - name: UI-Check
+        if: ${{ !cancelled() }}
+        run: bash tools/check.sh ui
+
+      - name: UI-Bericht hochladen
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-check
+          path: .tools/out/ui
+          if-no-files-found: ignore

@@ -57,3 +57,11 @@ Für Blender-Assets gilt Abschnitt 10 in `art-prompts/ChatGPT_Bildprompts.md`. F
 `Kit` (Palette, Bausteine, Pivot/Kollision/Schatten-Regeln) und `Props`: Baum, Ruinensäule, Kristall-Pylon, Schwebeinsel (aus `World.luau` herausgelöst, Optik gleich) plus neu Rift-Portal, Truhe (Deckel separat zum Aufklappen), Kristallgruppe (Seed + Biomfarbe), Zaunmodul (8 Studs).
 
 Nächster Batch, wenn die Optik passt: Loot-Geschenkbox an `Loot.luau` anschließen, Gegner-Archetypen für die Sonnenwiese, Schmiede und Dorf-Gebäude mit 3 Stufen.
+
+## Zweiter Batch
+
+- `Loot`: Geschenkbox (Seltenheitsfarbe, Neon ab magisch), Münze, Splitter, Runen-Bonbon. Per `Kit.rig` beweglich (nur der „Kern“ ist verankert). **Im Spiel aktiv:** Item-Drops sind jetzt Geschenkboxen, Gold-Drops Münzen.
+- `Buildings`: Schmiede und Dorfhaus, je Stufe 1–3 (`Buildings.forge(stufe)`, `Buildings.house(stufe)`). Noch nicht in der Welt platziert, nur in der Vorschau.
+- `Creatures`: Kristallschleim (aus `Enemies.luau` herausgelöst, Augen schauen jetzt in Laufrichtung) und Stachelkäfer für die Sonnenwiese (nur Modell, spawnt noch nicht). Pivot hier in der Körpermitte, weil die Gegner-KI damit hüpft.
+
+Nächster Batch: Käfer als Gegnertyp in `Enemies`/`Rift`, Gebäude im Hub platzieren und an den Dorf-Ausbau koppeln, Splitter/Bonbons als Drops, sobald es Craft-Material gibt.

@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Combat = require(script.Parent.Combat)
 
 type Kind = {
@@ -81,7 +82,7 @@ local KINDS: { [string]: Kind } = {
 	},
 }
 local BOSS_SUMMONS = 4
-local BASE_BODY_Y = 1.5
+local BASE_BODY_Y = Creatures.BODY_Y
 local MIN_Z, MAX_Z, MAX_X = -26, 36, 42
 
 local list: { Enemy } = {}
@@ -109,42 +110,9 @@ local function part(
 end
 
 local function buildModel(kind: Kind, pos: Vector3): Model
-	local s = kind.scale
-	local m = Instance.new("Model")
+	local m = Creatures.slime(kind.scale, kind.color, kind.core, kind.ink)
 	m.Name = kind.name
-	local origin = Vector3.new(pos.X, BASE_BODY_Y * s, pos.Z)
-	local bodyPart =
-		part(m, Vector3.one * 3.4 * s, CFrame.new(origin), kind.color, Enum.Material.Glass)
-	bodyPart.Shape = Enum.PartType.Ball
-	bodyPart.Transparency = 0.2
-	part(
-		m,
-		Vector3.one * s,
-		CFrame.new(origin + Vector3.new(0, -0.1, 0) * s)
-			* CFrame.Angles(math.rad(45), 0, math.rad(45)),
-		kind.core,
-		Enum.Material.Neon
-	)
-	part(
-		m,
-		Vector3.new(0.7, 1.4, 0.7) * s,
-		CFrame.new(origin + Vector3.new(0, 1.9, 0) * s) * CFrame.Angles(0, math.rad(45), 0),
-		kind.core,
-		Enum.Material.Neon
-	)
-	part(
-		m,
-		Vector3.new(0.5, 0.18, 0.1) * s,
-		CFrame.new(origin + Vector3.new(-0.5, 0.5, 1.62) * s) * CFrame.Angles(0, 0, math.rad(15)),
-		kind.ink
-	)
-	part(
-		m,
-		Vector3.new(0.5, 0.18, 0.1) * s,
-		CFrame.new(origin + Vector3.new(0.5, 0.5, 1.62) * s) * CFrame.Angles(0, 0, math.rad(-15)),
-		kind.ink
-	)
-	m.PrimaryPart = bodyPart
+	m:PivotTo(CFrame.new(pos.X, BASE_BODY_Y * kind.scale, pos.Z))
 	return m
 end
 

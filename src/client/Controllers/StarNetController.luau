@@ -103,7 +103,7 @@ local function renderNet()
 			StarNetController.render()
 		end)
 		b.Parent = net
-		if s.kind ~= "small" then
+		if s.kind == "big" then
 			Window.caption(
 				net,
 				s.name,

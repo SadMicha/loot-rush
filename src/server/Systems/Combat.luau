@@ -123,6 +123,10 @@ local function addXP(player: Player, amount: number)
 	player:SetAttribute("Level", level)
 	player:SetAttribute("XPNext", need)
 	player:SetAttribute("XP", xp)
+	local profile = Data.get(player)
+	if profile then
+		profile.level, profile.xp = level, xp
+	end
 	if leveled then
 		applyLevelStats(player, true)
 		local root = body(player)
@@ -440,6 +444,15 @@ local function onPlayer(player: Player)
 	player:SetAttribute("Level", 1)
 	player:SetAttribute("XP", 0)
 	player:SetAttribute("XPNext", xpFor(1))
+	task.spawn(function()
+		local profile = Data.waitFor(player)
+		if profile then
+			player:SetAttribute("Level", profile.level)
+			player:SetAttribute("XP", profile.xp)
+			player:SetAttribute("XPNext", xpFor(profile.level))
+			applyLevelStats(player, true)
+		end
+	end)
 
 	local function onCharacter(character: Model)
 		character:WaitForChild("Humanoid")
