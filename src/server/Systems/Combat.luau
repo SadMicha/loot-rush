@@ -766,10 +766,18 @@ local function usePotion(player: Player)
 	if not st or not root or not humanoid then
 		return
 	end
+	local profile = Data.get(player)
 	local now = os.clock()
-	if now < st.potionUntil or humanoid.Health >= humanoid.MaxHealth then
+	if
+		not profile
+		or profile.potions < 1
+		or now < st.potionUntil
+		or humanoid.Health >= humanoid.MaxHealth
+	then
 		return
 	end
+	profile.potions -= 1
+	player:SetAttribute("Potions", profile.potions)
 	st.potionUntil = now + Config.POTION_COOLDOWN
 	local heal = math.floor(humanoid.MaxHealth * Config.POTION_HEAL)
 	humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + heal)

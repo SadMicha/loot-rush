@@ -112,7 +112,8 @@ end
 
 function SkillController.potion()
 	local now = os.clock()
-	if now < potionUntil then
+	local left = player:GetAttribute("Potions")
+	if now < potionUntil or (typeof(left) == "number" and left < 1) then
 		return
 	end
 	potionStart = now

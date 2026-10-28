@@ -19,6 +19,7 @@ local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 local Progress = require(script.Parent.Progress)
+local Shop = require(script.Parent.Shop)
 
 local Debug = {}
 
@@ -110,6 +111,18 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 		run = function(player, n)
 			Progress.addMaterials(player, { candy = n, shards = n, dust = n })
 			Progress.sync(player)
+		end,
+	},
+	soulstars = {
+		range = { -1e9, 1e9 },
+		run = function(player, n)
+			Shop.grant(player, "soulstars", n)
+		end,
+	},
+	potions = {
+		range = { -100, 100 },
+		run = function(player, n)
+			Shop.grant(player, "potions", n)
 		end,
 	},
 	skills = { range = { 1, 20 }, run = addSkillLevels },

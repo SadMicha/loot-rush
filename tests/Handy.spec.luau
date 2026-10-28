@@ -98,6 +98,7 @@ describe("Handy-Layout", function()
 			{ "sternennetz", "StarNet" },
 			{ "schmiede", "Forge" },
 			{ "atlas", "Atlas" },
+			{ "Shop_gold", "Shop" }, -- das + an der Gold-Kapsel
 		}
 	do
 		it("Fenster " .. entry[2], function()

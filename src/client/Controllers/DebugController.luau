@@ -31,6 +31,8 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Level 10", command = "level", value = 10 },
 	{ label = "Level 50", command = "level", value = 50 },
 	{ label = "+100 Material", command = "materials", value = 100 },
+	{ label = "+500 Seelensterne", command = "soulstars", value = 500 },
+	{ label = "+10 Tränke", command = "potions", value = 10 },
 	{ label = "+5 Skill-Stufen", command = "skills", value = 5 },
 	{ label = "+10 Items", command = "items", value = 10 },
 	{ label = "Gebiete frei", command = "atlas" },

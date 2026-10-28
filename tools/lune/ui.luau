@@ -332,7 +332,7 @@ if args.clicks then
 	end
 
 	-- Szenario: Fenster mit vollem Inventar und Material (Schmiede braucht Gegenstände) und Debug-Menü
-	for _, name in { "schmiede", "skills", "sternennetz", "atlas", "Dbg" } do
+	for _, name in { "schmiede", "skills", "sternennetz", "atlas", "Shop_gold", "Dbg" } do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
 		sb:runAs("server", function(req)
@@ -345,6 +345,7 @@ if args.clicks then
 			-- Bonbons und Staub fehlen absichtlich: zeigt die langen „Zu wenig …“-Texte der Schmiede
 			Progress.addMaterials(sb.player, { shards = 120 })
 			Progress.sync(sb.player)
+			Inventory.addGold(sb.player, 300) -- Shop: manches kaufbar, manches zu teuer
 		end)
 		sb:run(0.5)
 		local open = nil

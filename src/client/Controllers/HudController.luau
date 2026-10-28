@@ -26,6 +26,7 @@ local AbilitiesController = require(script.Parent.AbilitiesController)
 local StarNetController = require(script.Parent.StarNetController)
 local ForgeController = require(script.Parent.ForgeController)
 local AtlasController = require(script.Parent.AtlasController)
+local ShopController = require(script.Parent.ShopController)
 
 local HudController = {}
 
@@ -206,6 +207,7 @@ end
 local dashCount: TextLabel
 local potionCd: Frame
 local potionCdText: TextLabel
+local potionCount: TextLabel
 local cdOverlays: { Frame } = {}
 local cdTexts: { TextLabel } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
@@ -263,6 +265,13 @@ local function buildSkillbar()
 	-- Tränke als Slots wie im Mock-up (Reihe 1 · 2 · Q · E · R · F); Manatrank hat noch keine Funktion
 	local lifePotion = Kit.slot(72, "trank_leben", C.Life, "1")
 	potionCd, potionCdText = cooldownLayer(lifePotion)
+	potionCount = Kit.label("", 14, C.Text)
+	potionCount.Name = "Anzahl"
+	potionCount.AnchorPoint = Vector2.new(1, 0)
+	potionCount.Position = UDim2.new(1, -6, 0, 4)
+	potionCount.TextStrokeTransparency = 0.3
+	potionCount.ZIndex = 3
+	potionCount.Parent = lifePotion
 	onTap(lifePotion, SkillController.potion)
 	local items: { GuiObject } = { lifePotion, Kit.slot(72, "trank_mana", C.Mana, "2") }
 
@@ -297,6 +306,7 @@ end
 -- ------------------------------------------------------------------ Ruhe-Panels (fliegen ein)
 local goldText: TextLabel
 local shardText: TextLabel
+local starText: TextLabel
 local resGroup: CanvasGroup
 local menuGroup: CanvasGroup
 local menuGrid: UIGridLayout
@@ -311,18 +321,30 @@ local function buildCalmPanels()
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
 	res.Name = "Resources"
 	Kit.list(res, Enum.FillDirection.Horizontal, 8)
+	-- Kapsel, Attribut, Farbe, Shop-Reiter hinter dem +
 	for i, spec in
 		{
-			{ "gold", Format.big((player:GetAttribute("Gold") or 0) :: number), C.Gold },
-			{ "kristall", Format.big((player:GetAttribute("Shards") or 0) :: number), C.Cyan },
-			{ "seelenstern", "7", Theme.Rarity.epic },
+			{ "gold", "Gold", C.Gold, "gold" },
+			{ "kristall", "Shards", C.Cyan, "material" },
+			{ "seelenstern", "Soulstars", Theme.Rarity.epic, "seelensterne" },
 		} :: { { any } }
 	do
-		local pill, pillText = Kit.pill(spec[1] :: string, spec[2] :: string, spec[3] :: Color3)
+		local value = (player:GetAttribute(spec[2] :: string) or 0) :: number
+		local pill, pillText, plus =
+			Kit.pill(spec[1] :: string, Format.big(value), spec[3] :: Color3)
 		if spec[1] == "gold" then
 			goldText = pillText
 		elseif spec[1] == "kristall" then
 			shardText = pillText
+		else
+			starText = pillText
+		end
+		if plus then
+			plus.Name = "Shop_" .. (spec[1] :: string)
+			local tabId = spec[4] :: string
+			plus.Activated:Connect(function()
+				ShopController.open(tabId)
+			end)
 		end
 		pill.LayoutOrder = i
 		pill.Parent = res
@@ -528,6 +550,16 @@ function HudController.start()
 	player:GetAttributeChangedSignal("Shards"):Connect(function()
 		shardText.Text = Format.big((player:GetAttribute("Shards") or 0) :: number)
 	end)
+	player:GetAttributeChangedSignal("Soulstars"):Connect(function()
+		starText.Text = Format.big((player:GetAttribute("Soulstars") or 0) :: number)
+	end)
+	local function refreshPotions()
+		local n = player:GetAttribute("Potions")
+		potionCount.Text = if typeof(n) == "number" then tostring(n) else ""
+		potionCount.TextColor3 = if n == 0 then C.Danger else C.Text
+	end
+	player:GetAttributeChangedSignal("Potions"):Connect(refreshPotions)
+	refreshPotions()
 
 	local function refreshLevel()
 		lvlLabel.Text = tostring(player:GetAttribute("Level") or 1)
