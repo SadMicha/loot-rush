@@ -10,6 +10,7 @@ Bei Decal-IDs wird die zugehörige Image-ID gesucht (Decal-XML über assetdelive
 die IDs direkt davor mit gleichem Ersteller). --fix ersetzt gefundene IDs in Assets.luau.
 """
 
+import gzip
 import json
 import os
 import re
@@ -87,10 +88,17 @@ def image_of_decal(decal_id: int, info) -> tuple:
             loc = re.search(r'"location"\s*:\s*"([^"]+)"', text)
             if loc:
                 s2, b2 = get(loc.group(1))
-                text = b2.decode("utf-8", "replace") if s2 == 200 else ""
-            m = re.search(r"<url>[^<]*?(?:id=|rbxassetid://)(\d+)", text)
-            if m:
-                return int(m.group(1)), "Decal-XML"
+                if s2 == 200 and b2[:2] == b"\x1f\x8b":
+                    b2 = gzip.decompress(b2)
+                # XML- oder Binär-Modell (.rbxm): die Texture-URL steht in beiden als Klartext
+                text = b2.decode("latin-1") if s2 == 200 else ""
+                if s2 != 200:
+                    print(f"  Inhalt {decal_id} → HTTP {s2}")
+            m = re.search(r"(?:asset/?\?id=|rbxassetid://)(\d+)", text)
+            if m and int(m.group(1)) != decal_id:
+                return int(m.group(1)), "Decal-Inhalt"
+            if text and decal_id not in LOGGED:
+                print(f"  Inhalt {decal_id}: keine Texture-ID gefunden, Anfang {text[:60]!r}")
     # 2. Beim Hochladen entsteht das Image meist mit einer ID kurz vor dem Decal
     creator = (info or {}).get("Creator", {}).get("Id")
     for cand in range(decal_id - 1, decal_id - 16, -1):
