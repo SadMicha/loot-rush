@@ -8,6 +8,7 @@
 --   require("ReplicatedStorage.Shared.Items") – Pfad im Spiel (wie im Rojo-Build)
 --   sim – die Sandbox: sim:boot(), sim:run(sek), sim.player, sim:runAs("server", fn), sim.issues …
 --   layoutCheck(größe, touch) – Layout-Befunde des aktuellen UI wie im UI-Check (lib/Checks.luau)
+--   closeButtons(), compareClose(liste) – Schließen-Knöpfe sammeln und vergleichen
 --   alle Roblox-Globals der Sandbox (game, Instance, Vector3, task, Random …)
 -- Jede Spec-Datei bekommt eine frische Sandbox; jeder Test läuft in einem eigenen Thread.
 
@@ -60,6 +61,10 @@ for _, file in findSpecs("tests", {}) do
 		sb:setViewport(size, touch)
 		return Checks.run(sb, { name = "test", touch = touch })
 	end
+	env.closeButtons = function()
+		return Checks.closeButtons(sb)
+	end
+	env.compareClose = Checks.compareClose
 	env.expect = Expect
 	env.describe = function(name, fn)
 		table.insert(prefix, name)

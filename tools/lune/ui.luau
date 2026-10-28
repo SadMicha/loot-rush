@@ -1,7 +1,8 @@
 --!nocheck
 -- UI-Check ohne Roblox Studio:
 --   1. baut das Spiel (rojo), startet Server + Client headless in der Sandbox
---   2. prüft das UI in mehreren Bildschirmgrößen (Überlauf, abgeschnittener Text, Bild-IDs, Touch-Ziele)
+--   2. prüft das UI in mehreren Bildschirmgrößen (Überlauf, abgeschnittener Text, Bild-IDs, Touch-Ziele,
+--      Roblox-Topbar, Text hinter Icons/auf Text/über dem Panelrand, leere Zeilen/Kapseln, Schließen-Knöpfe)
 --   3. klickt jeden Knopf mit Handler einmal an (frische Sandbox je Knopf) und drückt typische Tasten
 --   4. schreibt HTML-Abbilder + Bericht nach .tools/out/ui (PNG-Screenshots: tools/screenshot.mjs)
 --
@@ -60,7 +61,7 @@ end
 local PROFILES = {
 	{ name = "desktop", size = Vector2.new(1920, 1080), touch = false, render = true },
 	{ name = "laptop", size = Vector2.new(1366, 768), touch = false, render = true },
-	{ name = "tablet", size = Vector2.new(1024, 768), touch = true, render = false },
+	{ name = "tablet", size = Vector2.new(1024, 768), touch = true, render = true },
 	{ name = "handy", size = Vector2.new(844, 390), touch = true, render = true },
 }
 
@@ -144,10 +145,16 @@ local function slug(s: string): string
 	return (s:gsub("[^%w]+", "_"):gsub("^_+", ""):gsub("_+$", ""):sub(1, 60))
 end
 
+local closeButtons = {} -- [profile] = { { path, look } } über alle Zustände
+
 local function snapshot(sb, profile, state: string, title: string)
 	sb:setViewport(profile.size, profile.touch)
 	sb:run(0.5)
 	local findings = Checks.run(sb, profile)
+	closeButtons[profile.name] = closeButtons[profile.name] or {}
+	for _, c in Checks.closeButtons(sb) do
+		table.insert(closeButtons[profile.name], c)
+	end
 	addFindings(profile.name, state, findings)
 	if profile.render then
 		local file = string.format("%s__%s.html", slug(state), profile.name)
@@ -324,6 +331,39 @@ if args.clicks then
 		collect(sb, "Szenario Inventar", baseline)
 	end
 
+	-- Szenario: Fenster mit vollem Inventar und Material (Schmiede braucht Gegenstände) und Debug-Menü
+	for _, name in { "schmiede", "skills", "sternennetz", "atlas", "Dbg" } do
+		local sb = newSandbox()
+		sb:boot({ seconds = args.seconds })
+		sb:runAs("server", function(req)
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			local Progress = req("ServerScriptService.Server.Systems.Progress")
+			local Items = req("ReplicatedStorage.Shared.Items")
+			for i = 1, 12 do
+				Inventory.add(sb.player, Items.roll(1 + i % 12, Sandbox.Random.new(100 + i)))
+			end
+			-- Bonbons und Staub fehlen absichtlich: zeigt die langen „Zu wenig …“-Texte der Schmiede
+			Progress.addMaterials(sb.player, { shards = 120 })
+			Progress.sync(sb.player)
+		end)
+		sb:run(0.5)
+		local open = nil
+		for _, b in clickable(sb) do
+			if b.path:match("%." .. name .. "$") then
+				open = find(sb, b.key)
+			end
+		end
+		if open then
+			sb:click(open)
+			sb:run(1)
+			for _, profile in PROFILES do
+				snapshot(sb, profile, "voll " .. name, "Mit Gegenständen: " .. name)
+			end
+			sb:setViewport(PROFILES[1].size, false)
+		end
+		collect(sb, "Szenario " .. name, baseline)
+	end
+
 	-- Tasten
 	local sb = newSandbox()
 	sb:boot({ seconds = args.seconds })
@@ -355,6 +395,15 @@ end
 
 -------------------------------------------------------------------------------
 -- 3. Ausgabe
+
+-- Schließen-Knöpfe aller Zustände vergleichen (gleiches Aussehen in jedem Fenster)
+for _, profile in PROFILES do
+	addFindings(
+		profile.name,
+		"Schließen-Knöpfe",
+		Checks.compareClose(closeButtons[profile.name] or {})
+	)
+end
 
 local counts = { error = 0, warn = 0, info = 0 }
 for _, r in runtime do

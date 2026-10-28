@@ -958,7 +958,7 @@ function Sandbox:installCustom()
 	})
 	self:custom("RunService", "IsStudio", {
 		method = function()
-			return true
+			return self.studio ~= false -- Tests setzen sim.studio = false für „veröffentlichtes Spiel“
 		end,
 	})
 	self:custom("RunService", "IsRunning", {

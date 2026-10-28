@@ -112,6 +112,7 @@ end
 local function xpFor(level: number): number
 	return math.floor(40 * level ^ 1.5)
 end
+Combat.xpFor = xpFor
 
 local function applyLevelStats(player: Player, fill: boolean)
 	local character = player.Character
