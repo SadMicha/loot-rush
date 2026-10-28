@@ -958,7 +958,7 @@ function Sandbox:installCustom()
 	})
 	self:custom("RunService", "IsStudio", {
 		method = function()
-			return true
+			return self.studio ~= false -- Tests setzen sim.studio = false für „veröffentlichtes Spiel“
 		end,
 	})
 	self:custom("RunService", "IsRunning", {
@@ -1126,6 +1126,12 @@ function Sandbox:installCustom()
 	self:custom("GuiService", "GetGuiInset", {
 		method = function()
 			return Vector2.new(0, 58), Vector2.zero
+		end,
+	})
+	-- Freier Platz in der Topbar: links davon Roblox-Menü/Chat (gleiche Maße wie Checks.TOPBAR)
+	self:custom("GuiService", "TopbarInset", {
+		get = function()
+			return roblox.Rect.new(180, 0, self.viewport.X - 60, 58)
 		end,
 	})
 	self:custom("UserInputService", "TouchEnabled", {
