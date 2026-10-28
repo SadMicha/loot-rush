@@ -1,0 +1,52 @@
+name: Asset-IDs prüfen
+
+# Prüft alle Bild-IDs aus src/shared/UI/Assets.luau über öffentliche Roblox-Endpunkte
+# (Image oder Decal, Moderationsstatus) und sucht zu Decal-IDs die Image-ID.
+# Mit „fix“ werden gefundene Image-IDs eingesetzt und auf den Branch assets/fix-ids gepusht.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fix:
+        description: "Decal-IDs durch Image-IDs ersetzen und Branch assets/fix-ids pushen"
+        type: boolean
+        default: false
+  push:
+    paths:
+      - src/shared/UI/Assets.luau
+      - tools/check-assets.py
+      - .github/workflows/check-assets.yml
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: IDs prüfen
+        run: |
+          python3 tools/check-assets.py ${{ inputs.fix && '--fix' || '' }} --report asset-report.md
+          cat asset-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-report
+          path: |
+            asset-report.md
+            asset-mapping.json
+
+      - name: Korrektur pushen
+        if: inputs.fix
+        run: |
+          if git diff --quiet; then
+            echo "Keine Decal-IDs zu ersetzen."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898183+github-actions[bot]@users.noreply.github.com"
+          git checkout -B assets/fix-ids
+          git commit -am "Assets: Decal-IDs durch Image-IDs ersetzen"
+          git push -f origin assets/fix-ids
