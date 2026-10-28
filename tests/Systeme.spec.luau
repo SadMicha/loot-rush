@@ -79,7 +79,7 @@ describe("Systeme", function()
 		expect(before).toBeNil()
 		client(function(_, Net)
 			Net.Bloom:FireServer("spend", "funkenball", "trunk1")
-			Net.Bloom:FireServer("spend", "funkenball", "left1") -- kommt bald
+			Net.Bloom:FireServer("spend", "funkenball", "left2") -- Knoten davor fehlt
 			Net.Bloom:FireServer("spend", "funkenball", "trunk1")
 			Net.Bloom:FireServer("spend", "funkenball", "trunk1") -- keine Punkte mehr
 		end)
@@ -87,7 +87,7 @@ describe("Systeme", function()
 			return req("ServerScriptService.Server.Systems.Data").get(player).progress.skills.funkenball.bloom
 		end)
 		expect(bloom.trunk1).toBe(2)
-		expect(bloom.left1).toBeNil()
+		expect(bloom.left2).toBeNil()
 	end)
 
 	it("schmiedet mit Material und lehnt Unsinn ab", function()
@@ -125,6 +125,98 @@ describe("Systeme", function()
 		expect(#results).toBe(2)
 		expect(results[1][1].ok).toBe(true)
 		expect(results[2][1].ok).toBe(false)
+	end)
+
+	it("Rüstung, Block und Arkaner Schild schützen", function()
+		local armored, blocked, shield, shielded = server(function(req, player)
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			humanoid.MaxHealth = 1e5
+			humanoid.Health = 1e5
+			player:SetAttribute("StatArmor", 50)
+			local before = humanoid.Health
+			Combat.hurtPlayer(player, 20)
+			local armored = before - humanoid.Health
+			player:SetAttribute("StatArmor", 0)
+			player:SetAttribute("StatBlock", 100) -- gedeckelt auf 75 %
+			local blocked = 0
+			for _ = 1, 400 do
+				if not Combat.hurtPlayer(player, 1) then
+					blocked += 1
+				end
+			end
+			player:SetAttribute("StatBlock", 0)
+			humanoid.MaxHealth = 1000
+			humanoid.Health = 1000
+			player:SetAttribute("StatArcaneShield", 5)
+			return armored, blocked
+		end)
+		expect(armored).toBe(10)
+		expect(blocked).toBeGreaterThan(250)
+		expect(blocked).toBeLessThan(350)
+		client(function(_, Net)
+			Net.CastSkill:FireServer(1, Vector3.zero, Vector3.zero) -- Klingenwirbel, braucht kein Ziel
+		end)
+		shield, shielded = server(function(req, player)
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			local s = player:GetAttribute("Shield")
+			Combat.hurtPlayer(player, 30)
+			player:SetAttribute("StatArcaneShield", 0)
+			return s, humanoid.Health
+		end)
+		expect(shield).toBe(50)
+		expect(shielded).toBe(1000)
+		sim:run(5)
+		expect(server(function(_, player)
+			return player:GetAttribute("Shield")
+		end)).toBe(0)
+	end)
+
+	it("Sonderknoten der Skill-Blüten treffen ohne Fehler", function()
+		local hpBefore = server(function(req, player)
+			local Progression = req("ReplicatedStorage.Shared.Progression")
+			local Skills = req("ReplicatedStorage.Shared.Skills")
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local p = req("ServerScriptService.Server.Systems.Data").get(player)
+			for id, b in Skills.Blooms do
+				local sp = Progression.skillMut(p.progress, id)
+				for _, branch in Skills.BloomBranches do
+					for i in b[branch].nodes do
+						sp.bloom[branch .. i] = Skills.BloomMax
+					end
+				end
+			end
+			player:SetAttribute("StatCrit", 100) -- jeder Treffer krit → Splitter
+			player:SetAttribute("StatCritShard", 30)
+			local root = player.Character.HumanoidRootPart.Position
+			local total = 0
+			for i = 1, 8 do
+				local a = i / 8 * math.pi * 2
+				Enemies.spawn("slime", root + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6), 40)
+			end
+			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
+				total += e:GetAttribute("Health") or 0
+			end
+			return total
+		end)
+		client(function(_, Net)
+			local root = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position
+			for slot = 1, 4 do
+				Net.CastSkill:FireServer(slot, root + Vector3.new(6, 0, 0), root)
+			end
+		end)
+		sim:run(4)
+		local hpAfter = server(function(_, player)
+			player:SetAttribute("StatCrit", 0)
+			player:SetAttribute("StatCritShard", 0)
+			local total = 0
+			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
+				total += e:GetAttribute("Health") or 0
+			end
+			return total
+		end)
+		expect(hpAfter).toBeLessThan(hpBefore)
 	end)
 
 	it("läuft ohne Laufzeitfehler", function()

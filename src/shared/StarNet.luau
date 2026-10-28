@@ -4,7 +4,7 @@
 -- Jeder Stern hängt an genau einem Vorgänger (`from`); zuweisen geht nur neben schon zugewiesenen.
 -- `pos` in Design-Pixeln der Netz-Fläche (1060×800). Zuweisen prüft und speichert der Server
 -- (Systems/Progress), Regeln in Shared.Progression. Punkte: 1 je Level ab Level 2 (Balancing).
--- `mods` = Wirkung (Schlüssel siehe Progression.StarStats); Zeilen mit „(folgt)“ wirken noch nicht.
+-- `mods` = Wirkung (Schlüssel siehe Progression.StarStats).
 
 export type Branch = "kraft" | "geschick" | "weisheit"
 export type Kind = "core" | "small" | "big"
@@ -89,8 +89,8 @@ StarNet.Stars = table.freeze({
 		from = "k2",
 		pos = Vector2.new(300, 600),
 		icon = "schild_buff",
-		stats = { "+20 % Rüstung (folgt)", "+10 % maximales Leben" },
-		mods = { lifePct = 10 },
+		stats = { "+20 % Rüstung", "+10 % maximales Leben" },
+		mods = { lifePct = 10, armor = 20 },
 		flavor = "Deine Haut wird so hart wie das Gestein der alten Berge.",
 	}),
 	small("k3", "kraft", "eisenhaut", 220, 670, "+20 Leben", { life = 20 }),
@@ -114,7 +114,8 @@ StarNet.Stars = table.freeze({
 		from = "k4",
 		pos = Vector2.new(480, 700),
 		icon = "krone",
-		stats = { "+25 % Blockchance mit Schild (folgt)" },
+		stats = { "+25 % Blockchance" },
+		mods = { block = 25 },
 	}),
 
 	-- Geschick
@@ -128,8 +129,8 @@ StarNet.Stars = table.freeze({
 		from = "g2",
 		pos = Vector2.new(760, 600),
 		icon = "schwert",
-		stats = { "+15 % Krit-Schaden", "Krits werfen einen Splitter (folgt)" },
-		mods = { critDamage = 15 },
+		stats = { "+15 % Krit-Schaden", "Krits werfen einen Splitter (30 % Schaden)" },
+		mods = { critDamage = 15, critShard = 30 },
 	}),
 	small("g3", "geschick", "kristallklinge", 840, 530, "+3 % Angriffstempo", { attackSpeed = 3 }),
 	star({
@@ -213,7 +214,8 @@ StarNet.Stars = table.freeze({
 		from = "w3",
 		pos = Vector2.new(700, 240),
 		icon = "schild_buff",
-		stats = { "Nach einem Skill: Schild für 5 % Leben (folgt)" },
+		stats = { "Nach einem Skill: Schild für 5 % Leben (4 s)" },
+		mods = { arcaneShield = 5 },
 	}),
 } :: { Star })
 

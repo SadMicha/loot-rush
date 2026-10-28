@@ -1,6 +1,7 @@
 --!strict
 -- Serverseitiger Kampf: Grundangriff (auto), 4 Skills, Trank, Dash-Unverwundbarkeit,
--- Schaden an Gegnern, XP und Level. Der Client schickt nur „Slot + Zielpunkt“ – alles andere prüft der Server.
+-- Schaden an Gegnern, XP und Level, Sonderwirkungen der Skill-Blüten und Schutz-Sterne
+-- (Rüstung, Block, Arkaner Schild). Der Client schickt nur „Slot + Zielpunkt“ – alles andere prüft der Server.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -19,6 +20,12 @@ type PState = {
 	iframesUntil: number,
 	dashCharges: number,
 	dashStamp: number,
+	haste: number, -- Blüte „Tanz“: % Lauftempo bis hasteUntil
+	hasteUntil: number,
+	armorBuff: number, -- Blüte „Eispanzer“: % Rüstung bis armorUntil
+	armorUntil: number,
+	shield: number, -- Stern „Arkaner Schild“: Lebenspunkte bis shieldUntil
+	shieldUntil: number,
 }
 
 local Combat = {
@@ -30,6 +37,23 @@ local Combat = {
 local states: { [Player]: PState } = {}
 local rng = Random.new()
 local BODY_RADIUS = 1.7 -- Gegner-Körper, wird zum Trefferradius addiert
+
+-- Sonderwirkungen (eigene Annahmen, nicht im Balancing-Blatt)
+local MAX_ARMOR = 0.75 -- Rüstung %: höchstens 75 % weniger Schaden
+local MAX_BLOCK = 0.75
+local SHIELD_TIME = 4 -- Arkaner Schild hält so lange
+local SPLINTER_RANGE = 16 -- Krit-Splitter sucht den nächsten anderen Gegner
+local BURN_TICKS, BURN_TICK = 4, 0.5 -- Brand: 2 s
+local SPARK_RANGE, SPARK_SHARE = 14, 0.25 -- Funkenflug
+local JUMP_SPARK_RADIUS = 4 -- Funkenregen um jeden Kettensprung
+local SHATTER_RADIUS = 6 -- Eissplitter
+local FIELD_TICKS, FIELD_TICK, FIELD_RADIUS, FIELD_SLOW = 6, 0.5, 0.6, 0.6 -- Frostfeld: 3 s, 60 % Radius
+local BLADE_SHARE, BLADE_RANGE, BLADE_SPEED = 0.4, 20, 60 -- Klingenregen
+local PULL_MIN = 2.5 -- Sog zieht nicht näher heran
+local HASTE_TIME, ARMOR_TIME = 3, 3 -- Tanz, Eispanzer
+local TWIN_DELAY = 0.15 -- Doppelball
+local CRYSTAL = Color3.fromHex("#C9A6FF")
+local ICE = Color3.fromHex("#9CE5FF")
 
 local function flat(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
@@ -104,9 +128,21 @@ local function applyLevelStats(player: Player, fill: boolean)
 	end
 end
 
+-- Lauftempo aus StatSpeed (Ausrüstung + Sterne) und kurzzeitigem Tempo (Blüte „Tanz“)
+local function applySpeed(player: Player)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+	local st = states[player]
+	local haste = if st and os.clock() < st.hasteUntil then st.haste else 0
+	humanoid.WalkSpeed = Config.WALK_SPEED * (1 + (num(player, "StatSpeed") + haste) / 100)
+end
+
 -- Nach Änderungen an Level/Ausrüstung aufrufen
 function Combat.refreshStats(player: Player, fill: boolean)
 	applyLevelStats(player, fill)
+	applySpeed(player)
 end
 
 local function addXP(player: Player, amount: number)
@@ -137,7 +173,98 @@ local function addXP(player: Player, amount: number)
 end
 
 -- ------------------------------------------------------------------ Schaden
-local function damageEnemy(enemy: Model, base: number, player: Player, skill: Skills.Skill?)
+local function enemiesNear(center: Vector3, radius: number): { Model }
+	local out: { Model } = {}
+	for _, e in aliveEnemies() do
+		if flat(enemyPos(e) - center).Magnitude <= radius + BODY_RADIUS then
+			table.insert(out, e)
+		end
+	end
+	return out
+end
+
+local function sparkFx(from: Vector3, to: Vector3, speed: number, color: Color3): number
+	local travel = flat(to - from).Magnitude / speed
+	local lift = Vector3.new(0, 1.5, 0)
+	Net.Fx:FireAllClients(
+		"proj",
+		{ from = from + lift, to = to + lift, time = travel, color = color, size = 0.6 }
+	)
+	return travel
+end
+
+-- Blüte „Eissplitter“: verlangsamte Gegner (bis untilT) platzen beim Tod
+local shatterOn: { [Model]: { amount: number, untilT: number } } = setmetatable(
+	{},
+	{ __mode = "k" }
+) :: any
+
+-- proc = Folgeschaden (Brand, Funken, Splitter …): trifft nie kritisch und löst nichts weiter aus
+local damageEnemy: (
+	enemy: Model,
+	base: number,
+	player: Player,
+	skill: Skills.Skill?,
+	proc: boolean?
+) -> ()
+
+local function burn(enemy: Model, total: number, player: Player, skill: Skills.Skill)
+	task.spawn(function()
+		for _ = 1, BURN_TICKS do
+			task.wait(BURN_TICK)
+			if not enemy.Parent or not player.Parent then
+				return
+			end
+			damageEnemy(enemy, total / BURN_TICKS, player, skill, true)
+		end
+	end)
+end
+
+-- Stern „Kristallklinge“: ein Krit wirft einen Splitter auf den nächsten anderen Gegner
+local function splinter(
+	from: Vector3,
+	source: Model,
+	amount: number,
+	player: Player,
+	skill: Skills.Skill?
+)
+	local target: Model? = nil
+	local best = SPLINTER_RANGE
+	for _, e in aliveEnemies() do
+		local d = flat(enemyPos(e) - from).Magnitude
+		if e ~= source and d <= best then
+			best = d
+			target = e
+		end
+	end
+	if not target then
+		return
+	end
+	local hit = target
+	task.delay(sparkFx(from, enemyPos(hit), 80, CRYSTAL), function()
+		if player.Parent then
+			damageEnemy(hit, amount, player, skill, true)
+		end
+	end)
+end
+
+local function shatter(pos: Vector3, amount: number, player: Player, skill: Skills.Skill?)
+	Net.Fx:FireAllClients("nova", { pos = ground(pos), radius = SHATTER_RADIUS, color = ICE })
+	for _, e in enemiesNear(pos, SHATTER_RADIUS) do
+		damageEnemy(e, amount, player, skill, true)
+	end
+end
+
+damageEnemy = function(
+	enemy: Model,
+	base: number,
+	player: Player,
+	skill: Skills.Skill?,
+	proc: boolean?
+)
+	if not enemy.Parent then -- schon zerstört (z. B. von einer Kettenreaktion)
+		return
+	end
 	local hp = (enemy:GetAttribute("Health") or 0) :: number
 	if hp <= 0 then
 		return
@@ -149,10 +276,11 @@ local function damageEnemy(enemy: Model, base: number, player: Player, skill: Sk
 	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
 		bonus += num(player, "StatLowLife") / 100
 	end
-	local crit = rng:NextNumber() < critChance
+	local crit = not proc and rng:NextNumber() < critChance
+	local critMult = Config.CRIT_MULT + num(player, "StatCritDamage") / 100
 	local amount = base
 		* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
-		* (if crit then Config.CRIT_MULT + num(player, "StatCritDamage") / 100 else 1)
+		* (if crit then critMult else 1)
 	amount = math.max(1, math.floor(amount + 0.5))
 	hp = math.max(0, hp - amount)
 	enemy:SetAttribute("Health", hp)
@@ -162,9 +290,22 @@ local function damageEnemy(enemy: Model, base: number, player: Player, skill: Sk
 		{ pos = pos + Vector3.new(0, 3.5, 0), amount = amount, crit = crit }
 	)
 
-	if skill and skill.slow then
-		enemy:SetAttribute("SlowUntil", os.clock() + (skill.slowTime or 2))
-		enemy:SetAttribute("SlowFactor", skill.slow)
+	if skill and not proc then
+		if skill.slow then
+			local untilT = os.clock() + (skill.slowTime or 2)
+			enemy:SetAttribute("SlowUntil", untilT)
+			enemy:SetAttribute("SlowFactor", skill.slow)
+			if skill.shatter then
+				shatterOn[enemy] = { amount = skill.damage * skill.shatter, untilT = untilT }
+			end
+		end
+		if skill.burn and hp > 0 then
+			burn(enemy, base * skill.burn, player, skill)
+		end
+	end
+	local shardPct = num(player, "StatCritShard")
+	if crit and shardPct > 0 then
+		splinter(pos, enemy, base * critMult * shardPct / 100, player, skill)
 	end
 
 	if hp <= 0 then
@@ -175,7 +316,12 @@ local function damageEnemy(enemy: Model, base: number, player: Player, skill: Sk
 		)
 		local xp = (enemy:GetAttribute("XP") or 0) :: number
 		local boss = enemy:GetAttribute("Boss") == true
+		local burst = shatterOn[enemy]
+		shatterOn[enemy] = nil
 		enemy:Destroy()
+		if burst and os.clock() < burst.untilT and player.Parent then
+			shatter(pos, burst.amount, player, skill)
+		end
 		if player.Parent then
 			addXP(player, xp)
 			Combat.EnemyKilled:Fire(
@@ -204,6 +350,34 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		)
 		return false
 	end
+	-- Stern „Schildwall“
+	if rng:NextNumber() < math.min(MAX_BLOCK, num(player, "StatBlock") / 100) then
+		Net.Fx:FireAllClients(
+			"dmg",
+			{ pos = root.Position + Vector3.new(0, 3, 0), text = "Geblockt!", color = ICE }
+		)
+		return false
+	end
+	-- Rüstung % = weniger Schaden (Stern „Eisenhaut“ + Blüte „Eispanzer“)
+	local now = os.clock()
+	local armor = num(player, "StatArmor") + (if now < st.armorUntil then st.armorBuff else 0)
+	if armor > 0 then
+		amount = math.max(1, math.floor(amount * (1 - math.min(MAX_ARMOR, armor / 100)) + 0.5))
+	end
+	-- Arkaner Schild fängt zuerst ab
+	if st.shield > 0 and now < st.shieldUntil then
+		local absorbed = math.min(st.shield, amount)
+		st.shield -= absorbed
+		amount -= absorbed
+		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
+		if amount <= 0 then
+			Net.Fx:FireAllClients(
+				"dmg",
+				{ pos = root.Position + Vector3.new(0, 3, 0), text = "Schild", color = CRYSTAL }
+			)
+			return true
+		end
+	end
 	humanoid.Health -= amount
 	Combat.PlayerHurt:Fire(player, amount)
 	Net.Fx:FireAllClients(
@@ -214,15 +388,6 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 end
 
 -- ------------------------------------------------------------------ Skills
-local function enemiesNear(center: Vector3, radius: number): { Model }
-	local out: { Model } = {}
-	for _, e in aliveEnemies() do
-		if flat(enemyPos(e) - center).Magnitude <= radius + BODY_RADIUS then
-			table.insert(out, e)
-		end
-	end
-	return out
-end
 
 local AIM_ASSIST = 6 -- Studs: Gegner in dieser Nähe zum Mauszeiger werden anvisiert
 
@@ -248,17 +413,32 @@ local function castProjectile(
 	end
 	dir = dir.Unit
 
-	-- Erster Gegner auf der Linie stoppt das Projektil
-	local reach = skill.range
+	-- Erster Gegner auf der Linie stoppt das Projektil (Blüte „Durchschlag“: erst der zweite)
+	local reach, second = skill.range, skill.range
+	local first: Model? = nil
 	for _, e in aliveEnemies() do
 		local rel = flat(enemyPos(e) - from)
 		local t = rel:Dot(dir)
-		if t > 0 and t < reach and (rel - dir * t).Magnitude <= BODY_RADIUS + 0.8 then
-			reach = t
+		if t > 0 and t < second and (rel - dir * t).Magnitude <= BODY_RADIUS + 0.8 then
+			if t < reach then
+				reach, second, first = t, reach, e
+			else
+				second = t
+			end
 		end
 	end
+	local speed = skill.speed or 60
+	if first and skill.pierce and rng:NextNumber() < skill.pierce then
+		local pierced = first
+		task.delay(reach / speed, function()
+			if player.Parent then
+				damageEnemy(pierced, skill.damage, player, skill)
+			end
+		end)
+		reach = second
+	end
 	local finish = from + dir * reach
-	local travel = reach / (skill.speed or 60)
+	local travel = reach / speed
 	local lift = Vector3.new(0, 0.5, 0)
 	Net.Fx:FireAllClients("proj", {
 		from = from + lift,
@@ -280,18 +460,122 @@ local function castProjectile(
 		for _, e in enemiesNear(finish, skill.radius) do
 			damageEnemy(e, skill.damage, player, skill)
 		end
+		-- Blüte „Funkenflug“: Funken zu den nächsten Gegnern, zuerst die außerhalb der Explosion
+		local sparks = skill.sparks
+		if sparks then
+			local list = enemiesNear(finish, SPARK_RANGE)
+			local function key(e: Model): number
+				local d = flat(enemyPos(e) - finish).Magnitude
+				return if d <= skill.radius + BODY_RADIUS then d + 1000 else d
+			end
+			table.sort(list, function(a, b)
+				return key(a) < key(b)
+			end)
+			for i = 1, math.min(sparks, #list) do
+				local e = list[i]
+				task.delay(sparkFx(finish, enemyPos(e), 60, skill.color), function()
+					if player.Parent then
+						damageEnemy(e, skill.damage * SPARK_SHARE, player, skill, true)
+					end
+				end)
+			end
+		end
 	end)
 	return true
 end
 
 local function castNova(player: Player, root: BasePart, skill: Skills.Skill): boolean
 	local center = root.Position
+	local st = states[player]
+	local now = os.clock()
 	Net.Fx:FireAllClients(
 		"nova",
 		{ pos = ground(center), radius = skill.radius, color = skill.color }
 	)
-	for _, e in enemiesNear(center, skill.radius) do
+	local hits = enemiesNear(center, skill.radius)
+	for _, e in hits do
 		damageEnemy(e, skill.damage, player, skill)
+	end
+	-- Blüte „Sog“: Überlebende zur Mitte ziehen
+	local pull = skill.pull
+	if pull then
+		for _, e in hits do
+			if e.Parent then
+				local p = enemyPos(e)
+				local rel = flat(p - center)
+				local d = rel.Magnitude
+				if d > PULL_MIN then
+					e:PivotTo(
+						CFrame.new(p - rel.Unit * math.min(pull, d - PULL_MIN))
+							* e:GetPivot().Rotation
+					)
+				end
+			end
+		end
+	end
+	-- Blüte „Klingenregen“: Klingen fliegen gleichmäßig verteilt nach außen
+	local blades = skill.blades
+	if blades then
+		local blade: Skills.Skill = table.freeze({
+			id = skill.id,
+			name = skill.name,
+			desc = skill.desc,
+			icon = skill.icon,
+			color = skill.color,
+			kind = "projectile" :: Skills.Kind,
+			damage = skill.damage * BLADE_SHARE,
+			cooldown = 0,
+			range = BLADE_RANGE,
+			radius = 1.5,
+			speed = BLADE_SPEED,
+		})
+		local turn = rng:NextNumber() * math.pi * 2
+		for i = 1, blades do
+			local a = turn + i / blades * math.pi * 2
+			castProjectile(
+				player,
+				root,
+				blade,
+				center + Vector3.new(math.cos(a), 0, math.sin(a)) * BLADE_RANGE,
+				center
+			)
+		end
+	end
+	-- Blüte „Tanz“: nach einem Treffer kurz schneller
+	if st and skill.haste and #hits > 0 then
+		st.haste = skill.haste
+		st.hasteUntil = now + HASTE_TIME
+		applySpeed(player)
+		task.delay(HASTE_TIME + 0.05, applySpeed, player)
+	end
+	-- Blüte „Eispanzer“
+	if st and skill.armorBuff then
+		st.armorBuff = skill.armorBuff
+		st.armorUntil = now + ARMOR_TIME
+	end
+	-- Blüte „Frostfeld“: Eisfeld an der Stelle, verlangsamt und trifft alle 0,5 s
+	local field = skill.field
+	if field then
+		local r = skill.radius * FIELD_RADIUS
+		task.spawn(function()
+			for i = 1, FIELD_TICKS do
+				task.wait(FIELD_TICK)
+				if not player.Parent then
+					return
+				end
+				if i % 2 == 1 then
+					Net.Fx:FireAllClients("nova", { pos = ground(center), radius = r, color = ICE })
+				end
+				for _, e in enemiesNear(center, r) do
+					local untilT = os.clock() + FIELD_TICK * 2
+					if ((e:GetAttribute("SlowUntil") or 0) :: number) < untilT then
+						e:SetAttribute("SlowUntil", untilT)
+						e:SetAttribute("SlowFactor", skill.slow or FIELD_SLOW)
+					end
+					damageEnemy(e, skill.damage * field, player, skill, true)
+				end
+			end
+		end)
 	end
 	-- Skill-Blüte „Nachhall“: zweiter Wirbel kurz danach
 	local echo = skill.echo
@@ -334,6 +618,7 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 	local points: { Vector3 } = { root.Position }
 	local hit: { [Model]: boolean } = {}
 	local left = skill.chains or 3
+	local first, firstPos = current, enemyPos(current)
 	while current and left > 0 do
 		local e = current
 		hit[e] = true
@@ -341,6 +626,18 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 		table.insert(points, p)
 		local last = if left == 1 then skill.lastHit else nil
 		damageEnemy(e, skill.damage * (if last then 1 + last else 1), player, skill)
+		-- Blüte „Funkenregen“: Funken um jeden Sprung
+		if skill.jumpSpark then
+			Net.Fx:FireAllClients(
+				"nova",
+				{ pos = ground(p), radius = JUMP_SPARK_RADIUS, color = skill.color }
+			)
+			for _, o in enemiesNear(p, JUMP_SPARK_RADIUS) do
+				if o ~= e then
+					damageEnemy(o, skill.damage * skill.jumpSpark, player, skill, true)
+				end
+			end
+		end
 		left -= 1
 		current = nil
 		local nearest = skill.radius
@@ -355,6 +652,25 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 		end
 	end
 	Net.Fx:FireAllClients("chain", { points = points, color = skill.color })
+	-- Blüte „Verzweigung“: vom ersten Treffer auf die 2 nächsten anderen Gegner
+	local fork = skill.fork
+	if fork then
+		local near = enemiesNear(firstPos, skill.radius)
+		table.sort(near, function(a, b)
+			return flat(enemyPos(a) - firstPos).Magnitude < flat(enemyPos(b) - firstPos).Magnitude
+		end)
+		local n = 0
+		for _, o in near do
+			if o ~= first and n < 2 then
+				n += 1
+				Net.Fx:FireAllClients(
+					"chain",
+					{ points = { firstPos, enemyPos(o) }, color = skill.color }
+				)
+				damageEnemy(o, skill.damage * fork, player, skill, true)
+			end
+		end
+	end
 	return true
 end
 
@@ -382,8 +698,39 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	elseif skill.kind == "chain" then
 		ok = castChain(player, root, skill, aim)
 	end
-	if ok then
-		st.cdUntil[slot] = now + skill.cooldown
+	if not ok then
+		return
+	end
+	st.cdUntil[slot] = now + skill.cooldown
+	-- Blüte „Doppelball“: zweiter Ball kurz danach
+	local twin = skill.twin
+	if skill.kind == "projectile" and twin then
+		local copy = table.clone(skill)
+		copy.damage *= twin
+		copy.twin = nil
+		task.delay(TWIN_DELAY, function()
+			local r = body(player)
+			if r and player.Parent then
+				castProjectile(player, r, copy, aim, r.Position)
+			end
+		end)
+	end
+	-- Stern „Arkaner Schild“: nach jedem Skill ein Schild (frischt auf, stapelt nicht)
+	local _, humanoid = body(player)
+	local pct = num(player, "StatArcaneShield")
+	if humanoid and pct > 0 then
+		if now >= st.shieldUntil then
+			st.shield = 0
+		end
+		st.shield = math.max(st.shield, humanoid.MaxHealth * pct / 100)
+		st.shieldUntil = now + SHIELD_TIME
+		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
+		task.delay(SHIELD_TIME, function()
+			if states[player] == st and os.clock() >= st.shieldUntil - 0.01 then
+				st.shield = 0
+				player:SetAttribute("Shield", 0)
+			end
+		end)
 	end
 end
 
@@ -440,6 +787,12 @@ local function onPlayer(player: Player)
 		iframesUntil = 0,
 		dashCharges = Config.DASH_CHARGES,
 		dashStamp = os.clock(),
+		haste = 0,
+		hasteUntil = 0,
+		armorBuff = 0,
+		armorUntil = 0,
+		shield = 0,
+		shieldUntil = 0,
 	}
 	player:SetAttribute("Level", 1)
 	player:SetAttribute("XP", 0)
@@ -457,6 +810,7 @@ local function onPlayer(player: Player)
 	local function onCharacter(character: Model)
 		character:WaitForChild("Humanoid")
 		applyLevelStats(player, true)
+		applySpeed(player)
 	end
 	player.CharacterAdded:Connect(onCharacter)
 	if player.Character then

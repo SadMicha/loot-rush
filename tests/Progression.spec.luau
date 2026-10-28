@@ -55,7 +55,7 @@ describe("Skill-Stufen und Blüte", function()
 		expect((Progression.canBloom(sp, "kettenblitz", "trunk1"))).toBe(false) -- keine Punkte
 		sp.level = 3
 		expect((Progression.canBloom(sp, "kettenblitz", "trunk2"))).toBe(false) -- Knoten davor fehlt
-		expect((Progression.canBloom(sp, "kettenblitz", "left1"))).toBe(false) -- kommt bald
+		expect((Progression.canBloom(sp, "kettenblitz", "left2"))).toBe(false) -- Knoten davor fehlt
 		expect((Progression.canBloom(sp, "kettenblitz", "trunk1"))).toBe(true)
 		sp.bloom.trunk1 = 1
 		expect((Progression.canBloom(sp, "kettenblitz", "trunk2"))).toBe(true)
@@ -77,6 +77,41 @@ describe("Skill-Stufen und Blüte", function()
 		expect(eff.chains).toBe((base.chains :: number) + 1 + 2)
 		expect(eff.cooldown).toBeCloseTo((base.cooldown - 0.3) * 0.9, 1e-6)
 		expect(base.damage).toBe(20) -- Original bleibt unverändert
+	end)
+
+	it("jeder Blüten-Knoten wirkt mit bekanntem Wert", function()
+		local known = {
+			damage = true,
+			radius = true,
+			cooldown = true,
+			chains = true,
+			speed = true,
+			slowTime = true,
+		}
+		for _, s in Progression.SpecialStats do
+			known[s] = true
+		end
+		for id, b in Skills.Blooms do
+			for _, branch in Skills.BloomBranches do
+				for _, node in b[branch].nodes do
+					expect(node.effect).never.toBeNil()
+					expect(known[node.effect.stat]).toBe(true)
+				end
+			end
+		end
+	end)
+
+	it("Sonderknoten landen im Skill", function()
+		local data = Progression.fresh()
+		local sp = Progression.skillMut(data, "funkenball")
+		sp.level = 20
+		sp.bloom = { trunk3 = 1, left1 = 2, left2 = 5, right2 = 1 }
+		local eff = Progression.effectiveSkill(Skills.bar[Skills.BarIndex.funkenball], data)
+		expect(eff.burn).toBeCloseTo(0.1, 1e-6)
+		expect(eff.sparks).toBe(2)
+		expect(eff.twin).toBeCloseTo(0.4, 1e-6)
+		expect(eff.pierce).toBeCloseTo(0.2, 1e-6)
+		expect(eff.fork).toBeNil()
 	end)
 
 	it("Grundangriff nutzt Angriffstempo statt Skill-Werte", function()
@@ -102,6 +137,22 @@ describe("Sternennetz", function()
 		expect((Progression.canAllocate(data, "eisenhaut", 5))).toBe(true)
 		expect((Progression.canRemove(data, "k1"))).toBe(false) -- k2 hängt dran
 		expect((Progression.canRemove(data, "k2"))).toBe(true)
+	end)
+
+	it("Schutz-Sterne geben Rüstung, Block, Splitter und Schild", function()
+		local data = Progression.fresh()
+		data.stars =
+			{ eisenhaut = true, schildwall = true, kristallklinge = true, arkanerschild = true }
+		local m = Progression.starMods(data)
+		expect(m.armor).toBe(20)
+		expect(m.block).toBe(25)
+		expect(m.critShard).toBe(30)
+		expect(m.arcaneShield).toBe(5)
+		for _, s in StarNet.Stars do
+			for _, line in s.stats do
+				expect(string.find(line, "(folgt)", 1, true)).toBeNil()
+			end
+		end
 	end)
 
 	it("hat gültige Wirkungs-Schlüssel", function()

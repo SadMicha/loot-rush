@@ -36,9 +36,31 @@ Progression.StarStats = table.freeze({
 	double = "Doppeltreffer-Chance %",
 	lowLifeDamage = "Schaden unter 30 % Leben %",
 	shardFind = "Splitter beim Verwerten %",
+	armor = "Rüstung % (weniger erlittener Schaden)",
+	block = "Blockchance %",
+	critShard = "Krit-Splitter: Schaden % des Krits",
+	arcaneShield = "Schild nach Skill: % maximales Leben",
 } :: { [string]: string })
 
 Progression.MIN_COOLDOWN = 0.3
+
+-- Sonderwirkungen der Skill-Blüten, die 1:1 in den Skill wandern (Skills.Skill, Systems/Combat)
+Progression.SpecialStats = table.freeze({
+	"echo",
+	"lastHit",
+	"pull",
+	"blades",
+	"haste",
+	"burn",
+	"sparks",
+	"twin",
+	"pierce",
+	"fork",
+	"jumpSpark",
+	"shatter",
+	"field",
+	"armorBuff",
+})
 
 -- ------------------------------------------------------------------ Spielstand
 function Progression.fresh(): Data
@@ -294,11 +316,10 @@ function Progression.effectiveSkill(
 	if skill.slowTime then
 		out.slowTime = skill.slowTime + (add.slowTime or 0)
 	end
-	if (add.echo or 0) > 0 then
-		out.echo = add.echo
-	end
-	if (add.lastHit or 0) > 0 then
-		out.lastHit = add.lastHit
+	for _, k in Progression.SpecialStats do
+		if (add[k] or 0) > 0 then
+			out[k] = add[k]
+		end
 	end
 	return table.freeze(out) :: Skills.Skill
 end
