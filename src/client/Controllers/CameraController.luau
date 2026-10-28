@@ -1,6 +1,8 @@
 --!strict
 -- Isometrische ARPG-Kamera: folgt dem Charakter weich, Mausrad/Pinch = Zoom,
--- rechte Maustaste ziehen = drehen. Bewegung (WASD) richtet sich automatisch nach der Kamera.
+-- rechte Maustaste ziehen = drehen, auf Touch: mit einem Finger über freie Fläche wischen.
+-- Bewegung (WASD/Stick) richtet sich automatisch nach der Kamera.
+-- Die Kamera ist Scriptable, darum dreht Roblox selbst nichts – jede Eingabe dafür steht hier.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +19,11 @@ local yaw = math.rad(Config.CAMERA_YAW)
 local pitch = math.rad(Config.CAMERA_PITCH)
 local focus: Vector3? = nil
 local rotating = false
+local touchTurn: InputObject? = nil -- Finger, der gerade die Kamera dreht
+local freeTouches: { [InputObject]: true } = {} -- Finger auf freier Fläche (zwei = Pinch-Zoom)
+
+local MOUSE_TURN = 0.006 -- Bogenmaß je Pixel
+local TOUCH_TURN = 0.008
 
 local function rootPart(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -33,6 +40,16 @@ end
 -- Für andere Controller (z. B. Minimap): aktuelle Kamera-Drehung
 function CameraController.getYaw(): number
 	return yaw
+end
+
+-- Bewegungs-Stick von Roblox (unten links): Finger dort steuern die Figur, nicht die Kamera
+local function inThumbstickZone(pos: Vector3): boolean
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return false
+	end
+	local v = camera.ViewportSize
+	return pos.X < v.X * 0.4 and pos.Y > v.Y * 0.45
 end
 
 local function step(dt: number)
@@ -66,19 +83,32 @@ function CameraController.init()
 				Config.CAMERA_MAX_DISTANCE
 			)
 		elseif input.UserInputType == Enum.UserInputType.MouseMovement and rotating then
-			yaw -= input.Delta.X * 0.006
+			yaw -= input.Delta.X * MOUSE_TURN
+		elseif input == touchTurn then
+			yaw -= input.Delta.X * TOUCH_TURN
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if input.UserInputType == Enum.UserInputType.MouseButton2 and not processed then
 			rotating = true
 			UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+		elseif input.UserInputType == Enum.UserInputType.Touch and not processed then
+			if inThumbstickZone(input.Position) then
+				return
+			end
+			freeTouches[input] = true
+			touchTurn = if next(freeTouches, (next(freeTouches))) == nil then input else nil
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.MouseButton2 then
 			rotating = false
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		elseif input.UserInputType == Enum.UserInputType.Touch then
+			freeTouches[input] = nil
+			if input == touchTurn then
+				touchTurn = nil
+			end
 		end
 	end)
 	UserInputService.TouchPinch:Connect(
