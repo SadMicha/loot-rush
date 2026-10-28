@@ -93,9 +93,9 @@ local function renderList()
 		row.Name = skill.id
 		row.AutoButtonColor = false
 		row.BackgroundTransparency = 1
-		row.Size = UDim2.fromOffset(LEFT_W - 2 * PAD, 84)
+		row.Size = UDim2.fromOffset(LEFT_W - 2 * PAD, 92)
 		row.LayoutOrder = i
-		Kit.skin(row, if i == selected then "btn_sort" else "stat_tile", 84, 0.5)
+		Kit.skin(row, if i == selected then "btn_sort" else "stat_tile", 92, 0.5)
 		if i == selected then
 			Kit.stroke(row, C.Gold, 2)
 			Kit.corner(row, Theme.Radius.M)
@@ -107,7 +107,7 @@ local function renderList()
 		ic.ZIndex = 2
 		ic.Parent = row
 		local name = Kit.label(skill.name, 19, if i == selected then C.GoldHi else C.Text)
-		name.Position = UDim2.fromOffset(88, 14)
+		name.Position = UDim2.fromOffset(88, 10)
 		name.ZIndex = 2
 		name.Parent = row
 		local eff = effectiveOf(skill)
@@ -122,7 +122,13 @@ local function renderList()
 			C.Muted,
 			Theme.Font.Body
 		)
-		sub.Position = UDim2.fromOffset(88, 46)
+		-- Endet vor dem Tasten-Kürzel rechts; bricht auf kleinen Bildschirmen in zwei Zeilen um
+		sub.AutomaticSize = Enum.AutomaticSize.None
+		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 88 - 44, 42)
+		sub.TextWrapped = true
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.TextYAlignment = Enum.TextYAlignment.Top
+		sub.Position = UDim2.fromOffset(88, 40)
 		sub.ZIndex = 2
 		sub.Parent = row
 		local key = Kit.label(KEYS[i], 18, C.Muted)

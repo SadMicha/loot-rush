@@ -93,7 +93,7 @@ StarNet.Stars = table.freeze({
 		mods = { lifePct = 10, armor = 20 },
 		flavor = "Deine Haut wird so hart wie das Gestein der alten Berge.",
 	}),
-	small("k3", "kraft", "eisenhaut", 210, 650, "+20 Leben", { life = 20 }),
+	small("k3", "kraft", "eisenhaut", 200, 662, "+20 Leben", { life = 20 }),
 	star({
 		id = "unaufhaltsam",
 		name = "Unaufhaltsam",
@@ -132,7 +132,7 @@ StarNet.Stars = table.freeze({
 		stats = { "+15 % Krit-Schaden", "Krits werfen einen Splitter (30 % Schaden)" },
 		mods = { critDamage = 15, critShard = 30 },
 	}),
-	small("g3", "geschick", "kristallklinge", 840, 530, "+3 % Angriffstempo", { attackSpeed = 3 }),
+	small("g3", "geschick", "kristallklinge", 830, 548, "+3 % Angriffstempo", { attackSpeed = 3 }),
 	star({
 		id = "windlaeufer",
 		name = "Windläufer",
@@ -144,7 +144,7 @@ StarNet.Stars = table.freeze({
 		stats = { "+1 Dash-Ladung", "+8 % Lauftempo" },
 		mods = { dash = 1, speed = 8 },
 	}),
-	small("g4", "geschick", "kristallklinge", 860, 650, "+2 % Krit-Chance", { crit = 2 }),
+	small("g4", "geschick", "kristallklinge", 872, 660, "+2 % Krit-Chance", { crit = 2 }),
 	star({
 		id = "kristallherz",
 		name = "Kristallherz",
@@ -170,7 +170,7 @@ StarNet.Stars = table.freeze({
 	}),
 
 	-- Weisheit
-	small("w1", "weisheit", "herz", 530, 290, "+3 % Skill-Schaden", { skillDamage = 3 }),
+	small("w1", "weisheit", "herz", 530, 300, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "resonanz",
 		name = "Resonanz",
@@ -193,7 +193,7 @@ StarNet.Stars = table.freeze({
 		stats = { "Kettenblitz springt +2 Mal" },
 		mods = { ["kettenblitz.chains"] = 2 },
 	}),
-	small("w2", "weisheit", "herz", 440, 320, "+3 % Skill-Schaden", { skillDamage = 3 }),
+	small("w2", "weisheit", "herz", 450, 335, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "funkenfluss",
 		name = "Funkenfluss",
@@ -205,7 +205,7 @@ StarNet.Stars = table.freeze({
 		stats = { "+20 % Schaden von Funkenball" },
 		mods = { ["funkenball.damage"] = 20 },
 	}),
-	small("w3", "weisheit", "herz", 620, 320, "+3 % Skill-Schaden", { skillDamage = 3 }),
+	small("w3", "weisheit", "herz", 610, 335, "+3 % Skill-Schaden", { skillDamage = 3 }),
 	star({
 		id = "arkanerschild",
 		name = "Arkaner Schild",

@@ -188,6 +188,10 @@ local function infoTile(iconName: string, text: string, width: number, order: nu
 	ic.ZIndex = 2
 	ic.Parent = f
 	local t = Kit.label(text, 16, C.Text)
+	t.AutomaticSize = Enum.AutomaticSize.None
+	t.Size = UDim2.new(1, -60, 1, -8) -- in der Kapsel bleiben, notfalls zweizeilig
+	t.TextWrapped = true
+	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.AnchorPoint = Vector2.new(0, 0.5)
 	t.Position = UDim2.new(0, 50, 0.5, 0)
 	t.ZIndex = 2
