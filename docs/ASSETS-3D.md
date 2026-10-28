@@ -81,3 +81,7 @@ Nächster Batch: Käfer als Gegnertyp in `Enemies`/`Rift`, Gebäude im Hub platz
 
 Bosse sind dieselben Bauten, größer und mit `Creatures.crown`. Alle stehen in der Vorschau (`showcase()`).
 Gegnertypen, KI und Werte: `Systems/Enemies.luau`; Gegner-Mix, Start-Tiefe und Freischalten: `Shared/Atlas.luau`.
+
+## Blender-Assets im Repo (Weg B/C aktiv)
+
+`assets/models/` ist per `default.project.json` als `ReplicatedStorage.Assets` eingebunden. Jede `.rbxm` dort (aus Studio „Save to File…“ nach dem 3D-Import) erscheint im Spiel als `ReplicatedStorage.Assets.<Dateiname>`. Namen wie in der Asset-Liste (`Hub_RiftTor.rbxm`, `A2_Kristallherz.rbxm` …). Regeln und Asset-Liste: Projektordner `blender-assets/ANLEITUNG.md`.
