@@ -1,13 +1,13 @@
 --!strict
 -- Spielerwerte aus Ausrüstung und Sternennetz → Player-Attribute, die Combat, PlayerSetup und das UI lesen.
 --   StatDamage/StatLife/StatCrit/StatSpeed: Ausrüstung + Sterne (wie bisher)
---   StatLifePct, StatCritDamage, StatAttackSpeed, StatDouble, StatLowLife, StatDash: nur Sterne
+--   StatLifePct, StatCritDamage, StatAttackSpeed, StatDouble, StatLowLife, StatDash,
+--   StatArmor, StatBlock, StatCritShard, StatArcaneShield: nur Sterne
 -- Skill-bezogene Sterne (Skill-Schaden, Abklingzeit …) verrechnet Progression.effectiveSkill direkt.
 -- Nach jeder Änderung an Ausrüstung oder Sternen Stats.refresh aufrufen.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
@@ -27,6 +27,10 @@ local STAR_ATTR: { [string]: string } = {
 	double = "StatDouble",
 	lowLifeDamage = "StatLowLife",
 	dash = "StatDash",
+	armor = "StatArmor",
+	block = "StatBlock",
+	critShard = "StatCritShard",
+	arcaneShield = "StatArcaneShield",
 }
 
 function Stats.refresh(player: Player, fill: boolean)
@@ -48,11 +52,6 @@ function Stats.refresh(player: Player, fill: boolean)
 	end
 	for stat, attr in STAR_ATTR do
 		player:SetAttribute(attr, mods[stat] or 0)
-	end
-
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.WalkSpeed = Config.WALK_SPEED * (1 + (sum.speed + (mods.speed or 0)) / 100)
 	end
 	Combat.refreshStats(player, fill)
 end
