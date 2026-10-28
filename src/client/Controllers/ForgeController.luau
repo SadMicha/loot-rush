@@ -20,9 +20,9 @@ local ForgeController = {}
 
 local C = Theme.Color
 local PAD = 28
-local LEFT_W, SIDE_W, TOP = 440, 440, 100
-local PICK = 64
-local CENTER_W = 560
+local LEFT_W, SIDE_W = 440, 440
+local PICK = 88 -- so hoch wie ein Knopf auf dem Handy mindestens wird, sonst schneidet die Leiste ab
+local CENTER_W = 600
 
 local win: Window.Window
 local left: Frame
@@ -84,15 +84,24 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	clear(left)
 	local w = LEFT_W - 2 * PAD
 
+	-- Leiste zum Wischen: Balken unter den Slots, damit man sieht, dass es weitergeht
 	local picker = Instance.new("ScrollingFrame")
 	picker.BackgroundTransparency = 1
 	picker.BorderSizePixel = 0
 	picker.Position = UDim2.fromOffset(PAD, PAD)
-	picker.Size = UDim2.fromOffset(w, PICK + 16)
+	picker.Size = UDim2.fromOffset(w, PICK + 30)
 	picker.ScrollingDirection = Enum.ScrollingDirection.X
-	picker.ScrollBarThickness = 4
+	picker.ScrollBarThickness = 8
+	picker.ScrollBarImageColor3 = C.Gold
+	picker.ScrollBarImageTransparency = 0.2
+	picker.HorizontalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	picker.AutomaticCanvasSize = Enum.AutomaticSize.X
 	picker.CanvasSize = UDim2.new()
+	local inset = Instance.new("UIPadding") -- Platz für den Auswahl-Glanz um den Slot
+	inset.PaddingTop = UDim.new(0, 8)
+	inset.PaddingLeft = UDim.new(0, 8)
+	inset.PaddingRight = UDim.new(0, 8)
+	inset.Parent = picker
 	local pl = Kit.list(picker, Enum.FillDirection.Horizontal, 8, Enum.VerticalAlignment.Top)
 	pl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	for i, it in list do
@@ -114,18 +123,28 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	if not item then
 		local empty =
 			wrapLabel("Keine Gegenstände. Sammle Beute im Rift und komm zurück.", 17, C.Muted, w)
-		empty.Position = UDim2.fromOffset(PAD, PAD + 110)
+		empty.Position = UDim2.fromOffset(PAD, PAD + PICK + 40)
 		empty.Parent = left
 		return
 	end
 
+	-- Darunter alles untereinander, damit ein zweizeiliger Name den Rest nach unten schiebt
+	local info = Window.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(PAD, PAD + PICK + 40))
+	info.AutomaticSize = Enum.AutomaticSize.Y
+	Kit.list(info, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
+	info.Parent = left
+
 	local divider = Kit.divider(w)
-	divider.Position = UDim2.fromOffset(PAD, PAD + PICK + 24)
-	divider.Parent = left
+	divider.LayoutOrder = 1
+	divider.Parent = info
 
 	local name = Window.heading(item.name, 22, Theme.Rarity[item.rarity] or C.Text)
-	name.Position = UDim2.fromOffset(PAD, PAD + PICK + 48)
-	name.Parent = left
+	name.AutomaticSize = Enum.AutomaticSize.Y
+	name.Size = UDim2.fromOffset(w, 0)
+	name.TextWrapped = true
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.LayoutOrder = 2
+	name.Parent = info
 	local max = Forge.MaxAffixes[item.rarity] or 0
 	local open = Forge.openCount(item)
 	local sub = Kit.label(
@@ -140,10 +159,12 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		C.Muted,
 		Theme.Font.Body
 	)
-	sub.Position = UDim2.fromOffset(PAD, PAD + PICK + 86)
-	sub.Parent = left
+	sub.LayoutOrder = 3
+	sub.Parent = info
 
-	local rows = Window.frame(UDim2.fromOffset(w, 460), UDim2.fromOffset(PAD, PAD + PICK + 124))
+	local rows = Window.frame(UDim2.fromOffset(w, 0))
+	rows.AutomaticSize = Enum.AutomaticSize.Y
+	rows.LayoutOrder = 4
 	Kit.list(rows, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
 	for i, a in item.affixes do
 		local on = selectedAffix == i
@@ -189,35 +210,53 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		end)
 		row.Parent = rows
 	end
-	-- Freier Affix-Platz
+	-- Freie Affix-Plätze (mit „Affix hinzufügen“ füllen)
 	if open < max then
 		local free = Window.frame(UDim2.fromOffset(w, 56))
 		free.LayoutOrder = #item.affixes + 1
 		Kit.skin(free, "stat_tile", 56, 0.4)
 		local plus = Kit.icon("verbessern", 28)
-		plus.AnchorPoint = Vector2.new(0.5, 0.5)
-		plus.Position = UDim2.fromScale(0.5, 0.5)
+		plus.AnchorPoint = Vector2.new(0, 0.5)
+		plus.Position = UDim2.new(0, 14, 0.5, 0)
 		plus.ZIndex = 2
 		plus.Parent = free
+		local t = Kit.label(
+			if max - open == 1
+				then "Freier Platz"
+				else string.format("%d freie Plätze", max - open),
+			15,
+			C.Muted,
+			Theme.Font.Body
+		)
+		t.AnchorPoint = Vector2.new(0, 0.5)
+		t.Position = UDim2.new(0, 52, 0.5, 0)
+		t.ZIndex = 2
+		t.Parent = free
 		free.Parent = rows
 	end
-	rows.Parent = left
+	rows.Parent = info
 end
 
 -- ------------------------------------------------------------------ Mitte: Amboss und Status
 local function renderCenter(item: Items.Item?)
 	clear(center)
-	-- Material oben
-	local mats = Window.frame(UDim2.fromOffset(CENTER_W, 44), UDim2.fromOffset(0, 40))
-	Kit.list(mats, Enum.FillDirection.Horizontal, 8)
+	-- Material oben: Kapsel mit Menge, Name darunter
+	local mats = Window.frame(UDim2.fromOffset(CENTER_W, 70))
+	Kit.list(mats, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Top)
 	for i, key in { "candy", "shards", "dust" } do
 		local have = (ProgressController.materials() :: any)[key] :: number
+		local col = Window.frame(UDim2.fromOffset(190, 70))
+		col.LayoutOrder = i
 		local pill, _, plus = Kit.pill(Forge.MaterialIcon[key], tostring(have), MAT_COLOR[key])
 		if plus then
 			plus:Destroy()
 		end
-		pill.LayoutOrder = i
-		pill.Parent = mats
+		pill.Parent = col
+		local cap = Kit.label(Forge.MaterialPlural[key], 14, C.Muted, Theme.Font.Body)
+		cap.AnchorPoint = Vector2.new(0.5, 1)
+		cap.Position = UDim2.fromScale(0.5, 1)
+		cap.Parent = col
+		col.Parent = mats
 	end
 	mats.Parent = center
 	if item then
@@ -226,13 +265,13 @@ local function renderCenter(item: Items.Item?)
 		})
 		big.Active = false
 		big.AnchorPoint = Vector2.new(0.5, 0)
-		big.Position = UDim2.new(0.5, 0, 0, 120)
+		big.Position = UDim2.new(0.5, 0, 0, 100)
 		big.Parent = center
 	end
 	local anvil = Window.art("forge_anvil", Vector2.new(420, 260))
 	if anvil then
 		anvil.AnchorPoint = Vector2.new(0.5, 0)
-		anvil.Position = UDim2.new(0.5, 0, 0, 300)
+		anvil.Position = UDim2.new(0.5, 0, 0, 290)
 		anvil.Parent = center
 	end
 
@@ -272,8 +311,12 @@ local function renderCenter(item: Items.Item?)
 		if lastResult and not lastResult.ok then C.Danger else C.Text,
 		Theme.Font.Body
 	)
+	sub.AutomaticSize = Enum.AutomaticSize.Y
+	sub.Size = UDim2.fromOffset(400, 0)
+	sub.TextWrapped = true
+	sub.TextXAlignment = Enum.TextXAlignment.Center
 	sub.AnchorPoint = Vector2.new(0.5, 0)
-	sub.Position = UDim2.new(0.5, 0, 0, 88)
+	sub.Position = UDim2.new(0.5, 0, 0, 84)
 	sub.ZIndex = 2
 	sub.Parent = plaque
 	plaque.Parent = center
@@ -311,8 +354,10 @@ local function renderSide(item: Items.Item?)
 		ic.Position = UDim2.new(0, 12, 0.5, 0)
 		ic.ZIndex = 2
 		ic.Parent = row
+		-- Text endet vor dem Amboss-Knopf rechts
+		local textW = w - 94 - 96
 		local n = Kit.label(action.name, 19, C.Text)
-		n.Position = UDim2.fromOffset(94, 18)
+		n.Position = UDim2.fromOffset(94, 12)
 		n.ZIndex = 2
 		n.Parent = row
 		local price = Forge.cost(action, item, selectedAffix)
@@ -328,7 +373,11 @@ local function renderSide(item: Items.Item?)
 			C.Gold,
 			Theme.Font.Body
 		)
-		cost.Position = UDim2.fromOffset(94, 54)
+		cost.AutomaticSize = Enum.AutomaticSize.None
+		cost.Size = UDim2.fromOffset(textW, 20)
+		cost.TextXAlignment = Enum.TextXAlignment.Left
+		cost.TextTruncate = Enum.TextTruncate.AtEnd
+		cost.Position = UDim2.fromOffset(94, 42)
 		cost.ZIndex = 2
 		cost.Parent = row
 		local go = Kit.button("", C.Gold, Vector2.new(68, 60), nil)
@@ -352,8 +401,16 @@ local function renderSide(item: Items.Item?)
 		end)
 		go.Parent = row
 		if why and item then
-			cost.Text ..= " · " .. why
+			-- Grund in eigener Zeile unter den Kosten
 			cost.TextColor3 = C.Muted
+			local reason = Kit.label(why, 13, C.Danger, Theme.Font.Body)
+			reason.AutomaticSize = Enum.AutomaticSize.None
+			reason.Size = UDim2.fromOffset(textW, 18)
+			reason.TextXAlignment = Enum.TextXAlignment.Left
+			reason.TextTruncate = Enum.TextTruncate.AtEnd
+			reason.Position = UDim2.fromOffset(94, 66)
+			reason.ZIndex = 2
+			reason.Parent = row
 		end
 		row.Parent = rows
 	end
@@ -392,17 +449,20 @@ function ForgeController.init()
 		background = "bg_forge",
 	})
 
-	left = Kit.panel(Vector2.new(LEFT_W, 770))
-	left.Position = UDim2.fromOffset(40, TOP)
-	left.Parent = win.root
+	local body = Window.BODY
+	left = Kit.panel(Vector2.new(LEFT_W, body.Y))
+	left.Parent = win.body
 
-	center = Window.frame(UDim2.fromOffset(CENTER_W, 770), UDim2.fromOffset(40 + LEFT_W + 20, TOP))
-	center.Parent = win.root
+	-- Amboss mittig zwischen den Panels
+	center = Window.frame(UDim2.fromOffset(CENTER_W, body.Y))
+	center.AnchorPoint = Vector2.new(0.5, 0)
+	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
+	center.Parent = win.body
 
-	side = Kit.panel(Vector2.new(SIDE_W, 770))
+	side = Kit.panel(Vector2.new(SIDE_W, body.Y))
 	side.AnchorPoint = Vector2.new(1, 0)
-	side.Position = UDim2.new(1, -40, 0, TOP)
-	side.Parent = win.root
+	side.Position = UDim2.fromScale(1, 0)
+	side.Parent = win.body
 
 	win.onOpen(ForgeController.render)
 	local function refresh()

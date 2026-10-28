@@ -20,7 +20,7 @@ local StarNetController = {}
 local C = Theme.Color
 local player = Players.LocalPlayer
 local PAD = 28
-local SIDE_W, TOP = 420, 90
+local SIDE_W = 420
 local SIZE: { [string]: number } = { core = 100, small = 46, big = 78 }
 local BRANCH_COLOR: { [string]: Color3 } = {
 	kraft = Theme.Rarity.unique,
@@ -285,13 +285,25 @@ function StarNetController.init()
 		background = "bg_starnet",
 	})
 
-	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y), UDim2.fromOffset(40, TOP))
-	net.Parent = win.root
+	-- Netz mittig in der Fläche links vom Panel (nach dem Umriss der Sterne, nicht der Leinwand)
+	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+	for _, s in StarNet.Stars do
+		local r = SIZE[s.kind] / 2
+		x0, y0 = math.min(x0, s.pos.X - r), math.min(y0, s.pos.Y - r)
+		x1, y1 = math.max(x1, s.pos.X + r), math.max(y1, s.pos.Y + r + 28) -- Beschriftung
+	end
+	local area = Vector2.new(Window.BODY.X - SIDE_W - 20, Window.BODY.Y)
+	local shift = area / 2 - Vector2.new(x0 + x1, y0 + y1) / 2
+	net = Window.frame(
+		UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y),
+		UDim2.fromOffset(shift.X, shift.Y)
+	)
+	net.Parent = win.body
 
-	side = Kit.panel(Vector2.new(SIDE_W, 790))
+	side = Kit.panel(Vector2.new(SIDE_W, Window.BODY.Y))
 	side.AnchorPoint = Vector2.new(1, 0)
-	side.Position = UDim2.new(1, -40, 0, TOP)
-	side.Parent = win.root
+	side.Position = UDim2.fromScale(1, 0)
+	side.Parent = win.body
 
 	win.onOpen(StarNetController.render)
 	local function refresh()

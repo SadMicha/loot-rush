@@ -81,6 +81,20 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	local texts: { [Instance]: true } = {}
 	local hits: { [GuiButton]: true } = {}
 
+	-- Gesamtskalierung inkl. weiterer UIScales unter dem Root (z. B. Fenster-Inhalt)
+	local function scaleOf(d: Instance): number
+		local s = scale.Scale
+		local node: Instance? = d
+		while node and node ~= root do
+			local inner = node:FindFirstChildOfClass("UIScale")
+			if inner then
+				s *= inner.Scale
+			end
+			node = node.Parent
+		end
+		return s
+	end
+
 	local function fitText(t: any)
 		if t.TextScaled then
 			return
@@ -89,7 +103,7 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 			t:SetAttribute("BaseTextSize", t.TextSize) -- Größe wurde von außen neu gesetzt
 		end
 		local want =
-			math.max(t:GetAttribute("BaseTextSize"), math.ceil(Kit.MIN_TEXT_PX / scale.Scale))
+			math.max(t:GetAttribute("BaseTextSize"), math.ceil(Kit.MIN_TEXT_PX / scaleOf(t)))
 		t:SetAttribute("FitTextSize", want)
 		t.TextSize = want
 	end
@@ -97,7 +111,7 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	local function fitHit(b: GuiButton)
 		local base = b:GetAttribute("BaseSize") :: Vector2
 		local min = if UserInputService.TouchEnabled
-			then math.ceil(Kit.MIN_TOUCH_PX / scale.Scale)
+			then math.ceil(Kit.MIN_TOUCH_PX / scaleOf(b))
 			else 0
 		b.Size = UDim2.fromOffset(math.max(base.X, min), math.max(base.Y, min))
 	end
@@ -143,6 +157,16 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	end
 end
 
+local refitters: { [Frame]: () -> () } = {}
+
+-- Mindestgrößen neu anwenden, nachdem sich eine innere UIScale geändert hat
+function Kit.refit(root: Frame)
+	local fn = refitters[root]
+	if fn then
+		fn()
+	end
+end
+
 -- ScreenGui mit Root-Frame, der auf die Design-Auflösung (1600×900) skaliert.
 -- UIScale skaliert auch den Root selbst, darum bekommt er die Gegengröße 1/s und füllt den Bildschirm.
 -- fit = true (Vollbild-Fenster): nie kleiner als die Design-Fläche, auch wenn der Bildschirm
@@ -163,6 +187,7 @@ function Kit.scaledGui(name: string, order: number, fit: boolean?): (ScreenGui, 
 	local scale = Instance.new("UIScale")
 	scale.Parent = root
 	local reapply = minimums(root, scale)
+	refitters[root] = reapply
 
 	local function rescale()
 		local camera = workspace.CurrentCamera
@@ -631,19 +656,11 @@ function Kit.iconButton(
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1
 	if k == "close" then
-		local fixed = Assets.Fixed.close_dark
+		-- Immer rot: Hover gibt es auf Touch nicht, sonst wirkt der Knopf je Fenster anders
+		local fixed = Assets.Fixed.close_red or Assets.Fixed.close_dark
 		if fixed then
 			b.Image = fixed.id
 			b.ScaleType = Enum.ScaleType.Fit
-			local hover = Assets.Fixed.close_red
-			if hover then
-				b.MouseEnter:Connect(function()
-					b.Image = hover.id
-				end)
-				b.MouseLeave:Connect(function()
-					b.Image = fixed.id
-				end)
-			end
 			return b
 		end
 	end
