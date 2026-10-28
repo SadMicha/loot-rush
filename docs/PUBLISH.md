@@ -30,7 +30,7 @@ Im Creator Hub beim Test-Spiel:
 
 ## 4. Secrets in GitHub anlegen
 
-GitHub → `SadMicha/loot-rush` → **Settings → Secrets and variables → Actions → New repository secret**, drei Stück:
+GitHub → `SadMicha/loot-rush` → **Settings → Environments → New environment** mit dem Namen **`Roblox`** → **Add environment secret**, drei Stück:
 
 | Name | Wert |
 |---|---|
