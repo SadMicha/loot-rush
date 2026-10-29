@@ -49,6 +49,23 @@ local function backoff(attempt: number)
 	task.wait(math.min(2 ^ (attempt - 1), 16))
 end
 
+-- Wartet kurz, wenn das Anfrage-Budget des Servers aufgebraucht ist (statt in die Drossel zu laufen)
+local BUDGET_WAIT = 10
+local function waitBudget()
+	local deadline = os.clock() + BUDGET_WAIT
+	while os.clock() < deadline do
+		local ok, budget = pcall(
+			DataStoreService.GetRequestBudgetForRequestType,
+			DataStoreService,
+			Enum.DataStoreRequestType.UpdateAsync
+		)
+		if not ok or typeof(budget) ~= "number" or budget >= 1 then
+			return
+		end
+		task.wait(0.5)
+	end
+end
+
 -- Versucht einmal, den Spielstand zu übernehmen.
 -- Status: "ok" | "locked" (anderer Server) | "newer" (Stand von neuerer Spielversion) | "corrupt" | "error"
 local function claim(player: Player): (string, ProfileSchema.Record?)
@@ -98,7 +115,12 @@ local function save(player: Player, release: boolean): boolean
 	if release then
 		session.released = true -- danach keine weiteren Saves mehr
 	end
+	local fixed = ProfileSchema.sanitize(session.data)
+	if fixed > 0 then
+		warn(`[LootRush] {fixed} ungültige Werte im Spielstand repariert:`, player.UserId)
+	end
 	for attempt = 1, SAVE_TRIES do
+		waitBudget()
 		local lost = false
 		local ok, err = pcall(function()
 			store:UpdateAsync(key(player), function(raw: any): any
@@ -151,6 +173,7 @@ local function load(player: Player)
 	loading[player] = true
 	local status, record = "error", nil
 	for attempt = 1, LOAD_TRIES do
+		waitBudget()
 		status, record = claim(player)
 		if status == "ok" or status == "newer" or status == "corrupt" or left[player] then
 			break

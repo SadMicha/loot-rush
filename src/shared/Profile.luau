@@ -180,6 +180,33 @@ function Profile.reconcile(raw: any): Data
 	return data :: Data
 end
 
+-- Macht einen Stand speicherbar, ohne Tabellen auszutauschen (andere Systeme halten Verweise):
+-- NaN/unendlich → 0, Werte ohne JSON-Form (Instanzen, Funktionen …) und Schlüssel, die weder
+-- String noch Zahl sind, fliegen raus. Gibt die Anzahl der Reparaturen zurück.
+function Profile.sanitize(data: any): number
+	local fixed = 0
+	local function walk(t: { [any]: any }, depth: number)
+		for k, v in t do
+			local kt, vt = typeof(k), typeof(v)
+			local badKey = (kt ~= "string" and kt ~= "number") or depth > 20
+			local plain = vt == "string" or vt == "boolean" or vt == "number" or vt == "table"
+			if badKey or not plain then
+				t[k] = nil
+				fixed += 1
+			elseif vt == "number" and (v ~= v or v == math.huge or v == -math.huge) then
+				t[k] = 0
+				fixed += 1
+			elseif vt == "table" then
+				walk(v, depth + 1)
+			end
+		end
+	end
+	if typeof(data) == "table" then
+		walk(data, 0)
+	end
+	return fixed
+end
+
 -- Frischer Stand für neue Spieler (eigene Tabellen, nie die DEFAULTS selbst)
 function Profile.fresh(): Data
 	return Profile.reconcile({})

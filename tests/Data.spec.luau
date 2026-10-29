@@ -26,6 +26,22 @@ describe("Data", function()
 		expect(rec.data.xp).toBe(12)
 	end)
 
+	it("repariert einen Stand mit NaN, statt nie mehr zu speichern", function()
+		local saved
+		sim:runAs("server", function(require)
+			local Data = require("ServerScriptService.Server.Systems.Data")
+			local p = Data.get(sim.player)
+			p.gold = 0 / 0
+			p.level = 9
+			saved = Data.saveNow(sim.player)
+		end)
+		sim:run(1)
+		expect(saved).toBe(true)
+		local rec = sim.datastores[STORE].p_1
+		expect(rec.data.level).toBe(9)
+		expect(rec.data.gold == rec.data.gold).toBe(true)
+	end)
+
 	it("gibt den Lock beim Server-Shutdown frei", function()
 		sim:runAs("server", function()
 			for _, fn in sim.onClose do
