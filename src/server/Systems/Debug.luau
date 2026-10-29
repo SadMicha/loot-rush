@@ -19,7 +19,9 @@ local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
+local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
+local Rebirth = require(script.Parent.Rebirth)
 local Rift = require(script.Parent.Rift)
 local Shop = require(script.Parent.Shop)
 
@@ -128,6 +130,20 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	atlas = {
 		run = function(player)
 			unlockAtlas(player)
+		end,
+	},
+	pet = {
+		run = function(player)
+			Shop.grant(player, "soulstars", 75)
+			local ok, text = Pets.hatch(player, "sternen_ei")
+			Net.PetResult:FireClient(player, { ok = ok, text = text })
+		end,
+	},
+	rebirth = {
+		run = function(player)
+			unlockAtlas(player)
+			local ok, text = Rebirth.perform(player)
+			Net.RebirthResult:FireClient(player, { ok = ok, text = text })
 		end,
 	},
 	slay = {
