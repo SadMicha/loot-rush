@@ -88,3 +88,51 @@ describe("Items.affixText", function()
 		end
 	end)
 end)
+
+describe("Items.roll nach Balancing-Tabelle", function()
+	local function count(opts, rarity)
+		local n = 0
+		for seed = 1, 3000 do
+			if Items.roll(5, Random.new(seed), nil, opts).rarity == rarity then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	it("verschiebt die Seltenheit mit der Tiefe", function()
+		expect(count({ shift = 3 }, "epic")).toBeGreaterThan(count({ shift = 1 }, "epic") + 40)
+		expect(count({ shift = 3 }, "normal")).toBeLessThan(count({ shift = 1 }, "normal"))
+	end)
+
+	it("garantiert eine Mindest-Seltenheit (Boss: Selten+)", function()
+		for seed = 1, 300 do
+			local r = Items.roll(5, Random.new(seed), nil, { min = "rare" }).rarity
+			expect(r == "rare" or r == "epic").toBe(true)
+		end
+	end)
+
+	it("lässt Prozentwerte nur übers Tier wachsen, Leben auch mit der Stufe", function()
+		local lo = Items.rollAffix("crit", 1, 7, Random.new(1))
+		local hi = Items.rollAffix("crit", 60, 7, Random.new(1))
+		expect(hi.value).toBe(lo.value)
+		local l1 = Items.rollAffix("life", 1, 7, Random.new(1))
+		local l60 = Items.rollAffix("life", 60, 7, Random.new(1))
+		expect(l60.value).toBeGreaterThan(l1.value * 5)
+	end)
+
+	it("gibt seltenen Items mehr Item-Power", function()
+		local function ip(rarity)
+			return Items.itemPower({
+				id = "x",
+				slot = "waffe",
+				rarity = rarity,
+				name = "",
+				ilvl = 10,
+				affixes = {},
+			})
+		end
+		expect(ip("normal")).toBe(100)
+		expect(ip("epic")).toBe(120)
+	end)
+end)

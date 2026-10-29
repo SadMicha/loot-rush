@@ -4,6 +4,7 @@
 -- Der Server (Systems/Progress, Systems/Forge) ändert die Daten, der Client zeigt sie nur an.
 -- Spielstand-Felder: profile.progress (Data) und profile.materials (Materials).
 
+local Balance = require(script.Parent.Balance)
 local Skills = require(script.Parent.Skills)
 local StarNet = require(script.Parent.StarNet)
 
@@ -128,9 +129,10 @@ function Progression.reconcileMaterials(raw: any): Materials
 end
 
 -- ------------------------------------------------------------------ Skill-Stufen
--- XP von Stufe L auf L+1 (eigene Kurve, nicht im Balancing-Blatt)
+-- XP von Stufe L auf L+1 (eigene Annahme: gleiche Kurve wie das Spieler-Level, Balance.xpForLevel;
+-- jeder Skill bekommt nur die XP seiner tödlichen Treffer)
 function Progression.skillXpFor(level: number): number
-	return math.floor(30 * level ^ 1.6)
+	return Balance.xpForLevel(level)
 end
 
 local EMPTY: SkillProgress = table.freeze({ level = 1, xp = 0, bloom = table.freeze({}) })

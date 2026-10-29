@@ -32,6 +32,32 @@ describe("Profile.migrate", function()
 		expect((r.data :: any).version).toBeNil()
 	end)
 
+	it(
+		"v2 → v3: zieht Item-Stufen auf die neue Beute-Stufe (Tiefe statt Tiefe × 2 − 1)",
+		function()
+			local function item(ilvl)
+				return {
+					id = "i" .. ilvl,
+					slot = "waffe",
+					rarity = "rare",
+					name = "W",
+					ilvl = ilvl,
+					affixes = {},
+				}
+			end
+			local r = Profile.migrate({
+				v = 2,
+				data = { inventory = { item(1), item(19) }, equipped = { waffe = item(59) } },
+				lock = { job = "A", t = 1 },
+			})
+			expect(r.v).toBe(Profile.VERSION)
+			expect(r.data.inventory[1].ilvl).toBe(1)
+			expect(r.data.inventory[2].ilvl).toBe(10)
+			expect(r.data.equipped.waffe.ilvl).toBe(30)
+			expect(r.lock.job).toBe("A")
+		end
+	)
+
 	it("ergänzt fehlende und falsche Felder, behält unbekannte", function()
 		local r = Profile.migrate({ v = Profile.VERSION, data = { gold = "kaputt", extra = 7 } })
 		expect(r.data.gold).toBe(0)

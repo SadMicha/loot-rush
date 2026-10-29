@@ -7,6 +7,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
@@ -29,7 +30,7 @@ type PState = {
 }
 
 local Combat = {
-	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?), für Systems/Loot und Systems/Progress
+	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?, gold), für Systems/Loot und Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), für Systems/Metrics
 }
@@ -109,8 +110,9 @@ local function dashMax(player: Player): number
 end
 
 -- ------------------------------------------------------------------ Level & XP
+-- XP von Level L auf L + 1 (Balancing: 100 × L^1,6)
 local function xpFor(level: number): number
-	return math.floor(40 * level ^ 1.5)
+	return Balance.xpForLevel(level)
 end
 Combat.xpFor = xpFor
 
@@ -122,8 +124,7 @@ local function applyLevelStats(player: Player, fill: boolean)
 	end
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local bonus = (player:GetAttribute("StatLife") or 0) :: number
-	humanoid.MaxHealth = (Config.BASE_HEALTH + (level - 1) * Config.HEALTH_PER_LEVEL + bonus)
-		* (1 + num(player, "StatLifePct") / 100)
+	humanoid.MaxHealth = (Balance.life(level) + bonus) * (1 + num(player, "StatLifePct") / 100)
 	if fill then
 		humanoid.Health = humanoid.MaxHealth
 	end
@@ -151,11 +152,14 @@ local function addXP(player: Player, amount: number)
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local need = xpFor(level)
 	local leveled = false
-	while xp >= need do
+	while xp >= need and level < Balance.P.level_max do
 		xp -= need
 		level += 1
 		need = xpFor(level)
 		leveled = true
+	end
+	if level >= Balance.P.level_max then
+		xp = math.min(xp, need)
 	end
 	player:SetAttribute("Level", level)
 	player:SetAttribute("XPNext", need)
@@ -279,7 +283,9 @@ damageEnemy = function(
 	end
 	local crit = not proc and rng:NextNumber() < critChance
 	local critMult = Config.CRIT_MULT + num(player, "StatCritDamage") / 100
+	local weapon = num(player, "StatWeapon") -- Waffen-Grundschaden als Faktor (Systems/Stats)
 	local amount = base
+		* (if weapon > 0 then weapon else 1)
 		* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
 		* (if crit then critMult else 1)
 	amount = math.max(1, math.floor(amount + 0.5))
@@ -319,6 +325,7 @@ damageEnemy = function(
 		local boss = enemy:GetAttribute("Boss") == true
 		local depth = enemy:GetAttribute("Depth")
 		local region = enemy:GetAttribute("Region")
+		local gold = enemy:GetAttribute("Gold")
 		local burst = shatterOn[enemy]
 		shatterOn[enemy] = nil
 		enemy:Destroy()
@@ -335,7 +342,8 @@ damageEnemy = function(
 				if skill then skill.id else nil,
 				xp,
 				if typeof(depth) == "number" then depth else 1,
-				region
+				region,
+				if typeof(gold) == "number" then gold else 0
 			)
 		end
 	end

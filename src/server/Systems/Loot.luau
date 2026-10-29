@@ -2,13 +2,15 @@
 -- Beute: Gegner lassen Gold und manchmal Items fallen. Drops liegen mit Boden-Label (Name in Seltenheitsfarbe)
 -- und gehören dem Töter; wer nah genug herangeht, hebt sie automatisch auf.
 -- Optik: Items als Geschenkbox in Seltenheitsfarbe, Gold als Münze (Shared/Models/Loot).
--- Menge und Güte richten sich nach der Rift-Tiefe des Gegners (Config.LOOT_*) und den Boni des
--- Gebiets (Atlas.bonus): tiefer = höhere Gegenstandsstufe, mehr Gold, öfter seltene Items.
+-- Menge und Güte richten sich nach der Rift-Tiefe des Gegners (Shared/Balance, Tabelle) und den Boni
+-- des Gebiets (Atlas.bonus): tiefer = höhere Item-Power, mehr Gold, öfter seltene Items.
+-- Gold je Kill trägt der Gegner selbst (Attribut Gold, Systems/Enemies).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
@@ -33,8 +35,6 @@ local Loot = {
 
 local PICKUP_RADIUS = 6
 local LIFETIME = 60
-local BOSS_GOLD_DROPS = 5
-local BOSS_ITEM_DROPS = 3
 
 local drops: { Drop } = {}
 local folder: Folder
@@ -110,13 +110,13 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean)
 	local region = if regionId then Atlas.ById[regionId] else nil
 	local bonus: Atlas.Bonus = if region then region.bonus else {}
 	local d = math.max(1, math.floor(depth))
-	local ilvl = Items.levelForDepth(d, Config.LOOT_ILVL_PER_DEPTH)
+	local ilvl = Items.levelForDepth(d)
 	return {
 		ilvl = if boss then ilvl + Config.LOOT_BOSS_ILVL else ilvl,
-		gold = d * Config.LOOT_GOLD_PER_DEPTH * (if boss then 2 else 1),
 		goldMult = 1 + (bonus.gold or 0),
-		itemChance = math.min(1, Config.LOOT_ITEM_CHANCE * (1 + (bonus.items or 0))),
-		find = Config.LOOT_FIND_PER_DEPTH * (d - 1) + (if boss then Config.LOOT_BOSS_FIND else 0),
+		itemChance = math.min(1, Balance.P.drop_normal * (1 + (bonus.items or 0))),
+		bossItems = Balance.P.drops_boss,
+		shift = Balance.rarityShift(d),
 	}
 end
 
@@ -128,7 +128,8 @@ local function onKilled(
 	_skill: any,
 	_xp: any,
 	depth: any,
-	region: any
+	region: any,
+	gold: any
 )
 	if typeof(player) ~= "Instance" or typeof(pos) ~= "Vector3" then
 		return
@@ -139,21 +140,28 @@ local function onKilled(
 		if typeof(region) == "string" then region else nil,
 		boss == true
 	)
-	local function gold(lo: number, hi: number): number
-		return math.floor((rng:NextInteger(lo, hi) + t.gold) * t.goldMult + 0.5)
+	-- Zufällig runden: kleine Beträge (1,1 Gold) zahlen den Gebiets-Bonus im Mittel trotzdem aus
+	local function coin(amount: number): number
+		return math.max(1, math.floor(amount + rng:NextNumber()))
 	end
+	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0) * t.goldMult
 	if boss == true then
-		for _ = 1, BOSS_GOLD_DROPS do
-			makeDrop(pos, owner, gold(8, 12), nil)
+		local coins = Config.LOOT_BOSS_GOLD_DROPS
+		for _ = 1, coins do
+			makeDrop(pos, owner, coin(total / coins), nil)
 		end
-		for _ = 1, BOSS_ITEM_DROPS do
-			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, t.find))
+		-- Tabelle: Boss-Beute mindestens 1× Selten+
+		for i = 1, t.bossItems do
+			local opts = { shift = t.shift, min = if i == 1 then "rare" else nil }
+			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, opts))
 		end
 		return
 	end
-	makeDrop(pos, owner, gold(2, 4), nil)
+	if total > 0 then
+		makeDrop(pos, owner, coin(total), nil)
+	end
 	if rng:NextNumber() < t.itemChance then
-		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, t.find))
+		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, { shift = t.shift }))
 	end
 end
 

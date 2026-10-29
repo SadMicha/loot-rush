@@ -38,9 +38,8 @@ return table.freeze({
 	POTION_COOLDOWN = 6,
 	POTION_START = 5, -- Heiltränke für neue Spielstände (Nachschub im Shop)
 	POTION_MAX = 20, -- so viele trägt man höchstens
-	BASE_HEALTH = 100,
-	HEALTH_PER_LEVEL = 10,
-	DAMAGE_PER_LEVEL = 0.1, -- +10 % Schaden je Level
+	-- Leben je Level, XP-Kurve, Gegner-, Gold- und Beute-Werte je Tiefe: Shared/Balance (Tabelle)
+	DAMAGE_PER_LEVEL = 0.02, -- +2 % Schaden je Level (eigene Annahme; die Tabelle skaliert über die Waffe)
 
 	-- Gegner
 	ENEMY_ZONE = Vector3.new(0, 0, -20), -- Mittelpunkt des Spawn-Bereichs
@@ -59,15 +58,8 @@ return table.freeze({
 	RIFT_WAVE_STEP = 2, -- zusätzliche Gegner je Welle und je Tiefe
 	RIFT_WAVE_MAX = 24, -- Obergrenze Gegner pro Welle (Server-/Netzlast bei großer Tiefe)
 	RIFT_WAVE_PAUSE = 1.5, -- Sekunden zwischen den Wellen
-	RIFT_HP_PER_DEPTH = 0.35, -- +35 % Leben je Tiefe
-	RIFT_DMG_PER_DEPTH = 0.15,
-	RIFT_XP_PER_DEPTH = 0.25,
 
-	-- Beute (eigene Annahmen): skaliert mit der Rift-Tiefe des Gegners, nicht mit dem Spieler-Level
-	LOOT_ILVL_PER_DEPTH = 2, -- Gegenstandsstufe = Tiefe × 2 − 1 (Tiefe 1 → 1, Tiefe 6 → 11)
-	LOOT_BOSS_ILVL = 2, -- Boss-Items liegen so viele Stufen darüber
-	LOOT_GOLD_PER_DEPTH = 2, -- Gold je Drop: 2–4 + Tiefe × 2 (Boss × 2 je Münze)
-	LOOT_ITEM_CHANCE = 0.35, -- Chance auf ein Item je normalem Gegner
-	LOOT_FIND_PER_DEPTH = 0.04, -- +4 % Gewicht für Magisch/Selten/Episch je Tiefe
-	LOOT_BOSS_FIND = 0.5, -- Bosse: zusätzlich +50 %
+	-- Beute: Stufe, Gold, Drop-Chance und Seltenheit je Tiefe aus Shared/Balance
+	LOOT_BOSS_ILVL = 1, -- Boss-Items liegen so viele Stufen (je 10 IP) darüber (eigene Annahme)
+	LOOT_BOSS_GOLD_DROPS = 5, -- Boss-Gold verteilt auf so viele Münzen
 })
