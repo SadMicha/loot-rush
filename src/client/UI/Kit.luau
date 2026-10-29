@@ -171,7 +171,14 @@ end
 -- UIScale skaliert auch den Root selbst, darum bekommt er die Gegengröße 1/s und füllt den Bildschirm.
 -- fit = true (Vollbild-Fenster): nie kleiner als die Design-Fläche, auch wenn der Bildschirm
 -- dafür stärker verkleinert werden muss (Handy); das HUD bleibt bei mindestens 0.55.
-function Kit.scaledGui(name: string, order: number, fit: boolean?): (ScreenGui, Frame)
+-- design = liefert eine eigene Design-Fläche statt Theme.DesignSize (HUD auf Touch: kleinere Fläche =
+-- größere Elemente); wird bei jeder Größenänderung neu gefragt.
+function Kit.scaledGui(
+	name: string,
+	order: number,
+	fit: boolean?,
+	design: (() -> Vector2)?
+): (ScreenGui, Frame)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
 	gui.ResetOnSpawn = false
@@ -193,11 +200,8 @@ function Kit.scaledGui(name: string, order: number, fit: boolean?): (ScreenGui, 
 		local camera = workspace.CurrentCamera
 		if camera then
 			local v = camera.ViewportSize
-			local s = math.clamp(
-				math.min(v.X / Theme.DesignSize.X, v.Y / Theme.DesignSize.Y),
-				if fit then 0.3 else 0.55,
-				1.4
-			)
+			local d = if design then design() else Theme.DesignSize
+			local s = math.clamp(math.min(v.X / d.X, v.Y / d.Y), if fit then 0.3 else 0.55, 1.4)
 			scale.Scale = s
 			root.Size = UDim2.fromScale(1 / s, 1 / s)
 			reapply()
@@ -408,9 +412,16 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 	f.Active = false
 	slotIcon(f, size, iconName, edge)
 	if key then
-		local k = Kit.label(key, 12, Theme.Color.Muted)
-		k.AnchorPoint = Vector2.new(0.5, 0)
-		k.Position = UDim2.new(0.5, 0, 1, 4)
+		-- Taste unten im Slot wie in hud_hotbar; Icon rückt dafür etwas nach oben
+		local ic = f:FindFirstChild("Icon_" .. iconName)
+		if ic and ic:IsA("GuiObject") then
+			ic.Position = UDim2.fromScale(0.5, 0.42)
+		end
+		local k = Kit.label(key, 11, Theme.Color.Text)
+		k.AnchorPoint = Vector2.new(0.5, 1)
+		k.Position = UDim2.new(0.5, 0, 1, -2)
+		k.TextStrokeTransparency = 0.3
+		k.ZIndex = 3
 		k.Parent = f
 	end
 	return f
