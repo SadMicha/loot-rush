@@ -316,6 +316,7 @@ function ShopController.init()
 	for _, attr in ATTR do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
+	player:GetAttributeChangedSignal("BestDepth"):Connect(refresh) -- Goldpreise
 	Net.ShopResult.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" or typeof(data.text) ~= "string" then
 			return
