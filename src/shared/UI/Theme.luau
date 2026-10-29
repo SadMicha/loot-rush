@@ -40,6 +40,9 @@ Theme.Rarity = table.freeze({
 
 -- Design-Auflösung der Mockups. Das HUD wird per UIScale darauf skaliert.
 Theme.DesignSize = Vector2.new(1600, 900)
+-- HUD auf Touch-Geräten: kleinere Design-Fläche, damit Leiste, Status und Minimap wie im
+-- Mobile-Mock-up groß genug sind (Tablet ≈ 1.0, Handy 844×390 ≈ 0.63 statt 0.55).
+Theme.HudDesignTouch = Vector2.new(1100, 620)
 
 -- Schriftgröße: Der Bildschirm wird auf 1600×900 herunterskaliert, kleine Fenster machen Text winzig.
 -- Alle Texte laufen deshalb über Kit.label / Kit.fontSize und werden um diesen Faktor vergrößert.
