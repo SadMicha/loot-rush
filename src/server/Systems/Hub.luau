@@ -21,8 +21,9 @@ local Props = Models.Props
 
 local T = 8 -- Feldgröße (Studs)
 local N = 16 -- Felder je Seite
--- Drehung der Blender-Modelle, bis ihre Vorderseite nach +Z zeigt (in Studio prüfen)
-local ASSET_YAW = 0
+-- Drehung der Blender-Modelle, bis ihre Vorderseite nach +Z zeigt. Nach dem 3D-Import
+-- zeigt die Blender-Front (−Y) nach −Z, darum 180° (in Studio geprüft, 2026-10-29).
+local ASSET_YAW = 180
 
 -- Lageplan, Zeile 16 (Norden) bis 1 (Süden), Spalten A–P.
 -- G Gras, g Grashügel, K Klippe, W Wasser, C Burgfelsen, S Spawn-Weg, P Marktplatz,
@@ -542,7 +543,8 @@ local function buildTown(parent: Instance)
 				Vector3.new(s * (36 + k * 8), 0, 0)
 			)
 		end
-		put(deco, "Hub_Zaun", Props.fence, s * 28, 16, Vector3.new(0, 0, 16))
+		-- Südkante des Marktplatzes neben der Spawn-Treppe
+		put(deco, "Hub_Zaun", Props.fence, s * 24, 31, Vector3.new(s * 24, 0, 60))
 	end
 
 	-- Bäume auf Gras, Tannen auf den Klippen
