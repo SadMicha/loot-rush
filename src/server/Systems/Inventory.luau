@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Progress = require(script.Parent.Progress)
 local Stats = require(script.Parent.Stats)
@@ -14,6 +15,9 @@ local Stats = require(script.Parent.Stats)
 local Inventory = {}
 
 local MAX_ITEMS = 40
+
+-- Jede Aktion schickt den ganzen Inventar-Schnappschuss zurück: Spam drosseln
+local allow = RateLimit.new(8, 16)
 
 local function snapshot(player: Player)
 	local profile = Data.get(player)
@@ -57,7 +61,7 @@ end
 
 local function onEquip(player: Player, id: any)
 	local profile = Data.get(player)
-	if not profile or typeof(id) ~= "string" then
+	if not profile or not allow(player) or typeof(id) ~= "string" or #id > 64 then
 		return
 	end
 	local index = findIndex(profile.inventory, id)
@@ -80,7 +84,7 @@ end
 
 local function onUnequip(player: Player, slot: any)
 	local profile = Data.get(player)
-	if not profile or typeof(slot) ~= "string" then
+	if not profile or not allow(player) or typeof(slot) ~= "string" or #slot > 64 then
 		return
 	end
 	local item = profile.equipped[slot]
@@ -95,7 +99,7 @@ end
 
 local function onSell(player: Player, id: any)
 	local profile = Data.get(player)
-	if not profile or typeof(id) ~= "string" then
+	if not profile or not allow(player) or typeof(id) ~= "string" or #id > 64 then
 		return
 	end
 	local index = findIndex(profile.inventory, id)

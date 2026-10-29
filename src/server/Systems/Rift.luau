@@ -24,6 +24,7 @@ local Loot = require(script.Parent.Loot)
 local Metrics = require(script.Parent.Metrics)
 local Enemies = require(script.Parent.Enemies)
 local Progress = require(script.Parent.Progress)
+local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local World = require(script.Parent.World)
 
 type Run = {
@@ -278,7 +279,12 @@ local function deeper(player: Player)
 	task.spawn(play, r)
 end
 
+local allow = RateLimit.new(1, 3) -- Betreten baut eine ganze Arena: Spam bremsen
+
 local function onAction(player: Player, action: any, regionId: any)
+	if not allow(player) then
+		return
+	end
 	if action == "enter" then
 		begin(player, regionId)
 	elseif action == "deeper" then

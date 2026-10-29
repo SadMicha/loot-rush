@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 
 type PState = {
@@ -36,6 +37,9 @@ local Combat = {
 }
 
 local states: { [Player]: PState } = {}
+-- Remote-Drossel (Abklingzeiten prüft cast selbst; das hier bremst nur Spam)
+local allowCast = RateLimit.new(20, 30)
+local allowAction = RateLimit.new(8, 12)
 local rng = Random.new()
 local BODY_RADIUS = 1.7 -- Gegner-Körper, wird zum Trefferradius addiert
 
@@ -865,6 +869,9 @@ function Combat.init()
 	Players.RespawnTime = Config.RESPAWN_TIME
 
 	Net.CastSkill.OnServerEvent:Connect(function(player: Player, slot: any, aim: any, origin: any)
+		if not allowCast(player) then
+			return
+		end
 		if typeof(slot) ~= "number" or typeof(aim) ~= "Vector3" or typeof(origin) ~= "Vector3" then
 			return
 		end
@@ -873,8 +880,16 @@ function Combat.init()
 		end
 		cast(player, slot, aim, origin)
 	end)
-	Net.UsePotion.OnServerEvent:Connect(usePotion)
-	Net.Dash.OnServerEvent:Connect(dash)
+	Net.UsePotion.OnServerEvent:Connect(function(player: Player)
+		if allowAction(player) then
+			usePotion(player)
+		end
+	end)
+	Net.Dash.OnServerEvent:Connect(function(player: Player)
+		if allowAction(player) then
+			dash(player)
+		end
+	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		states[player] = nil
