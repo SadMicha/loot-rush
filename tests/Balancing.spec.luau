@@ -247,6 +247,12 @@ describe("Balancing Tiefe 1–30", function()
 		end
 	end)
 
+	it("wird ab der weichen Wand spürbar schwerer (ohne Wiedergeburt)", function()
+		local wall = Balance.P.wand_ab
+		expect(rows[30].ttk).toBeGreaterThan(rows[wall].ttk * 1.8)
+		expect(rows[30].bossTime).toBeGreaterThan(rows[wall].bossTime * 1.8)
+	end)
+
 	it("levelt mit (Level auf Tiefe 30 zwischen 25 und 70)", function()
 		local last = rows[#rows]
 		expect(last.level).toBeGreaterThan(25)

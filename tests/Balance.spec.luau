@@ -8,11 +8,12 @@ end
 describe("Balance", function()
 	it("rechnet Gegner, Gold und XP je Tiefe wie die Tabelle", function()
 		near(Balance.enemyHealth(1), 40)
-		near(Balance.enemyHealth(30), 4860.02164196364)
+		near(Balance.enemyHealth(20), 928.577444210371) -- bis zur weichen Wand genau die Tabelle
+		near(Balance.enemyHealth(30), 4860.02164196364 * Balance.P.wand_wachstum ^ 10)
 		near(Balance.enemyDamage(30), 160.499582790595)
 		near(Balance.gold(30), 69.2316778006046)
 		near(Balance.xp(30), 1110.12771864779)
-		near(Balance.enemyHealth(30) * Balance.P.boss_hp, 194400.865678546)
+		near(Balance.enemyHealth(20) * Balance.P.boss_hp, 37143.0977684148)
 	end)
 
 	it("rechnet Spieler-Level, Leben und Waffe wie die Tabelle", function()

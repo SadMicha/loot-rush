@@ -33,6 +33,9 @@ Schmiede (Kosten, Ladungen, Tiers), Verwerten und Archetyp-Faktoren stimmten sch
   Tabelle ~900 / ~120 / ~9).
 - **Elites** gibt es noch nicht; ihr Anteil an Gold/XP fehlt also.
 - **Boss-Schaden:** Faktor je Boss 1,2–1,7 (aus den alten Werten übernommen).
+- **Weiche Wand (Micha, 2026-10-29):** Wiedergeburt soll freiwillig bleiben, ohne sie soll es
+  aber schwerer werden. Ab Tiefe 20 (`wand_ab`) wächst das Gegner-Leben zusätzlich ×1,1 je Tiefe
+  (`wand_wachstum`, Tiefe 30: ×2,6). Der Schaden bleibt bei der Tabelle.
 - **Boss-Items** liegen 1 Stufe (10 IP) über der Tiefe.
 - **Schaden je Level:** +2 % (vorher +10 %). Die Tabelle skaliert Schaden nur über die Waffe; mit
   +10 % wurde der Spieler ab Tiefe 15 viel zu stark.
@@ -51,20 +54,24 @@ TTK = Sekunden je normalem Gegner (Einzelziel). Treffer = so viele Treffer hält
 
 | Tiefe | Level | TTK | Boss s | Lauf s | Treffer normal | Treffer Boss | Gold/Lauf |
 |---|---|---|---|---|---|---|---|
-| 1 | 1 | 0.47 | 27.9 | 51 | 18.2 | 12.5 | 88 |
-| 5 | 6 | 0.34 | 20.6 | 46 | 29.9 | 20.6 | 222 |
+| 1 | 1 | 0.47 | 27.9 | 51 | 18.2 | 12.5 | 91 |
+| 5 | 6 | 0.34 | 20.6 | 46 | 29.9 | 20.6 | 206 |
 | 6 | 7 | 0.70 | 21.5 | 47 | 30.7 | 15.0 | 207 |
-| 10 | 10 | 0.66 | 20.2 | 51 | 25.4 | 12.7 | 524 |
-| 11 | 11 | 0.43 | 17.3 | 40 | 15.8 | 18.1 | 374 |
-| 15 | 15 | 0.36 | 14.5 | 39 | 12.1 | 13.7 | 949 |
-| 16 | 16 | 0.51 | 17.7 | 41 | 16.1 | 9.9 | 740 |
-| 20 | 22 | 0.49 | 17.1 | 45 | 14.6 | 8.9 | 1873 |
-| 21 | 24 | 0.56 | 16.2 | 40 | 13.7 | 9.7 | 1349 |
-| 25 | 30 | 0.62 | 18.2 | 48 | 9.3 | 6.6 | 3473 |
-| 26 | 32 | 0.36 | 13.9 | 35 | 8.5 | 5.1 | 3046 |
-| 30 | 39 | 0.44 | 17.3 | 44 | 5.9 | 3.6 | 7847 |
+| 10 | 10 | 0.66 | 20.2 | 51 | 25.4 | 12.7 | 525 |
+| 11 | 11 | 0.43 | 17.3 | 40 | 15.8 | 18.1 | 377 |
+| 15 | 15 | 0.36 | 14.5 | 39 | 12.1 | 13.7 | 954 |
+| 16 | 16 | 0.51 | 17.7 | 41 | 16.1 | 9.9 | 733 |
+| 20 | 22 | 0.49 | 17.1 | 45 | 14.6 | 8.9 | 1880 |
+| 21 | 24 | 0.61 | 17.9 | 42 | 13.7 | 9.7 | 1351 |
+| 23 | 26 | 0.90 | 26.4 | 57 | 10.9 | 7.8 | 2219 |
+| 25 | 30 | 1.00 | 29.3 | 66 | 9.3 | 6.6 | 3465 |
+| 26 | 32 | 0.63 | 24.7 | 49 | 8.5 | 5.1 | 3047 |
+| 28 | 35 | 0.95 | 36.9 | 68 | 7.5 | 4.5 | 5023 |
+| 30 | 39 | 1.15 | 44.8 | 85 | 5.9 | 3.6 | 7859 |
 
-- Kein Gegner braucht über 1 s (Tabelle: Wand ab 2 s), Bosse 14–29 s.
+- Bis Tiefe 20 brauchen normale Gegner 0,3–0,7 s, Bosse 14–28 s. Danach greift die weiche Wand:
+  auf Tiefe 30 ~1,2 s je Gegner und ~45 s je Boss bei einem einzigen Lauf je Tiefe (Tabelle: Wand ab 2 s).
+  Wer farmt, schmiedet und Sterne verteilt, ist schneller.
 - Gefährlich wird es über den Schaden: auf Tiefe 30 hält der Spieler ~6 normale bzw. ~4 Boss-Treffer
   aus (Tabelle: Gegner-Schaden ×1,12 je Tiefe, Leben nur +12 je Level).
 - Sprünge: Kristallhöhlen (ab 6) haben doppelt so zähe Gegner wie die Grünen Ebenen (viele Tanks),
@@ -75,6 +82,3 @@ TTK = Sekunden je normalem Gegner (Einzelziel). Treffer = so viele Treffer hält
 1. **Gold-Inflation im Shop:** Kill-Gold wächst ×1,13 je Tiefe, Shop-Preise sind fest. Auf Tiefe 30
    bringt ein Lauf ~8.000 Gold, ein Heiltrank kostet 40. Auch die Goldpakete für Seelensterne
    (1.000/5.500/12.000) sind dann wertlos.
-2. **Wand und Wiedergeburt:** Die Tabelle plant die erste Wand bei Tiefe 20–25 und dann
-   Wiedergeburt. Wiedergeburt gibt es noch nicht, deshalb ist das Spiel jetzt so eingestellt, dass
-   Tiefe 1–30 ohne Wand spielbar bleibt.

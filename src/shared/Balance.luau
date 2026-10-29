@@ -12,6 +12,10 @@ Balance.P = table.freeze({
 	dmg_basis = 6,
 	dmg_wachstum = 1.12,
 	boss_hp = 40,
+	-- Weiche Wand (eigene Annahme, Michas Vorgabe): ab dieser Tiefe wächst das Gegner-Leben schneller.
+	-- Ohne Wiedergeburt bleibt es schaffbar, braucht aber Farmen, Schmiede und Sterne.
+	wand_ab = 20,
+	wand_wachstum = 1.1,
 	-- Belohnung
 	gold_basis = 2,
 	gold_wachstum = 1.13,
@@ -54,7 +58,8 @@ end
 
 -- Je Tiefe (normaler Gegner, vor Archetyp- und Boss-Faktor)
 function Balance.enemyHealth(depth: number): number
-	return P.hp_basis * P.hp_wachstum ^ steps(depth)
+	local wall = math.max(0, math.floor(depth) - P.wand_ab)
+	return P.hp_basis * P.hp_wachstum ^ steps(depth) * P.wand_wachstum ^ wall
 end
 
 function Balance.enemyDamage(depth: number): number
