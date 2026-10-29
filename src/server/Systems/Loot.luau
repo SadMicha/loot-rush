@@ -26,7 +26,10 @@ type Drop = {
 	expires: number,
 }
 
-local Loot = {}
+local Loot = {
+	-- (player, gold: number, item: Items.Item?) nach jedem Aufheben, für Systems/Rift
+	Picked = Instance.new("BindableEvent"),
+}
 
 local PICKUP_RADIUS = 6
 local LIFETIME = 60
@@ -154,6 +157,55 @@ local function onKilled(
 	end
 end
 
+-- Hebt einen Drop für seinen Besitzer auf. false = Inventar voll, Item bleibt liegen.
+-- at = Position für die Text-Einblendung; ohne at still und ohne Picked-Signal (Loot.collect).
+local function pickup(d: Drop, at: Vector3?): boolean
+	local item = d.item
+	local text: string
+	local color: Color3
+	if item then
+		if not Inventory.add(d.owner, item) then
+			return false
+		end
+		text = item.name
+		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
+	else
+		Inventory.addGold(d.owner, d.gold)
+		text = "+" .. tostring(d.gold) .. " Gold"
+		color = Theme.Color.Gold
+	end
+	if at then
+		Net.Fx:FireClient(
+			d.owner,
+			"dmg",
+			{ pos = at + Vector3.new(0, 4, 0), text = text, color = color }
+		)
+		Loot.Picked:Fire(d.owner, if item then 0 else d.gold, item)
+	end
+	return true
+end
+
+-- Rift-Ende: alles, was dem Spieler noch am Boden gehört, sofort einsammeln.
+-- Gibt zurück, was wirklich ankam (Inventar voll: Item verfällt mit der Arena).
+function Loot.collect(player: Player): (number, { Items.Item })
+	local gold, items = 0, {}
+	for i = #drops, 1, -1 do
+		local d = drops[i]
+		if d.owner == player then
+			if pickup(d, nil) then
+				if d.item then
+					table.insert(items, d.item)
+				else
+					gold += d.gold
+				end
+			end
+			d.model:Destroy()
+			table.remove(drops, i)
+		end
+	end
+	return gold, items
+end
+
 local function sweep()
 	local now = os.clock()
 	for i = #drops, 1, -1 do
@@ -171,28 +223,10 @@ local function sweep()
 		if Vector3.new(delta.X, 0, delta.Z).Magnitude > PICKUP_RADIUS then
 			continue
 		end
-
-		local item = d.item
-		local text: string
-		local color: Color3
-		if item then
-			if not Inventory.add(d.owner, item) then
-				continue -- Inventar voll: Item bleibt liegen
-			end
-			text = item.name
-			color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
-		else
-			Inventory.addGold(d.owner, d.gold)
-			text = "+" .. tostring(d.gold) .. " Gold"
-			color = Theme.Color.Gold
+		if pickup(d, root.Position) then
+			d.model:Destroy()
+			table.remove(drops, i)
 		end
-		Net.Fx:FireClient(
-			d.owner,
-			"dmg",
-			{ pos = root.Position + Vector3.new(0, 4, 0), text = text, color = color }
-		)
-		d.model:Destroy()
-		table.remove(drops, i)
 	end
 end
 

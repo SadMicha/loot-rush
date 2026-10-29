@@ -4,6 +4,9 @@
 -- (Shared/Atlas). Geschaffte Tiefen landen im Spielstand (atlas) und schalten Folgegebiete frei.
 -- Ein Rift gleichzeitig pro Server; der Starter ist der Besitzer. Zustand liegt als Attribute am
 -- Besitzer (siehe Types.luau), der Client liest nur. Tod, Verlassen oder Abbruch beenden den Lauf.
+-- Unterwegs zählt der Server Kills, XP, Gold, Items und Material mit und schickt nach jedem Boss
+-- und am Ende eine Zusammenfassung über Net.RiftResult (Shared/RiftRun) – Daten für den
+-- Belohnungsbildschirm. Beim Ende wird liegengebliebene Beute eingesammelt.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -12,11 +15,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
 local Data = require(script.Parent.Data)
+local Loot = require(script.Parent.Loot)
 local Metrics = require(script.Parent.Metrics)
 local Enemies = require(script.Parent.Enemies)
+local Progress = require(script.Parent.Progress)
 local World = require(script.Parent.World)
 
 type Run = {
@@ -24,7 +30,11 @@ type Run = {
 	region: Atlas.Region,
 	depth: number, -- absolute Tiefe (skaliert die Gegner)
 	wave: number,
+	tally: RiftRun.Tally,
+	died: RBXScriptConnection?,
 }
+
+type EndReason = "left" | "abandoned" | "failed" | "gone"
 
 local Rift = {}
 
@@ -76,6 +86,16 @@ local function record(r: Run)
 	end
 end
 
+local function level(player: Player): number
+	return (player:GetAttribute("Level") or 1) :: number
+end
+
+local function report(r: Run, kind: "clear" | "end", reason: ("left" | "abandoned" | "failed")?)
+	local summary =
+		RiftRun.summary(r.tally, kind, reason, r.depth, bestOf(r.owner), level(r.owner), os.clock())
+	Net.RiftResult:FireClient(r.owner, summary)
+end
+
 local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftRegion", r.region.id)
 	r.owner:SetAttribute("RiftDepth", r.depth)
@@ -124,23 +144,34 @@ local function returnToHub(player: Player)
 	end
 end
 
--- Beendet den Lauf. failed = Besitzer gestorben; sonst freiwillig verlassen.
-local function finish(r: Run, failed: boolean)
+-- Beendet den Lauf (Grund siehe RiftRun; "gone" = Spieler hat das Spiel verlassen)
+local function finish(r: Run, reason: EndReason)
 	if run ~= r then
 		return
 	end
 	run = nil
+	if r.died then
+		r.died:Disconnect()
+		r.died = nil
+	end
+	local failed = reason == "failed"
 	Metrics.report(
 		string.format("Tiefe %d %s", r.depth, if failed then "gescheitert" else "verlassen")
 	)
+	local owner = r.owner
+	if reason ~= "gone" then
+		local gold, items = Loot.collect(owner)
+		r.tally.gold += gold
+		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
+	end
 	Enemies.clear()
 	World.build(nil)
-	local owner = r.owner
 	owner:SetAttribute("RiftRegion", nil)
-	if not owner.Parent then
+	if reason == "gone" or not owner.Parent then
 		return
 	end
 	owner:SetAttribute("RiftLeft", 0)
+	report(r, "end", reason)
 	if failed then
 		owner:SetAttribute("RiftPhase", "failed") -- Respawn bringt den Spieler selbst zum Hub
 		task.delay(FAILED_SHOWN, function()
@@ -169,22 +200,24 @@ local function play(r: Run)
 			mark(r, Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth))
 		end
 		if not waitClear(r) then
-			return finish(r, true)
+			return finish(r, "failed")
 		end
 		task.wait(Config.RIFT_WAVE_PAUSE)
 		if not alive(r) then
-			return finish(r, true)
+			return finish(r, "failed")
 		end
 	end
 
 	publish(r, "boss")
 	mark(r, Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth))
 	if not waitClear(r) then
-		return finish(r, true)
+		return finish(r, "failed")
 	end
 	record(r)
+	r.tally.cleared += 1
 	Metrics.report(string.format("Tiefe %d geschafft", r.depth))
 	publish(r, "clear")
+	report(r, "clear", nil)
 end
 
 local function begin(player: Player, regionId: any)
@@ -197,8 +230,18 @@ local function begin(player: Player, regionId: any)
 	if not region or not Atlas.isOpen(id, bestOf(player)) then
 		return
 	end
-	local r: Run = { owner = player, region = region, depth = region.depth, wave = 0 }
+	local r: Run = {
+		owner = player,
+		region = region,
+		depth = region.depth,
+		wave = 0,
+		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
+	}
 	run = r
+	-- Tod beendet den Lauf sofort, auch in Pausen und bei der Wahl nach dem Boss
+	r.died = humanoid.Died:Connect(function()
+		finish(r, "failed")
+	end)
 	World.build(region)
 	model:PivotTo(CFrame.new(Config.RIFT_START))
 	task.spawn(play, r)
@@ -223,17 +266,52 @@ local function onAction(player: Player, action: any, regionId: any)
 	elseif action == "leave" then
 		local r = run
 		if r and r.owner == player then
-			finish(r, false)
+			finish(r, if player:GetAttribute("RiftPhase") == "clear" then "left" else "abandoned")
 		end
+	end
+end
+
+-- Mitzählen für die Zusammenfassung (nur der Besitzer des laufenden Rifts)
+local function tallyOf(player: any): RiftRun.Tally?
+	local r = run
+	return if r and r.owner == player then r.tally else nil
+end
+
+local function onKilled(player: any, _pos: any, _level: any, boss: any, _skill: any, xp: any)
+	local t = tallyOf(player)
+	if t then
+		t.kills += 1
+		t.bosses += if boss == true then 1 else 0
+		t.xp += if typeof(xp) == "number" then xp else 0
+	end
+end
+
+local function onPicked(player: any, gold: any, item: any)
+	local t = tallyOf(player)
+	if t then
+		t.gold += if typeof(gold) == "number" then gold else 0
+		if typeof(item) == "table" then
+			table.insert(t.items, item)
+		end
+	end
+end
+
+local function onLooted(player: any, delta: any)
+	local t = tallyOf(player)
+	if t and typeof(delta) == "table" then
+		RiftRun.addMaterials(t, delta)
 	end
 end
 
 function Rift.init()
 	Net.Rift.OnServerEvent:Connect(onAction)
+	Combat.EnemyKilled.Event:Connect(onKilled)
+	Loot.Picked.Event:Connect(onPicked)
+	Progress.Looted.Event:Connect(onLooted)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		local r = run
 		if r and r.owner == player then
-			finish(r, false)
+			finish(r, "gone")
 		end
 	end)
 end

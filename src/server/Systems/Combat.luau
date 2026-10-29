@@ -341,6 +341,11 @@ damageEnemy = function(
 	end
 end
 
+-- Test-Befehl (Systems/Debug): Gegner sofort besiegen, Beute und XP wie bei einem echten Kill
+function Combat.slay(player: Player, enemy: Model)
+	damageEnemy(enemy, 1e9, player, nil, true)
+end
+
 -- Wird von der Gegner-KI aufgerufen. Gibt true zurück, wenn der Treffer durchkam.
 function Combat.hurtPlayer(player: Player, amount: number): boolean
 	local st = states[player]

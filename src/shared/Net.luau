@@ -7,6 +7,7 @@
 --   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item } }
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
 --   Rift      (C→S): action: "enter" | "deeper" | "leave" – Zustand kommt über Player-Attribute (Types.luau)
+--   RiftResult (S→C): RiftRun.Summary – nach jedem Boss (kind "clear") und am Lauf-Ende (kind "end")
 --   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
 --   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill-Blüte)
 --   Star      (C→S): action: "alloc" | "remove" | "reset", starId: string? (Sternennetz)
@@ -29,6 +30,7 @@ local NAMES = {
 	"Unequip",
 	"Sell",
 	"Rift",
+	"RiftResult",
 	"Progress",
 	"Bloom",
 	"Star",
@@ -69,6 +71,7 @@ return table.freeze({
 	Unequip = get("Unequip"),
 	Sell = get("Sell"),
 	Rift = get("Rift"),
+	RiftResult = get("RiftResult"),
 	Progress = get("Progress"),
 	Bloom = get("Bloom"),
 	Star = get("Star"),
