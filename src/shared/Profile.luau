@@ -9,6 +9,7 @@
 
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
+local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Rebirth = require(script.Parent.Rebirth)
 
@@ -27,6 +28,7 @@ export type Data = {
 	soulstars: number, -- Seelensterne (Shop, später auch für Robux)
 	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
 	rebirths: number, -- Anzahl Wiedergeburten (Shared/Rebirth)
+	pets: Pets.Data, -- Haustiere (Shared/Pets)
 }
 
 export type Lock = { job: string, t: number }
@@ -54,6 +56,7 @@ local DEFAULTS: Data = {
 	soulstars = 0,
 	receipts = {},
 	rebirths = 0,
+	pets = Pets.fresh(),
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -163,6 +166,7 @@ function Profile.reconcile(raw: any): Data
 	end
 	data.receipts = receipts
 	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
+	data.pets = Pets.reconcile(data.pets)
 	return data :: Data
 end
 

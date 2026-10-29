@@ -3,7 +3,7 @@
 -- Jede Quelle meldet sich mit Boosts.source an und liefert { [stat]: Prozent }; die Summe landet als
 -- Player-Attribut, das Kampf, Beute und UI lesen:
 --   BonusDamage (Schaden %), BonusLife (max. Leben %), BonusGold (Gold %), BonusXP (Erfahrung %),
---   BonusItems (Item-Chance %)
+--   BonusItems (Item-Chance %), BonusMagnet (zusätzlicher Aufheberadius in Studs)
 -- Nach jeder Änderung an einer Quelle Boosts.refresh(player) aufrufen.
 
 local Players = game:GetService("Players")
@@ -22,6 +22,7 @@ Boosts.Attr = table.freeze({
 	gold = "BonusGold",
 	xp = "BonusXP",
 	items = "BonusItems",
+	magnet = "BonusMagnet",
 } :: { [string]: string })
 
 local sources: { [string]: Source } = {}

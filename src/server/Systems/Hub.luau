@@ -491,6 +491,7 @@ local function buildTown(parent: Instance)
 	-- Rift-Tor mit Bannern und Laternen
 	put(deco, "Hub_RiftTor", Props.portal, GATE.X, GATE.Z, PLAZA)
 	station(parent, GATE + Vector3.new(0, 0, 5), "Atlas öffnen", "Rift-Tor", "Atlas")
+	station(parent, GATE + Vector3.new(10, 0, 6), "Wiedergeburt", "Seelenaltar", "Rebirth")
 	for _, s in { -1, 1 } do
 		put(deco, "Hub_Banner", banner, s * 13, -36, PLAZA)
 		put(deco, "Hub_Laterne", lantern, s * 10, -26, PLAZA)
@@ -528,6 +529,7 @@ local function buildTown(parent: Instance)
 		pets.Z,
 		PLAZA
 	)
+	station(parent, pets + Vector3.new(-2, H.T, 4), "Haustiere", "Haustier-Stall", "Pets")
 	put(deco, "Hub_Fass", barrel, 30, -8)
 	put(deco, "Hub_Kiste", crate, 54, 14, PLAZA)
 

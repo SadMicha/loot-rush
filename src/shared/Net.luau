@@ -17,6 +17,9 @@
 --   ShopResult (S→C): { ok, text, offerId? } – Rückmeldung des Shops
 --   Rebirth   (C→S): keine Argumente – Wiedergeburt (Systems/Rebirth, Regeln Shared/Rebirth)
 --   RebirthResult (S→C): { ok, text, rebirths? } – Rückmeldung der Wiedergeburt
+--   Pet       (C→S): action: "hatch" | "equip" | "unequip", id: string (Ei- bzw. Haustier-ID)
+--   Pets      (S→C): { owned, equipped, slots } – Haustier-Stand (Shared/Pets)
+--   PetResult (S→C): { ok, text, pet?, level?, shards? } – Rückmeldung (Schlüpfen, Ausrüsten)
 --   Debug     (C→S): command: string, value: number? – Test-Befehle, nur Studio/DEV_USERS (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,6 +45,9 @@ local NAMES = {
 	"ShopResult",
 	"Rebirth",
 	"RebirthResult",
+	"Pet",
+	"Pets",
+	"PetResult",
 	"Debug",
 }
 
@@ -85,5 +91,8 @@ return table.freeze({
 	ShopResult = get("ShopResult"),
 	Rebirth = get("Rebirth"),
 	RebirthResult = get("RebirthResult"),
+	Pet = get("Pet"),
+	Pets = get("Pets"),
+	PetResult = get("PetResult"),
 	Debug = get("Debug"),
 })

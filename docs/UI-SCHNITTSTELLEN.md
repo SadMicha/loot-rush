@@ -38,3 +38,24 @@ local next = Rebirth.bonus(n + 1) -- { damage = 25, life = 10, gold = 20, xp = 2
 - Senden: `Net.Buy:FireServer(offerId)`; Antwort `Net.ShopResult` → `{ ok, text, offerId? }`
 - Preise **immer** über `Shop.price(offer, best)` und Mengen über `Shop.amount(offer, best)` anzeigen
   (`best` = Attribut `BestDepth`), Knopf-Sperre über `Shop.check(offer, wallet, best)`.
+
+## Haustiere
+
+- Senden: `Net.Pet:FireServer("hatch", eggId)`, `("equip", petId)`, `("unequip", petId)`
+- Stand: `Net.Pets` → `{ owned = { [petId] = Stufe }, equipped = { petId }, slots }`; der Client hält
+  den letzten Stand in `PetController.state` und feuert `PetController.Changed`.
+- Antwort: `Net.PetResult` → `{ ok, text, pet?, level? }` (nach dem Schlüpfen: welches Haustier)
+- Katalog/Anzeige: `Shared/Pets` – `List`, `ById`, `Eggs`, `StatName`, `bonusOf(id, level)`,
+  `levelMult(level)`. Ei-Preis in Gold: `egg.price.amount × Balance.shopFactor(BestDepth)`.
+- Attribute: `Pets` (ausgerüstet, kommagetrennt), `PetSlots`.
+
+## Stationen im Hub
+
+`HubController` öffnet Fenster über das Prompt-Attribut `Fenster`. Für Stationen ohne Fenster
+(`Pets` = Haustier-Stall, `Rebirth` = Seelenaltar) feuert `HubController.Requested(name)`:
+
+```lua
+HubController.Requested.Event:Connect(function(name)
+	if name == "Pets" then MeinPetFenster.toggle() end
+end)
+```

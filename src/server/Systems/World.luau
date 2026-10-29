@@ -10,7 +10,6 @@
 -- hinter dem Nordrand, damit jede Arena wie ein Ort wirkt und nicht wie ein Brett.
 -- Requisiten kommen aus Shared/Models (Part-Builder); die Platzierung bleibt hier.
 
-local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
@@ -31,19 +30,6 @@ local RING = 3 -- Umgebungs-Kacheln hinter Nordrand und Seiten
 local RING_FRONT = 2 -- flache Umgebungs-Kacheln vorne (Kamera schaut von dort)
 local DETAILS = 70 -- kleine Bodendetails (Blumen, Kiesel …) auf dem Spielfeld
 
--- Licht je Gebiet; fehlende Felder = Werte aus default.project.json (beim Start gemerkt)
-type Light = {
-	clock: number?,
-	brightness: number?,
-	ambient: Color3?,
-	outdoor: Color3?,
-	fog: Color3?, -- Atmosphere.Color
-	decay: Color3?, -- Atmosphere.Decay
-	density: number?,
-	haze: number?,
-	tint: Color3?, -- Farbkorrektur
-}
-
 -- Flüssigkeit auf abgesenkten Kacheln (begehbar, nur Optik)
 type Liquid = { color: Color3, material: Enum.Material, transparency: number, glow: boolean }
 
@@ -55,7 +41,6 @@ type Look = {
 	material: Enum.Material,
 	liquid: Liquid?,
 	pool: ((x: number, z: number) -> boolean)?, -- Kachel (Rasterkoordinaten) ist Flüssigkeit
-	light: Light,
 	particles: { color: Color3, rate: number, speed: number, size: number }?,
 	-- Umgebungsring: Höhe je Ring-Stufe + Zufall; nil = kein Ring (Abgrund, z. B. Himmelsinseln)
 	ring: { step: number, rough: number }?,
@@ -68,8 +53,6 @@ local rng = Random.new(7)
 local arena: Folder
 local current: Folder? = nil
 local currentId = ""
-local mood: ColorCorrectionEffect? = nil
-local defaults: Light = {}
 local heights: { [number]: number } = {} -- Bodenhöhe je Kachel (Schlüssel x * 1000 + z)
 
 -- ------------------------------------------------------------------ Bausteine
@@ -633,7 +616,6 @@ local LOOKS: { [string]: Look } = {
 		soil = C.dirt,
 		cliff = C.stone,
 		material = Enum.Material.SmoothPlastic,
-		light = {},
 		particles = { color = Color3.fromHex("#FFF3A0"), rate = 6, speed = 1, size = 0.25 },
 		ring = { step = 3, rough = 3 },
 		fill = meadowFill,
@@ -655,17 +637,6 @@ local LOOKS: { [string]: Look } = {
 		pool = function(x, z)
 			return (math.abs(x) >= 6 and z >= -2 and z <= 1) or (x >= -1 and x <= 1 and z == -5)
 		end,
-		light = {
-			clock = 20.6,
-			brightness = 1.2,
-			ambient = Color3.fromHex("#40527F"),
-			outdoor = Color3.fromHex("#4A6699"),
-			fog = Color3.fromHex("#6FA8D8"),
-			decay = Color3.fromHex("#2A3B6A"),
-			density = 0.45,
-			haze = 2,
-			tint = Color3.fromHex("#D6F2FF"),
-		},
 		particles = { color = Color3.fromHex("#9FE6FF"), rate = 14, speed = 0.6, size = 0.2 },
 		ring = { step = 7, rough = 6 },
 		fill = cavesFill,
@@ -688,17 +659,6 @@ local LOOKS: { [string]: Look } = {
 			local n = math.noise(x * 0.45, z * 0.45, 3.7)
 			return n > 0.22 and not (math.abs(x) <= 1 and z >= 0)
 		end,
-		light = {
-			clock = 18.2,
-			brightness = 1.8,
-			ambient = Color3.fromHex("#5A476B"),
-			outdoor = Color3.fromHex("#806699"),
-			fog = Color3.fromHex("#B79BD8"),
-			decay = Color3.fromHex("#5C3F7A"),
-			density = 0.5,
-			haze = 2.5,
-			tint = Color3.fromHex("#F2E0FF"),
-		},
 		particles = { color = Color3.fromHex("#D7FF8A"), rate = 18, speed = 0.8, size = 0.3 },
 		ring = { step = 2, rough = 2 },
 		fill = swampFill,
@@ -722,17 +682,6 @@ local LOOKS: { [string]: Look } = {
 			local river = math.floor(math.sin(x * 0.5) * 1.2 + 0.5) - 1
 			return z == river and math.abs(x) >= 2
 		end,
-		light = {
-			clock = 18.4,
-			brightness = 2.2,
-			ambient = Color3.fromHex("#733F33"),
-			outdoor = Color3.fromHex("#B3734D"),
-			fog = Color3.fromHex("#FFB27A"),
-			decay = Color3.fromHex("#8A3A1E"),
-			density = 0.4,
-			haze = 2.2,
-			tint = Color3.fromHex("#FFE2C8"),
-		},
 		particles = { color = Color3.fromHex("#FFB04A"), rate = 22, speed = 2, size = 0.25 },
 		ring = { step = 4, rough = 5 },
 		fill = desertFill,
@@ -745,17 +694,6 @@ local LOOKS: { [string]: Look } = {
 		soil = Color3.fromHex("#B8C4D6"),
 		cliff = Color3.fromHex("#9AA8BE"),
 		material = Enum.Material.Marble,
-		light = {
-			clock = 13,
-			brightness = 3,
-			ambient = Color3.fromHex("#66738C"),
-			outdoor = Color3.fromHex("#B3BFD9"),
-			fog = Color3.fromHex("#DDF4FF"),
-			decay = Color3.fromHex("#9CC8FF"),
-			density = 0.28,
-			haze = 1,
-			tint = Color3.fromHex("#F4FBFF"),
-		},
 		particles = { color = Color3.new(1, 1, 1), rate = 10, speed = 3, size = 0.35 },
 		fill = skyFill,
 		detail = skyDetail,
@@ -777,17 +715,6 @@ local LOOKS: { [string]: Look } = {
 			-- Risse: zwei gezackte Linien
 			return (x == z - 1 or x == -z - 2) and math.abs(x) >= 2
 		end,
-		light = {
-			clock = 0.5,
-			brightness = 1.2,
-			ambient = Color3.fromHex("#59336F"),
-			outdoor = Color3.fromHex("#66337F"),
-			fog = Color3.fromHex("#6A3A9A"),
-			decay = Color3.fromHex("#FF5AD0"),
-			density = 0.5,
-			haze = 2,
-			tint = Color3.fromHex("#FFD0F4"),
-		},
 		particles = { color = Color3.fromHex("#FF8AE0"), rate = 20, speed = 1.5, size = 0.3 },
 		ring = { step = 5, rough = 8 },
 		fill = riftFill,
@@ -796,42 +723,6 @@ local LOOKS: { [string]: Look } = {
 	},
 }
 World.Looks = LOOKS
-
--- ------------------------------------------------------------------ Licht
-local function remember()
-	local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
-	defaults = {
-		clock = Lighting.ClockTime,
-		brightness = Lighting.Brightness,
-		ambient = Lighting.Ambient,
-		outdoor = Lighting.OutdoorAmbient,
-		fog = if atmo then atmo.Color else nil,
-		decay = if atmo then atmo.Decay else nil,
-		density = if atmo then atmo.Density else nil,
-		haze = if atmo then atmo.Haze else nil,
-		tint = Color3.new(1, 1, 1),
-	}
-end
-
-local function applyLight(l: Light)
-	local function either<V>(v: V?, d: V?): V?
-		return if v ~= nil then v else d
-	end
-	Lighting.ClockTime = either(l.clock, defaults.clock) or Lighting.ClockTime
-	Lighting.Brightness = either(l.brightness, defaults.brightness) or Lighting.Brightness
-	Lighting.Ambient = either(l.ambient, defaults.ambient) or Lighting.Ambient
-	Lighting.OutdoorAmbient = either(l.outdoor, defaults.outdoor) or Lighting.OutdoorAmbient
-	local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
-	if atmo then
-		atmo.Color = either(l.fog, defaults.fog) or atmo.Color
-		atmo.Decay = either(l.decay, defaults.decay) or atmo.Decay
-		atmo.Density = either(l.density, defaults.density) or atmo.Density
-		atmo.Haze = either(l.haze, defaults.haze) or atmo.Haze
-	end
-	if mood then
-		mood.TintColor = either(l.tint, defaults.tint) or Color3.new(1, 1, 1)
-	end
-end
 
 -- ------------------------------------------------------------------ Aufbau
 -- Baut die Arena für ein Gebiet (nil = Grüne Ebenen). Gleiches Gebiet → nichts zu tun.
@@ -866,7 +757,7 @@ function World.build(region: Atlas.Region?)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
-	applyLight(look.light)
+	workspace:SetAttribute("ArenaRegion", id) -- Licht stellt der Client (LightController)
 	folder.Parent = arena
 	current = folder
 end
@@ -890,12 +781,6 @@ end
 function World.start()
 	arena = Instance.new("Folder")
 	arena.Name = "Arena"
-
-	local cc = Instance.new("ColorCorrectionEffect")
-	cc.Name = "Gebiet"
-	cc.Parent = Lighting
-	mood = cc
-	remember()
 	World.build(nil)
 	arena.Parent = workspace
 	print("[LootRush] Arena gebaut")

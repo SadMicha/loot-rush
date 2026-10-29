@@ -30,6 +30,11 @@ local function reply(player: Player, ok: boolean, text: string, offerId: string?
 	Net.ShopResult:FireClient(player, { ok = ok, text = text, offerId = offerId })
 end
 
+-- Anzeigename einer Bestandsart ("gold" → "Gold")
+function Shop.nameOf(kind: string): string
+	return Rules.KindName[kind] or kind
+end
+
 -- Bestände für Shared.Shop.check
 function Shop.wallet(player: Player): Rules.Wallet?
 	local profile = Data.get(player)
