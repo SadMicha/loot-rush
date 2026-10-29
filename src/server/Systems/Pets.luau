@@ -37,20 +37,23 @@ function Pets.eggPrice(egg: Rules.Egg, bestDepth: number): number
 	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
 end
 
+-- Mehr ausgerüstet als Plätze da sind (Gamepass weg)? Überzählige ablegen
+local function trim(player: Player, profile: Data.Profile)
+	local list = profile.pets.equipped
+	while #list > Pets.slots(player) do
+		table.remove(list)
+	end
+end
+
 function Pets.sync(player: Player)
 	local profile = Data.get(player)
 	if not profile then
 		return
 	end
+	trim(player, profile)
 	local slots = Pets.slots(player)
-	local shown = {}
-	for i, id in profile.pets.equipped do
-		if i <= slots then
-			table.insert(shown, id)
-		end
-	end
 	player:SetAttribute("PetSlots", slots)
-	player:SetAttribute("Pets", table.concat(shown, ","))
+	player:SetAttribute("Pets", table.concat(profile.pets.equipped, ","))
 	Net.Pets:FireClient(
 		player,
 		{ owned = profile.pets.owned, equipped = profile.pets.equipped, slots = slots }
@@ -88,6 +91,7 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 		Shop.grant(player, "shards", shards)
 	end
 	-- erstes Haustier gleich ausrüsten, wenn ein Platz frei ist
+	trim(player, profile)
 	if fresh and #profile.pets.equipped < Pets.slots(player) then
 		table.insert(profile.pets.equipped, pet.id)
 	end
@@ -109,6 +113,7 @@ function Pets.equip(player: Player, petId: string): (boolean, string)
 	if not profile or not profile.pets.owned[petId] then
 		return false, "Haustier fehlt"
 	end
+	trim(player, profile)
 	local list = profile.pets.equipped
 	if table.find(list, petId) then
 		return false, "Schon ausgerüstet"
