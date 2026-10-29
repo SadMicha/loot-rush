@@ -77,8 +77,11 @@ TTK = Sekunden je normalem Gegner (Einzelziel). Treffer = so viele Treffer hält
 - Sprünge: Kristallhöhlen (ab 6) haben doppelt so zähe Gegner wie die Grünen Ebenen (viele Tanks),
   Pilzsumpf (ab 11) teilt mehr aus (Lader ×1,6). Beides bleibt im Rahmen.
 
-## Offen – Entscheidung nötig
+## Shop-Preise wachsen mit (seit Wiedergeburt-PR)
 
-1. **Gold-Inflation im Shop:** Kill-Gold wächst ×1,13 je Tiefe, Shop-Preise sind fest. Auf Tiefe 30
-   bringt ein Lauf ~8.000 Gold, ein Heiltrank kostet 40. Auch die Goldpakete für Seelensterne
-   (1.000/5.500/12.000) sind dann wertlos.
+Goldpreise im Shop und die Goldpakete (Gold gegen Seelensterne) wachsen wie das Kill-Gold mit
+×1,13 je Tiefe – gemessen an der **besten geschafften Tiefe** über alle Gebiete
+(`Balance.shopFactor`, `Shop.price`/`Shop.amount`). Ein Heiltrank kostet auf Tiefe 1 40 Gold, auf
+Tiefe 20 ~410, auf Tiefe 30 ~1.400. Zahlen werden auf zwei Stellen geglättet. Seelenstern-Preise
+und Material-Mengen bleiben fest. Nach einer Wiedergeburt fällt die beste Tiefe zurück, die
+Preise also auch.

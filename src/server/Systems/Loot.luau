@@ -144,7 +144,14 @@ local function onKilled(
 	local function coin(amount: number): number
 		return math.max(1, math.floor(amount + rng:NextNumber()))
 	end
-	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0) * t.goldMult
+	local function bonus(attr: string): number
+		local v = owner:GetAttribute(attr)
+		return 1 + (if typeof(v) == "number" then v else 0) / 100
+	end
+	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0)
+		* t.goldMult
+		* bonus("BonusGold") -- Wiedergeburt, Haustier … (Systems/Boosts)
+	local itemChance = math.min(1, t.itemChance * bonus("BonusItems"))
 	if boss == true then
 		local coins = Config.LOOT_BOSS_GOLD_DROPS
 		for _ = 1, coins do
@@ -160,7 +167,7 @@ local function onKilled(
 	if total > 0 then
 		makeDrop(pos, owner, coin(total), nil)
 	end
-	if rng:NextNumber() < t.itemChance then
+	if rng:NextNumber() < itemChance then
 		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, { shift = t.shift }))
 	end
 end

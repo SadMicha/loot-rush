@@ -56,9 +56,10 @@ local function steps(depth: number): number
 	return math.max(0, math.floor(depth) - 1)
 end
 
--- Je Tiefe (normaler Gegner, vor Archetyp- und Boss-Faktor)
-function Balance.enemyHealth(depth: number): number
-	local wall = math.max(0, math.floor(depth) - P.wand_ab)
+-- Je Tiefe (normaler Gegner, vor Archetyp- und Boss-Faktor).
+-- wallShift: so viele Tiefen liegt die weiche Wand weiter hinten (Wiedergeburten, Shared/Rebirth)
+function Balance.enemyHealth(depth: number, wallShift: number?): number
+	local wall = math.max(0, math.floor(depth) - P.wand_ab - (wallShift or 0))
 	return P.hp_basis * P.hp_wachstum ^ steps(depth) * P.wand_wachstum ^ wall
 end
 
@@ -96,6 +97,12 @@ end
 -- Faktor auf allen Spieler-Schaden: Waffen-Grundschaden relativ zu IP 10
 function Balance.weaponFactor(ip: number): number
 	return Balance.weaponDamage(ip) / P.waffe_basis
+end
+
+-- Preisfaktor im Shop: Goldpreise (und Goldpakete) wachsen wie das Kill-Gold mit der besten
+-- geschafften Tiefe, damit Gold nicht wertlos wird (eigene Annahme, docs/balancing.md)
+function Balance.shopFactor(bestDepth: number): number
+	return P.gold_wachstum ^ steps(math.max(1, bestDepth))
 end
 
 -- Verschiebung der Seltenheit: 1 + Tiefe / loot_tiefe

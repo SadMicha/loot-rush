@@ -10,6 +10,7 @@
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
 local Progression = require(script.Parent.Progression)
+local Rebirth = require(script.Parent.Rebirth)
 
 local Profile = {}
 
@@ -25,6 +26,7 @@ export type Data = {
 	potions: number, -- Heiltränke (Shop, Taste 1)
 	soulstars: number, -- Seelensterne (Shop, später auch für Robux)
 	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
+	rebirths: number, -- Anzahl Wiedergeburten (Shared/Rebirth)
 }
 
 export type Lock = { job: string, t: number }
@@ -51,6 +53,7 @@ local DEFAULTS: Data = {
 	potions = Config.POTION_START,
 	soulstars = 0,
 	receipts = {},
+	rebirths = 0,
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -159,6 +162,7 @@ function Profile.reconcile(raw: any): Data
 		table.remove(receipts, 1)
 	end
 	data.receipts = receipts
+	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
 	return data :: Data
 end
 

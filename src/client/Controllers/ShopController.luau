@@ -124,11 +124,18 @@ local function renderLeft(have: Shop.Wallet)
 end
 
 -- ------------------------------------------------------------------ Rechts: Angebote
+-- Beste Tiefe über alle Gebiete (Server-Attribut), bestimmt die Goldpreise
+local function bestDepth(): number
+	local v = player:GetAttribute("BestDepth")
+	return if typeof(v) == "number" then v else 1
+end
+
 local function priceButton(offer: Shop.Offer, have: Shop.Wallet, w: number): (ImageButton, string?)
 	local size = Vector2.new(w, 64)
-	local price = offer.price
+	local best = bestDepth()
+	local price = Shop.price(offer, best)
 	if price then
-		local ok, why = Shop.check(offer, have)
+		local ok, why = Shop.check(offer, have, best)
 		local b = Kit.button(Format.int(price.amount), C.Gold, size, Shop.KindIcon[price.kind])
 		Kit.setEnabled(b, ok)
 		b.Activated:Connect(function()
@@ -181,7 +188,11 @@ local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
 	name.ZIndex = 2
 	name.Parent = info
 	local gain = Kit.label(
-		string.format("+%s %s", Format.int(offer.amount), Shop.KindName[offer.give]),
+		string.format(
+			"+%s %s",
+			Format.int(Shop.amount(offer, bestDepth())),
+			Shop.KindName[offer.give]
+		),
 		18,
 		C.Gold
 	)
@@ -305,6 +316,7 @@ function ShopController.init()
 	for _, attr in ATTR do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
+	player:GetAttributeChangedSignal("BestDepth"):Connect(refresh) -- Goldpreise
 	Net.ShopResult.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" or typeof(data.text) ~= "string" then
 			return

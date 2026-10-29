@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
@@ -29,6 +30,7 @@ type Run = {
 	owner: Player,
 	region: Atlas.Region,
 	depth: number, -- absolute Tiefe (skaliert die Gegner)
+	wallShift: number, -- weiche Wand verschoben (Wiedergeburten des Besitzers)
 	wave: number,
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
@@ -70,20 +72,34 @@ local function bestOf(player: Player): (string) -> number
 	end
 end
 
-local function publishBest(player: Player)
+-- Bestwerte als Attribute: AtlasBest_<id> je Gebiet und BestDepth (über alle, Shop-Preise)
+function Rift.publishBest(player: Player)
 	local best = bestOf(player)
 	for _, region in Atlas.Regions do
 		local depth = best(region.id)
 		player:SetAttribute(Atlas.attr(region.id), if depth > 0 then depth else nil)
 	end
+	local profile = Data.get(player)
+	player:SetAttribute("BestDepth", if profile then Rebirth.bestDepth(profile.atlas) else 0)
 end
 
 local function record(r: Run)
 	local profile = Data.get(r.owner)
 	if profile and r.depth > (profile.atlas[r.region.id] or 0) then
 		profile.atlas[r.region.id] = r.depth
-		r.owner:SetAttribute(Atlas.attr(r.region.id), r.depth)
+		Rift.publishBest(r.owner)
 	end
+end
+
+function Rift.rebirthsOf(player: Player): number
+	local profile = Data.get(player)
+	return if profile then profile.rebirths else 0
+end
+
+-- Läuft gerade ein Rift dieses Spielers?
+function Rift.isRunning(player: Player): boolean
+	local r = run
+	return r ~= nil and r.owner == player
 end
 
 local function level(player: Player): number
@@ -197,7 +213,10 @@ local function play(r: Run)
 		)
 		local mix = r.region.enemies
 		for _ = 1, count do
-			mark(r, Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth))
+			mark(
+				r,
+				Enemies.spawn(mix[rng:NextInteger(1, #mix)], spawnPoint(), r.depth, r.wallShift)
+			)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")
@@ -209,7 +228,7 @@ local function play(r: Run)
 	end
 
 	publish(r, "boss")
-	mark(r, Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth))
+	mark(r, Enemies.spawn(r.region.bossKind, Config.ENEMY_ZONE, r.depth, r.wallShift))
 	if not waitClear(r) then
 		return finish(r, "failed")
 	end
@@ -234,6 +253,7 @@ local function begin(player: Player, regionId: any)
 		owner = player,
 		region = region,
 		depth = region.depth,
+		wallShift = Rebirth.wallShift(Rift.rebirthsOf(player)),
 		wave = 0,
 		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
 	}
@@ -320,7 +340,7 @@ end
 function Rift.start()
 	local function onPlayer(player: Player)
 		if Data.waitFor(player) then
-			publishBest(player)
+			Rift.publishBest(player)
 		end
 	end
 	for _, player in Players:GetPlayers() do
