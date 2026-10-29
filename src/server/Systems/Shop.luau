@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Profile = require(ReplicatedStorage.Shared.Profile)
+local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Shop)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
@@ -75,15 +76,18 @@ local function onBuy(player: Player, offerId: any)
 	if not offer or not wallet then
 		return
 	end
-	local ok, why = Rules.check(offer, wallet)
-	local price = offer.price
+	local profile = Data.get(player)
+	local best = if profile then Rebirth.bestDepth(profile.atlas) else 1
+	local ok, why = Rules.check(offer, wallet, best)
+	local price = Rules.price(offer, best)
 	if not ok or not price then
 		reply(player, false, why or "Geht nicht", offerId)
 		return
 	end
+	local amount = Rules.amount(offer, best)
 	Shop.grant(player, price.kind, -price.amount)
-	Shop.grant(player, offer.give, offer.amount)
-	reply(player, true, string.format("+%d %s", offer.amount, Rules.KindName[offer.give]), offerId)
+	Shop.grant(player, offer.give, amount)
+	reply(player, true, string.format("+%d %s", amount, Rules.KindName[offer.give]), offerId)
 end
 
 -- ------------------------------------------------------------------ Robux

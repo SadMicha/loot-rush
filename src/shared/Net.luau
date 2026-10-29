@@ -15,6 +15,8 @@
 --   ForgeResult (S→C): { ok, text, itemId?, used? } – Rückmeldung der Schmiede
 --   Buy       (C→S): offerId: string – Ingame-Kauf im Shop (Systems/Shop)
 --   ShopResult (S→C): { ok, text, offerId? } – Rückmeldung des Shops
+--   Rebirth   (C→S): keine Argumente – Wiedergeburt (Systems/Rebirth, Regeln Shared/Rebirth)
+--   RebirthResult (S→C): { ok, text, rebirths? } – Rückmeldung der Wiedergeburt
 --   Debug     (C→S): command: string, value: number? – Test-Befehle, nur Studio/DEV_USERS (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -38,6 +40,8 @@ local NAMES = {
 	"ForgeResult",
 	"Buy",
 	"ShopResult",
+	"Rebirth",
+	"RebirthResult",
 	"Debug",
 }
 
@@ -79,5 +83,7 @@ return table.freeze({
 	ForgeResult = get("ForgeResult"),
 	Buy = get("Buy"),
 	ShopResult = get("ShopResult"),
+	Rebirth = get("Rebirth"),
+	RebirthResult = get("RebirthResult"),
 	Debug = get("Debug"),
 })

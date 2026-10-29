@@ -54,6 +54,7 @@ type Enemy = {
 	kind: Kind,
 	damage: number,
 	depth: number,
+	wallShift: number, -- weiche Wand verschoben (Wiedergeburten)
 	summoned: boolean,
 	phase: number,
 	nextAttack: number,
@@ -450,12 +451,13 @@ local function clampArena(p: Vector3): Vector3
 	return Vector3.new(math.clamp(p.X, -MAX_X, MAX_X), p.Y, math.clamp(p.Z, MIN_Z, MAX_Z))
 end
 
--- Werte eines Gegnertyps auf dieser Tiefe (ohne Gebiets-Boni); auch für tests/Balancing
-function Enemies.stats(kindName: string, depth: number)
+-- Werte eines Gegnertyps auf dieser Tiefe (ohne Gebiets-Boni); auch für tests/Balancing.
+-- wallShift verschiebt die weiche Wand (Wiedergeburten des Rift-Besitzers, Shared/Rebirth).
+function Enemies.stats(kindName: string, depth: number, wallShift: number?)
 	local kind = KINDS[kindName]
 	assert(kind, "unbekannter Gegnertyp")
 	return {
-		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth))),
+		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth, wallShift))),
 		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) + 0.5)),
 		xp = math.floor(kind.xp * Balance.xp(depth) + 0.5),
 		gold = kind.gold * Balance.gold(depth), -- ungerundet: Loot rundet erst nach dem Gebiets-Bonus
@@ -465,13 +467,13 @@ function Enemies.stats(kindName: string, depth: number)
 end
 
 -- Erzeugt einen Gegner. depth skaliert Leben, Schaden, XP und Gold (Shared/Balance).
-function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
+function Enemies.spawn(kindName: string, pos: Vector3, depth: number, wallShift: number?): Model?
 	local kind = KINDS[kindName]
 	if not kind then
 		warn("[Enemies] unbekannter Gegnertyp " .. tostring(kindName))
 		return nil
 	end
-	local st = Enemies.stats(kindName, depth)
+	local st = Enemies.stats(kindName, depth, wallShift)
 	local health = st.health
 	local model = kind.build(kind.scale)
 	model.Name = kind.name
@@ -493,6 +495,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 		kind = kind,
 		damage = st.damage,
 		depth = depth,
+		wallShift = wallShift or 0,
 		summoned = false,
 		phase = rng:NextNumber(0, 6),
 		nextAttack = now + 1,
@@ -677,7 +680,7 @@ local function summon(e: Enemy, around: Vector3, count: number)
 	for i = 1, count do
 		local a = (i / count) * math.pi * 2
 		local at = clampArena(around + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6))
-		local m = Enemies.spawn(addKind, Vector3.new(at.X, 0, at.Z), e.depth)
+		local m = Enemies.spawn(addKind, Vector3.new(at.X, 0, at.Z), e.depth, e.wallShift)
 		if m then
 			local region = e.model:GetAttribute("Region")
 			if typeof(region) == "string" then

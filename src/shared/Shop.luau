@@ -3,8 +3,11 @@
 -- das Fenster (ShopController) zeigt dieselben Angebote und dieselben Gründe für gesperrte Knöpfe.
 --   • Ingame: Tränke und Material gegen Gold, Gold gegen Seelensterne
 --   • Robux: Seelensterne als Developer Products – IDs sind noch Platzhalter (0 = nicht verkäuflich)
--- Preise sind eigene Annahmen (nicht im Balancing-Blatt): ein Gegner bringt etwa 2–4 + 2×Level Gold.
+-- Preise sind eigene Annahmen (nicht im Balancing-Blatt). Goldpreise und Goldpakete wachsen mit der
+-- besten geschafften Tiefe (Balance.shopFactor, wie das Kill-Gold ×1,13 je Tiefe); die Zahlen im
+-- Katalog gelten für Tiefe 1. Anzeigen immer über Shop.price/Shop.amount.
 
+local Balance = require(script.Parent.Balance)
 local Config = require(script.Parent.Config)
 
 local Shop = {}
@@ -276,9 +279,38 @@ function Shop.hasLiveProducts(): boolean
 	return false
 end
 
--- Darf der Spieler das Ingame-Angebot kaufen? Robux-Angebote laufen nicht hierüber.
-function Shop.check(offer: Offer, wallet: Wallet): (boolean, string?)
+-- Glatte Zahl: unter 100 ganz, darüber auf zwei gültige Stellen (1.234 → 1.200)
+local function nice(n: number): number
+	if n < 100 then
+		return math.max(1, math.floor(n + 0.5))
+	end
+	local step = 10 ^ (math.floor(math.log10(n)) - 1)
+	return math.floor(n / step + 0.5) * step
+end
+
+-- Ingame-Preis bei dieser besten Tiefe (nil = nur Robux). Nur Gold-Preise wachsen.
+function Shop.price(offer: Offer, bestDepth: number?): { kind: Kind, amount: number }?
 	local price = offer.price
+	if not price then
+		return nil
+	end
+	if price.kind ~= "gold" then
+		return price
+	end
+	return { kind = price.kind, amount = nice(price.amount * Balance.shopFactor(bestDepth or 1)) }
+end
+
+-- Menge, die der Kauf gibt (Goldpakete wachsen mit, damit Seelensterne ihren Wert behalten)
+function Shop.amount(offer: Offer, bestDepth: number?): number
+	if offer.give ~= "gold" then
+		return offer.amount
+	end
+	return nice(offer.amount * Balance.shopFactor(bestDepth or 1))
+end
+
+-- Darf der Spieler das Ingame-Angebot kaufen? Robux-Angebote laufen nicht hierüber.
+function Shop.check(offer: Offer, wallet: Wallet, bestDepth: number?): (boolean, string?)
+	local price = Shop.price(offer, bestDepth)
 	if not price then
 		return false, "Nur mit Robux"
 	end
@@ -293,13 +325,13 @@ function Shop.check(offer: Offer, wallet: Wallet): (boolean, string?)
 end
 
 -- Bestand nach dem Kauf (neue Tabelle; prüft nicht, dafür Shop.check)
-function Shop.apply(offer: Offer, wallet: Wallet): Wallet
+function Shop.apply(offer: Offer, wallet: Wallet, bestDepth: number?): Wallet
 	local out = table.clone(wallet)
-	local price = offer.price
+	local price = Shop.price(offer, bestDepth)
 	if price then
 		out[price.kind] = (out[price.kind] or 0) - price.amount
 	end
-	out[offer.give] = (out[offer.give] or 0) + offer.amount
+	out[offer.give] = (out[offer.give] or 0) + Shop.amount(offer, bestDepth)
 	return out
 end
 

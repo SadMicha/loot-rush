@@ -124,7 +124,9 @@ local function applyLevelStats(player: Player, fill: boolean)
 	end
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local bonus = (player:GetAttribute("StatLife") or 0) :: number
-	humanoid.MaxHealth = (Balance.life(level) + bonus) * (1 + num(player, "StatLifePct") / 100)
+	humanoid.MaxHealth = (Balance.life(level) + bonus)
+		* (1 + num(player, "StatLifePct") / 100)
+		* (1 + num(player, "BonusLife") / 100) -- Wiedergeburt, Haustier … (Systems/Boosts)
 	if fill then
 		humanoid.Health = humanoid.MaxHealth
 	end
@@ -175,6 +177,18 @@ local function addXP(player: Player, amount: number)
 			Net.Fx:FireAllClients("levelup", { pos = root.Position, level = level })
 		end
 	end
+end
+
+-- Level und XP direkt setzen (Wiedergeburt, Test-Befehle); füllt das Leben auf
+function Combat.setLevel(player: Player, level: number, xp: number)
+	player:SetAttribute("Level", level)
+	player:SetAttribute("XP", xp)
+	player:SetAttribute("XPNext", xpFor(level))
+	local profile = Data.get(player)
+	if profile then
+		profile.level, profile.xp = level, xp
+	end
+	Combat.refreshStats(player, true)
 end
 
 -- ------------------------------------------------------------------ Schaden
@@ -287,6 +301,7 @@ damageEnemy = function(
 	local amount = base
 		* (if weapon > 0 then weapon else 1)
 		* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
+		* (1 + num(player, "BonusDamage") / 100) -- Wiedergeburt, Haustier … (Systems/Boosts)
 		* (if crit then critMult else 1)
 	amount = math.max(1, math.floor(amount + 0.5))
 	hp = math.max(0, hp - amount)
@@ -321,7 +336,9 @@ damageEnemy = function(
 			"death",
 			{ pos = pos, color = if typeof(color) == "Color3" then color else Color3.new(1, 1, 1) }
 		)
-		local xp = (enemy:GetAttribute("XP") or 0) :: number
+		local xp = math.floor(
+			((enemy:GetAttribute("XP") or 0) :: number) * (1 + num(player, "BonusXP") / 100) + 0.5
+		)
 		local boss = enemy:GetAttribute("Boss") == true
 		local depth = enemy:GetAttribute("Depth")
 		local region = enemy:GetAttribute("Region")

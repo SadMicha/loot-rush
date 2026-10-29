@@ -20,6 +20,7 @@ local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 local Progress = require(script.Parent.Progress)
+local Rift = require(script.Parent.Rift)
 local Shop = require(script.Parent.Shop)
 
 local Debug = {}
@@ -49,11 +50,7 @@ local function setLevel(player: Player, level: number)
 	if not profile then
 		return
 	end
-	profile.level, profile.xp = level, 0
-	player:SetAttribute("Level", level)
-	player:SetAttribute("XP", 0)
-	player:SetAttribute("XPNext", Combat.xpFor(level))
-	Combat.refreshStats(player, true)
+	Combat.setLevel(player, level, 0)
 	Progress.sync(player) -- Sternpunkte hängen am Level
 end
 
@@ -85,8 +82,8 @@ local function unlockAtlas(player: Player)
 	for _, region in Atlas.Regions do
 		local depth = math.max(profile.atlas[region.id] or 0, deepest)
 		profile.atlas[region.id] = depth
-		player:SetAttribute(Atlas.attr(region.id), depth)
 	end
+	Rift.publishBest(player)
 end
 
 local function addItems(player: Player, n: number)
