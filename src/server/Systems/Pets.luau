@@ -37,7 +37,8 @@ function Pets.eggPrice(egg: Rules.Egg, bestDepth: number): number
 	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
 end
 
--- Mehr ausgerüstet als Plätze da sind (Gamepass weg)? Überzählige ablegen
+-- Mehr ausgerüstet als Plätze da sind (Gamepass weg)? Überzählige ablegen – nur bei einer
+-- Aktion des Spielers, nicht beim Laden (der Gamepass-Besitz kann erst später ankommen)
 local function trim(player: Player, profile: Data.Profile)
 	local list = profile.pets.equipped
 	while #list > Pets.slots(player) do
@@ -50,10 +51,15 @@ function Pets.sync(player: Player)
 	if not profile then
 		return
 	end
-	trim(player, profile)
 	local slots = Pets.slots(player)
+	local shown = {}
+	for i, id in profile.pets.equipped do
+		if i <= slots then
+			table.insert(shown, id)
+		end
+	end
 	player:SetAttribute("PetSlots", slots)
-	player:SetAttribute("Pets", table.concat(profile.pets.equipped, ","))
+	player:SetAttribute("Pets", table.concat(shown, ","))
 	Net.Pets:FireClient(
 		player,
 		{ owned = profile.pets.owned, equipped = profile.pets.equipped, slots = slots }
@@ -91,7 +97,6 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 		Shop.grant(player, "shards", shards)
 	end
 	-- erstes Haustier gleich ausrüsten, wenn ein Platz frei ist
-	trim(player, profile)
 	if fresh and #profile.pets.equipped < Pets.slots(player) then
 		table.insert(profile.pets.equipped, pet.id)
 	end
