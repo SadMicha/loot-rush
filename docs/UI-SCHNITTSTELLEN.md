@@ -59,3 +59,11 @@ HubController.Requested.Event:Connect(function(name)
 	if name == "Pets" then MeinPetFenster.toggle() end
 end)
 ```
+
+## Robux (Gamepässe, Seelenstern-Pakete)
+
+- Katalog: `Shared/Monetization.Passes` (`key, id, name, text, robux, icon, bonus`) und
+  `Shared/Shop` (Reiter `seelensterne`, `Shop.productOf(offer)` = nil solange ID 0).
+- Kaufen: `MarketplaceService:PromptGamePassPurchase(player, pass.id)` (nur wenn `pass.id > 0`),
+  `MarketplaceService:PromptProductPurchase(player, product.id)`.
+- Besitz: Attribut `Pass_<key>` (true). Danke-Text kommt über `Net.ShopResult`.

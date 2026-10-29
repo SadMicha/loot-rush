@@ -9,6 +9,7 @@
 
 local Balance = require(script.Parent.Balance)
 local Config = require(script.Parent.Config)
+local Monetization = require(script.Parent.Monetization)
 
 local Shop = {}
 
@@ -67,12 +68,13 @@ Shop.Tabs = table.freeze({
 	{ id = "seelensterne", name = "Seelensterne", icon = "seelenstern" },
 })
 
--- Developer Products (Creator Hub → Monetization → Developer Products). IDs hier eintragen,
--- erst dann werden die Robux-Knöpfe aktiv und der Server nimmt Käufe an.
+-- Developer Products. Die IDs stehen in Shared/Monetization (eine Stelle für alle Robux-IDs);
+-- erst mit echter ID werden die Robux-Knöpfe aktiv und der Server nimmt Käufe an.
+local ids = Monetization.ProductIds
 local PRODUCTS: { [string]: Product } = {
-	soulstars_s = { id = 0, robux = 49, give = "soulstars", amount = 100 },
-	soulstars_m = { id = 0, robux = 249, give = "soulstars", amount = 550 },
-	soulstars_l = { id = 0, robux = 499, give = "soulstars", amount = 1200 },
+	soulstars_s = { id = ids.soulstars_s or 0, robux = 49, give = "soulstars", amount = 100 },
+	soulstars_m = { id = ids.soulstars_m or 0, robux = 249, give = "soulstars", amount = 550 },
+	soulstars_l = { id = ids.soulstars_l or 0, robux = 499, give = "soulstars", amount = 1200 },
 }
 for _, p in PRODUCTS do
 	table.freeze(p)

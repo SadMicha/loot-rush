@@ -9,6 +9,7 @@
 
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
+local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Rebirth = require(script.Parent.Rebirth)
@@ -29,6 +30,7 @@ export type Data = {
 	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
 	rebirths: number, -- Anzahl Wiedergeburten (Shared/Rebirth)
 	pets: Pets.Data, -- Haustiere (Shared/Pets)
+	passes: { [string]: boolean }, -- zuletzt bekannter Gamepass-Besitz (Ausfall-Puffer, Systems/Monetization)
 }
 
 export type Lock = { job: string, t: number }
@@ -57,6 +59,7 @@ local DEFAULTS: Data = {
 	receipts = {},
 	rebirths = 0,
 	pets = Pets.fresh(),
+	passes = {},
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -167,6 +170,13 @@ function Profile.reconcile(raw: any): Data
 	data.receipts = receipts
 	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
 	data.pets = Pets.reconcile(data.pets)
+	local passes = {}
+	for key, owned in data.passes do
+		if typeof(key) == "string" and Monetization.PassByKey[key] and owned == true then
+			passes[key] = true
+		end
+	end
+	data.passes = passes
 	return data :: Data
 end
 

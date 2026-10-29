@@ -3,16 +3,12 @@
 -- Der Client schickt nur die Angebots-ID (Net.Buy) und bekommt eine Rückmeldung (Net.ShopResult).
 -- Bestände, die kein anderes System zeigt, stehen als Player-Attribute bereit: "Potions", "Soulstars".
 --
--- Robux: Developer Products aus Shared.Shop.Products. Solange alle IDs 0 sind, wird ProcessReceipt
--- gar nicht gesetzt. Ein Kauf gilt erst als verbucht, wenn er gespeichert ist (Data.saveNow);
--- die PurchaseId landet in profile.receipts, damit ein wiederholter Callback nichts doppelt gibt.
+-- Robux-Käufe (ProcessReceipt, Gamepässe) verbucht Systems/Monetization über Shop.grant.
 
-local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
-local Profile = require(ReplicatedStorage.Shared.Profile)
 local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Shop)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -95,29 +91,6 @@ local function onBuy(player: Player, offerId: any)
 	reply(player, true, string.format("+%d %s", amount, Rules.KindName[offer.give]), offerId)
 end
 
--- ------------------------------------------------------------------ Robux
-local function processReceipt(info: any): Enum.ProductPurchaseDecision
-	local product = Rules.productById(info.ProductId)
-	local player = Players:GetPlayerByUserId(info.PlayerId)
-	local profile = if player then Data.get(player) else nil
-	if not product or not player or not profile then
-		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox fragt beim nächsten Beitritt erneut
-	end
-	local purchase = tostring(info.PurchaseId)
-	if not table.find(profile.receipts, purchase) then
-		Shop.grant(player, product.give, product.amount)
-		table.insert(profile.receipts, purchase)
-		while #profile.receipts > Profile.MAX_RECEIPTS do
-			table.remove(profile.receipts, 1)
-		end
-		reply(player, true, string.format("+%d %s", product.amount, Rules.KindName[product.give]))
-	end
-	if not Data.saveNow(player) then
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-	return Enum.ProductPurchaseDecision.PurchaseGranted
-end
-
 local function onPlayer(player: Player)
 	local profile = Data.waitFor(player)
 	if profile then
@@ -128,9 +101,6 @@ end
 
 function Shop.init()
 	Net.Buy.OnServerEvent:Connect(onBuy)
-	if Rules.hasLiveProducts() then
-		MarketplaceService.ProcessReceipt = processReceipt
-	end
 end
 
 function Shop.start()
