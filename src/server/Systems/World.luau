@@ -1,9 +1,9 @@
 --!strict
 -- Baut die Arena per Code (Blockout-Look nach dem 3D-Konzept). Jedes Atlas-Gebiet hat eine eigene
 -- Karte: Bodenfarben, Flüssigkeit (Wasser, Lava, Risse), Hindernisse, Deko, Fernkulisse, Partikel
--- und Licht (Tageszeit, Nebel, Farbstimmung). Die Grünen Ebenen sind zugleich der Hub (Spawn,
--- Portal, Truhe). Ein Rift gleichzeitig pro Server → die Arena wird beim Betreten eines Gebiets
--- an Ort und Stelle umgebaut (World.build) und danach wieder zum Hub.
+-- und Licht (Tageszeit, Nebel, Farbstimmung). Der Hub ist eine eigene Map (Systems/Hub).
+-- Ein Rift gleichzeitig pro Server → die Arena wird beim Betreten eines Gebiets an Ort und
+-- Stelle umgebaut (World.build) und danach wieder zu den Grünen Ebenen.
 -- Raster, Spawn und Gegnerzone bleiben in allen Gebieten gleich (Config.ARENA_*, ENEMY_ZONE),
 -- damit Gegner-KI und Rift überall gleich funktionieren. Um das Spielfeld liegt ein Ring aus
 -- Umgebungs-Kacheln (Hänge, Höhlenwände, Wolken …) mit dichter Deko und einem Wahrzeichen
@@ -834,7 +834,7 @@ local function applyLight(l: Light)
 end
 
 -- ------------------------------------------------------------------ Aufbau
--- Baut die Arena für ein Gebiet (nil = Hub/Grüne Ebenen). Gleiches Gebiet → nichts zu tun.
+-- Baut die Arena für ein Gebiet (nil = Grüne Ebenen). Gleiches Gebiet → nichts zu tun.
 function World.build(region: Atlas.Region?)
 	local id = if region then region.id else Atlas.Start
 	local look = LOOKS[id] or LOOKS[Atlas.Start]
@@ -890,20 +890,6 @@ end
 function World.start()
 	arena = Instance.new("Folder")
 	arena.Name = "Arena"
-
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Anchored = true
-	spawn.Size = Vector3.new(6, 0.4, 6)
-	spawn.CFrame = CFrame.new(Config.HUB_POS.X, 0.1, Config.HUB_POS.Z)
-	spawn.Color = C.stoneLight
-	spawn.Material = Enum.Material.SmoothPlastic
-	spawn.Neutral = true
-	spawn.Duration = 0
-	local decal = spawn:FindFirstChildOfClass("Decal")
-	if decal then
-		decal:Destroy()
-	end
-	spawn.Parent = arena
 
 	local cc = Instance.new("ColorCorrectionEffect")
 	cc.Name = "Gebiet"

@@ -85,3 +85,5 @@ Gegnertypen, KI und Werte: `Systems/Enemies.luau`; Gegner-Mix, Start-Tiefe und F
 ## Blender-Assets im Repo (Weg B/C aktiv)
 
 `assets/models/` ist per `default.project.json` als `ReplicatedStorage.Assets` eingebunden. Jede `.rbxm` dort (aus Studio „Save to File…“ nach dem 3D-Import) erscheint im Spiel als `ReplicatedStorage.Assets.<Dateiname>`. Namen wie in der Asset-Liste (`Hub_RiftTor.rbxm`, `A2_Kristallherz.rbxm` …). Regeln und Asset-Liste: Projektordner `blender-assets/ANLEITUNG.md`.
+
+Die `.rbxm` aus aktuellen Studio-Versionen brauchen Rojo ≥ 7.7 und Lune ≥ 0.10.5 (ältere Versionen scheitern an `MeshPart.Tags`). Der Hub (`Systems/Hub.luau`) holt seine Modelle per Name aus `ReplicatedStorage.Assets`; fehlt eines, steht ein Part-Platzhalter da. `_Neon`-Teile bekommen Neon, eine Leuchtfarbe je Modell und ein Licht, `_Deko`-Teile keine Kollision. Zeigt ein Modell in die falsche Richtung, `ASSET_YAW` in `Hub.luau` anpassen.

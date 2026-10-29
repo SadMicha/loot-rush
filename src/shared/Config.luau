@@ -52,7 +52,8 @@ return table.freeze({
 
 	-- Rift (Wellen → Boss → tiefer oder zurück)
 	RIFT_START = Vector3.new(0, 4, 16), -- hier landet der Spieler beim Betreten
-	HUB_POS = Vector3.new(0, 4, 50), -- Rückkehr (SpawnLocation der Arena)
+	HUB_ORIGIN = Vector3.new(-700, 0, 0), -- Mitte der Hub-Map „Lumenhafen“ (weit weg von der Arena)
+	HUB_POS = Vector3.new(-700, 4, 44), -- Spawn im Hub und Rückkehr aus dem Rift
 	RIFT_WAVES = 3, -- Wellen vor dem Boss
 	RIFT_WAVE_BASE = 6, -- Gegner in Welle 1 auf Tiefe 1
 	RIFT_WAVE_STEP = 2, -- zusätzliche Gegner je Welle und je Tiefe
