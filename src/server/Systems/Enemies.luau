@@ -7,7 +7,9 @@
 --   summon  – hält Abstand und ruft Minis (Beschwörer)
 -- Bosse rufen bei halbem Leben einmal Helfer (`adds`); `summonEvery` ruft regelmäßig welche.
 -- Gespawnt wird nur auf Abruf (Systems/Rift, Gegner-Mix je Gebiet in Shared/Atlas).
--- Leben/XP/Farbe liegen als Attribute am Model; Schaden an Gegnern macht Systems/Combat.
+-- Leben/XP/Gold/Farbe liegen als Attribute am Model; Schaden an Gegnern macht Systems/Combat.
+-- Werte je Tiefe aus Shared/Balance (LootRush_Balancing.xlsx); health/damage/xp/gold eines Typs
+-- sind Faktoren darauf (normaler Gegner = 1).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -16,6 +18,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -26,9 +29,10 @@ type Ai = "slam" | "charge" | "ranged" | "summon"
 type Kind = {
 	name: string,
 	ai: Ai,
-	health: number,
+	health: number, -- Faktoren auf die Balance-Werte der Tiefe
 	damage: number,
 	xp: number,
+	gold: number,
 	speed: number,
 	attackRange: number, -- ab dieser Entfernung wird angegriffen
 	keepAway: number, -- ranged/summon weichen zurück, wenn der Spieler näher ist
@@ -66,7 +70,7 @@ type Enemy = {
 
 local Enemies = {}
 
-local BASE = { health = 90, damage = 20, xp = 28, speed = 9.2 }
+local BASE_SPEED = 9.2
 -- Leben ×, Schaden ×, Tempo ×, Gold/XP × (LootRush_Balancing.xlsx, Blatt „Archetypen“)
 local ARCH = {
 	swarm = { 0.5, 0.6, 1.2, 0.5 },
@@ -90,10 +94,11 @@ local DANGER_CORE = Color3.fromHex("#FF3A2A")
 local function archetype(arch: string, k: { [string]: any }): Kind
 	local m = ARCH[arch]
 	local out = {
-		health = math.floor(BASE.health * m[1]),
-		damage = math.floor(BASE.damage * m[2] + 0.5),
-		speed = BASE.speed * m[3],
-		xp = math.floor(BASE.xp * m[4]),
+		health = m[1],
+		damage = m[2],
+		speed = BASE_SPEED * m[3],
+		xp = m[4],
+		gold = m[4],
 		keepAway = 0,
 		hover = 0,
 		shots = 1,
@@ -105,8 +110,13 @@ local function archetype(arch: string, k: { [string]: any }): Kind
 	return table.freeze(out) :: any
 end
 
+-- Bosse: Leben = boss_hp (×40) mal eigenem Faktor, Gold/XP = boss_beute (×25).
+-- Schaden hat die Tabelle für Bosse nicht: eigener Faktor je Boss (eigene Annahme, 1,2–1,7).
 local function boss(k: { [string]: any }): Kind
 	k.boss = true
+	k.health = Balance.P.boss_hp * k.health
+	k.xp = Balance.P.boss_beute
+	k.gold = Balance.P.boss_beute
 	return archetype("tank", k)
 end
 
@@ -145,9 +155,8 @@ local KINDS: { [string]: Kind } = {
 	kristallkoenig = boss({
 		name = "Kristallkönig",
 		ai = "slam",
-		health = 700,
-		damage = 26,
-		xp = 160,
+		health = 1.0,
+		damage = 1.3,
 		speed = 8,
 		attackRange = 11,
 		radius = 14,
@@ -193,9 +202,8 @@ local KINDS: { [string]: Kind } = {
 	splitterwurm = boss({
 		name = "Splitterwurm",
 		ai = "charge",
-		health = 760,
-		damage = 34,
-		xp = 180,
+		health = 1.08,
+		damage = 1.7,
 		speed = 9,
 		attackRange = 24,
 		radius = 4,
@@ -242,7 +250,8 @@ local KINDS: { [string]: Kind } = {
 	sporeling = archetype("swarm", {
 		name = "Sporling",
 		ai = "slam",
-		xp = 4, -- gerufene Minis: kaum XP, sonst lohnt Farmen am Beschwörer
+		xp = 0.15, -- gerufene Minis: kaum XP/Gold, sonst lohnt Farmen am Beschwörer
+		gold = 0.15,
 		attackRange = 4,
 		radius = 5,
 		windup = 0.8,
@@ -256,9 +265,8 @@ local KINDS: { [string]: Kind } = {
 	sporenmutter = boss({
 		name = "Sporenmutter",
 		ai = "slam",
-		health = 820,
-		damage = 24,
-		xp = 200,
+		health = 1.17,
+		damage = 1.2,
 		speed = 5,
 		attackRange = 10,
 		radius = 13,
@@ -305,9 +313,8 @@ local KINDS: { [string]: Kind } = {
 	ofenfuerst = boss({
 		name = "Ofenfürst Krust",
 		ai = "slam",
-		health = 900,
-		damage = 30,
-		xp = 220,
+		health = 1.29,
+		damage = 1.5,
 		speed = 7,
 		attackRange = 11,
 		radius = 14,
@@ -353,9 +360,8 @@ local KINDS: { [string]: Kind } = {
 	wolkenkoenigin = boss({
 		name = "Wolkenkönigin",
 		ai = "ranged",
-		health = 760,
-		damage = 26,
-		xp = 240,
+		health = 1.08,
+		damage = 1.3,
 		speed = 8,
 		attackRange = 30,
 		keepAway = 12,
@@ -376,9 +382,8 @@ local KINDS: { [string]: Kind } = {
 	riss = boss({
 		name = "Der Riss",
 		ai = "slam",
-		health = 1000,
-		damage = 32,
-		xp = 280,
+		health = 1.43,
+		damage = 1.6,
 		speed = 8,
 		attackRange = 12,
 		radius = 15,
@@ -445,21 +450,36 @@ local function clampArena(p: Vector3): Vector3
 	return Vector3.new(math.clamp(p.X, -MAX_X, MAX_X), p.Y, math.clamp(p.Z, MIN_Z, MAX_Z))
 end
 
--- Erzeugt einen Gegner. depth skaliert Leben, Schaden und XP (siehe Config.RIFT_*_PER_DEPTH).
+-- Werte eines Gegnertyps auf dieser Tiefe (ohne Gebiets-Boni); auch für tests/Balancing
+function Enemies.stats(kindName: string, depth: number)
+	local kind = KINDS[kindName]
+	assert(kind, "unbekannter Gegnertyp")
+	return {
+		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth))),
+		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) + 0.5)),
+		xp = math.floor(kind.xp * Balance.xp(depth) + 0.5),
+		gold = math.max(1, math.floor(kind.gold * Balance.gold(depth) + 0.5)),
+		boss = kind.boss,
+		cooldown = kind.cooldown,
+	}
+end
+
+-- Erzeugt einen Gegner. depth skaliert Leben, Schaden, XP und Gold (Shared/Balance).
 function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 	local kind = KINDS[kindName]
 	if not kind then
 		warn("[Enemies] unbekannter Gegnertyp " .. tostring(kindName))
 		return nil
 	end
-	local steps = depth - 1
-	local health = math.floor(kind.health * (1 + Config.RIFT_HP_PER_DEPTH * steps))
+	local st = Enemies.stats(kindName, depth)
+	local health = st.health
 	local model = kind.build(kind.scale)
 	model.Name = kind.name
 	model:PivotTo(CFrame.new(pos.X, bodyY(kind), pos.Z))
 	model:SetAttribute("Health", health)
 	model:SetAttribute("MaxHealth", health)
-	model:SetAttribute("XP", math.floor(kind.xp * (1 + Config.RIFT_XP_PER_DEPTH * steps)))
+	model:SetAttribute("XP", st.xp)
+	model:SetAttribute("Gold", st.gold)
 	model:SetAttribute("Color", kind.color)
 	model:SetAttribute("Depth", depth)
 	if kind.boss then
@@ -471,7 +491,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number): Model?
 	table.insert(list, {
 		model = model,
 		kind = kind,
-		damage = math.floor(kind.damage * (1 + Config.RIFT_DMG_PER_DEPTH * steps) + 0.5),
+		damage = st.damage,
 		depth = depth,
 		summoned = false,
 		phase = rng:NextNumber(0, 6),

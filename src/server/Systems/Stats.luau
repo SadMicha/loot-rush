@@ -3,11 +3,14 @@
 --   StatDamage/StatLife/StatCrit/StatSpeed: Ausrüstung + Sterne (wie bisher)
 --   StatLifePct, StatCritDamage, StatAttackSpeed, StatDouble, StatLowLife, StatDash,
 --   StatArmor, StatBlock, StatCritShard, StatArcaneShield: nur Sterne
+--   StatWeapon: Waffen-Grundschaden der getragenen Waffe als Faktor (1 = IP 10 bzw. keine Waffe)
 -- Skill-bezogene Sterne (Skill-Schaden, Abklingzeit …) verrechnet Progression.effectiveSkill direkt.
 -- Nach jeder Änderung an Ausrüstung oder Sternen Stats.refresh aufrufen.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Balance = require(ReplicatedStorage.Shared.Balance)
+local Items = require(ReplicatedStorage.Shared.Items)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
@@ -53,6 +56,11 @@ function Stats.refresh(player: Player, fill: boolean)
 	for stat, attr in STAR_ATTR do
 		player:SetAttribute(attr, mods[stat] or 0)
 	end
+	local weapon = profile.equipped.waffe
+	player:SetAttribute(
+		"StatWeapon",
+		Balance.weaponFactor(if weapon then Items.itemPower(weapon) else Balance.P.ip_pro_tiefe)
+	)
 	Combat.refreshStats(player, fill)
 end
 

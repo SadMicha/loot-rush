@@ -36,7 +36,7 @@ export type Record = {
 	lock: Lock?,
 }
 
-Profile.VERSION = 2
+Profile.VERSION = 3
 Profile.MAX_RECEIPTS = 50
 
 local DEFAULTS: Data = {
@@ -60,6 +60,37 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		local data = table.clone(raw)
 		data.version = nil
 		return { v = 2, data = data }
+	end,
+	-- v2 → v3: Beute-Stufe war Tiefe × 2 − 1, jetzt Tiefe (Item-Power = Tiefe × 10, Balancing-Tabelle).
+	-- Alte Items auf die neue Stufe ihrer Tiefe ziehen, sonst wäre ihr Waffen-Grundschaden viel zu hoch.
+	[2] = function(raw)
+		local record = table.clone(raw)
+		local data: any = if typeof(record.data) == "table" then table.clone(record.data) else {}
+		local function rescale(item: any): any
+			if typeof(item) ~= "table" or typeof(item.ilvl) ~= "number" then
+				return item
+			end
+			local out = table.clone(item)
+			out.ilvl = math.max(1, math.ceil((item.ilvl + 1) / 2))
+			return out
+		end
+		if typeof(data.inventory) == "table" then
+			local inv = {}
+			for i, item in data.inventory do
+				inv[i] = rescale(item)
+			end
+			data.inventory = inv
+		end
+		if typeof(data.equipped) == "table" then
+			local eq = {}
+			for slot, item in data.equipped do
+				eq[slot] = rescale(item)
+			end
+			data.equipped = eq
+		end
+		record.data = data
+		record.v = 3
+		return record
 	end,
 }
 

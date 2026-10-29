@@ -4,6 +4,8 @@
 
 local HttpService = game:GetService("HttpService")
 
+local Balance = require(script.Parent.Balance)
+
 -- tier: 1 (beste) bis 7, fehlt bei Grundwerten (implicit) und alten Items (= 7)
 -- sealed: von der Schmiede versiegelt (fest, belegt keinen Affix-Platz)
 export type Affix = {
@@ -60,13 +62,19 @@ local IMPLICIT: { [string]: string } = {
 	ring = "speed",
 }
 
--- Seltenheiten (Farben in Theme.Rarity); affixes = {min, max} zufällige Zusatzwerte
+-- Seltenheiten (Farben in Theme.Rarity); affixes = {min, max} zufällige Zusatzwerte.
+-- Gewicht und Verschiebung mit der Tiefe kommen aus Balance.Rarity (gleiche Reihenfolge).
 local RARITIES = {
-	{ id = "normal", weight = 60, affixes = { 0, 0 }, sell = 1 },
-	{ id = "magic", weight = 28, affixes = { 1, 2 }, sell = 2 },
-	{ id = "rare", weight = 9, affixes = { 3, 3 }, sell = 5 },
-	{ id = "epic", weight = 3, affixes = { 4, 4 }, sell = 12 },
+	{ id = "normal", affixes = { 0, 0 }, sell = 1 },
+	{ id = "magic", affixes = { 1, 2 }, sell = 2 },
+	{ id = "rare", affixes = { 3, 3 }, sell = 5 },
+	{ id = "epic", affixes = { 4, 4 }, sell = 12 },
 }
+local RANK: { [string]: number } = {}
+for i, r in RARITIES do
+	RANK[r.id] = i
+	assert(Balance.Rarity[i].id == r.id, "Balance.Rarity und Items-Seltenheiten passen nicht")
+end
 
 local BASE = {
 	helm = { "Lederkappe", "Eisenhelm", "Kristallhaube" },
@@ -109,9 +117,18 @@ local function round(stat: string, v: number): number
 	return math.floor(v * 10 + 0.5) / 10
 end
 
+-- Wachstum je Gegenstandsstufe: nur feste Werte (Leben) wachsen mit der Stufe, weil der Gegner-Schaden
+-- mit der Tiefe wächst. Prozentwerte (Schaden, Krit, Tempo) wachsen nur über das Tier – den
+-- Schaden je Tiefe liefert der Waffen-Grundschaden (Balance.weaponDamage). Eigene Annahme.
+local PER_LEVEL: { [string]: number } = { life = 0.12, damage = 0, crit = 0, speed = 0 }
+
+local function levelScale(stat: string, ilvl: number): number
+	return 1 + (ilvl - 1) * (PER_LEVEL[stat] or 0)
+end
+
 local function value(stat: string, ilvl: number, rng: Random, scale: number): number
 	local r = RANGE[stat]
-	return round(stat, rng:NextNumber(r[1], r[2]) * (1 + (ilvl - 1) * 0.12) * scale)
+	return round(stat, rng:NextNumber(r[1], r[2]) * levelScale(stat, ilvl) * scale)
 end
 
 -- Bestes Tier, das auf dieser Gegenstandsstufe fallen kann
@@ -155,26 +172,44 @@ function Items.retier(a: Affix, tier: number): Affix
 	}
 end
 
--- Gegenstandsstufe für Beute auf einer Rift-Tiefe (Config.LOOT_ILVL_PER_DEPTH)
-function Items.levelForDepth(depth: number, perDepth: number): number
-	return math.max(1, math.floor(depth) * perDepth - 1)
+-- Gegenstandsstufe für Beute auf einer Rift-Tiefe (Item-Power = Tiefe × 10, Balance.itemPower)
+function Items.levelForDepth(depth: number): number
+	return math.max(1, math.floor(Balance.itemPower(depth) / Items.IP_PER_LEVEL))
 end
 
+-- Item-Power eines Gegenstands: Stufe × 10 + Bonus der Seltenheit
+function Items.itemPower(item: Item): number
+	return item.ilvl * Items.IP_PER_LEVEL + (Balance.IpBonus[item.rarity] or 0)
+end
+
+export type RollOpts = {
+	shift: number?, -- Verschiebung der Seltenheit (Balance.rarityShift), 1 = Tiefe 0
+	min: string?, -- mindestens diese Seltenheit (Boss: „rare“)
+}
+
 -- find: Bonus auf die Gewichte aller Seltenheiten über Normal (0.5 = +50 %)
-function Items.roll(ilvl: number, rng: Random, find: number?): Item
+function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): Item
 	local boost = 1 + math.max(0, find or 0)
-	local function weight(r: { id: string, weight: number }): number
-		return if r.id == "normal" then r.weight else r.weight * boost
+	local shift = math.max(1, opts and opts.shift or 1)
+	local minRank = opts and opts.min and RANK[opts.min] or 1
+	local function weight(i: number): number
+		if i < minRank then
+			return 0
+		end
+		local b = Balance.Rarity[i]
+		local w = b.weight * shift ^ b.exp
+		return if i == 1 then w else w * boost
 	end
 	local total = 0
-	for _, r in RARITIES do
-		total += weight(r)
+	for i in RARITIES do
+		total += weight(i)
 	end
 	local pick = rng:NextNumber(0, total)
-	local rarity = RARITIES[1]
-	for _, r in RARITIES do
-		pick -= weight(r)
-		if pick <= 0 then
+	local rarity = RARITIES[minRank]
+	for i, r in RARITIES do
+		local w = weight(i)
+		pick -= w
+		if w > 0 and pick <= 0 then
 			rarity = r
 			break
 		end
@@ -243,7 +278,7 @@ function Items.affixQuality(a: Affix, ilvl: number): number
 		return 1
 	end
 	local tier = if a.implicit then 1.5 else Items.TierMult[Items.tierOf(a)]
-	return math.clamp(a.value / (r[2] * (1 + (ilvl - 1) * 0.12) * tier), 0, 1)
+	return math.clamp(a.value / (r[2] * levelScale(a.stat, ilvl) * tier), 0, 1)
 end
 
 -- "+12 Leben" · "+4,5% Schaden"

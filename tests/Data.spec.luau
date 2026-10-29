@@ -10,7 +10,7 @@ describe("Data", function()
 		end
 		expect(sim.player:GetAttribute("Gold")).toBe(50)
 		local rec = sim.datastores[STORE].p_1
-		expect(rec.v).toBe(2)
+		expect(rec.v).toBe(3)
 		expect(rec.lock.job).toBe("sandbox")
 	end)
 
