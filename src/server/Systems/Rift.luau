@@ -190,7 +190,6 @@ local function finish(r: Run, reason: EndReason)
 		return
 	end
 	runs[r.owner] = nil
-	slots[r.slot] = nil
 	if r.died then
 		r.died:Disconnect()
 		r.died = nil
@@ -206,7 +205,16 @@ local function finish(r: Run, reason: EndReason)
 		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
 	end
 	Enemies.clear(r.id)
-	World.release(r.slot)
+	-- Nach dem Tod liegt der Körper bis zum Respawn noch in der Arena: Boden erst danach abbauen
+	local function release()
+		World.release(r.slot)
+		slots[r.slot] = nil
+	end
+	if failed and reason ~= "gone" then
+		task.delay(Config.RESPAWN_TIME + 1, release)
+	else
+		release()
+	end
 	owner:SetAttribute("RiftRegion", nil)
 	if reason == "gone" or not owner.Parent then
 		return
