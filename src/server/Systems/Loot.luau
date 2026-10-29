@@ -137,11 +137,15 @@ local function onKilled(
 		if typeof(region) == "string" then region else nil,
 		boss == true
 	)
+	-- Zufällig runden: kleine Beträge (1,1 Gold) zahlen den Gebiets-Bonus im Mittel trotzdem aus
+	local function coin(amount: number): number
+		return math.max(1, math.floor(amount + rng:NextNumber()))
+	end
 	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0) * t.goldMult
 	if boss == true then
 		local coins = Config.LOOT_BOSS_GOLD_DROPS
 		for _ = 1, coins do
-			makeDrop(pos, owner, math.max(1, math.floor(total / coins + 0.5)), nil)
+			makeDrop(pos, owner, coin(total / coins), nil)
 		end
 		-- Tabelle: Boss-Beute mindestens 1× Selten+
 		for i = 1, t.bossItems do
@@ -151,7 +155,7 @@ local function onKilled(
 		return
 	end
 	if total > 0 then
-		makeDrop(pos, owner, math.max(1, math.floor(total + 0.5)), nil)
+		makeDrop(pos, owner, coin(total), nil)
 	end
 	if rng:NextNumber() < t.itemChance then
 		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, { shift = t.shift }))

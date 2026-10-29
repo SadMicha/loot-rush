@@ -458,7 +458,7 @@ function Enemies.stats(kindName: string, depth: number)
 		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth))),
 		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) + 0.5)),
 		xp = math.floor(kind.xp * Balance.xp(depth) + 0.5),
-		gold = math.max(1, math.floor(kind.gold * Balance.gold(depth) + 0.5)),
+		gold = kind.gold * Balance.gold(depth), -- ungerundet: Loot rundet erst nach dem Gebiets-Bonus
 		boss = kind.boss,
 		cooldown = kind.cooldown,
 	}
