@@ -11,4 +11,7 @@ Status: ✅ fertig · 🔧 in Arbeit · ⏳ offen
 | M4 | Rift-Ablauf | Wellen, Tiefe, Boss, Rückkehr in den Hub | ✅ getestet |
 | M5 | Playtest Slice | Balancing, Mobile-Test, Performance-Messung | 🔧 Messwerkzeuge fertig, Playtest offen |
 
-Danach: Sternennetz → Schmiede → Dorf & Offline-Ertrag → Wiedergeburt.
+Danach umgesetzt (2026-10-29): Sternennetz, Schmiede, 6 Gebiete, Shop, Hub „Lumenhafen“,
+Balancing nach Tabelle, Wiedergeburt, Haustiere, Monetarisierung, mehrere Rifts je Server.
+Release-Schritte: `docs/RELEASE.md`. Offen: Fenster für Haustiere/Wiedergeburt/Pässe (Micha),
+Offline-Ertrag, Bestenliste, Daily Rewards.
