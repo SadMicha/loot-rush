@@ -1511,6 +1511,16 @@ function Sandbox:installCustom()
 		end,
 	})
 	self:custom("Model", "ScaleTo", { method = function() end })
+	-- Lune speichert Position getrennt von CFrame; in Roblox ist sie ein Teil davon
+	self:custom("BasePart", "Position", {
+		get = function(p)
+			return self.native[p].CFrame.Position
+		end,
+		set = function(p, v)
+			local native = self.native[p]
+			native.CFrame = native.CFrame.Rotation + v
+		end,
+	})
 	self:custom("BasePart", "GetMass", {
 		method = function(p)
 			local s = self.native[p].Size

@@ -36,6 +36,7 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "+5 Skill-Stufen", command = "skills", value = 5 },
 	{ label = "+10 Items", command = "items", value = 10 },
 	{ label = "Gebiete frei", command = "atlas" },
+	{ label = "Alle Gegner tot", command = "slay" },
 }
 
 local function toggle()

@@ -1,10 +1,11 @@
 --!strict
 -- Test-Befehle für Playtests (Debug-Menü am „Dbg“-Knopf): Gold, Level, Material, Skill-Stufen,
--- Gegenstände und alle Gebiete freischalten. Nur in Studio oder für UserIds in DEV_USERS.
+-- Gegenstände, alle Gebiete freischalten und alle Gegner besiegen (Rift schnell durchspielen). Nur in Studio oder für UserIds in DEV_USERS.
 -- Die Prüfung sitzt hier im Server – das Menü im Client ist nur Bequemlichkeit.
 -- Jeder Befehl geht über dieselben Wege wie das Spiel (Inventory, Progress, Combat), nicht am Profil vorbei.
 -- Freigabe zeigt der Server dem Client über das Player-Attribut „DebugTools“.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -130,6 +131,15 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	atlas = {
 		run = function(player)
 			unlockAtlas(player)
+		end,
+	},
+	slay = {
+		run = function(player)
+			for _, enemy in CollectionService:GetTagged("Enemy") do
+				if enemy:IsA("Model") then
+					Combat.slay(player, enemy)
+				end
+			end
 		end,
 	},
 }

@@ -19,7 +19,10 @@ local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 
-local Progress = {}
+local Progress = {
+	-- (player, delta: { [string]: number }) Material aus Kämpfen (nicht Verwerten), für Systems/Rift
+	Looted = Instance.new("BindableEvent"),
+}
 
 local FLUSH = 1 -- Sekunden zwischen gesammelten Schnappschüssen
 local BOSS_CANDY = 1 -- Runen-Bonbons je Boss (bis es Bonbon-Drops gibt)
@@ -103,10 +106,12 @@ local function onKilled(player: any, _pos: any, _level: any, boss: any, skillId:
 		dirty[player] = true
 	end
 	if boss == true then
-		Progress.addMaterials(player, {
+		local delta = {
 			candy = BOSS_CANDY,
 			dust = if rng:NextNumber() < BOSS_DUST_CHANCE then 1 else 0,
-		})
+		}
+		Progress.addMaterials(player, delta)
+		Progress.Looted:Fire(player, delta)
 	end
 end
 
