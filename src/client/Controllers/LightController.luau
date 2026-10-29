@@ -1,7 +1,8 @@
 --!strict
--- Licht am Ort des Spielers (Shared/Looks): im Hub das Grundlicht, im Rift das Licht des Gebiets,
--- das der Server gerade gebaut hat (workspace-Attribut "ArenaRegion"). Läuft nur lokal, darum
--- sieht jeder Spieler sein eigenes Licht – auch wenn ein anderer gleichzeitig im Rift ist.
+-- Licht am Ort des Spielers (Shared/Looks): im Hub das Grundlicht, im Rift das Licht der Arena,
+-- in der er steht (Arena-Ordner unter workspace.Arena mit Attributen Region und Center, Systems/World).
+-- Läuft nur lokal, darum sieht jeder Spieler sein eigenes Licht – auch wenn andere gleichzeitig
+-- in anderen Gebieten kämpfen.
 -- Wechsel werden kurz überblendet.
 
 local Lighting = game:GetService("Lighting")
@@ -76,15 +77,30 @@ function LightController.place(): string
 		if Vector3.new(d.X, 0, d.Z).Magnitude < Looks.HUB_RADIUS then
 			return "hub"
 		end
-		local region = workspace:GetAttribute("ArenaRegion")
-		if typeof(region) == "string" then
-			return region
+		-- nächste Arena (Plätze liegen Config.ARENA_SPACING auseinander)
+		local arenas = workspace:FindFirstChild("Arena")
+		local best, bestD = nil :: string?, Config.ARENA_SPACING / 2
+		for _, a in if arenas then arenas:GetChildren() else {} do
+			local center, region = a:GetAttribute("Center"), a:GetAttribute("Region")
+			if typeof(center) == "Vector3" and typeof(region) == "string" then
+				local dist =
+					Vector3.new(root.Position.X - center.X, 0, root.Position.Z - center.Z).Magnitude
+				if dist < bestD then
+					best, bestD = region, dist
+				end
+			end
+		end
+		if best then
+			return best
 		end
 	end
 	return "hub"
 end
 
 local function update(instant: boolean)
+	if not mood.Parent then
+		return
+	end
 	local place = LightController.place()
 	if place == shown then
 		return
@@ -102,10 +118,7 @@ end
 
 function LightController.start()
 	update(true)
-	workspace:GetAttributeChangedSignal("ArenaRegion"):Connect(function()
-		update(false)
-	end)
-	while true do
+	while mood.Parent do
 		task.wait(CHECK)
 		update(false)
 	end

@@ -55,6 +55,8 @@ type Enemy = {
 	damage: number,
 	depth: number,
 	wallShift: number, -- weiche Wand verschoben (Wiedergeburten)
+	center: Vector3, -- Mitte der eigenen Arena (Rift-Platz)
+	run: number, -- Rift-Lauf, zu dem der Gegner gehört (0 = keiner)
 	summoned: boolean,
 	phase: number,
 	nextAttack: number,
@@ -447,8 +449,14 @@ local function bodyY(kind: Kind): number
 	return BASE_BODY_Y * kind.scale + kind.hover
 end
 
-local function clampArena(p: Vector3): Vector3
-	return Vector3.new(math.clamp(p.X, -MAX_X, MAX_X), p.Y, math.clamp(p.Z, MIN_Z, MAX_Z))
+-- Hält einen Punkt in der Arena des Gegners (jedes Rift hat seinen eigenen Platz, e.center)
+local function clampArena(e: Enemy, p: Vector3): Vector3
+	local c = e.center
+	return Vector3.new(
+		math.clamp(p.X, c.X - MAX_X, c.X + MAX_X),
+		p.Y,
+		math.clamp(p.Z, c.Z + MIN_Z, c.Z + MAX_Z)
+	)
 end
 
 -- Werte eines Gegnertyps auf dieser Tiefe (ohne Gebiets-Boni); auch für tests/Balancing.
@@ -466,8 +474,16 @@ function Enemies.stats(kindName: string, depth: number, wallShift: number?)
 	}
 end
 
+export type SpawnOpts = {
+	wallShift: number?, -- weiche Wand verschoben (Wiedergeburten des Rift-Besitzers)
+	center: Vector3?, -- Mitte der Arena (Standard: Ursprung)
+	run: number?, -- Lauf-Nummer (Systems/Rift zählt damit seine Gegner)
+}
+
 -- Erzeugt einen Gegner. depth skaliert Leben, Schaden, XP und Gold (Shared/Balance).
-function Enemies.spawn(kindName: string, pos: Vector3, depth: number, wallShift: number?): Model?
+function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: SpawnOpts?): Model?
+	local o: SpawnOpts = opts or {}
+	local wallShift = o.wallShift
 	local kind = KINDS[kindName]
 	if not kind then
 		warn("[Enemies] unbekannter Gegnertyp " .. tostring(kindName))
@@ -484,6 +500,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, wallShift:
 	model:SetAttribute("Gold", st.gold)
 	model:SetAttribute("Color", kind.color)
 	model:SetAttribute("Depth", depth)
+	model:SetAttribute("Run", o.run or 0)
 	if kind.boss then
 		model:SetAttribute("Boss", true)
 	end
@@ -496,6 +513,8 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, wallShift:
 		damage = st.damage,
 		depth = depth,
 		wallShift = wallShift or 0,
+		center = o.center or Vector3.zero,
+		run = o.run or 0,
 		summoned = false,
 		phase = rng:NextNumber(0, 6),
 		nextAttack = now + 1,
@@ -522,10 +541,24 @@ function Enemies.setRegion(model: Model, regionId: string)
 	end
 end
 
-function Enemies.clear()
+-- Entfernt alle Gegner eines Laufs (run = nil: alle)
+function Enemies.clear(run: number?)
 	for _, e in list do
-		e.model:Destroy() -- step() räumt Liste und Telegraphen beim nächsten Frame auf
+		if run == nil or e.run == run then
+			e.model:Destroy() -- step() räumt Liste und Telegraphen beim nächsten Frame auf
+		end
 	end
+end
+
+-- Lebende Gegner eines Laufs
+function Enemies.count(run: number): number
+	local n = 0
+	for _, e in list do
+		if e.run == run and e.model.Parent then
+			n += 1
+		end
+	end
+	return n
 end
 
 local function nearestPlayer(from: Vector3): (Player?, Vector3?, number)
@@ -621,7 +654,7 @@ local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: numb
 				local a = (i / kind.shots) * math.pi * 2 + rng:NextNumber(0, 1)
 				at += Vector3.new(math.cos(a), 0, math.sin(a)) * kind.radius * 1.6
 			end
-			at = clampArena(at)
+			at = clampArena(e, at)
 			table.insert(e.targets, at)
 			circle(e, at, kind.radius)
 			Net.Fx:FireAllClients("proj", {
@@ -655,7 +688,7 @@ local function resolveAttack(e: Enemy, now: number)
 			end
 		end)
 		e.dashFrom = from
-		e.dashTo = clampArena(from + e.dir * CHARGE_LENGTH)
+		e.dashTo = clampArena(e, from + e.dir * CHARGE_LENGTH)
 		e.dashEnd = now + CHARGE_TIME
 	else
 		for _, center in e.targets do
@@ -679,8 +712,13 @@ local function summon(e: Enemy, around: Vector3, count: number)
 	end
 	for i = 1, count do
 		local a = (i / count) * math.pi * 2
-		local at = clampArena(around + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6))
-		local m = Enemies.spawn(addKind, Vector3.new(at.X, 0, at.Z), e.depth, e.wallShift)
+		local at = clampArena(e, around + Vector3.new(math.cos(a) * 6, 0, math.sin(a) * 6))
+		local m = Enemies.spawn(
+			addKind,
+			Vector3.new(at.X, 0, at.Z),
+			e.depth,
+			{ wallShift = e.wallShift, center = e.center, run = e.run }
+		)
 		if m then
 			local region = e.model:GetAttribute("Region")
 			if typeof(region) == "string" then
@@ -774,7 +812,7 @@ local function step(dt: number)
 					speed *= (model:GetAttribute("SlowFactor") or 1) :: number
 				end
 				local step3 = dir.Unit * speed * dt
-				local np = clampArena(Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
+				local np = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 7 + e.phase)) * 0.8 * kind.scale
 				pos = np
 			end

@@ -58,6 +58,8 @@ return table.freeze({
 	RIFT_WAVE_STEP = 2, -- zusätzliche Gegner je Welle und je Tiefe
 	RIFT_WAVE_MAX = 24, -- Obergrenze Gegner pro Welle (Server-/Netzlast bei großer Tiefe)
 	RIFT_WAVE_PAUSE = 1.5, -- Sekunden zwischen den Wellen
+	RIFT_SLOTS = 12, -- so viele Rifts laufen gleichzeitig auf einem Server (je Spieler eins)
+	ARENA_SPACING = 400, -- Studs zwischen den Arena-Plätzen (in +X, Platz 1 am Ursprung)
 
 	-- Beute: Stufe, Gold, Drop-Chance und Seltenheit je Tiefe aus Shared/Balance
 	LOOT_BOSS_ILVL = 1, -- Boss-Items liegen so viele Stufen (je 10 IP) darüber (eigene Annahme)

@@ -2,8 +2,10 @@
 -- Baut die Arena per Code (Blockout-Look nach dem 3D-Konzept). Jedes Atlas-Gebiet hat eine eigene
 -- Karte: Bodenfarben, Flüssigkeit (Wasser, Lava, Risse), Hindernisse, Deko, Fernkulisse, Partikel
 -- und Licht (Tageszeit, Nebel, Farbstimmung). Der Hub ist eine eigene Map (Systems/Hub).
--- Ein Rift gleichzeitig pro Server → die Arena wird beim Betreten eines Gebiets an Ort und
--- Stelle umgebaut (World.build) und danach wieder zu den Grünen Ebenen.
+-- Jedes laufende Rift hat einen eigenen Platz (slot): Platz 1 liegt am Ursprung, jeder weitere
+-- Config.ARENA_SPACING Studs weiter in +X. World.build(region, slot) baut die Arena dort,
+-- World.release(slot) räumt sie wieder ab (Platz 1 zeigt dann wieder die Grünen Ebenen).
+-- Die Arena-Ordner tragen die Attribute Region und Center (für Licht im Client).
 -- Raster, Spawn und Gegnerzone bleiben in allen Gebieten gleich (Config.ARENA_*, ENEMY_ZONE),
 -- damit Gegner-KI und Rift überall gleich funktionieren. Um das Spielfeld liegt ein Ring aus
 -- Umgebungs-Kacheln (Hänge, Höhlenwände, Wolken …) mit dichter Deko und einem Wahrzeichen
@@ -51,8 +53,8 @@ type Look = {
 
 local rng = Random.new(7)
 local arena: Folder
-local current: Folder? = nil
-local currentId = ""
+local current: { [number]: Folder } = {} -- Platz → Arena
+local currentId: { [number]: string } = {}
 local heights: { [number]: number } = {} -- Bodenhöhe je Kachel (Schlüssel x * 1000 + z)
 
 -- ------------------------------------------------------------------ Bausteine
@@ -725,20 +727,31 @@ local LOOKS: { [string]: Look } = {
 World.Looks = LOOKS
 
 -- ------------------------------------------------------------------ Aufbau
--- Baut die Arena für ein Gebiet (nil = Grüne Ebenen). Gleiches Gebiet → nichts zu tun.
-function World.build(region: Atlas.Region?)
+-- Mitte der Arena auf diesem Platz
+function World.center(slot: number?): Vector3
+	return Vector3.new(((slot or 1) - 1) * Config.ARENA_SPACING, 0, 0)
+end
+
+local function folderName(id: string, slot: number): string
+	return if slot == 1 then "Gebiet_" .. id else string.format("Gebiet_%s_%d", id, slot)
+end
+
+-- Baut die Arena für ein Gebiet (nil = Grüne Ebenen) auf einem Platz. Gleiches Gebiet → nichts zu tun.
+function World.build(region: Atlas.Region?, slot: number?)
+	local n = slot or 1
 	local id = if region then region.id else Atlas.Start
 	local look = LOOKS[id] or LOOKS[Atlas.Start]
-	if current and currentId == id then
+	local old = current[n]
+	if old and currentId[n] == id and old.Parent then
 		return
 	end
-	if current then
-		current:Destroy()
+	if old and old.Parent then
+		old:Destroy()
 	end
-	currentId = id
+	currentId[n] = id
 	rng = Random.new(7)
 	local folder = Instance.new("Folder")
-	folder.Name = "Gebiet_" .. id
+	folder.Name = folderName(id, n)
 
 	local r = Random.new(#id * 31)
 	layout(look, r)
@@ -757,14 +770,39 @@ function World.build(region: Atlas.Region?)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
-	workspace:SetAttribute("ArenaRegion", id) -- Licht stellt der Client (LightController)
+	-- gebaut wird am Ursprung, dann an den Platz geschoben
+	local center = World.center(n)
+	if center.Magnitude > 0 then
+		local shift = CFrame.new(center)
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CFrame = shift * d.CFrame
+			end
+		end
+	end
+	folder:SetAttribute("Region", id) -- Licht stellt der Client (LightController)
+	folder:SetAttribute("Center", center)
 	folder.Parent = arena
-	current = folder
+	current[n] = folder
 end
 
--- Aktuell gebautes Gebiet
-function World.current(): string
-	return currentId
+-- Platz wieder freigeben (Platz 1 zeigt danach die Grünen Ebenen)
+function World.release(slot: number)
+	if slot == 1 then
+		World.build(nil, 1)
+		return
+	end
+	local old = current[slot]
+	if old and old.Parent then
+		old:Destroy()
+	end
+	current[slot] = nil
+	currentId[slot] = nil
+end
+
+-- Gebiet auf einem Platz (Standard: Platz 1)
+function World.current(slot: number?): string
+	return currentId[slot or 1] or ""
 end
 
 function World.init()
