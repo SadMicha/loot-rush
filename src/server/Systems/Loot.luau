@@ -235,7 +235,9 @@ local function sweep()
 			continue
 		end
 		local delta = root.Position - d.part.Position
-		if Vector3.new(delta.X, 0, delta.Z).Magnitude > PICKUP_RADIUS then
+		local magnet = d.owner:GetAttribute("BonusMagnet") -- Haustier (Systems/Boosts)
+		local radius = PICKUP_RADIUS + (if typeof(magnet) == "number" then magnet else 0)
+		if Vector3.new(delta.X, 0, delta.Z).Magnitude > radius then
 			continue
 		end
 		if pickup(d, root.Position) then
