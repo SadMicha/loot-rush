@@ -2,6 +2,7 @@
 -- Mess-Overlay für Playtests (F3 oder „Dbg“-Knopf unten links, damit es auch auf dem Handy geht):
 -- FPS, Ping, Speicher, Instanzen (Client) sowie Server-Frame, Sendelast, Gegnerzahl und der letzte Rift-Bericht.
 -- Server-Werte liefert Systems/Metrics als workspace-Attribute. Abschaltbar über Config.DEBUG_OVERLAY.
+-- Im veröffentlichten Spiel sehen den Knopf nur Entwickler (Attribut „DebugTools“), in Studio alle.
 -- Test-Befehle (Gold, Level, Material, …) erscheinen nur, wenn der Server „DebugTools“ setzt
 -- (Studio oder freigeschaltete UserId, siehe Systems/Debug); geprüft wird dort, nicht hier.
 
@@ -36,11 +37,18 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "+5 Skill-Stufen", command = "skills", value = 5 },
 	{ label = "+10 Items", command = "items", value = 10 },
 	{ label = "Gebiete frei", command = "atlas" },
+	{ label = "Haustier-Ei", command = "pet" },
+	{ label = "Wiedergeburt", command = "rebirth" },
 	{ label = "Alle Gegner tot", command = "slay" },
 }
 
+-- Overlay nur in Studio oder für freigeschaltete Entwickler (Systems/Debug setzt „DebugTools“)
+local function allowed(): boolean
+	return RunService:IsStudio() or player:GetAttribute("DebugTools") == true
+end
+
 local function toggle()
-	panel.Visible = not panel.Visible
+	panel.Visible = allowed() and not panel.Visible
 end
 
 local function serverNumber(name: string): string
@@ -139,6 +147,10 @@ function DebugController.init()
 	button.AnchorPoint = Vector2.new(0, 1)
 	button.Position = UDim2.new(0, 28, 1, -28)
 	button.Activated:Connect(toggle)
+	button.Visible = allowed()
+	player:GetAttributeChangedSignal("DebugTools"):Connect(function()
+		button.Visible = allowed()
+	end)
 	button.Parent = root
 
 	gui.Parent = player:WaitForChild("PlayerGui")

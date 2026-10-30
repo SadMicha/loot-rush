@@ -14,12 +14,15 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local RebirthRules = require(ReplicatedStorage.Shared.Rebirth)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
+local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
+local Rebirth = require(script.Parent.Rebirth)
 local Rift = require(script.Parent.Rift)
 local Shop = require(script.Parent.Shop)
 
@@ -68,7 +71,7 @@ local function addSkillLevels(player: Player, n: number)
 	Progress.sync(player)
 end
 
-local function unlockAtlas(player: Player)
+local function unlockAtlas(player: Player, atLeast: number?)
 	local profile = Data.get(player)
 	if not profile then
 		return
@@ -79,6 +82,7 @@ local function unlockAtlas(player: Player)
 	for _, region in Atlas.Regions do
 		deepest = math.max(deepest, region.depth + REGION_SPAN - 1)
 	end
+	deepest = math.max(deepest, atLeast or 0)
 	for _, region in Atlas.Regions do
 		local depth = math.max(profile.atlas[region.id] or 0, deepest)
 		profile.atlas[region.id] = depth
@@ -128,6 +132,28 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	atlas = {
 		run = function(player)
 			unlockAtlas(player)
+		end,
+	},
+	pet = {
+		run = function(player)
+			Shop.grant(player, "soulstars", 75)
+			local ok, text = Pets.hatch(player, "sternen_ei")
+			Net.PetResult:FireClient(player, { ok = ok, text = text })
+		end,
+	},
+	rebirth = {
+		run = function(player)
+			-- Nicht mitten im Lauf, und tief genug für die nächste Wiedergeburt (Wand wandert mit)
+			if Rift.isRunning(player) then
+				Net.RebirthResult:FireClient(
+					player,
+					{ ok = false, text = "Erst das Rift verlassen" }
+				)
+				return
+			end
+			unlockAtlas(player, RebirthRules.required(Rift.rebirthsOf(player)))
+			local ok, text = Rebirth.perform(player)
+			Net.RebirthResult:FireClient(player, { ok = ok, text = text })
 		end,
 	},
 	slay = {
