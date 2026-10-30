@@ -40,3 +40,47 @@ describe("Licht", function()
 		expect(place).toBe("veraenderte_welt")
 	end)
 end)
+
+describe("Arena-Plätze", function()
+	it("baut Arenen weiterer Rifts versetzt und räumt sie wieder ab", function()
+		local info
+		sim:runAs("server", function(req)
+			local World = req("ServerScriptService.Server.Systems.World")
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			World.build(Atlas.ById.pilzsumpf, 2)
+			local folder = workspace.Arena:FindFirstChild("Gebiet_pilzsumpf_2")
+			local minX = math.huge
+			for _, d in folder:GetDescendants() do
+				if d:IsA("BasePart") then
+					minX = math.min(minX, d.Position.X)
+				end
+			end
+			local center = World.center(2)
+			Enemies.spawn(
+				"slime",
+				center + Vector3.new(0, 0, -20),
+				1,
+				{ center = center, run = 99 }
+			)
+			info = {
+				center = folder:GetAttribute("Center"),
+				region = folder:GetAttribute("Region"),
+				minX = minX,
+				count = Enemies.count(99),
+				other = Enemies.count(98),
+			}
+			Enemies.clear(99)
+			World.release(2)
+			info.gone = workspace.Arena:FindFirstChild("Gebiet_pilzsumpf_2") == nil
+			info.slot1 = World.current(1)
+		end)
+		sim:run(0.5)
+		expect(info.center).toBe(Vector3.new(400, 0, 0))
+		expect(info.region).toBe("pilzsumpf")
+		expect(info.minX).toBeGreaterThan(200)
+		expect(info.count).toBe(1)
+		expect(info.other).toBe(0)
+		expect(info.gone).toBe(true)
+		expect(info.slot1).never.toBe("")
+	end)
+end)

@@ -9,6 +9,7 @@
 
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
+local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Rebirth = require(script.Parent.Rebirth)
@@ -29,6 +30,7 @@ export type Data = {
 	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
 	rebirths: number, -- Anzahl Wiedergeburten (Shared/Rebirth)
 	pets: Pets.Data, -- Haustiere (Shared/Pets)
+	passes: { [string]: boolean }, -- zuletzt bekannter Gamepass-Besitz (Ausfall-Puffer, Systems/Monetization)
 }
 
 export type Lock = { job: string, t: number }
@@ -57,6 +59,7 @@ local DEFAULTS: Data = {
 	receipts = {},
 	rebirths = 0,
 	pets = Pets.fresh(),
+	passes = {},
 }
 
 -- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
@@ -167,7 +170,41 @@ function Profile.reconcile(raw: any): Data
 	data.receipts = receipts
 	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
 	data.pets = Pets.reconcile(data.pets)
+	local passes = {}
+	for key, owned in data.passes do
+		if typeof(key) == "string" and Monetization.PassByKey[key] and owned == true then
+			passes[key] = true
+		end
+	end
+	data.passes = passes
 	return data :: Data
+end
+
+-- Macht einen Stand speicherbar, ohne Tabellen auszutauschen (andere Systeme halten Verweise):
+-- NaN/unendlich → 0, Werte ohne JSON-Form (Instanzen, Funktionen …) und Schlüssel, die weder
+-- String noch Zahl sind, fliegen raus. Gibt die Anzahl der Reparaturen zurück.
+function Profile.sanitize(data: any): number
+	local fixed = 0
+	local function walk(t: { [any]: any }, depth: number)
+		for k, v in t do
+			local kt, vt = typeof(k), typeof(v)
+			local badKey = (kt ~= "string" and kt ~= "number") or depth > 20
+			local plain = vt == "string" or vt == "boolean" or vt == "number" or vt == "table"
+			if badKey or not plain then
+				t[k] = nil
+				fixed += 1
+			elseif vt == "number" and (v ~= v or v == math.huge or v == -math.huge) then
+				t[k] = 0
+				fixed += 1
+			elseif vt == "table" then
+				walk(v, depth + 1)
+			end
+		end
+	end
+	if typeof(data) == "table" then
+		walk(data, 0)
+	end
+	return fixed
 end
 
 -- Frischer Stand für neue Spieler (eigene Tabellen, nie die DEFAULTS selbst)
