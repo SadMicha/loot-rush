@@ -1,0 +1,22 @@
+{
+  "orb_health_frame": "assets/ui/icons/hud/Aligned_HUD_512/Health_Frame.png",
+  "orb_health_fill": "assets/ui/icons/hud/Aligned_HUD_512/Health_Fill.png",
+  "orb_mana_frame": "assets/ui/icons/hud/Aligned_HUD_512/Mana_Frame.png",
+  "orb_mana_fill": "assets/ui/icons/hud/Aligned_HUD_512/Mana_Fill.png",
+  "minimap_frame": "assets/ui/icons/hud/Icons_256/Minimap_Frame.png",
+  "ring_gold": "assets/ui/icons/hud/Icons_256/Round_Slot_Gold.png",
+  "ring_silver": "assets/ui/icons/hud/Icons_256/Portrait_Silver.png",
+  "skill_dash": "assets/ui/icons/skills/128px/Mage/Mage_09_Sprint.png",
+  "skill_spark": "assets/ui/icons/skills/128px/Mage/Mage_01_ArcaneOrb.png",
+  "skill_chain": "assets/ui/icons/skills/128px/Mage/Mage_02_ChainLightning.png",
+  "skill_nova": "assets/ui/icons/skills/128px/Mage/Mage_03_IceNova.png",
+  "skill_storm": "assets/ui/icons/skills/128px/Mage/Mage_05_Thunderstorm.png",
+  "menu_inventory": "assets/ui/icons/backpack.png",
+  "menu_star_net": "assets/ui/icons/starsheet.png",
+  "menu_skills": "assets/ui/icons/skills.png",
+  "menu_hub": "assets/ui/icons/city.png",
+  "menu_atlas": "assets/ui/icons/map.png",
+  "menu_forge": "assets/ui/icons/glitter-forge.png",
+  "menu_shop": "assets/ui/icons/shop.png",
+  "hud_settings": "assets/ui/icons/settings.png"
+}
