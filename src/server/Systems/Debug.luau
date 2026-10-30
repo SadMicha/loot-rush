@@ -70,7 +70,7 @@ local function addSkillLevels(player: Player, n: number)
 	Progress.sync(player)
 end
 
-local function unlockAtlas(player: Player)
+local function unlockAtlas(player: Player, atLeast: number?)
 	local profile = Data.get(player)
 	if not profile then
 		return
@@ -81,6 +81,7 @@ local function unlockAtlas(player: Player)
 	for _, region in Atlas.Regions do
 		deepest = math.max(deepest, region.depth + REGION_SPAN - 1)
 	end
+	deepest = math.max(deepest, atLeast or 0)
 	for _, region in Atlas.Regions do
 		local depth = math.max(profile.atlas[region.id] or 0, deepest)
 		profile.atlas[region.id] = depth
@@ -141,7 +142,12 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	},
 	rebirth = {
 		run = function(player)
-			unlockAtlas(player)
+			-- Nicht mitten im Lauf, und tief genug für die nächste Wiedergeburt (Wand wandert mit)
+			if Rift.isRunning(player) then
+				Net.RebirthResult:FireClient(player, { ok = false, text = "Erst das Rift verlassen" })
+				return
+			end
+			unlockAtlas(player, Rebirth.required(Rift.rebirthsOf(player)))
 			local ok, text = Rebirth.perform(player)
 			Net.RebirthResult:FireClient(player, { ok = ok, text = text })
 		end,
