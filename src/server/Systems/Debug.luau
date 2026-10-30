@@ -14,6 +14,7 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local RebirthRules = require(ReplicatedStorage.Shared.Rebirth)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
@@ -144,10 +145,13 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 		run = function(player)
 			-- Nicht mitten im Lauf, und tief genug für die nächste Wiedergeburt (Wand wandert mit)
 			if Rift.isRunning(player) then
-				Net.RebirthResult:FireClient(player, { ok = false, text = "Erst das Rift verlassen" })
+				Net.RebirthResult:FireClient(
+					player,
+					{ ok = false, text = "Erst das Rift verlassen" }
+				)
 				return
 			end
-			unlockAtlas(player, Rebirth.required(Rift.rebirthsOf(player)))
+			unlockAtlas(player, RebirthRules.required(Rift.rebirthsOf(player)))
 			local ok, text = Rebirth.perform(player)
 			Net.RebirthResult:FireClient(player, { ok = ok, text = text })
 		end,
