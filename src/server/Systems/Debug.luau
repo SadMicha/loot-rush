@@ -131,8 +131,8 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	pet = {
 		run = function(player)
 			Shop.grant(player, "soulstars", 75)
-			local ok, text = Pets.hatch(player, "star_egg")
-			Net.PetResult:FireClient(player, { ok = ok, text = text })
+			local ok, text, petId = Pets.hatch(player, "star_egg")
+			Net.PetResult:FireClient(player, { ok = ok, text = text, kind = "hatch", pet = petId })
 		end,
 	},
 	rebirth = {

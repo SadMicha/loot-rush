@@ -48,15 +48,33 @@ describe("Profile.migrate", function()
 			local r = Profile.migrate({
 				v = 2,
 				data = { inventory = { item(1), item(19) }, equipped = { weapon = item(59) } },
-				lock = { job = "A", t = 1 },
 			})
 			expect(r.v).toBe(Profile.VERSION)
 			expect(r.data.inventory[1].ilvl).toBe(1)
 			expect(r.data.inventory[2].ilvl).toBe(10)
 			expect(r.data.equipped.weapon.ilvl).toBe(30)
-			expect(r.lock.job).toBe("A")
 		end
 	)
+
+	it("loads a save from before the 9 slots (only the 5 old slots equipped)", function()
+		local function item(slot)
+			return { id = slot, slot = slot, rarity = "magic", name = slot, ilvl = 4, affixes = {} }
+		end
+		local equipped = {}
+		for _, slot in { "helmet", "armor", "weapon", "amulet", "ring" } do
+			equipped[slot] = item(slot)
+		end
+		local r = Profile.migrate({ v = Profile.VERSION, data = { equipped = equipped } })
+		local count = 0
+		for slot, it in r.data.equipped do
+			count += 1
+			expect(it.slot).toBe(slot)
+		end
+		expect(count).toBe(5)
+		for _, slot in { "boots", "gloves", "belt", "offhand" } do
+			expect(r.data.equipped[slot]).toBeNil()
+		end
+	end)
 
 	it("fills missing and wrong fields, keeps unknown ones", function()
 		local r = Profile.migrate({ v = Profile.VERSION, data = { gold = "broken", extra = 7 } })
@@ -69,16 +87,5 @@ describe("Profile.migrate", function()
 		local ok, err = pcall(Profile.migrate, { v = Profile.VERSION + 1, data = {} })
 		expect(ok).toBe(false)
 		expect(tostring(err)).toMatch("NEWER")
-	end)
-end)
-
-describe("Profile.lockedByOther", function()
-	it("detects foreign, own and orphaned locks", function()
-		local rec = { v = 2, data = {}, lock = { job = "A", t = 1000 } }
-		expect(Profile.lockedByOther(rec, "B", 1010, 150)).toBe(true)
-		expect(Profile.lockedByOther(rec, "A", 1010, 150)).toBe(false)
-		expect(Profile.lockedByOther(rec, "B", 1200, 150)).toBe(false)
-		expect(Profile.lockedByOther({ v = 2, data = {} }, "B", 1010, 150)).toBe(false)
-		expect(Profile.lockedByOther(nil, "B", 1010, 150)).toBe(false)
 	end)
 end)

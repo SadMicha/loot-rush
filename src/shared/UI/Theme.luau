@@ -67,7 +67,11 @@ Theme.Class = table.freeze({
 	EquipSlot = table.freeze({
 		helmet = "head",
 		armor = "armor",
+		gloves = "gloves",
+		belt = "belt",
+		boots = "boots",
 		weapon = "weapon",
+		offhand = "offhand",
 		amulet = "amulet",
 		ring = "ring",
 	} :: { [string]: string }),

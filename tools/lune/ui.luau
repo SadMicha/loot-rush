@@ -276,6 +276,22 @@ if args.clicks then
 				Inventory.add(sb.player, Items.roll(1 + i % 12, Sandbox.Random.new(i)))
 			end
 			Inventory.addGold(sb.player, 123456)
+			-- One worn piece in every slot so the paper doll shows all nine slots
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local profile = Data.get(sb.player)
+			if profile then
+				local rng = Sandbox.Random.new(777)
+				for _, slot in Items.Slots do
+					for _ = 1, 500 do
+						local item = Items.roll(8, rng)
+						if item.slot == slot then
+							profile.equipped[slot] = item
+							break
+						end
+					end
+				end
+				Inventory.sync(sb.player)
+			end
 		end)
 		sb:run(0.5)
 		local before = {}

@@ -90,6 +90,117 @@ describe("Inventory", function()
 	end)
 end)
 
+describe("Gear slots on the server", function()
+	local SYSTEMS = "ServerScriptService.Server.Systems."
+	local NEW = {
+		boots = { "speed", 2 },
+		gloves = { "crit", 1.5 },
+		belt = { "life", 9 },
+		offhand = { "damage", 4 },
+	}
+	local ATTR =
+		{ speed = "StatSpeed", crit = "StatCrit", life = "StatLife", damage = "StatDamage" }
+
+	local function server(fn)
+		local out = {}
+		sim:runAs("server", function(req)
+			out = table.pack(fn(req, game:GetService("Players"):GetPlayers()[1]))
+		end)
+		return table.unpack(out, 1, out.n)
+	end
+
+	local function stats()
+		return server(function(_, player)
+			local out = {}
+			for stat, attr in ATTR do
+				out[stat] = player:GetAttribute(attr) or 0
+			end
+			return out
+		end)
+	end
+
+	local function equippedIds()
+		return server(function(req, player)
+			local out = {}
+			for slot, item in req(SYSTEMS .. "Data").get(player).equipped do
+				out[slot] = item.id
+			end
+			return out
+		end)
+	end
+
+	it("equips boots, gloves, belt and offhand and adds their stats", function()
+		-- The UI tests above may have equipped a rolled item in one of these slots
+		sim:runAs("client", function(req)
+			for slot in NEW do
+				req("ReplicatedStorage.Shared.Net").Unequip:FireServer(slot)
+			end
+		end)
+		sim:run(0.3)
+		local before = stats()
+		for slot, s in NEW do
+			server(function(req, player)
+				req(SYSTEMS .. "Inventory").add(player, {
+					id = "test-" .. slot,
+					slot = slot,
+					rarity = "normal",
+					name = slot,
+					ilvl = 1,
+					affixes = { { stat = s[1], value = s[2], implicit = true } },
+				})
+			end)
+			sim:runAs("client", function(req)
+				req("ReplicatedStorage.Shared.Net").Equip:FireServer("test-" .. slot)
+			end)
+			sim:run(0.3)
+		end
+		local ids = equippedIds()
+		for slot in NEW do
+			expect(ids[slot]).toBe("test-" .. slot)
+		end
+		local after = stats()
+		for _, s in NEW do
+			expect(math.abs(after[s[1]] - before[s[1]] - s[2]) < 1e-6).toBe(true)
+		end
+	end)
+
+	it("swaps an item in a new slot and unequips it again", function()
+		server(function(req, player)
+			req(SYSTEMS .. "Inventory").add(player, {
+				id = "test-boots-2",
+				slot = "boots",
+				rarity = "normal",
+				name = "boots",
+				ilvl = 1,
+				affixes = { { stat = "speed", value = 3, implicit = true } },
+			})
+		end)
+		local before = stats()
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Equip:FireServer("test-boots-2")
+		end)
+		sim:run(0.3)
+		expect(equippedIds().boots).toBe("test-boots-2")
+		expect(math.abs(stats().speed - before.speed - 1) < 1e-6).toBe(true)
+		local inBag = server(function(req, player)
+			for _, item in req(SYSTEMS .. "Data").get(player).inventory do
+				if item.id == "test-boots" then
+					return true
+				end
+			end
+			return false
+		end)
+		expect(inBag).toBe(true)
+
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Unequip:FireServer("boots")
+		end)
+		sim:run(0.3)
+		expect(equippedIds().boots).toBeNil()
+		expect(math.abs(stats().speed - before.speed + 2) < 1e-6).toBe(true)
+	end)
+end)
+
 describe("Fullscreen windows", function()
 	local function menuButton(name)
 		for _, d in sim.player.PlayerGui.LootRushHUD:GetDescendants() do

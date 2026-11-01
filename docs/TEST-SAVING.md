@@ -7,8 +7,11 @@ test purchases are never confirmed.
 
 Saves are kept by ProfileStore (`lm-loleris/profilestore@1.0.3`) in the data store
 `LootRush_Profile_v3`, key `p_<UserId>`. Old `LootRush_Profile_v2` saves (own lock format) are
-intentionally ignored, so everyone starts fresh once. Autosave runs about every 5 minutes; leaving,
-server shutdown and Robux purchases save right away.
+intentionally ignored, so everyone starts fresh once. Autosave runs about every 2 minutes
+(`ProfileStore.SetConstant("AUTO_SAVE_PERIOD", 120)` in `Systems/Data`, package default 5 min), so a
+server crash loses at most ~2 minutes of gold/XP/drops; leaving, server shutdown and Robux purchases
+save right away. If the save cannot be loaded within 120 s (DataStore outage) the player is kicked
+with `Your save could not be loaded. Please rejoin.` instead of playing without a save.
 
 ## Basics
 
@@ -42,4 +45,11 @@ server shutdown and Robux purchases save right away.
 - [ ] The first server kicks with `Your save was opened on another server. Please rejoin.`
 - [ ] The second server loads the progress the first one had at that moment.
 
-Without Studio: `bash tools/check.sh test` (tests/Profile, tests/ProfileStore, tests/Data, tests/DataLock, tests/DataMock).
+## Autosave (Studio with API access)
+
+- [ ] Play, earn gold, wait ~2.5 minutes without leaving.
+- [ ] Data Stores Manager: `p_<your UserId>` already shows the new gold (autosave, not the leave save).
+
+Without Studio: `bash tools/check.sh test` (tests/Profile, tests/ProfileStore, tests/Data, tests/DataLoad,
+tests/DataLock, tests/DataMock, tests/Monetization). DataLoad covers newer/unreadable saves, leaving
+while loading and the outage kick.

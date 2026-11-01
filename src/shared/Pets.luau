@@ -8,6 +8,8 @@
 -- Save field: profile.pets = { owned = { [id] = level }, equipped = { id } }.
 -- Values are own assumptions, see docs/PETS.md.
 
+local Balance = require(script.Parent.Balance)
+
 local Pets = {}
 
 export type Stat = "damage" | "life" | "gold" | "xp" | "items" | "magnet"
@@ -171,6 +173,15 @@ Pets.List = table.freeze(LIST)
 Pets.ById = table.freeze(byId)
 Pets.Eggs = table.freeze(EGGS)
 Pets.EggById = table.freeze(eggById)
+
+-- Price of an egg for a player with this best depth (gold grows like in the shop,
+-- Soulstars stay fixed). Systems/Pets charges exactly this; the UI shows it.
+function Pets.eggPrice(egg: Egg, bestDepth: number): number
+	if egg.price.kind ~= "gold" then
+		return egg.price.amount
+	end
+	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
+end
 
 function Pets.fresh(): Data
 	return { owned = {}, equipped = {} }
