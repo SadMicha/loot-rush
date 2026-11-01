@@ -25,10 +25,13 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
 ## Checks (Windows, Git Bash)
 - Put `~/.rokit/bin` first on PATH (the old Aftman shims break the tools).
 - `bash tools/check.sh [packages|format|lint|types|build|test|ui]`; no argument runs all of them.
-- The full Lune suite takes ~4–5 minutes: run it once at the end and read the final
-  "N passed, M failed" line. CI runs everything on every PR, so during work prefer
-  `format lint types` plus the specs you touched.
+- **Usage budget: do not run the full Lune suite (~4-5 min) while working.** Run
+  `bash tools/check.sh format lint types` plus only the specs you touched:
+  `lune run tools/lune/test <name-fragment>` (e.g. `Data`, `Items`). CI runs everything on every
+  PR; the main session runs the full suite once before a commit/merge and reads the last
+  "N passed, M failed" line.
 - After a `.gitattributes` change, checkouts must be LF (StyLua line_endings = Unix).
+- Smoke test for a quick playtest: `docs/SMOKE-TEST.md` (10 steps); long checklists are for releases.
 
 ## Agents (`.claude/agents`)
 - `project-planner` (docs/ only) → briefs for the others; owns ROADMAP and specs.
@@ -39,6 +42,13 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
 - Stay in your lane; describe cross-lane needs as a contract in your report instead of editing.
 - Several agents may edit the working tree at once: run `git status` first, touch only your files,
   never revert files you did not change.
+- Parallel agents: the main session starts each with `isolation: "worktree"` when their files
+  could overlap, and merges their branches; otherwise it splits work by folder.
+- Models: `backend-developer` runs Opus (risky server/data code); the main session overrides it to
+  Sonnet for routine tasks (translations, docs, adding tests, small fixes). Reviewer/planner run Sonnet;
+  override to Opus only for saving, purchases, remotes or security reviews.
+- Review once per milestone or PR, not after every step; review early only for saving, purchases,
+  remotes and security. Cosmetic UI shares one review at the end.
 - Do not commit unless asked. Commit messages end with the Co-Authored-By line from the session.
 - Ask the user (AskUserQuestion) only for real design decisions; collect them in one question.
 
