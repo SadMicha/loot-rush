@@ -1,89 +1,89 @@
-# 3D-Assets: Studio oder Blender
+# 3D assets: Studio or Blender
 
-Grundlage: Assets-Plan im Konzeptdokument (MVP ≈ 150 Assets) und die Faustregel dort:
-**statisch, selten, blockig → Parts in Studio. Bewegt, massenhaft, am Spieler getragen oder rund/organisch → Blender.**
+Basis: assets plan in the concept document (MVP ≈ 150 assets) and its rule of thumb:
+**static, rare, blocky → parts in Studio. Moving, mass-produced, worn by the player or round/organic → Blender.**
 
-## Einordnung
+## Classification
 
-| Kategorie (MVP-Anzahl) | Wo | Warum / Grenzen |
+| Category (MVP count) | Where | Why / limits |
 |---|---|---|
-| Umgebungs-Kit: Boden, Terrassen, Klippen, Felsen, Bäume, Säulen, Zäune, Kristalle (40 × 2 Biome) | **Studio, per Code** | Blockiger Stil = Quader/Kugeln. Biom-Varianten über Palette/Seed statt UV-Atlas. Grenze: Part-Zahl pro Karte im Blick behalten (StreamingEnabled, Deko ohne Kollision). |
-| Hub-Gebäude: Portal, Schmiede, Truhe, Dorf-Gebäude × 3 Stufen (6 × 3) | **Studio, per Code** | Groß, statisch, Ausbaustufen = Builder-Parameter. |
-| Fernkulisse: Inseln, Wasserfälle, Wolken, Burg | **Studio, per Code** | Weit weg, Detail egal. |
-| Loot-Objekte: Geschenkbox, Münze, Splitter, Runen-Bonbon (10) | **Studio, per Code** | 1–5 Parts, Farbe = Seltenheit. |
-| Gegner (12) | **Studio jetzt, Blender später** | Der Kristallschleim ist schon ein Part-Modell (`Enemies.luau`). Bei 120 gleichzeitigen Gegnern sind 1 MeshPart billiger als 6 Parts; erst messen (F3-Overlay), dann entscheiden. Golems/Krabben mit Gelenken → Blender. |
-| Bosse (2) | **Blender** | 4–8k Tris, organische Formen, Animation. Blockout darf aus Parts sein. |
-| Helden-Ausrüstung: Helme, Brust, Schultern, Umhänge (12 Sets) | **Blender** | Accessories brauchen MeshParts und saubere Attachments; Rundungen, Hörner, Kronen. |
-| Waffen (20) | **gemischt** | Schwert, Schild, Stab: Parts reichen (als Tool mit Welds). Bogen, Kristallklinge mit Glow-Kern: Blender. |
-| Begleiter/Pets (8) | **Blender** | Animiert, rund, niedlich – mit Parts wird das eckig und teuer. |
+| Environment kit: ground, terraces, cliffs, rocks, trees, pillars, fences, crystals (40 × 2 biomes) | **Studio, in code** | Blocky style = boxes/spheres. Biome variants via palette/seed instead of a UV atlas. Limit: keep an eye on part count per map (StreamingEnabled, decoration without collision). |
+| Hub buildings: portal, forge, chest, village buildings × 3 tiers (6 × 3) | **Studio, in code** | Large, static, upgrade tiers = builder parameters. |
+| Distant scenery: islands, waterfalls, clouds, castle | **Studio, in code** | Far away, detail doesn't matter. |
+| Loot objects: poison box, coin, shard, rune candy (10) | **Studio, in code** | 1–5 parts, color = rarity. |
+| Enemies (12) | **Studio now, Blender later** | The crystal slime is already a part model (`Enemies.luau`). With 120 simultaneous enemies 1 MeshPart is cheaper than 6 parts; measure first (F3 overlay), then decide. Golems/crabs with joints → Blender. |
+| Bosses (2) | **Blender** | 4–8k tris, organic shapes, animation. Blockout may be made of parts. |
+| Hero equipment: helmets, chest, shoulders, capes (12 sets) | **Blender** | Accessories need MeshParts and clean attachments; curves, horns, crowns. |
+| Weapons (20) | **mixed** | Sword, shield, staff: parts are enough (as a tool with welds). Bow, crystal blade with glowing core: Blender. |
+| Companions/pets (8) | **Blender** | Animated, round, cute – with parts it gets blocky and expensive. |
 
-Ergebnis: rund zwei Drittel der MVP-Assets entstehen in Studio, Blender bleibt für ca. 40 (Ausrüstung, Bogen/Klingen, Bosse, Pets, ggf. Gegner).
+Result: about two thirds of the MVP assets are made in Studio, Blender remains for about 40 (equipment, bow/blades, bosses, pets, possibly enemies).
 
-## Pipeline (passt zu Rojo)
+## Pipeline (fits Rojo)
 
-**Weg A – Builder im Code (Standard).** Jedes Modell ist eine Funktion in `src/shared/Models/` (z. B. `Props.chest()`), die ein `Model` mit Pivot unten mittig zurückgibt. Versioniert in Git, per Parameter/Seed variierbar, Platzierung bleibt in `World.luau`. Farben nur aus `Kit.C`.
+**Route A – builder in code (default).** Every model is a function in `src/shared/Models/` (e.g. `Props.chest()`) that returns a `Model` with the pivot at bottom center. Versioned in Git, variable by parameter/seed, placement stays in `World.luau`. Colors only from `Kit.C`.
 
-**Weg B – von Hand in Studio, als `.rbxm` ins Repo.** Für Dinge, die man lieber mit der Maus baut (Wahrzeichen, Hub-Platz). Dafür braucht `default.project.json` einen Eintrag, z. B. `ReplicatedStorage.Assets → assets/models`. Diese Datei fasse ich nur mit deiner Freigabe an.
+**Route B – by hand in Studio, as `.rbxm` into the repo.** For things you'd rather build with the mouse (landmarks, hub square). For this `default.project.json` needs an entry, e.g. `ReplicatedStorage.Assets → assets/models`. I only touch this file with your approval.
 
-**Weg C – Blender → FBX → 3D Importer → MeshPart**, wie im Konzept. Das fertige MeshPart als `.rbxm` (Weg B) ins Repo.
+**Route C – Blender → FBX → 3D Importer → MeshPart**, as in the concept. The finished MeshPart as `.rbxm` (route B) into the repo.
 
-Brücke: Ein Builder-Modell lässt sich in Studio erzeugen, von Hand nachbessern und dann als `.rbxm` speichern (A → B). Umgekehrt holt „Export Selection“ ein Part-Modell als OBJ nach Blender.
+Bridge: a builder model can be generated in Studio, touched up by hand and then saved as `.rbxm` (A → B). Conversely, "Export Selection" brings a part model to Blender as OBJ.
 
-## Was du in Studio von Hand machst
+## What you do by hand in Studio
 
-1. Rojo verbinden, im Edit-Modus in die Command Bar:
+1. Connect Rojo, in edit mode in the Command Bar:
    `require(game.ReplicatedStorage.Shared.Models).showcase()`
-   → alle Builder stehen in `workspace.ModellVorschau` (bei Z = 80). Anschauen, Feedback geben, danach löschen.
-2. Play drücken: Portal, Truhe, Zaun stehen am Spawn, Kristallgruppen am Arenarand.
-3. Für Weg B/C: Modell auswählen → Rechtsklick → „Save to File…“ als `.rbxm` (Ablageort klären wir, sobald der Projekt-Eintrag freigegeben ist).
-4. Animationen (Bosse, Pets) im Animation Editor – das kann ich nicht aus dem Repo heraus.
+   → all builders stand in `workspace.ModelPreview` (at Z = 80). Look at them, give feedback, then delete.
+2. Press Play: portal, chest, fence stand at the spawn, crystal clusters at the arena edge.
+3. For route B/C: select the model → right-click → "Save to File…" as `.rbxm` (we'll settle the location once the project entry is approved).
+4. Animations (bosses, pets) in the Animation Editor – I can't do that from the repo.
 
-## Werkzeuge in dieser Sitzung
+## Tools in this session
 
-- Kein Roblox-Studio-MCP verbunden: Ich kann Studio nicht fernsteuern oder Screenshots machen. Studio hat einen eingebauten MCP-Server; verbunden könnte ich Modelle selbst ansehen und nachbessern.
-- Blender-MCP ist verbunden (für Weg C).
-- Prüfung hier: `stylua`, `selene`, `rojo build` – die Optik prüfst du in Studio.
+- No Roblox Studio MCP connected: I can't remote-control Studio or take screenshots. Studio has a built-in MCP server; connected, I could look at and touch up models myself.
+- Blender MCP is connected (for route C).
+- Checks here: `stylua`, `selene`, `rojo build` – you check the visuals in Studio.
 
-## Referenzbilder
+## Reference images
 
-Für Blender-Assets gilt Abschnitt 10 in `art-prompts/ChatGPT_Bildprompts.md`. Für Part-Bauten hilft eine Variante, die nur Grundkörper zeigt:
+For Blender assets, section 10 in `art-prompts/ChatGPT_Bildprompts.md` applies. For part builds a variant that only shows primitives helps:
 
 ```
 3D blockout reference sheet, 1536x1024, plain white background, orthographic front, side and top view of [ASSET], built ONLY from simple boxes, spheres, cylinders and wedges like a Roblox Studio build, visible 1-stud grid on the ground, flat colors from a limited palette, no textures, no text.
 ```
 
-## Erster Batch (dieser PR)
+## First batch (this PR)
 
-`Kit` (Palette, Bausteine, Pivot/Kollision/Schatten-Regeln) und `Props`: Baum, Ruinensäule, Kristall-Pylon, Schwebeinsel (aus `World.luau` herausgelöst, Optik gleich) plus neu Rift-Portal, Truhe (Deckel separat zum Aufklappen), Kristallgruppe (Seed + Biomfarbe), Zaunmodul (8 Studs).
+`Kit` (palette, building blocks, pivot/collision/shadow rules) and `Props`: tree, ruin pillar, crystal pylon, floating island (extracted from `World.luau`, same look) plus new rift portal, chest (lid separate for opening), crystal cluster (seed + biome color), fence module (8 studs).
 
-Nächster Batch, wenn die Optik passt: Loot-Geschenkbox an `Loot.luau` anschließen, Gegner-Archetypen für die Sonnenwiese, Schmiede und Dorf-Gebäude mit 3 Stufen.
+Next batch, once the look is right: hook the loot poison box up to `Loot.luau`, enemy archetypes for the Sunny Meadow, forge and village buildings with 3 tiers.
 
-## Zweiter Batch
+## Second batch
 
-- `Loot`: Geschenkbox (Seltenheitsfarbe, Neon ab magisch), Münze, Splitter, Runen-Bonbon. Per `Kit.rig` beweglich (nur der „Kern“ ist verankert). **Im Spiel aktiv:** Item-Drops sind jetzt Geschenkboxen, Gold-Drops Münzen.
-- `Buildings`: Schmiede und Dorfhaus, je Stufe 1–3 (`Buildings.forge(stufe)`, `Buildings.house(stufe)`). Noch nicht in der Welt platziert, nur in der Vorschau.
-- `Creatures`: Kristallschleim (aus `Enemies.luau` herausgelöst, Augen schauen jetzt in Laufrichtung) und Stachelkäfer für die Sonnenwiese (nur Modell, spawnt noch nicht). Pivot hier in der Körpermitte, weil die Gegner-KI damit hüpft.
+- `Loot`: poison box (rarity color, neon from magic), coin, shard, rune candy. Movable via `Kit.rig` (only the "core" is anchored). **Active in game:** item drops are now poison boxes, gold drops coins.
+- `Buildings`: forge and village house, tier 1–3 each (`Buildings.forge(stage)`, `Buildings.house(stage)`). Not yet placed in the world, only in the preview.
+- `Creatures`: crystal slime (extracted from `Enemies.luau`, eyes now look in the walking direction) and spike beetle for the Sunny Meadow (model only, doesn't spawn yet). Pivot here in the body center, because the enemy AI hops with it.
 
-Nächster Batch: Käfer als Gegnertyp in `Enemies`/`Rift`, Gebäude im Hub platzieren und an den Dorf-Ausbau koppeln, Splitter/Bonbons als Drops, sobald es Craft-Material gibt.
+Next batch: beetle as an enemy type in `Enemies`/`Rift`, place buildings in the hub and tie them to the village upgrade, shards/candies as drops once there is crafting material.
 
-## Dritter Batch: Gegner aller Gebiete
+## Third batch: enemies of all regions
 
-`Creatures` hat jetzt je Gebiet aus dem Atlas eigene Gegner (Archetyp in Klammern, Werte aus dem Balancing-Blatt „Archetypen“):
+`Creatures` now has its own enemies per Atlas region (archetype in parentheses, values from the balancing sheet "Archetypes"):
 
-| Gebiet | Gegner | Boss |
+| Region | Enemies | Boss |
 |---|---|---|
-| Grüne Ebenen | Kristallschleim (Schwarm), Stachelkäfer (Lader) | Kristallkönig |
-| Kristallhöhlen | Kristallkrabbe (Tank), Fledermaus-Lampion (Fernkämpfer) | Splitterwurm |
-| Pilzsumpf | Sporenfrosch (Lader), Giftschnecke (Beschwörer, ruft Sporlinge) | Sporenmutter |
-| Feuerwüste | Toast-Golem (Tank), Funkenwicht (Fernkämpfer) | Ofenfürst Krust |
-| Himmelsinseln | Windgeist (Fernkämpfer), Wächterstatue (Tank) | Wolkenkönigin |
-| Veränderte Welt | Mischung aus allen | Der Riss |
+| Green Plains | Crystal Slime (swarm), Spike Beetle (charger) | Crystal King |
+| Crystal Caves | Crystal Crab (tank), Lantern Bat (ranged) | Shard Worm |
+| Mushroom Swamp | Spore Frog (charger), Poison Snail (summoner, calls sporelings) | Spore Mother |
+| Fire Desert | Toast Golem (tank), Spark Imp (ranged) | Oven Lord Krust |
+| Sky Islands | Wind Spirit (ranged), Guardian Statue (tank) | Cloud Queen |
+| Changed World | Mix of all | The Rift |
 
-Bosse sind dieselben Bauten, größer und mit `Creatures.crown`. Alle stehen in der Vorschau (`showcase()`).
-Gegnertypen, KI und Werte: `Systems/Enemies.luau`; Gegner-Mix, Start-Tiefe und Freischalten: `Shared/Atlas.luau`.
+Bosses are the same builds, bigger and with `Creatures.crown`. All stand in the preview (`showcase()`).
+Enemy types, AI and values: `Systems/Enemies.luau`; enemy mix, starting depth and unlocking: `Shared/Atlas.luau`.
 
-## Blender-Assets im Repo (Weg B/C aktiv)
+## Blender assets in the repo (route B/C active)
 
-`assets/models/` ist per `default.project.json` als `ReplicatedStorage.Assets` eingebunden. Jede `.rbxm` dort (aus Studio „Save to File…“ nach dem 3D-Import) erscheint im Spiel als `ReplicatedStorage.Assets.<Dateiname>`. Namen wie in der Asset-Liste (`Hub_RiftTor.rbxm`, `A2_Kristallherz.rbxm` …). Regeln und Asset-Liste: Projektordner `blender-assets/ANLEITUNG.md`.
+`assets/models/` is mounted via `default.project.json` as `ReplicatedStorage.Assets`. Every `.rbxm` there (from Studio "Save to File…" after the 3D import) appears in game as `ReplicatedStorage.Assets.<FileName>`. Names as in the asset list (`Hub_RiftTor.rbxm`, …). Rules and asset list: project folder `blender-assets/ANLEITUNG.md`.
 
-Die `.rbxm` aus aktuellen Studio-Versionen brauchen Rojo ≥ 7.7 und Lune ≥ 0.10.5 (ältere Versionen scheitern an `MeshPart.Tags`). Der Hub (`Systems/Hub.luau`) holt seine Modelle per Name aus `ReplicatedStorage.Assets`; fehlt eines, steht ein Part-Platzhalter da. `_Neon`-Teile bekommen Neon, eine Leuchtfarbe je Modell und ein Licht, `_Deko`-Teile keine Kollision. Zeigt ein Modell in die falsche Richtung, `ASSET_YAW` in `Hub.luau` anpassen.
+`.rbxm` files from current Studio versions need Rojo ≥ 7.7 and Lune ≥ 0.10.5 (older versions fail on `MeshPart.Tags`). The hub (`Systems/Hub.luau`) fetches its models by name from `ReplicatedStorage.Assets`; if one is missing, a part placeholder stands there. `_Neon` parts get neon, one glow color per model and a light, `_Deko` parts no collision. If a model faces the wrong way, adjust `ASSET_YAW` in `Hub.luau`.

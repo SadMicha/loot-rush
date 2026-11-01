@@ -1,14 +1,13 @@
 --!strict
--- Skill-Eingabe: Q/E/R/F = Skills 1–4, 1 = Lebenstrank, Klick/Tipp auf Slot.
--- Zielpunkt: Maus auf Bodenebene, auf Touch der nächste Gegner. Cooldowns hier nur für die Anzeige –
--- der Server prüft alles selbst.
+-- Skill input: Q/E/R/F = skills 1-4, click/tap on slot.
+-- Aim point: mouse on ground plane, on touch the nearest enemy. Cooldowns here are display only -
+-- the server validates everything itself.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 
@@ -17,10 +16,8 @@ local SkillController = {}
 local player = Players.LocalPlayer
 local cdStart: { number } = { 0, 0, 0, 0 }
 local cdUntil: { number } = { 0, 0, 0, 0 }
-local potionStart = 0
-local potionUntil = 0
 
-local AIM_HEIGHT = 1.5 -- Körpermitte der Gegner, Zielebene für den Mauszeiger
+local AIM_HEIGHT = 1.5 -- Enemy body center, target plane for the mouse cursor
 
 local KEYS: { [Enum.KeyCode]: number } = {
 	[Enum.KeyCode.Q] = 1,
@@ -71,7 +68,7 @@ local function aimPoint(): Vector3
 	return nearestEnemy(root.Position) or (root.Position + root.CFrame.LookVector * 20)
 end
 
--- 0 = bereit … 1 = gerade gestartet
+-- 0 = ready ... 1 = just started
 function SkillController.cooldownRatio(slot: number): number
 	local total = cdUntil[slot] - cdStart[slot]
 	if total <= 0 then
@@ -82,18 +79,6 @@ end
 
 function SkillController.remaining(slot: number): number
 	return math.max(0, cdUntil[slot] - os.clock())
-end
-
-function SkillController.potionRatio(): number
-	local total = potionUntil - potionStart
-	if total <= 0 then
-		return 0
-	end
-	return math.clamp((potionUntil - os.clock()) / total, 0, 1)
-end
-
-function SkillController.potionRemaining(): number
-	return math.max(0, potionUntil - os.clock())
 end
 
 function SkillController.cast(slot: number)
@@ -110,17 +95,6 @@ function SkillController.cast(slot: number)
 	end
 end
 
-function SkillController.potion()
-	local now = os.clock()
-	local left = player:GetAttribute("Potions")
-	if now < potionUntil or (typeof(left) == "number" and left < 1) then
-		return
-	end
-	potionStart = now
-	potionUntil = now + Config.POTION_COOLDOWN
-	Net.UsePotion:FireServer()
-end
-
 function SkillController.init()
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if processed then
@@ -129,8 +103,6 @@ function SkillController.init()
 		local slot = KEYS[input.KeyCode]
 		if slot then
 			SkillController.cast(slot)
-		elseif input.KeyCode == Enum.KeyCode.One then
-			SkillController.potion()
 		end
 	end)
 end

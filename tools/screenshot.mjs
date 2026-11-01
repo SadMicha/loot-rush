@@ -1,4 +1,4 @@
-// HTML-Abbilder aus tools/lune/ui als PNG fotografieren (braucht Node + Playwright mit Chromium).
+// Photograph the HTML snapshots from tools/lune/ui as PNGs (needs Node + Playwright with Chromium).
 //   node tools/screenshot.mjs [.tools/out/ui]
 import { createRequire } from "node:module";
 import { readdirSync } from "node:fs";
@@ -10,7 +10,7 @@ let playwright;
 try {
 	playwright = require("playwright");
 } catch {
-	console.log("Playwright fehlt – keine PNGs (npm i -D playwright && npx playwright install chromium).");
+	console.log("Playwright missing - no PNGs (npm i -D playwright && npx playwright install chromium).");
 	process.exit(0);
 }
 

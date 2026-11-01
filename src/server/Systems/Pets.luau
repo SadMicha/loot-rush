@@ -1,10 +1,10 @@
 --!strict
--- Haustiere auf dem Server (Regeln: Shared/Pets). Der Client schickt nur Wünsche über Net.Pet:
---   "hatch", eggId  → Preis abbuchen, Haustier würfeln, Stufe heben oder Splitter geben
---   "equip", petId / "unequip", petId → Platz belegen/freigeben
--- Stand geht als Net.Pets an den Client, Rückmeldung als Net.PetResult. Ausgerüstete Haustiere
--- stehen kommagetrennt im Attribut "Pets" (für alle Clients, PetController lässt sie folgen),
--- die Platzanzahl in "PetSlots". Boni laufen über Systems/Boosts.
+-- Pets on the server (rules: Shared/Pets). The client only sends requests via Net.Pet:
+--   "hatch", eggId  → deduct the price, roll a pet, raise the level or give shards
+--   "equip", petId / "unequip", petId → take/free a slot
+-- State goes to the client as Net.Pets, feedback as Net.PetResult. Equipped pets
+-- are listed comma-separated in the attribute "Pets" (for all clients, PetController makes them follow),
+-- the slot count in "PetSlots". Bonuses run via Systems/Boosts.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,13 +23,19 @@ local Pets = {}
 local allow = RateLimit.new(3, 6)
 local rng = Random.new()
 
--- Weitere Plätze (Gamepass) meldet Systems/Monetization über das Attribut "PassPetSlot"
+-- Egg odds for display before purchase (fixed, so computed once): { [eggId] = { Odd } }
+local eggOdds: { [string]: { Rules.Odd } } = {}
+for _, egg in Rules.Eggs do
+	eggOdds[egg.id] = Rules.odds(egg)
+end
+
+-- Extra slots (game pass) are reported by Systems/Monetization via the attribute "PassPetSlot"
 function Pets.slots(player: Player): number
 	local extra = if player:GetAttribute("PassPetSlot") == true then 1 else 0
 	return math.min(Rules.MAX_SLOTS, Rules.BASE_SLOTS + extra)
 end
 
--- Preis eines Eis für diesen Spieler (Gold wächst wie im Shop mit der besten Tiefe)
+-- Price of an egg for this player (gold grows with the best depth, like in the shop)
 function Pets.eggPrice(egg: Rules.Egg, bestDepth: number): number
 	if egg.price.kind ~= "gold" then
 		return egg.price.amount
@@ -37,8 +43,8 @@ function Pets.eggPrice(egg: Rules.Egg, bestDepth: number): number
 	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
 end
 
--- Mehr ausgerüstet als Plätze da sind (Gamepass weg)? Überzählige ablegen – nur bei einer
--- Aktion des Spielers, nicht beim Laden (der Gamepass-Besitz kann erst später ankommen)
+-- More equipped than there are slots (game pass gone)? Drop the extras - only on a
+-- player action, not on load (game pass ownership may arrive later)
 local function trim(player: Player, profile: Data.Profile)
 	local list = profile.pets.equipped
 	while #list > Pets.slots(player) do
@@ -60,10 +66,12 @@ function Pets.sync(player: Player)
 	end
 	player:SetAttribute("PetSlots", slots)
 	player:SetAttribute("Pets", table.concat(shown, ","))
-	Net.Pets:FireClient(
-		player,
-		{ owned = profile.pets.owned, equipped = profile.pets.equipped, slots = slots }
-	)
+	Net.Pets:FireClient(player, {
+		owned = Rules.knownOwned(profile.pets), -- unknown ones (newer server) are not shown
+		equipped = profile.pets.equipped,
+		slots = slots,
+		odds = eggOdds,
+	})
 end
 
 local function reply(player: Player, ok: boolean, text: string, extra: { [string]: any }?)
@@ -76,17 +84,17 @@ local function reply(player: Player, ok: boolean, text: string, extra: { [string
 	Net.PetResult:FireClient(player, msg)
 end
 
--- Ei ausbrüten. Gibt (ok, Text, Haustier-ID?) zurück (auch für Tests)
+-- Hatch an egg. Returns (ok, text, pet ID?) (also for tests)
 function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	local profile = Data.get(player)
 	local egg = Rules.EggById[eggId]
 	if not profile or not egg then
-		return false, "Unbekanntes Ei", nil
+		return false, "Unknown egg", nil
 	end
 	local price = Pets.eggPrice(egg, Rebirth.bestDepth(profile.atlas))
 	local have = if egg.price.kind == "gold" then profile.gold else profile.soulstars
 	if have < price then
-		return false, "Zu wenig " .. Shop.nameOf(egg.price.kind), nil
+		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil
 	end
 	Shop.grant(player, egg.price.kind, -price)
 	local pet = Rules.roll(egg, rng)
@@ -96,52 +104,54 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	if shards > 0 then
 		Shop.grant(player, "shards", shards)
 	end
-	-- erstes Haustier gleich ausrüsten, wenn ein Platz frei ist
+	-- equip the first pet right away if a slot is free
 	if fresh and #profile.pets.equipped < Pets.slots(player) then
 		table.insert(profile.pets.equipped, pet.id)
 	end
 	Boosts.refresh(player)
 	Pets.sync(player)
 	local text = if fresh
-		then pet.name .. " geschlüpft!"
+		then pet.name .. " hatched!"
 		elseif shards > 0 then string.format(
-			"%s ist schon Höchststufe: +%d Splitter",
+			"%s is already max level: +%d shards",
 			pet.name,
 			shards
 		)
-		else string.format("%s steigt auf Stufe %d!", pet.name, level)
+		else string.format("%s rises to level %d!", pet.name, level)
 	return true, text, pet.id
 end
 
 function Pets.equip(player: Player, petId: string): (boolean, string)
 	local profile = Data.get(player)
-	if not profile or not profile.pets.owned[petId] then
-		return false, "Haustier fehlt"
+	local pet = Rules.ById[petId]
+	if not profile or not pet or not profile.pets.owned[petId] then
+		return false, "Pet missing"
 	end
 	trim(player, profile)
 	local list = profile.pets.equipped
 	if table.find(list, petId) then
-		return false, "Schon ausgerüstet"
+		return false, "Already equipped"
 	end
 	if #list >= Pets.slots(player) then
-		table.remove(list, 1) -- ältestes ersetzen
+		table.remove(list, 1) -- replace the oldest
 	end
 	table.insert(list, petId)
 	Boosts.refresh(player)
 	Pets.sync(player)
-	return true, Rules.ById[petId].name .. " begleitet dich"
+	return true, pet.name .. " joins you"
 end
 
 function Pets.unequip(player: Player, petId: string): (boolean, string)
 	local profile = Data.get(player)
 	local index = if profile then table.find(profile.pets.equipped, petId) else nil
 	if not profile or not index then
-		return false, "Nicht ausgerüstet"
+		return false, "Not equipped"
 	end
 	table.remove(profile.pets.equipped, index)
 	Boosts.refresh(player)
 	Pets.sync(player)
-	return true, Rules.ById[petId].name .. " ruht sich aus"
+	local pet = Rules.ById[petId]
+	return true, (if pet then pet.name else "Pet") .. " takes a rest"
 end
 
 local function onPet(player: Player, action: any, id: any)
@@ -177,7 +187,7 @@ function Pets.start()
 			Pets.sync(player)
 			Boosts.refresh(player)
 		end
-		-- Gamepass kann später kommen (Kauf im Spiel)
+		-- Game pass may arrive later (purchase in game)
 		player:GetAttributeChangedSignal("PassPetSlot"):Connect(function()
 			Boosts.refresh(player)
 			Pets.sync(player)

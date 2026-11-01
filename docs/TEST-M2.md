@@ -1,28 +1,29 @@
-# Testliste M2 – Kampf
+# Checklist M2 – Combat
 
-Nach `rojo serve` + Connect + Play. Fehler aus dem Output einfach kopieren.
+After `rojo serve` + Connect + Play. Just copy errors from the Output.
 
-## Gegner
+## Enemies
 
-- [x] ~10 Kristallschleime erscheinen im Nordteil der Arena, Lebensbalken über dem Kopf
-- [x] Sie hüpfen auf dich zu, stoppen nah, roter Kreis füllt sich (0,9 s), dann Schlag
-- [x] Aus dem Kreis laufen oder dashen = kein Schaden („Ausgewichen!“ beim Dash)
-- [x] Tote Gegner platzen in Würfel, nach ~2,5 s kommt Ersatz
+- [x] ~10 crystal slimes appear in the north part of the arena, health bar above the head
+- [x] They hop toward you, stop close, a red circle fills (0.9 s), then a hit
+- [x] Walking or dashing out of the circle = no damage ("Dodged!" on dash)
+- [x] Dead enemies burst into cubes, a replacement comes after ~2.5 s
 
-## Kampf
+## Combat
 
-- [x] Grundangriff feuert automatisch auf den nächsten Gegner (Funken)
-- [x] Q Klingenwirbel (Ring um dich) · E Funkenball (Richtung Maus, Explosion) · R Kettenblitz (springt auf bis zu 5) · F Frostnova (verlangsamt)
-- [x] Slots zeigen Cooldown-Füllung + Sekunden; Klick/Tipp auf Slot geht auch
-- [x] Schadenszahlen: weiß normal, gold + „!“ bei Krit, rot wenn du getroffen wirst
-- [x] Taste 1 / Klick auf roten Trank heilt 35 % (6 s Cooldown, Trank füllt sich wieder)
+- [x] Basic attack fires automatically at the nearest enemy (sparks)
+- [x] Q Thunderstorm (ring around you) · E Spark Ball (toward mouse, explosion) · R Chain Lightning (jumps to up to 5) · F Frost Nova (slows)
+- [x] Slots show cooldown fill + seconds; clicking/tapping a slot works too
+- [x] Damage numbers: white normal, gold + "!" on crit, red when you get hit
+- [ ] Thunderstorm: name, lightning description and HUD icon in the Abilities window; same radius (10) and cooldown (3 s) as the old Blade Whirl; blooms Bolt Rain / Eye of the Storm / Thunderclap / Storm Rider work
+- [ ] No potions anywhere: no potion button left of the orbs, key 1 does nothing, shop has no Supplies tab and no potions in the wallet
 
-## Fortschritt
+## Progress
 
-- [x] XP-Leiste unten füllt sich, bei Level-Up „LEVEL 2!“ + goldener Ring, Leben voll, Raute zeigt neues Level
-- [x] Tod → nach 3 s Respawn am Spawn; Level bleibt
-- [x] HUD-Ein-/Ausflug funktioniert weiter (Kampf = Panels weg)
+- [x] XP bar at the bottom fills, on level-up "LEVEL 2!" + golden ring, health full, diamond shows new level
+- [x] Death → respawn at spawn after 3 s; level stays
+- [x] HUD slide-in/out still works (combat = panels gone)
 
-## Gefühl (deine Meinung)
+## Feel (your opinion)
 
-- Schaden/Leben der Gegner zu hoch/niedrig? Cooldowns? Zielen mit Maus ok?
+- Enemy damage/health too high/low? Cooldowns? Aiming with the mouse ok?

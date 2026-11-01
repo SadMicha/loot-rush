@@ -1,22 +1,22 @@
--- Licht je Ort: Server baut eine Arena, der Client im Hub behält trotzdem das Hub-Licht.
+-- Light per place: the server builds an arena, the client in the Hub still keeps the Hub light.
 local Atlas = require("ReplicatedStorage.Shared.Atlas")
 local Looks = require("ReplicatedStorage.Shared.Looks")
 
-describe("Licht", function()
-	it("kennt jedes Gebiet", function()
+describe("Lighting", function()
+	it("knows every region", function()
 		for _, region in Atlas.Regions do
 			expect(Looks.Regions[region.id]).never.toBeNil()
 		end
 	end)
 
-	it("Spieler im Hub sieht Hub-Licht, auch wenn die Arena umgebaut wird", function()
+	it("player in the Hub sees Hub light even while the arena is rebuilt", function()
 		sim:boot({ seconds = 2 })
 		sim:runAs("server", function(req)
 			local Config = req("ReplicatedStorage.Shared.Config")
 			local player = game:GetService("Players"):GetPlayers()[1]
 			player.Character:PivotTo(CFrame.new(Config.HUB_POS))
 			local World = req("ServerScriptService.Server.Systems.World")
-			World.build(Atlas.ById.veraenderte_welt)
+			World.build(Atlas.ById.altered_world)
 		end)
 		sim:run(1)
 		local place
@@ -25,7 +25,7 @@ describe("Licht", function()
 				req("StarterPlayer.StarterPlayerScripts.Client.Controllers.LightController").place()
 		end)
 		expect(place).toBe("hub")
-		-- im Rift gilt das Gebiets-Licht
+		-- in the Rift the region light applies
 		sim:runAs("server", function(req)
 			local Config = req("ReplicatedStorage.Shared.Config")
 			game:GetService("Players")
@@ -37,18 +37,18 @@ describe("Licht", function()
 			place =
 				req("StarterPlayer.StarterPlayerScripts.Client.Controllers.LightController").place()
 		end)
-		expect(place).toBe("veraenderte_welt")
+		expect(place).toBe("altered_world")
 	end)
 end)
 
-describe("Arena-Plätze", function()
-	it("baut Arenen weiterer Rifts versetzt und räumt sie wieder ab", function()
+describe("Arena slots", function()
+	it("builds arenas of further Rifts offset and tears them down again", function()
 		local info
 		sim:runAs("server", function(req)
 			local World = req("ServerScriptService.Server.Systems.World")
 			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
-			World.build(Atlas.ById.pilzsumpf, 2)
-			local folder = workspace.Arena:FindFirstChild("Gebiet_pilzsumpf_2")
+			World.build(Atlas.ById.mushroom_swamp, 2)
+			local folder = workspace.Arena:FindFirstChild("Region_mushroom_swamp_2")
 			local minX = math.huge
 			for _, d in folder:GetDescendants() do
 				if d:IsA("BasePart") then
@@ -71,12 +71,12 @@ describe("Arena-Plätze", function()
 			}
 			Enemies.clear(99)
 			World.release(2)
-			info.gone = workspace.Arena:FindFirstChild("Gebiet_pilzsumpf_2") == nil
+			info.gone = workspace.Arena:FindFirstChild("Region_mushroom_swamp_2") == nil
 			info.slot1 = World.current(1)
 		end)
 		sim:run(0.5)
 		expect(info.center).toBe(Vector3.new(400, 0, 0))
-		expect(info.region).toBe("pilzsumpf")
+		expect(info.region).toBe("mushroom_swamp")
 		expect(info.minX).toBeGreaterThan(200)
 		expect(info.count).toBe(1)
 		expect(info.other).toBe(0)

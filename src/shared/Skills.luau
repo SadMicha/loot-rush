@@ -1,7 +1,7 @@
 --!strict
--- Skill-Definitionen der Startklasse (Funkenmagier Zap).
--- Client nutzt sie für Anzeige und Cooldown-Vorschau, der Server für die echte Wirkung.
--- Neuer Skill = neuer Eintrag; die Wirkung kommt allein aus `kind` und den Zahlen.
+-- Skill definitions of the starting class (Spark Mage Zap).
+-- The client uses them for display and cooldown preview, the server for the real effect.
+-- New skill = new entry; the effect comes solely from `kind` and the numbers.
 
 export type Kind = "projectile" | "nova" | "chain"
 
@@ -9,32 +9,32 @@ export type Skill = {
 	id: string,
 	name: string,
 	desc: string,
-	icon: string, -- Schlüssel in Assets.Icon
+	icon: string, -- key in Assets.Icon
 	color: Color3,
 	kind: Kind,
 	damage: number,
-	cooldown: number, -- Sekunden
-	range: number, -- Studs: max. Zielentfernung
-	radius: number, -- Studs: Treffer-/Explosionsradius (chain: Sprungweite)
-	speed: number?, -- projectile: Studs/s
-	chains: number?, -- chain: Anzahl Treffer
-	slow: number?, -- Tempo-Faktor auf Getroffene (0.5 = halb so schnell)
+	cooldown: number, -- seconds
+	range: number, -- studs: max. target distance
+	radius: number, -- studs: hit/explosion radius (chain: jump range)
+	speed: number?, -- projectile: studs/s
+	chains: number?, -- chain: number of hits
+	slow: number?, -- speed factor on targets hit (0.5 = half as fast)
 	slowTime: number?,
-	-- Sonderwirkungen aus Skill-Blüten (Anteile beziehen sich auf den Skill-Schaden)
-	echo: number?, -- nova: zweiter Wirbel mit diesem Schadensanteil
-	lastHit: number?, -- chain: Zusatzschaden des letzten Sprungs als Anteil
-	pull: number?, -- nova: zieht Getroffene so viele Studs heran
-	blades: number?, -- nova: Anzahl Klingen nach außen
-	haste: number?, -- nova: % Lauftempo für kurze Zeit nach Treffer
-	burn: number?, -- Brand-Schaden (Anteil, verteilt über 2 s)
-	sparks: number?, -- projectile: Funken aus der Explosion
-	twin: number?, -- projectile: zweiter Ball mit diesem Schadensanteil
-	pierce: number?, -- projectile: Chance, durch den ersten Gegner zu fliegen
-	fork: number?, -- chain: Zweig vom ersten Treffer auf 2 weitere
-	jumpSpark: number?, -- chain: Funken um jeden Sprung
-	shatter: number?, -- Verlangsamte platzen beim Tod
-	field: number?, -- nova: Eisfeld, Schaden alle 0,5 s
-	armorBuff: number?, -- nova: % Rüstung für kurze Zeit
+	-- special effects from Skill Blooms (shares refer to the skill damage)
+	echo: number?, -- nova: second thunderclap with this damage share
+	lastHit: number?, -- chain: bonus damage of the last jump as a share
+	pull: number?, -- nova: pulls targets hit in by this many studs
+	bolts: number?, -- nova: number of bolts flying outward
+	haste: number?, -- nova: % move speed for a short time after a hit
+	burn: number?, -- burn damage (share, spread over 2 s)
+	sparks: number?, -- projectile: sparks from the explosion
+	twin: number?, -- projectile: second ball with this damage share
+	pierce: number?, -- projectile: chance to fly through the first enemy
+	fork: number?, -- chain: branch from the first hit to 2 more
+	jumpSpark: number?, -- chain: sparks around every jump
+	shatter: number?, -- slowed enemies shatter on death
+	field: number?, -- nova: ice field, damage every 0.5 s
+	armorBuff: number?, -- nova: % armor for a short time
 }
 
 local function def(s: Skill): Skill
@@ -43,12 +43,12 @@ end
 
 local Skills = {}
 
--- Grundangriff: immer automatisch auf den nächsten Gegner
+-- Basic attack: always automatic on the nearest enemy
 Skills.basic = def({
 	id = "basic",
-	name = "Funke",
-	desc = "Ein schneller Funke auf den nächsten Gegner.",
-	icon = "blitz",
+	name = "Spark",
+	desc = "A quick spark at the nearest enemy.",
+	icon = "lightning",
 	color = Color3.fromHex("#9CE5FF"),
 	kind = "projectile",
 	damage = 8,
@@ -58,13 +58,13 @@ Skills.basic = def({
 	speed = 90,
 })
 
--- Skillleiste Q / E / R / F
+-- Skill bar Q / E / R / F
 Skills.bar = table.freeze({
 	def({
-		id = "klingenwirbel",
-		name = "Klingenwirbel",
-		desc = "Wirbelt Klingen um dich und trifft alles in der Nähe.",
-		icon = "schwert",
+		id = "thunderstorm",
+		name = "Thunderstorm",
+		desc = "Calls down a storm of lightning around you that strikes everything nearby.",
+		icon = "lightning",
 		color = Color3.fromHex("#4FD8F5"),
 		kind = "nova",
 		damage = 22,
@@ -73,10 +73,10 @@ Skills.bar = table.freeze({
 		radius = 10,
 	}),
 	def({
-		id = "funkenball",
-		name = "Funkenball",
-		desc = "Schleudert einen Feuerball, der beim Aufprall explodiert.",
-		icon = "feuer",
+		id = "spark_ball",
+		name = "Spark Ball",
+		desc = "Hurls a fireball that explodes on impact.",
+		icon = "fire",
 		color = Color3.fromHex("#FF9A4A"),
 		kind = "projectile",
 		damage = 30,
@@ -86,10 +86,10 @@ Skills.bar = table.freeze({
 		speed = 70,
 	}),
 	def({
-		id = "kettenblitz",
-		name = "Kettenblitz",
-		desc = "Ein Blitz, der von Gegner zu Gegner springt.",
-		icon = "blitz",
+		id = "chain_lightning",
+		name = "Chain Lightning",
+		desc = "A bolt that jumps from enemy to enemy.",
+		icon = "lightning",
 		color = Color3.fromHex("#4FD8F5"),
 		kind = "chain",
 		damage = 20,
@@ -99,10 +99,10 @@ Skills.bar = table.freeze({
 		chains = 5,
 	}),
 	def({
-		id = "frostnova",
-		name = "Frostnova",
-		desc = "Eiswelle um dich, die Gegner trifft und verlangsamt.",
-		icon = "eis",
+		id = "frost_nova",
+		name = "Frost Nova",
+		desc = "A wave of ice around you that hits and slows enemies.",
+		icon = "ice",
 		color = Color3.fromHex("#9CE5FF"),
 		kind = "nova",
 		damage = 12,
@@ -114,13 +114,13 @@ Skills.bar = table.freeze({
 	}),
 })
 
--- Skill-Blüten (Fähigkeiten-Fenster): je Skill ein Stamm (3 Knoten) und zwei Äste (je 2), max. 5 Punkte
--- je Knoten. Ein Knoten braucht einen Punkt im Knoten davor. Schlüssel: "trunk1" … "right2".
--- `effect` = Wirkung je Punkt (siehe Progression.effectiveSkill); ohne `effect` ist der Knoten
--- gesperrt („kommt bald“).
---   damage: +Anteil Schaden · radius: +Studs · cooldown: −Sekunden · chains: +Sprünge
---   speed: +Anteil Fluggeschwindigkeit · slowTime: +Sekunden · alle anderen: siehe Skill-Typ
---   (Sonderwirkungen, umgesetzt in Systems/Combat)
+-- Skill Blooms (abilities window): per skill one trunk (3 nodes) and two branches (2 each), max. 5
+-- points per node. A node needs a point in the node before it. Keys: "trunk1" … "right2".
+-- `effect` = effect per point (see Progression.effectiveSkill); without `effect` the node is
+-- locked ("coming soon").
+--   damage: +damage share · radius: +studs · cooldown: −seconds · chains: +jumps
+--   speed: +flight speed share · slowTime: +seconds · all others: see skill type
+--   (special effects, implemented in Systems/Combat)
 export type BloomEffect = { stat: string, per: number }
 export type BloomNode = { name: string, text: string, effect: BloomEffect? }
 export type BloomBranch = { name: string, nodes: { BloomNode } }
@@ -133,7 +133,7 @@ export type Bloom = {
 Skills.BloomMax = 5
 Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
 Skills.MaxLevel = 20
-Skills.DamagePerLevel = 0.05 -- +5 % Schaden je Skill-Stufe über 1
+Skills.DamagePerLevel = 0.05 -- +5 % damage per skill level above 1
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)
@@ -144,39 +144,39 @@ local function fx(stat: string, per: number): BloomEffect
 end
 
 Skills.Blooms = table.freeze({
-	klingenwirbel = bloom({
+	thunderstorm = bloom({
 		trunk = {
-			name = "Wucht",
+			name = "Tempest",
 			nodes = {
 				{
-					name = "Schwere Klingen",
-					text = "+10 % Schaden je Punkt",
+					name = "Heavy Thunder",
+					text = "+10 % damage per point",
 					effect = fx("damage", 0.1),
 				},
 				{
-					name = "Weiter Kreis",
-					text = "+1 Stud Radius je Punkt",
+					name = "Wide Storm",
+					text = "+1 stud radius per point",
 					effect = fx("radius", 1),
 				},
 				{
-					name = "Nachhall",
-					text = "Zweiter Wirbel mit 6 % Schaden je Punkt",
+					name = "Thunderclap",
+					text = "Second thunderclap with 6 % damage per point",
 					effect = fx("echo", 0.06),
 				},
 			},
 		},
 		left = {
-			name = "Sturm",
+			name = "Lightning",
 			nodes = {
 				{
-					name = "Sog",
-					text = "Zieht Getroffene 1 Stud heran je Punkt",
+					name = "Eye of the Storm",
+					text = "Pulls targets hit in by 1 stud per point",
 					effect = fx("pull", 1),
 				},
 				{
-					name = "Klingenregen",
-					text = "1 Klinge je Punkt fliegt nach außen (40 % Schaden)",
-					effect = fx("blades", 1),
+					name = "Bolt Rain",
+					text = "1 bolt per point flies outward (40 % damage)",
+					effect = fx("bolts", 1),
 				},
 			},
 		},
@@ -184,98 +184,98 @@ Skills.Blooms = table.freeze({
 			name = "Tempo",
 			nodes = {
 				{
-					name = "Schwung",
-					text = "−0,2 s Abklingzeit je Punkt",
+					name = "Static Charge",
+					text = "−0.2 s cooldown per point",
 					effect = fx("cooldown", 0.2),
 				},
 				{
-					name = "Tanz",
-					text = "Nach Treffer 3 s lang +3 % Lauftempo je Punkt",
+					name = "Storm Rider",
+					text = "After a hit, +3 % move speed for 3 s per point",
 					effect = fx("haste", 3),
 				},
 			},
 		},
 	}),
-	funkenball = bloom({
+	spark_ball = bloom({
 		trunk = {
-			name = "Glut",
+			name = "Embers",
 			nodes = {
 				{
-					name = "Heißer Kern",
-					text = "+10 % Schaden je Punkt",
+					name = "Hot Core",
+					text = "+10 % damage per point",
 					effect = fx("damage", 0.1),
 				},
 				{
-					name = "Großer Knall",
-					text = "+1 Stud Explosion je Punkt",
+					name = "Big Bang",
+					text = "+1 stud explosion per point",
 					effect = fx("radius", 1),
 				},
 				{
-					name = "Brand",
-					text = "Getroffene brennen 2 s: 10 % Schaden je Punkt",
+					name = "Burn",
+					text = "Targets hit burn for 2 s: 10 % damage per point",
 					effect = fx("burn", 0.1),
 				},
 			},
 		},
 		left = {
-			name = "Splitter",
+			name = "Shards",
 			nodes = {
 				{
-					name = "Funkenflug",
-					text = "Explosion wirft 1 Funken je Punkt (25 % Schaden)",
+					name = "Spark Flight",
+					text = "Explosion throws 1 spark per point (25 % damage)",
 					effect = fx("sparks", 1),
 				},
 				{
-					name = "Doppelball",
-					text = "Zweiter Ball mit 8 % Schaden je Punkt",
+					name = "Twin Ball",
+					text = "Second ball with 8 % damage per point",
 					effect = fx("twin", 0.08),
 				},
 			},
 		},
 		right = {
-			name = "Flug",
+			name = "Flight",
 			nodes = {
 				{
-					name = "Rückenwind",
-					text = "+3 % Fluggeschwindigkeit je Punkt",
+					name = "Tailwind",
+					text = "+3 % flight speed per point",
 					effect = fx("speed", 0.03),
 				},
 				{
-					name = "Durchschlag",
-					text = "20 % Chance je Punkt, durch den ersten Gegner zu fliegen",
+					name = "Pierce",
+					text = "20 % chance per point to fly through the first enemy",
 					effect = fx("pierce", 0.2),
 				},
 			},
 		},
 	}),
-	kettenblitz = bloom({
+	chain_lightning = bloom({
 		trunk = {
-			name = "Spannung",
+			name = "Voltage",
 			nodes = {
 				{
-					name = "Hochspannung",
-					text = "+10 % Schaden je Punkt",
+					name = "High Voltage",
+					text = "+10 % damage per point",
 					effect = fx("damage", 0.1),
 				},
-				{ name = "Lange Kette", text = "+1 Sprung je Punkt", effect = fx("chains", 1) },
+				{ name = "Long Chain", text = "+1 jump per point", effect = fx("chains", 1) },
 				{
-					name = "Überladung",
-					text = "Letzter Sprung +20 % Schaden je Punkt",
+					name = "Overload",
+					text = "Last jump +20 % damage per point",
 					effect = fx("lastHit", 0.2),
 				},
 			},
 		},
 		left = {
-			name = "Gabel",
+			name = "Fork",
 			nodes = {
 				{
-					name = "Verzweigung",
-					text = "Erster Treffer springt auf 2 weitere: 15 % Schaden je Punkt",
+					name = "Branching",
+					text = "First hit jumps to 2 more: 15 % damage per point",
 					effect = fx("fork", 0.15),
 				},
 				{
-					name = "Funkenregen",
-					text = "Jeder Sprung streut Funken: 6 % Schaden je Punkt",
+					name = "Spark Rain",
+					text = "Every jump scatters sparks: 6 % damage per point",
 					effect = fx("jumpSpark", 0.06),
 				},
 			},
@@ -284,61 +284,61 @@ Skills.Blooms = table.freeze({
 			name = "Tempo",
 			nodes = {
 				{
-					name = "Schnelle Ladung",
-					text = "−0,3 s Abklingzeit je Punkt",
+					name = "Quick Charge",
+					text = "−0.3 s cooldown per point",
 					effect = fx("cooldown", 0.3),
 				},
 				{
-					name = "Weite Sprünge",
-					text = "+1 Stud Sprungweite je Punkt",
+					name = "Long Jumps",
+					text = "+1 stud jump range per point",
 					effect = fx("radius", 1),
 				},
 			},
 		},
 	}),
-	frostnova = bloom({
+	frost_nova = bloom({
 		trunk = {
-			name = "Kälte",
+			name = "Cold",
 			nodes = {
-				{ name = "Eiskern", text = "+10 % Schaden je Punkt", effect = fx("damage", 0.1) },
+				{ name = "Ice Core", text = "+10 % damage per point", effect = fx("damage", 0.1) },
 				{
-					name = "Weiter Frost",
-					text = "+1 Stud Radius je Punkt",
+					name = "Wide Frost",
+					text = "+1 stud radius per point",
 					effect = fx("radius", 1),
 				},
 				{
-					name = "Tiefkühlung",
-					text = "Verlangsamung +0,2 s je Punkt",
+					name = "Deep Freeze",
+					text = "Slow +0.2 s per point",
 					effect = fx("slowTime", 0.2),
 				},
 			},
 		},
 		left = {
-			name = "Splitter",
+			name = "Shards",
 			nodes = {
 				{
-					name = "Eissplitter",
-					text = "Verlangsamte platzen beim Tod: 20 % Schaden je Punkt",
+					name = "Ice Shards",
+					text = "Slowed enemies shatter on death: 20 % damage per point",
 					effect = fx("shatter", 0.2),
 				},
 				{
-					name = "Frostfeld",
-					text = "Eisfeld für 3 s: 4 % Schaden je Punkt alle 0,5 s",
+					name = "Frost Field",
+					text = "Ice field for 3 s: 4 % damage per point every 0.5 s",
 					effect = fx("field", 0.04),
 				},
 			},
 		},
 		right = {
-			name = "Schutz",
+			name = "Guard",
 			nodes = {
 				{
-					name = "Eispanzer",
-					text = "+4 % Rüstung für 3 s je Punkt",
+					name = "Ice Armor",
+					text = "+4 % armor for 3 s per point",
 					effect = fx("armorBuff", 4),
 				},
 				{
-					name = "Kalter Atem",
-					text = "−0,5 s Abklingzeit je Punkt",
+					name = "Cold Breath",
+					text = "−0.5 s cooldown per point",
 					effect = fx("cooldown", 0.5),
 				},
 			},
@@ -346,7 +346,7 @@ Skills.Blooms = table.freeze({
 	}),
 } :: { [string]: Bloom })
 
--- Knoten zu einem Schlüssel wie "left2" (nil, wenn es ihn nicht gibt)
+-- Node for a key like "left2" (nil if it does not exist)
 function Skills.bloomNode(skillId: string, key: string): (BloomNode?, string?, number?)
 	local b = Skills.Blooms[skillId]
 	local branch, n = string.match(key, "^(%a+)(%d)$")

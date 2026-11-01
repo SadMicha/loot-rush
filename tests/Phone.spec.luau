@@ -1,8 +1,8 @@
--- Handy (844×390) und Tablet (1024×768), Touch: nichts ragt aus dem Bild, Schrift ≥ 9 px, Knöpfe ≥ 32 px,
--- nichts unter der Roblox-Topbar, kein Text hinter Icons/Knöpfen oder auf anderem Text, kein Text
--- über den Panelrand, keine leeren Zeilen/Kapseln, gleiche Schließen-Knöpfe in allen Fenstern.
--- Gleiche Prüfung wie der UI-Check, hier aber als Test, damit Rückschritte auffallen.
-local HANDY = Vector2.new(844, 390)
+-- Phone (844×390) and tablet (1024×768), touch: nothing sticks out of the screen, font ≥ 9 px, buttons ≥ 32 px,
+-- nothing under the Roblox topbar, no text behind icons/buttons or on other text, no text
+-- past the panel edge, no empty rows/capsules, identical close buttons in all windows.
+-- Same check as the UI check, but as a test here so regressions get noticed.
+local PHONE = Vector2.new(844, 390)
 local TABLET = Vector2.new(1024, 768)
 local DESKTOP = Vector2.new(1920, 1080)
 local STRICT = {
@@ -19,12 +19,12 @@ local STRICT = {
 	["empty-row"] = true,
 }
 
--- Bekannte, noch offene Befunde auf main (Stand nach PR #23/#24). Nach dem Beheben Eintrag löschen;
--- neue Einträge nur mit Grund. Inventar: Titel „Ausrüstung“ unter der Topbar. Fähigkeiten: Werte-Zeile
--- läuft unter das Tasten-Kästchen. Schmiede: Affix-Zeilen-Knöpfe auf Handy 22 px hoch.
--- Atlas: Mod-/Boss-Texte ragen aus ihrer Kapsel.
+-- Known, still open findings on main (as of PR #23/#24). Delete the entry once fixed;
+-- new entries only with a reason. Inventory: gear title under the topbar. Abilities: stats row
+-- runs under the key box. Forge: affix row buttons 22 px high on phones.
+-- Atlas: mod/boss texts stick out of their capsule.
 local KNOWN: { [string]: { [string]: boolean } } = {
-	Inventar = { topbar = true },
+	Inventory = { topbar = true },
 	Abilities = { ["text-overlap"] = true, ["text-outside"] = true },
 	Forge = { ["touch-target"] = true },
 	Atlas = { ["text-covered"] = true, ["text-outside"] = true },
@@ -35,7 +35,7 @@ local closeLooks = {}
 local function problems(where)
 	local out = {}
 	local known = KNOWN[where] or {}
-	for _, size in { HANDY, TABLET } do
+	for _, size in { PHONE, TABLET } do
 		for _, f in layoutCheck(size, true) do
 			if STRICT[f.kind] and not known[f.kind] then
 				table.insert(
@@ -67,10 +67,10 @@ local function expectClean(list)
 	end
 end
 
-describe("Handy-Layout", function()
+describe("Phone layout", function()
 	it("HUD", function()
 		sim:boot({ seconds = 2 })
-		-- Gegenstände und Material, damit Schmiede & Co. echte Inhalte zeigen
+		-- items and materials so the Forge & co. show real content
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]
 			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
@@ -83,25 +83,25 @@ describe("Handy-Layout", function()
 		expectClean(problems("HUD"))
 	end)
 
-	it("Inventar", function()
+	it("Inventory", function()
 		local inv = sim.player.PlayerGui.LootRushInventory
 		inv.Enabled = true
 		sim:run(0.2)
-		expectClean(problems("Inventar"))
+		expectClean(problems("Inventory"))
 		inv.Enabled = false
 	end)
 
-	-- Fenster wie ein Spieler über das Menü links öffnen (baut den Inhalt erst beim Öffnen)
+	-- open windows like a player via the left menu (builds the content only on open)
 	for _, entry in
 		{
 			{ "skills", "Abilities" },
-			{ "sternennetz", "StarNet" },
-			{ "schmiede", "Forge" },
+			{ "star_net", "StarNet" },
+			{ "forge", "Forge" },
 			{ "atlas", "Atlas" },
-			{ "Shop_gold", "Shop" }, -- das + an der Gold-Kapsel
+			{ "Shop_gold", "Shop" }, -- the + on the gold capsule
 		}
 	do
-		it("Fenster " .. entry[2], function()
+		it("Window " .. entry[2], function()
 			local button = nil
 			for _, d in sim.player.PlayerGui.LootRushHUD:GetDescendants() do
 				if d:IsA("GuiButton") and d.Name == entry[1] then
@@ -117,7 +117,7 @@ describe("Handy-Layout", function()
 		end)
 	end
 
-	it("Schließen-Knöpfe sehen überall gleich aus", function()
+	it("close buttons look the same everywhere", function()
 		expect(#closeLooks).toBeGreaterThan(0)
 		local list = {}
 		for _, f in compareClose(closeLooks) do

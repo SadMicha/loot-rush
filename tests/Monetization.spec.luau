@@ -1,9 +1,9 @@
--- Robux: IDs an einer Stelle, ProcessReceipt lehnt Unbekanntes ab, Gamepass-Boni kommen an.
+-- Robux: IDs in one place, ProcessReceipt rejects unknown purchases, game pass bonuses arrive.
 local Monetization = require("ReplicatedStorage.Shared.Monetization")
 local Shop = require("ReplicatedStorage.Shared.Shop")
 
-describe("Monetarisierung-Regeln", function()
-	it("hat für jedes Robux-Angebot eine ID-Zeile und eindeutige Pässe", function()
+describe("Monetization rules", function()
+	it("has an ID entry for every Robux offer and unique passes", function()
 		for _, offer in Shop.Offers do
 			if offer.product then
 				expect(Monetization.ProductIds[offer.product]).never.toBeNil()
@@ -22,8 +22,8 @@ describe("Monetarisierung-Regeln", function()
 	end)
 end)
 
-describe("Monetarisierung im Spiel", function()
-	it("ProcessReceipt verbucht nichts Unbekanntes", function()
+describe("Monetization in game", function()
+	it("ProcessReceipt books nothing unknown", function()
 		sim:boot({ seconds = 2 })
 		local decision, stars
 		sim:runAs("server", function(req)
@@ -37,7 +37,7 @@ describe("Monetarisierung im Spiel", function()
 		expect(stars).toBe(0)
 	end)
 
-	it("gespeicherter Pass-Besitz gibt Boni und den zweiten Haustier-Platz", function()
+	it("saved pass ownership gives bonuses and the second pet slot", function()
 		local gold, slots, attr
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]
@@ -46,7 +46,7 @@ describe("Monetarisierung im Spiel", function()
 			p.passes.vip = true
 			p.passes.pet_slot = true
 		end)
-		-- Laden der Pässe beim Beitritt nachspielen
+		-- replay loading the passes on join
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]
 			local M = req("ServerScriptService.Server.Systems.Monetization")

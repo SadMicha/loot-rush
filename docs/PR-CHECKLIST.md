@@ -1,32 +1,32 @@
-# Testliste (Vorlage für jeden PR)
+# Checklist (template for every PR)
 
-Kopieren, in den PR-Text einfügen und ausfüllen. Ziel: Micha sieht in 2 Minuten, was neu ist und was er in Studio bzw. am Handy anschauen soll.
+Copy, paste into the PR text and fill in. Goal: Micha sees in 2 minutes what's new and what to look at in Studio or on the phone.
 
 ```markdown
-## Testliste
+## Checklist
 
-**Was hat sich geändert?** (1–3 Sätze, aus Spielersicht)
+**What changed?** (1–3 sentences, from the player's view)
 -
 
-**Automatisch geprüft** (`bash tools/check.sh`)
-- [ ] format · lint · types · build · test · ui grün
-- [ ] UI-Bericht ohne neue Warnungen (`.tools/out/ui/report.md`, CI-Artefakt „ui-check“)
+**Checked automatically** (`bash tools/check.sh`)
+- [ ] format · lint · types · build · test · ui green
+- [ ] UI report without new warnings (`.tools/out/ui/report.md`, CI artifact "ui-check")
 
-**Bitte ansehen** (nur, was dieser PR berührt)
-| Wo | Was tun | Was soll passieren |
+**Please look at** (only what this PR touches)
+| Where | What to do | What should happen |
 |---|---|---|
-| Studio / Handy / Tablet | z. B. Schmiede öffnen (B), Gegenstand wählen | Texte bleiben in den Zeilen, nichts unter der Topbar |
+| Studio / phone / tablet | e.g. open the Forge (B), select an item | Texts stay inside their rows, nothing under the top bar |
 
-**Schneller hinkommen** (Dbg-Knopf unten links → Test-Befehle, nur Studio)
-- z. B. „+10 Items“, „+100 Material“, „Gebiete frei“
+**Get there faster** (Dbg button bottom left → test commands, Studio only)
+- e.g. "+10 Items", "+100 Material", "Regions unlocked"
 
-**Bekannte Lücken / nicht getestet**
+**Known gaps / not tested**
 -
 ```
 
-## Hinweise
+## Notes
 
-- **Bitte ansehen** nur mit Dingen füllen, die der Check nicht sieht: echte Bilder, Gefühl beim Spielen, Handy-Bedienung, Speichern über Neustart.
-- Handy-Test geht in Studio über *Test → Gerät* (z. B. iPhone, Querformat) oder echt über die Roblox-App.
-- Debug-Menü: In Studio immer frei. Im veröffentlichten Spiel nur für UserIds in `DEV_USERS` (`src/server/Systems/Debug.luau`).
-- Der UI-Check meldet u. a. Text unter der Roblox-Topbar (oben links), Text hinter Icons/Knöpfen, Text über dem Panelrand, leere Zeilen und Kapseln ohne Beschriftung, abweichende Schließen-Knöpfe. Fehlalarme zuerst in `tools/lune/lib/Checks.luau` beheben, nicht im Spielcode umgehen.
+- Only fill **Please look at** with things the check can't see: real images, feel while playing, phone controls, saving across restart.
+- Phone test works in Studio via *Test → Device* (e.g. iPhone, landscape) or for real via the Roblox app.
+- Debug menu: always available in Studio. In the published game only for UserIds in `DEV_USERS` (`src/server/Systems/Debug.luau`).
+- Among other things, the UI check reports text under the Roblox top bar (top left), text behind icons/buttons, text over the panel edge, empty rows and capsules without a label, deviating close buttons. Fix false alarms in `tools/lune/lib/Checks.luau` first, don't work around them in game code.

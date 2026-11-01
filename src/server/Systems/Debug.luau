@@ -1,9 +1,9 @@
 --!strict
--- Test-Befehle für Playtests (Debug-Menü am „Dbg“-Knopf): Gold, Level, Material, Skill-Stufen,
--- Gegenstände, alle Gebiete freischalten und alle Gegner besiegen (Rift schnell durchspielen). Nur in Studio oder für UserIds in DEV_USERS.
--- Die Prüfung sitzt hier im Server – das Menü im Client ist nur Bequemlichkeit.
--- Jeder Befehl geht über dieselben Wege wie das Spiel (Inventory, Progress, Combat), nicht am Profil vorbei.
--- Freigabe zeigt der Server dem Client über das Player-Attribut „DebugTools“.
+-- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
+-- items, unlock all regions and defeat all enemies (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
+-- The check lives here on the server - the menu on the client is only a convenience.
+-- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
+-- The server tells the client it is allowed via the player attribute "DebugTools".
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -25,11 +25,11 @@ local Shop = require(script.Parent.Shop)
 
 local Debug = {}
 
--- Roblox-UserIds, die die Test-Befehle auch im veröffentlichten Spiel benutzen dürfen
+-- Roblox UserIds that may use the test commands in the published game too
 local DEV_USERS: { [number]: true } = {}
 
 local MAX_LEVEL = 200
-local REGION_SPAN = 5 -- Tiefen je Gebiet (Start-Tiefen 1, 6, 11 …)
+local REGION_SPAN = 5 -- depths per region (starting depths 1, 6, 11 …)
 
 local rng = Random.new()
 local allow = RateLimit.new(4, 8)
@@ -51,7 +51,7 @@ local function setLevel(player: Player, level: number)
 		return
 	end
 	Combat.setLevel(player, level, 0)
-	Progress.sync(player) -- Sternpunkte hängen am Level
+	Progress.sync(player) -- star points depend on the level
 end
 
 local function addSkillLevels(player: Player, n: number)
@@ -73,8 +73,8 @@ local function unlockAtlas(player: Player)
 	if not profile then
 		return
 	end
-	-- Freischalten prüft die Bestleistung im Vorgänger, und Nachfolger können tiefer starten
-	-- (Feuerwüste 16 → Veränderte Welt 26): darum überall die tiefste Start-Tiefe eintragen.
+	-- Unlocking checks the best result in the predecessor, and successors can start deeper
+	-- (Fire Desert 16 → Altered World 26): so enter the deepest starting depth everywhere.
 	local deepest = 0
 	for _, region in Atlas.Regions do
 		deepest = math.max(deepest, region.depth + REGION_SPAN - 1)
@@ -95,7 +95,7 @@ local function addItems(player: Player, n: number)
 	end
 end
 
--- Befehl → (Prüfung des Werts, Ausführung)
+-- Command → (value check, execution)
 local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } } = {
 	gold = {
 		range = { -1e9, 1e9 },
@@ -117,12 +117,6 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Shop.grant(player, "soulstars", n)
 		end,
 	},
-	potions = {
-		range = { -100, 100 },
-		run = function(player, n)
-			Shop.grant(player, "potions", n)
-		end,
-	},
 	skills = { range = { 1, 20 }, run = addSkillLevels },
 	items = { range = { 1, 20 }, run = addItems },
 	atlas = {
@@ -142,7 +136,7 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 }
 
 local function onCommand(player: Player, command: any, value: any)
-	-- Ohne geladenen Spielstand würde jeder Befehl still ins Leere laufen
+	-- Without a loaded save every command would silently do nothing
 	if not Debug.allowed(player) or not allow(player) or not Data.get(player) then
 		return
 	end
@@ -162,7 +156,7 @@ local function onCommand(player: Player, command: any, value: any)
 	print(string.format("[Debug] %s: %s %s", player.Name, command, tostring(value or "")))
 end
 
--- Menü erst freigeben, wenn der Spielstand geladen ist
+-- Only enable the menu once the save is loaded
 local function onPlayer(player: Player)
 	if Debug.allowed(player) and Data.waitFor(player) then
 		player:SetAttribute("DebugTools", true)

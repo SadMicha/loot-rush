@@ -1,8 +1,8 @@
--- Erzeugt selenes Roblox-Standardbibliothek (roblox.yml) aus einem lokalen API-Dump.
--- Nur nötig, wenn `selene generate-roblox-std` das Internet nicht erreicht (z. B. hinter einem Proxy).
--- Nachbau von selene/src/roblox/generate_std.rs (selene 0.27.1).
+-- Generates selene's Roblox standard library (roblox.yml) from a local API dump.
+-- Only needed if `selene generate-roblox-std` cannot reach the internet (e.g. behind a proxy).
+-- Port of selene/src/roblox/generate_std.rs (selene 0.27.1).
 --
---   lune run tools/lune/selene-std <roblox_base.yml> <API-Dump.json> <ausgabe.yml> <selene-version>
+--   lune run tools/lune/selene-std <roblox_base.yml> <API-Dump.json> <output.yml> <selene-version>
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -12,7 +12,7 @@ local basePath, dumpPath, outPath, seleneVersion =
 	process.args[1], process.args[2], process.args[3], process.args[4]
 assert(
 	basePath and dumpPath and outPath and seleneVersion,
-	"Aufruf: selene-std <base.yml> <dump.json> <out.yml> <version>"
+	"usage: selene-std <base.yml> <dump.json> <out.yml> <version>"
 )
 
 local std = serde.decode("yaml", fs.readFile(basePath))
@@ -164,10 +164,10 @@ end
 std.last_updated = os.time()
 std.last_selene_version = seleneVersion
 
--- JSON ist gültiges YAML. Leere Luau-Tabellen kodiert serde als {}, selene erwartet dort Listen.
+-- JSON is valid YAML. serde encodes empty Luau tables as {}, selene expects lists there.
 local json = serde.encode("json", std)
 for _, key in { "args", "replace", "events", "properties" } do
 	json = json:gsub('"' .. key .. '":{}', '"' .. key .. '":[]')
 end
 fs.writeFile(outPath, json)
-print(`selene-Std geschrieben: {outPath}`)
+print(`selene std written: {outPath}`)

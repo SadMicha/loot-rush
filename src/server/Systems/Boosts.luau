@@ -1,10 +1,10 @@
 --!strict
--- Dauerhafte Prozent-Boni aus mehreren Quellen (Wiedergeburt, Haustier, Gamepässe) an einem Ort.
--- Jede Quelle meldet sich mit Boosts.source an und liefert { [stat]: Prozent }; die Summe landet als
--- Player-Attribut, das Kampf, Beute und UI lesen:
---   BonusDamage (Schaden %), BonusLife (max. Leben %), BonusGold (Gold %), BonusXP (Erfahrung %),
---   BonusItems (Item-Chance %), BonusMagnet (zusätzlicher Aufheberadius in Studs)
--- Nach jeder Änderung an einer Quelle Boosts.refresh(player) aufrufen.
+-- Permanent percent bonuses from several sources (Rebirth, pets, game passes) in one place.
+-- Every source registers via Boosts.source and returns { [stat]: percent }; the sum ends up as a
+-- player attribute read by combat, loot and UI:
+--   BonusDamage (damage %), BonusLife (max. life %), BonusGold (gold %), BonusXP (XP %),
+--   BonusItems (item chance %), BonusMagnet (extra pickup radius in studs)
+-- Call Boosts.refresh(player) after every change to a source.
 
 local Players = game:GetService("Players")
 
@@ -27,12 +27,12 @@ Boosts.Attr = table.freeze({
 
 local sources: { [string]: Source } = {}
 
--- Quelle anmelden (name nur zur Unterscheidung, gleicher Name ersetzt)
+-- Register a source (name only to tell them apart, same name replaces)
 function Boosts.source(name: string, fn: Source)
 	sources[name] = fn
 end
 
--- Summe aller Quellen (auch für Tests)
+-- Sum of all sources (also for tests)
 function Boosts.total(player: Player): Bonus
 	local profile = Data.get(player)
 	local sum: Bonus = {}
@@ -51,7 +51,7 @@ function Boosts.total(player: Player): Bonus
 				end
 			end
 		elseif not ok then
-			warn("[Boosts] Quelle " .. name .. " fehlgeschlagen:", bonus)
+			warn("[Boosts] source " .. name .. " failed:", bonus)
 		end
 	end
 	return sum
@@ -65,7 +65,7 @@ function Boosts.refresh(player: Player)
 	Combat.refreshStats(player, false)
 end
 
--- Faktor für einen Wert (1 + Prozent / 100), liest das Attribut
+-- Factor for a value (1 + percent / 100), reads the attribute
 function Boosts.mult(player: Player, stat: string): number
 	local v = player:GetAttribute(Boosts.Attr[stat] or "")
 	return 1 + (if typeof(v) == "number" then v else 0) / 100

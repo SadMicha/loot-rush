@@ -1,13 +1,13 @@
 --!strict
--- Robux auf dem Server (IDs: Shared/Monetization).
---  • Developer Products: ProcessReceipt schreibt die Ware über Shop.grant gut. Ein Kauf gilt erst
---    als verbucht, wenn er gespeichert ist (Data.saveNow) – sonst NotProcessedYet, Roblox fragt
---    später erneut. Die PurchaseId landet in profile.receipts, damit nichts doppelt kommt.
---  • Gamepässe: Besitz beim Beitritt (UserOwnsGamePassAsync mit Wiederholung) und nach Kauf im
---    Spiel (PromptGamePassPurchaseFinished). Fällt die Abfrage aus, gilt der zuletzt gespeicherte
---    Besitz (profile.passes). Ergebnis: Attribut Pass_<key> = true, Pass.attr, Boni über Boosts.
--- Den Kaufdialog öffnet der Client selbst (MarketplaceService:PromptProductPurchase /
--- PromptGamePassPurchase) – der Server vertraut nur den Roblox-Callbacks.
+-- Robux on the server (IDs: Shared/Monetization).
+--  • Developer Products: ProcessReceipt credits the goods via Shop.grant. A purchase only counts
+--    as booked once it is saved (Data.saveNow) - otherwise NotProcessedYet, Roblox asks
+--    again later. The PurchaseId goes into profile.receipts so nothing is credited twice.
+--  • Game passes: ownership on join (UserOwnsGamePassAsync with retries) and after a purchase in
+--    game (PromptGamePassPurchaseFinished). If the query fails, the last saved
+--    ownership (profile.passes) applies. Result: attribute Pass_<key> = true, Pass.attr, bonuses via Boosts.
+-- The client opens the purchase dialog itself (MarketplaceService:PromptProductPurchase /
+-- PromptGamePassPurchase) - the server only trusts the Roblox callbacks.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -50,7 +50,7 @@ local function setOwned(player: Player, pass: Rules.Pass)
 	Boosts.refresh(player)
 end
 
--- Fragt Roblox; nil = Abfrage fehlgeschlagen
+-- Asks Roblox; nil = query failed
 local function askOwns(player: Player, id: number): boolean?
 	for attempt = 1, OWN_TRIES do
 		local ok, result =
@@ -77,7 +77,7 @@ local function loadPasses(player: Player)
 			has = askOwns(player, pass.id)
 		end
 		if has == nil then
-			has = profile.passes[pass.key] == true -- Ausfall: letzter bekannter Stand
+			has = profile.passes[pass.key] == true -- outage: last known state
 		elseif has == false then
 			profile.passes[pass.key] = nil
 		end
@@ -95,7 +95,7 @@ function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	local profile = if player then Data.get(player) else nil
 	if not product or not player or not profile then
-		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox fragt beim nächsten Beitritt erneut
+		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox asks again on the next join
 	end
 	local purchase = tostring(info.PurchaseId)
 	if not table.find(profile.receipts, purchase) then
@@ -122,10 +122,7 @@ function Monetization.init()
 			local pass = if purchased then Rules.passById(id) else nil
 			if pass and player.Parent then
 				setOwned(player, pass)
-				Net.ShopResult:FireClient(
-					player,
-					{ ok = true, text = pass.name .. " freigeschaltet!" }
-				)
+				Net.ShopResult:FireClient(player, { ok = true, text = pass.name .. " unlocked!" })
 			end
 		end
 	)

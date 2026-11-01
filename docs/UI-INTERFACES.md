@@ -1,30 +1,30 @@
-# Schnittstellen für das UI
+# Interfaces for the UI
 
-Micha baut alle Fenster selbst. Der Server ist die einzige Wahrheit: das UI **liest** Player-Attribute
-und Server-Nachrichten und **schickt** nur Wünsche über RemoteEvents (`src/shared/Net.luau`).
-Regeln, die das UI zum Anzeigen braucht (Preise, Bedingungen, Gründe für gesperrte Knöpfe), liegen
-als reine Module in `ReplicatedStorage.Shared` und rechnen auf Client und Server gleich.
+Micha builds all windows himself. The server is the only source of truth: the UI **reads** player
+attributes and server messages and only **sends** requests via RemoteEvents (`src/shared/Net.luau`).
+Rules the UI needs for display (prices, conditions, reasons for locked buttons) live as pure
+modules in `ReplicatedStorage.Shared` and compute the same on client and server.
 
-## Player-Attribute (lesen mit `player:GetAttribute`, Änderungen mit `GetAttributeChangedSignal`)
+## Player attributes (read with `player:GetAttribute`, changes with `GetAttributeChangedSignal`)
 
-| Attribut | Bedeutung |
+| Attribute | Meaning |
 |---|---|
-| `Level`, `XP`, `XPNext` | Level und Erfahrung |
-| `Gold`, `Soulstars`, `Potions` | Währungen / Tränke |
-| `Candy`, `Shards`, `Dust` | Schmiede-Material |
-| `BestDepth` | beste geschaffte Tiefe über alle Gebiete (Shop-Preise, Wiedergeburt) |
-| `AtlasBest_<gebiet>` | beste Tiefe je Gebiet |
-| `Rebirths`, `RebirthNeed` | Anzahl Wiedergeburten, nötige beste Tiefe für die nächste |
-| `BonusDamage`, `BonusLife`, `BonusGold`, `BonusXP`, `BonusItems` | Summe aller Dauer-Boni in % (Wiedergeburt, Haustier, Gamepässe) |
-| `Stat*` | Kampfwerte aus Ausrüstung und Sternen (`Systems/Stats`) |
-| `Rift*` | Rift-Zustand (`src/shared/Types.luau`) |
+| `Level`, `XP`, `XPNext` | level and experience |
+| `Gold`, `Soulstars` | currencies |
+| `Candy`, `Shards`, `Dust` | forge material |
+| `BestDepth` | best cleared depth across all regions (shop prices, rebirth) |
+| `AtlasBest_<region>` | best depth per region |
+| `Rebirths`, `RebirthNeed` | number of rebirths, best depth needed for the next one |
+| `BonusDamage`, `BonusLife`, `BonusGold`, `BonusXP`, `BonusItems` | sum of all permanent bonuses in % (rebirth, pets, game passes) |
+| `Stat*` | combat values from gear and stars (`Systems/Stats`) |
+| `Rift*` | Rift state (`src/shared/Types.luau`) |
 
-## Wiedergeburt
+## Rebirth
 
-- Senden: `Net.Rebirth:FireServer()`
-- Antwort: `Net.RebirthResult` → `{ ok: boolean, text: string, rebirths: number? }`
-- Anzeigen: `Shared/Rebirth` – `check(rebirths, best)` gibt `(ok, Grund)`, `bonus(n)` die Prozente,
-  `reward(n)` die Seelensterne, `required(n)` die nötige Tiefe. Beispiel:
+- Send: `Net.Rebirth:FireServer()`
+- Reply: `Net.RebirthResult` → `{ ok: boolean, text: string, rebirths: number? }`
+- Display: `Shared/Rebirth` – `check(rebirths, best)` returns `(ok, reason)`, `bonus(n)` the percentages,
+  `reward(n)` the soulstars, `required(n)` the depth needed. Example:
 
 ```lua
 local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
@@ -35,35 +35,37 @@ local next = Rebirth.bonus(n + 1) -- { damage = 25, life = 10, gold = 20, xp = 2
 
 ## Shop
 
-- Senden: `Net.Buy:FireServer(offerId)`; Antwort `Net.ShopResult` → `{ ok, text, offerId? }`
-- Preise **immer** über `Shop.price(offer, best)` und Mengen über `Shop.amount(offer, best)` anzeigen
-  (`best` = Attribut `BestDepth`), Knopf-Sperre über `Shop.check(offer, wallet, best)`.
+- Send: `Net.Buy:FireServer(offerId)`; reply `Net.ShopResult` → `{ ok, text, offerId? }`
+- **Always** display prices via `Shop.price(offer, best)` and amounts via `Shop.amount(offer, best)`
+  (`best` = attribute `BestDepth`), lock buttons via `Shop.check(offer, wallet, best)`.
+- Tabs: `material`, `gold`, `soulstars` (there are no potions).
 
-## Haustiere
+## Pets
 
-- Senden: `Net.Pet:FireServer("hatch", eggId)`, `("equip", petId)`, `("unequip", petId)`
-- Stand: `Net.Pets` → `{ owned = { [petId] = Stufe }, equipped = { petId }, slots }`; der Client hält
-  den letzten Stand in `PetController.state` und feuert `PetController.Changed`.
-- Antwort: `Net.PetResult` → `{ ok, text, pet?, level? }` (nach dem Schlüpfen: welches Haustier)
-- Katalog/Anzeige: `Shared/Pets` – `List`, `ById`, `Eggs`, `StatName`, `bonusOf(id, level)`,
-  `levelMult(level)`. Ei-Preis in Gold: `egg.price.amount × Balance.shopFactor(BestDepth)`.
-- Attribute: `Pets` (ausgerüstet, kommagetrennt), `PetSlots`.
+- Send: `Net.Pet:FireServer("hatch", eggId)`, `("equip", petId)`, `("unequip", petId)`
+- State: `Net.Pets` → `{ owned = { [petId] = level }, equipped = { petId }, slots, odds }`; the client keeps
+  the latest state in `PetController.state` and fires `PetController.Changed`.
+- Reply: `Net.PetResult` → `{ ok, text, pet?, level?, shards? }` (after hatching: which pet)
+- Catalog/display: `Shared/Pets` – `List`, `ById`, `Eggs` (`meadow_egg`, `star_egg`), `StatName`,
+  `bonusOf(id, level)`, `levelMult(level)`, `odds(egg)`. Egg price in gold:
+  `egg.price.amount × Balance.shopFactor(BestDepth)`.
+- Attributes: `Pets` (equipped, comma-separated), `PetSlots`.
 
-## Stationen im Hub
+## Stations in the Hub
 
-`HubController` öffnet Fenster über das Prompt-Attribut `Fenster`. Für Stationen ohne Fenster
-(`Pets` = Haustier-Stall, `Rebirth` = Seelenaltar) feuert `HubController.Requested(name)`:
+`HubController` opens windows via the prompt attribute `Window`. For stations without a window
+(`Pets` = pet stable, `Rebirth` = Soul Altar) `HubController.Requested(name)` fires:
 
 ```lua
 HubController.Requested.Event:Connect(function(name)
-	if name == "Pets" then MeinPetFenster.toggle() end
+	if name == "Pets" then MyPetWindow.toggle() end
 end)
 ```
 
-## Robux (Gamepässe, Seelenstern-Pakete)
+## Robux (game passes, soulstar packs)
 
-- Katalog: `Shared/Monetization.Passes` (`key, id, name, text, robux, icon, bonus`) und
-  `Shared/Shop` (Reiter `seelensterne`, `Shop.productOf(offer)` = nil solange ID 0).
-- Kaufen: `MarketplaceService:PromptGamePassPurchase(player, pass.id)` (nur wenn `pass.id > 0`),
+- Catalog: `Shared/Monetization.Passes` (`key, id, name, text, robux, icon, bonus`) and
+  `Shared/Shop` (tab `soulstars`, `Shop.productOf(offer)` = nil while the ID is 0).
+- Buy: `MarketplaceService:PromptGamePassPurchase(player, pass.id)` (only if `pass.id > 0`),
   `MarketplaceService:PromptProductPurchase(player, product.id)`.
-- Besitz: Attribut `Pass_<key>` (true). Danke-Text kommt über `Net.ShopResult`.
+- Ownership: attribute `Pass_<key>` (true). The thank-you text comes via `Net.ShopResult`.

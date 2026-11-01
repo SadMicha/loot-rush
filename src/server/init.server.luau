@@ -1,6 +1,6 @@
 --!strict
--- Loot Rush – Server-Einstiegspunkt.
--- Zwei Phasen: zuerst init() aller Systeme, dann start() aller Systeme.
+-- Loot Rush - server entry point.
+-- Two phases: first init() of all systems, then start() of all systems.
 
 local Systems = script:FindFirstChild("Systems")
 
@@ -25,4 +25,4 @@ for _, system in loaded do
 	end
 end
 
-print("[LootRush] Server gestartet")
+print("[LootRush] Server started")

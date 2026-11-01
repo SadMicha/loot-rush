@@ -1,33 +1,33 @@
-# Test: Fenster Fähigkeiten, Sternennetz, Schmiede, Atlas
+# Test: Windows Abilities, Star Web, Forge, Atlas
 
-Öffnen per Menü links (in Ruhe sichtbar) oder Taste. Immer nur ein Fenster gleichzeitig; × oder dieselbe Taste schließt.
-Solange die Szenenbilder und Knoten von ChatGPT fehlen (`Assets.Art` leer), sieht man abgedunkelten Hintergrund und Slots als Knoten.
+Open via the menu on the left (visible when idle) or by key. Only one window at a time; × or the same key closes it.
+As long as the scene images and nodes from ChatGPT are missing (`Assets.Art` empty), you see a darkened background and slots as nodes.
 
-## Fähigkeiten (Taste K)
-- [ ] Q/E/R/F oben und Liste links zeigen die 4 Skills; Antippen wählt Skill (Gold-Rahmen)
-- [ ] Mitte: Skill-Blüte mit Stamm + 2 Ästen, Knoten 0/5; Knoten antippen zeigt Text unten
-- [ ] Rechts: Name, Beschreibung, Schaden / Abklingzeit / Reichweite stimmen mit dem Spiel überein
-- [ ] „Ausgerüstet“ ist ausgegraut (Tauschen kommt später)
+## Abilities (key K)
+- [ ] Q/E/R/F at the top and the list on the left show the 4 skills; tapping selects a skill (gold frame)
+- [ ] Center: skill bloom with trunk + 2 branches, nodes 0/5; tapping a node shows text at the bottom
+- [ ] Right: name, description, damage / cooldown / range match the game
+- [ ] "Equipped" is greyed out (swapping comes later)
 
-## Sternennetz (Taste N)
-- [ ] Herz in der Mitte, Äste Kraft (orange), Geschick (blau), Weisheit (lila) mit Linien
-- [ ] Punkte oben rechts = Spieler-Level minus vergebene Punkte
-- [ ] „Zuweisen“ nur neben schon zugewiesenen Sternen; großer Stern kostet 2
-- [ ] „Entfernen“ nur am Ende eines Astes; „Zurücksetzen“ leert alles
-- [ ] Hinweis „Vorschau“ sichtbar (wirkt noch nicht, wird nicht gespeichert)
+## Star Web (key N)
+- [ ] Heart in the center, branches Strength (orange), Dexterity (blue), Wisdom (purple) with lines
+- [ ] Points top right = player level minus assigned points
+- [ ] "Assign" only next to already assigned stars; big star costs 2
+- [ ] "Remove" only at the end of a branch; "Reset" clears everything
+- [ ] Hint "Preview" visible (has no effect yet, isn't saved)
 
-## Schmiede (Taste B)
-- [ ] Oben links alle Gegenstände (angelegte zuerst); Antippen wechselt
-- [ ] Affixe als Zeilen, freier Platz mit Plus; Affix antippen → Status „Bereit“
-- [ ] Rechts 4 Aktionen mit Kosten, Hammer-Buttons ausgegraut
-- [ ] Ohne Gegenstände: Hinweistext statt Absturz
+## Forge (key B)
+- [ ] Top left all items (equipped first); tapping switches
+- [ ] Affixes as rows, free slot with plus; tapping an affix → status "Ready"
+- [ ] Right 4 actions with costs, hammer buttons greyed out
+- [ ] Without items: hint text instead of a crash
 
-## Atlas (Taste M)
-- [ ] 6 Gebiete mit Schildern und gepunkteten Pfaden; nur Grüne Ebenen ohne Schloss
-- [ ] Steckbrief rechts wechselt beim Antippen
-- [ ] „Reisen“ bei Grüne Ebenen startet das Rift und schließt den Atlas; im Rift steht „Schon im Rift“
-- [ ] Gesperrte Gebiete: Button „Gesperrt“
+## Atlas (key M)
+- [ ] 6 regions with signs and dotted paths; only Green Plains without a lock
+- [ ] Profile on the right changes on tap
+- [ ] "Travel" at Green Plains starts the rift and closes the Atlas; in the rift it says "Already in a rift"
+- [ ] Locked regions: button "Locked"
 
-## Allgemein
-- [ ] Kein Fehler in der Ausgabe beim Start und beim Öffnen jedes Fensters
-- [ ] Fenster passen bei kleinem und großem Studio-Fenster (Skalierung wie Inventar)
+## General
+- [ ] No error in the output at startup and when opening each window
+- [ ] Windows fit with a small and a large Studio window (scaling like the inventory)

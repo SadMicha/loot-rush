@@ -1,13 +1,13 @@
 --!strict
--- Gegenstände: Slots, Seltenheiten, Affixe und das Würfeln neuer Items.
--- Items sind reine Daten (speicherbar). Gewürfelt wird nur auf dem Server (Items.roll).
+-- Items: slots, rarities, affixes and rolling new items.
+-- Items are plain data (saveable). Rolling happens on the server only (Items.roll).
 
 local HttpService = game:GetService("HttpService")
 
 local Balance = require(script.Parent.Balance)
 
--- tier: 1 (beste) bis 7, fehlt bei Grundwerten (implicit) und alten Items (= 7)
--- sealed: von der Schmiede versiegelt (fest, belegt keinen Affix-Platz)
+-- tier: 1 (best) to 7, missing on base values (implicit) and old items (= 7)
+-- sealed: sealed by the Forge (fixed, does not take an affix slot)
 export type Affix = {
 	stat: string,
 	value: number,
@@ -15,7 +15,7 @@ export type Affix = {
 	tier: number?,
 	sealed: boolean?,
 }
--- charges: Glitzer-Ladungen für die Schmiede; fehlt bei alten Items (= Startwert der Seltenheit)
+-- charges: Glitter charges for the Forge; missing on old items (= rarity's starting value)
 export type Item = {
 	id: string,
 	slot: string,
@@ -28,22 +28,22 @@ export type Item = {
 
 local Items = {}
 
-Items.Slots = table.freeze({ "helm", "ruestung", "waffe", "amulett", "ring" })
+Items.Slots = table.freeze({ "helmet", "armor", "weapon", "amulet", "ring" })
 
 Items.SlotName = table.freeze({
-	helm = "Helm",
-	ruestung = "Rüstung",
-	waffe = "Waffe",
-	amulett = "Amulett",
+	helmet = "Helmet",
+	armor = "Armor",
+	weapon = "Weapon",
+	amulet = "Amulet",
 	ring = "Ring",
 })
 
--- Anzeige der Werte (Schlüssel = Affix-stat)
+-- Stat display (key = affix stat)
 Items.Stats = table.freeze({
-	damage = { label = "Schaden", unit = "%" },
-	life = { label = "Leben", unit = "" },
-	crit = { label = "Krit-Chance", unit = "%" },
-	speed = { label = "Lauftempo", unit = "%" },
+	damage = { label = "Damage", unit = "%" },
+	life = { label = "Life", unit = "" },
+	crit = { label = "Crit Chance", unit = "%" },
+	speed = { label = "Move Speed", unit = "%" },
 })
 
 local STAT_LIST = { "damage", "life", "crit", "speed" }
@@ -55,15 +55,15 @@ local RANGE: { [string]: { number } } = {
 	speed = { 2, 4 },
 }
 local IMPLICIT: { [string]: string } = {
-	helm = "life",
-	ruestung = "life",
-	waffe = "damage",
-	amulett = "crit",
+	helmet = "life",
+	armor = "life",
+	weapon = "damage",
+	amulet = "crit",
 	ring = "speed",
 }
 
--- Seltenheiten (Farben in Theme.Rarity); affixes = {min, max} zufällige Zusatzwerte.
--- Gewicht und Verschiebung mit der Tiefe kommen aus Balance.Rarity (gleiche Reihenfolge).
+-- Rarities (colors in Theme.Rarity); affixes = {min, max} random extra stats.
+-- Weight and depth shift come from Balance.Rarity (same order).
 local RARITIES = {
 	{ id = "normal", affixes = { 0, 0 }, sell = 1 },
 	{ id = "magic", affixes = { 1, 2 }, sell = 2 },
@@ -73,36 +73,36 @@ local RARITIES = {
 local RANK: { [string]: number } = {}
 for i, r in RARITIES do
 	RANK[r.id] = i
-	assert(Balance.Rarity[i].id == r.id, "Balance.Rarity und Items-Seltenheiten passen nicht")
+	assert(Balance.Rarity[i].id == r.id, "Balance.Rarity and item rarities do not match")
 end
 
 local BASE = {
-	helm = { "Lederkappe", "Eisenhelm", "Kristallhaube" },
-	ruestung = { "Stoffweste", "Kettenhemd", "Steinpanzer" },
-	waffe = { "Holzstab", "Funkenstab", "Kristallzepter" },
-	amulett = { "Steinanhänger", "Goldkette", "Seelenamulett" },
-	ring = { "Kupferring", "Silberring", "Funkenring" },
+	helmet = { "Leather Cap", "Iron Helm", "Crystal Hood" },
+	armor = { "Cloth Vest", "Chainmail", "Stone Plate" },
+	weapon = { "Wooden Staff", "Spark Staff", "Crystal Scepter" },
+	amulet = { "Stone Pendant", "Gold Chain", "Soul Amulet" },
+	ring = { "Copper Ring", "Silver Ring", "Spark Ring" },
 }
 local SUFFIX =
-	{ damage = "der Wut", life = "der Zähigkeit", crit = "der Präzision", speed = "der Eile" }
+	{ damage = "of Fury", life = "of Toughness", crit = "of Precision", speed = "of Haste" }
 local TITLES = {
-	"Glimmerzahn",
-	"Funkenherz",
-	"Schleimbrecher",
-	"Sonnenfänger",
-	"Klötzchenkrone",
-	"Wolkenreißer",
+	"Glimmerfang",
+	"Sparkheart",
+	"Slimebreaker",
+	"Suncatcher",
+	"Blockcrown",
+	"Cloudrender",
 }
 
--- Affix-Tiers (Balancing: Loot · Affixe): Wert-Faktor je Tier und ab welcher Item-Power es fällt
+-- Affix tiers (balancing: Loot · Affixes): value factor per tier and the item power it drops from
 Items.TierMult = table.freeze({ 2.4, 2.05, 1.75, 1.5, 1.3, 1.15, 1 })
 Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
-Items.IP_PER_LEVEL = 10 -- Item-Power = Gegenstandsstufe × 10
+Items.IP_PER_LEVEL = 10 -- item power = item level × 10
 
--- Glitzer-Ladungen neuer Items je Seltenheit (Balancing: Loot · Affixe & Verwerten)
+-- Glitter charges of new items per rarity (balancing: Loot · Affixes & Salvage)
 Items.Charges = table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5 } :: { [string]: number })
 
--- Ausbeute beim Verwerten: Splitter fest, Runen-Bonbons als Erwartungswert, Glitzerstaub als Chance
+-- Salvage yield: shards fixed, Rune Candy as expected value, Glitter Dust as a chance
 Items.Salvage = table.freeze({
 	normal = { shards = 2, candy = 0, dust = 0 },
 	magic = { shards = 5, candy = 0, dust = 0 },
@@ -117,9 +117,9 @@ local function round(stat: string, v: number): number
 	return math.floor(v * 10 + 0.5) / 10
 end
 
--- Wachstum je Gegenstandsstufe: nur feste Werte (Leben) wachsen mit der Stufe, weil der Gegner-Schaden
--- mit der Tiefe wächst. Prozentwerte (Schaden, Krit, Tempo) wachsen nur über das Tier – den
--- Schaden je Tiefe liefert der Waffen-Grundschaden (Balance.weaponDamage). Eigene Annahme.
+-- Growth per item level: only flat values (life) grow with the level, because enemy damage
+-- grows with depth. Percent values (damage, crit, speed) only grow via the tier - damage per
+-- depth comes from the weapon base damage (Balance.weaponDamage). Own assumption.
 local PER_LEVEL: { [string]: number } = { life = 0.12, damage = 0, crit = 0, speed = 0 }
 
 local function levelScale(stat: string, ilvl: number): number
@@ -131,7 +131,7 @@ local function value(stat: string, ilvl: number, rng: Random, scale: number): nu
 	return round(stat, rng:NextNumber(r[1], r[2]) * levelScale(stat, ilvl) * scale)
 end
 
--- Bestes Tier, das auf dieser Gegenstandsstufe fallen kann
+-- Best tier that can drop at this item level
 function Items.tierCap(ilvl: number): number
 	local ip = ilvl * Items.IP_PER_LEVEL
 	for tier, min in Items.TierMinIP do
@@ -152,7 +152,7 @@ function Items.chargesOf(item: Item): number
 		else Items.Charges[item.rarity] or 3
 end
 
--- Neuer Zusatzwert auf einem Tier
+-- New affix on a tier
 function Items.rollAffix(stat: string, ilvl: number, tier: number, rng: Random): Affix
 	return {
 		stat = stat,
@@ -161,7 +161,7 @@ function Items.rollAffix(stat: string, ilvl: number, tier: number, rng: Random):
 	}
 end
 
--- Wert beim Tier-Wechsel mitziehen (gleicher Wurf, anderer Faktor)
+-- Carry the value along on a tier change (same roll, different factor)
 function Items.retier(a: Affix, tier: number): Affix
 	local old = Items.TierMult[Items.tierOf(a)]
 	return {
@@ -172,22 +172,22 @@ function Items.retier(a: Affix, tier: number): Affix
 	}
 end
 
--- Gegenstandsstufe für Beute auf einer Rift-Tiefe (Item-Power = Tiefe × 10, Balance.itemPower)
+-- Item level for loot at a Rift depth (item power = depth × 10, Balance.itemPower)
 function Items.levelForDepth(depth: number): number
 	return math.max(1, math.floor(Balance.itemPower(depth) / Items.IP_PER_LEVEL))
 end
 
--- Item-Power eines Gegenstands: Stufe × 10 + Bonus der Seltenheit
+-- Item power of an item: level × 10 + rarity bonus
 function Items.itemPower(item: Item): number
 	return item.ilvl * Items.IP_PER_LEVEL + (Balance.IpBonus[item.rarity] or 0)
 end
 
 export type RollOpts = {
-	shift: number?, -- Verschiebung der Seltenheit (Balance.rarityShift), 1 = Tiefe 0
-	min: string?, -- mindestens diese Seltenheit (Boss: „rare“)
+	shift: number?, -- rarity shift (Balance.rarityShift), 1 = depth 0
+	min: string?, -- at least this rarity (boss: "rare")
 }
 
--- find: Bonus auf die Gewichte aller Seltenheiten über Normal (0.5 = +50 %)
+-- find: bonus on the weights of all rarities above normal (0.5 = +50 %)
 function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): Item
 	local boost = 1 + math.max(0, find or 0)
 	local shift = math.max(1, opts and opts.shift or 1)
@@ -240,7 +240,7 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 	if rarity.id == "magic" and firstExplicit then
 		name = base .. " " .. SUFFIX[firstExplicit]
 	elseif rarity.id == "rare" or rarity.id == "epic" then
-		name = string.format("%s „%s“", base, TITLES[rng:NextInteger(1, #TITLES)])
+		name = string.format('%s "%s"', base, TITLES[rng:NextInteger(1, #TITLES)])
 	end
 
 	return {
@@ -266,12 +266,12 @@ end
 
 Items.RarityName = table.freeze({
 	normal = "Normal",
-	magic = "Magisch",
-	rare = "Selten",
-	epic = "Episch",
+	magic = "Magic",
+	rare = "Rare",
+	epic = "Epic",
 })
 
--- Wie gut ist der Wurf? 0..1 relativ zum Höchstwert auf dieser Gegenstandsstufe (für Balken im UI)
+-- How good is the roll? 0..1 relative to the maximum at this item level (for bars in the UI)
 function Items.affixQuality(a: Affix, ilvl: number): number
 	local r = RANGE[a.stat]
 	if not r then
@@ -281,10 +281,10 @@ function Items.affixQuality(a: Affix, ilvl: number): number
 	return math.clamp(a.value / (r[2] * levelScale(a.stat, ilvl) * tier), 0, 1)
 end
 
--- "+12 Leben" · "+4,5% Schaden"
+-- "+12 Life" · "+4.5% Damage"
 function Items.affixText(a: Affix): string
 	local info = Items.Stats[a.stat]
-	local v = tostring(a.value):gsub("%.", ",")
+	local v = tostring(a.value)
 	if not info then
 		return "+" .. v
 	end

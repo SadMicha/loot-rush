@@ -1,9 +1,9 @@
 --!strict
--- Schmiede-Fenster nach Mockup „Glitzer-Schmiede“ (Taste B oder Menü-Button):
---   links Gegenstand wählen und seine Affixe, Mitte der Gegenstand auf dem Amboss mit Status,
---   rechts die Aktionen mit Kosten. Gegenstände kommen aus dem Inventar-Schnappschuss.
--- Geschmiedet wird auf dem Server (Systems/Forge): das Fenster schickt Aktion + Item + Affix (Net.ForgeAct),
--- zeigt Material aus ProgressController und die Rückmeldung (Net.ForgeResult).
+-- Forge window after the "Sparkle Forge" mockup (key B or menu button):
+--   left: pick an item and its affixes, center: the item on the anvil with status,
+--   right: the actions with costs. Items come from the inventory snapshot.
+-- Forging happens on the server (Systems/Forge): the window sends action + item + affix (Net.ForgeAct),
+-- shows materials from ProgressController and the feedback (Net.ForgeResult).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,7 +21,7 @@ local ForgeController = {}
 local C = Theme.Color
 local PAD = 28
 local LEFT_W, SIDE_W = 440, 440
-local PICK = 88 -- so hoch wie ein Knopf auf dem Handy mindestens wird, sonst schneidet die Leiste ab
+local PICK = 88 -- as tall as a button gets on phones at minimum, otherwise the bar is cut off
 local CENTER_W = 600
 
 local win: Window.Window
@@ -29,7 +29,7 @@ local left: Frame
 local center: Frame
 local side: Frame
 
-local selectedItem: string? = nil -- Item-ID
+local selectedItem: string? = nil -- item ID
 local selectedAffix: number? = nil
 local lastResult: { ok: boolean, text: string }? = nil
 local MAT_COLOR: { [string]: Color3 } =
@@ -43,7 +43,7 @@ local function clear(parent: Instance)
 	end
 end
 
--- Angelegte zuerst, dann die Tasche
+-- Equipped first, then the bag
 local function allItems(): { Items.Item }
 	local bag, worn = InventoryController.snapshot()
 	local list: { Items.Item } = {}
@@ -79,12 +79,12 @@ local function wrapLabel(text: string, size: number, color: Color3, width: numbe
 	return t
 end
 
--- ------------------------------------------------------------------ Links: Auswahl und Affixe
+-- ------------------------------------------------------------------ Left: selection and affixes
 local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	clear(left)
 	local w = LEFT_W - 2 * PAD
 
-	-- Leiste zum Wischen: Balken unter den Slots, damit man sieht, dass es weitergeht
+	-- Swipeable bar: scrollbar below the slots so it is visible that there is more
 	local picker = Instance.new("ScrollingFrame")
 	picker.BackgroundTransparency = 1
 	picker.BorderSizePixel = 0
@@ -97,7 +97,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	picker.HorizontalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	picker.AutomaticCanvasSize = Enum.AutomaticSize.X
 	picker.CanvasSize = UDim2.new()
-	local inset = Instance.new("UIPadding") -- Platz für den Auswahl-Glanz um den Slot
+	local inset = Instance.new("UIPadding") -- room for the selection glow around the slot
 	inset.PaddingTop = UDim.new(0, 8)
 	inset.PaddingLeft = UDim.new(0, 8)
 	inset.PaddingRight = UDim.new(0, 8)
@@ -121,14 +121,13 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	picker.Parent = left
 
 	if not item then
-		local empty =
-			wrapLabel("Keine Gegenstände. Sammle Beute im Rift und komm zurück.", 17, C.Muted, w)
+		local empty = wrapLabel("No items. Collect loot in a Rift and come back.", 17, C.Muted, w)
 		empty.Position = UDim2.fromOffset(PAD, PAD + PICK + 40)
 		empty.Parent = left
 		return
 	end
 
-	-- Darunter alles untereinander, damit ein zweizeiliger Name den Rest nach unten schiebt
+	-- Everything stacked below, so a two-line name pushes the rest down
 	local info = Window.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(PAD, PAD + PICK + 40))
 	info.AutomaticSize = Enum.AutomaticSize.Y
 	Kit.list(info, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
@@ -149,7 +148,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	local open = Forge.openCount(item)
 	local sub = Kit.label(
 		string.format(
-			"%s · %s · %d/%d Affixe",
+			"%s · %s · %d/%d Affixes",
 			Items.RarityName[item.rarity] or item.rarity,
 			Items.SlotName[item.slot] or item.slot,
 			open,
@@ -183,9 +182,9 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		t.Position = UDim2.new(0, 18, 0.5, 0)
 		t.ZIndex = 2
 		t.Parent = row
-		-- Tier rechts, Schloss bei versiegelten; Grundwerte lassen sich nicht schmieden
+		-- Tier on the right, lock for sealed ones; base values cannot be forged
 		local tag = Kit.label(
-			if a.implicit then "Grundwert" else "T" .. tostring(Items.tierOf(a)),
+			if a.implicit then "Base" else "T" .. tostring(Items.tierOf(a)),
 			15,
 			if a.implicit then C.Muted else C.Cyan
 		)
@@ -194,7 +193,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		tag.ZIndex = 2
 		tag.Parent = row
 		if a.sealed then
-			local lock = Kit.icon("schloss", 26)
+			local lock = Kit.icon("lock", 26)
 			lock.AnchorPoint = Vector2.new(1, 0.5)
 			lock.Position = UDim2.new(1, -16, 0.5, 0)
 			lock.ZIndex = 2
@@ -210,20 +209,18 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		end)
 		row.Parent = rows
 	end
-	-- Freie Affix-Plätze (mit „Affix hinzufügen“ füllen)
+	-- Free affix slots (fill with "Add Affix")
 	if open < max then
 		local free = Window.frame(UDim2.fromOffset(w, 56))
 		free.LayoutOrder = #item.affixes + 1
 		Kit.skin(free, "stat_tile", 56, 0.4)
-		local plus = Kit.icon("verbessern", 28)
+		local plus = Kit.icon("upgrade", 28)
 		plus.AnchorPoint = Vector2.new(0, 0.5)
 		plus.Position = UDim2.new(0, 14, 0.5, 0)
 		plus.ZIndex = 2
 		plus.Parent = free
 		local t = Kit.label(
-			if max - open == 1
-				then "Freier Platz"
-				else string.format("%d freie Plätze", max - open),
+			if max - open == 1 then "Free slot" else string.format("%d free slots", max - open),
 			15,
 			C.Muted,
 			Theme.Font.Body
@@ -237,10 +234,10 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	rows.Parent = info
 end
 
--- ------------------------------------------------------------------ Mitte: Amboss und Status
+-- ------------------------------------------------------------------ Center: anvil and status
 local function renderCenter(item: Items.Item?)
 	clear(center)
-	-- Material oben: Kapsel mit Menge, Name darunter
+	-- Materials at the top: capsule with amount, name below
 	local mats = Window.frame(UDim2.fromOffset(CENTER_W, 70))
 	Kit.list(mats, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Top)
 	for i, key in { "candy", "shards", "dust" } do
@@ -275,7 +272,7 @@ local function renderCenter(item: Items.Item?)
 		anvil.Parent = center
 	end
 
-	-- Status-Tafel
+	-- Status plaque
 	local plaque = Window.frame(UDim2.fromOffset(460, 158))
 	plaque.AnchorPoint = Vector2.new(0.5, 0)
 	plaque.Position = UDim2.new(0.5, 0, 0, 560)
@@ -290,7 +287,7 @@ local function renderCenter(item: Items.Item?)
 	local charges = if item then Items.chargesOf(item) else 0
 	local ready = item ~= nil and charges > 0
 	local head = Window.heading(
-		if item == nil then "Leer" elseif ready then "Bereit" else "Fertig geschmiedet",
+		if item == nil then "Empty" elseif ready then "Ready" else "Fully forged",
 		26,
 		if ready then C.Good else C.GoldHi
 	)
@@ -300,11 +297,8 @@ local function renderCenter(item: Items.Item?)
 	head.Parent = plaque
 	local subText = if lastResult
 		then lastResult.text
-		elseif item then string.format(
-			"Glitzer-Ladungen: %d · jede Aktion kostet 0–2",
-			charges
-		)
-		else "Wähle einen Gegenstand"
+		elseif item then string.format("Sparkle charges: %d · each action costs 0-2", charges)
+		else "Pick an item"
 	local sub = Kit.label(
 		subText,
 		15,
@@ -322,17 +316,17 @@ local function renderCenter(item: Items.Item?)
 	plaque.Parent = center
 end
 
--- ------------------------------------------------------------------ Rechts: Aktionen
+-- ------------------------------------------------------------------ Right: actions
 local function renderSide(item: Items.Item?)
 	clear(side)
 	local w = SIDE_W - 2 * PAD
 
-	-- Gewähltes Affix oben
+	-- Selected affix at the top
 	local headBox = Window.frame(UDim2.fromOffset(w, 60), UDim2.fromOffset(PAD, PAD))
 	Kit.skin(headBox, "btn_sort", 60, 0.5)
 	local a = if item and selectedAffix then item.affixes[selectedAffix] else nil
 	local headText = Kit.label(
-		if a then Items.affixText(a) else "Kein Affix gewählt",
+		if a then Items.affixText(a) else "No affix selected",
 		18,
 		if a then C.Text else C.Muted
 	)
@@ -354,7 +348,7 @@ local function renderSide(item: Items.Item?)
 		ic.Position = UDim2.new(0, 12, 0.5, 0)
 		ic.ZIndex = 2
 		ic.Parent = row
-		-- Text endet vor dem Amboss-Knopf rechts
+		-- Text ends before the anvil button on the right
 		local textW = w - 94 - 96
 		local n = Kit.label(action.name, 19, C.Text)
 		n.Position = UDim2.fromOffset(94, 12)
@@ -381,7 +375,7 @@ local function renderSide(item: Items.Item?)
 		cost.ZIndex = 2
 		cost.Parent = row
 		local go = Kit.button("", C.Gold, Vector2.new(68, 60), nil)
-		local hammer = Kit.icon("schmiede", 36)
+		local hammer = Kit.icon("forge", 36)
 		hammer.AnchorPoint = Vector2.new(0.5, 0.5)
 		hammer.Position = UDim2.fromScale(0.5, 0.5)
 		hammer.ZIndex = 3
@@ -401,7 +395,7 @@ local function renderSide(item: Items.Item?)
 		end)
 		go.Parent = row
 		if why and item then
-			-- Grund in eigener Zeile unter den Kosten
+			-- Reason on its own line below the cost
 			cost.TextColor3 = C.Muted
 			local reason = Kit.label(why, 13, C.Danger, Theme.Font.Body)
 			reason.AutomaticSize = Enum.AutomaticSize.None
@@ -417,7 +411,7 @@ local function renderSide(item: Items.Item?)
 	rows.Parent = side
 
 	local note = wrapLabel(
-		"Material: Verwerten im Inventar und Bosse. Versiegeln kostet keine Ladung.",
+		"Materials: salvage in the inventory, and bosses. Sealing costs no charge.",
 		14,
 		C.Muted,
 		w
@@ -427,7 +421,7 @@ local function renderSide(item: Items.Item?)
 	note.Parent = side
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function ForgeController.render()
 	local list = allItems()
 	local item = current(list)
@@ -443,8 +437,8 @@ end
 function ForgeController.init()
 	win = Window.new({
 		name = "Forge",
-		title = "Glitzer-Schmiede",
-		icon = "schmiede",
+		title = "Sparkle Forge",
+		icon = "forge",
 		key = Enum.KeyCode.B,
 		background = "bg_forge",
 	})
@@ -453,7 +447,7 @@ function ForgeController.init()
 	left = Kit.panel(Vector2.new(LEFT_W, body.Y))
 	left.Parent = win.body
 
-	-- Amboss mittig zwischen den Panels
+	-- Anvil centered between the panels
 	center = Window.frame(UDim2.fromOffset(CENTER_W, body.Y))
 	center.AnchorPoint = Vector2.new(0.5, 0)
 	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
@@ -478,7 +472,7 @@ function ForgeController.init()
 		end
 		lastResult = { ok = data.ok == true, text = data.text }
 		if data.ok == true and data.itemId == selectedItem then
-			-- Neues Affix: nichts gewählt lassen; sonst bleibt die Auswahl am selben Platz
+			-- New affix: leave nothing selected; otherwise the selection stays in the same place
 			local list = allItems()
 			local it = current(list)
 			if it and selectedAffix and not it.affixes[selectedAffix] then

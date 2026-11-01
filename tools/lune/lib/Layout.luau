@@ -1,8 +1,8 @@
 --!strict
--- Vereinfachter Nachbau von Roblox' GUI-Layout: UDim2, AnchorPoint, UIScale, UIPadding,
+-- Simplified port of Roblox's GUI layout: UDim2, AnchorPoint, UIScale, UIPadding,
 -- UIListLayout, UIGridLayout, UIAspectRatioConstraint, UISizeConstraint, AutomaticSize,
--- ScrollingFrame. Rechnet auf echten Lune-Instanzen (nicht auf Sandbox-Proxys).
--- Ergebnis je Objekt: absolutes Rechteck in Bildschirm-Pixeln wie AbsolutePosition/AbsoluteSize.
+-- ScrollingFrame. Computes on real Lune instances (not on sandbox proxies).
+-- Result per object: absolute rectangle in screen pixels like AbsolutePosition/AbsoluteSize.
 
 local roblox = require("@lune/roblox")
 local Enum = roblox.Enum :: any
@@ -43,7 +43,7 @@ function Layout.invalidate(self: Layout)
 	self.cache = {}
 end
 
--- Textbreite grob schätzen (keine echten Fontmetriken verfügbar). Absichtlich eher großzügig.
+-- Roughly estimate text width (no real font metrics available). Intentionally rather generous.
 local WIDE = "[MWmw@%%]"
 local NARROW = "[iljI!%.,:;'|%(%)%[%]]"
 function Layout.textWidth(text: string, size: number, bold: boolean?): number
@@ -86,7 +86,7 @@ function Layout.isBold(inst: any): boolean
 	return font ~= nil and tostring(font):find("Bold") ~= nil
 end
 
--- Benötigte Fläche eines Textes: Breite der längsten Zeile, Zeilen × Zeilenhöhe
+-- Area a text needs: width of the longest line, lines × line height
 function Layout.textBounds(text: string, size: number, bold: boolean, wrapWidth: number?): Vector2
 	local lineH = size
 	local lines, maxW = 0, 0
@@ -122,7 +122,7 @@ local function firstChild(inst: any, class: string): any?
 	return nil
 end
 
--- Größe eines Objekts relativ zu einem Elternrechteck (vor Layout-Positionierung)
+-- Size of an object relative to a parent rectangle (before layout positioning)
 function Layout.sizeIn(
 	self: Layout,
 	inst: any,
@@ -143,7 +143,7 @@ function Layout.sizeIn(
 
 	local auto = get(inst, "AutomaticSize", Enum.AutomaticSize.None)
 	if auto ~= Enum.AutomaticSize.None then
-		-- Nur Y wächst: umbrochener Text bricht an der festen Breite um
+		-- Only Y grows: wrapped text wraps at the fixed width
 		local wrapW = if auto == Enum.AutomaticSize.Y then w else nil
 		local cw, ch = self:contentExtent(inst, s, wrapW)
 		if auto == Enum.AutomaticSize.X or auto == Enum.AutomaticSize.XY then
@@ -166,8 +166,8 @@ function Layout.sizeIn(
 	if aspect then
 		local ratio = get(aspect, "AspectRatio", 1)
 		local dom = get(aspect, "DominantAxis", Enum.DominantAxis.Width)
-		local typ = get(aspect, "AspectType", Enum.AspectType.FitWithinMaxSize)
-		if typ == Enum.AspectType.ScaleWithParentSize then
+		local aspectType = get(aspect, "AspectType", Enum.AspectType.FitWithinMaxSize)
+		if aspectType == Enum.AspectType.ScaleWithParentSize then
 			if dom == Enum.DominantAxis.Width then
 				h = w / ratio
 			else
@@ -188,7 +188,7 @@ function Layout.sizeIn(
 	return w * us, h * us, us
 end
 
--- Mindestgröße für AutomaticSize: Text oder Kinder
+-- Minimum size for AutomaticSize: text or children
 function Layout.contentExtent(self: Layout, inst: any, s: number, wrapW: number?): (number, number)
 	local w, h = 0, 0
 	if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then
@@ -244,7 +244,7 @@ function Layout.contentExtent(self: Layout, inst: any, s: number, wrapW: number?
 	return w, h
 end
 
--- Innenfläche für Kinder: Rechteck minus UIPadding (bei ScrollingFrame: Canvas)
+-- Inner area for children: rectangle minus UIPadding (for ScrollingFrame: canvas)
 function Layout.contentRect(self: Layout, inst: any): Rect?
 	local r = self:rect(inst)
 	if not r then
@@ -319,7 +319,7 @@ local function align(
 	return start + (space - used) / 2
 end
 
--- Positionen aller Kinder eines Elternteils mit UIListLayout/UIGridLayout
+-- Positions of all children of a parent with UIListLayout/UIGridLayout
 function Layout.arrange(self: Layout, parent: any, layout: any, P: Rect)
 	local s = P.s
 	local items = sortedChildren(parent, layout)
@@ -370,7 +370,7 @@ function Layout.arrange(self: Layout, parent: any, layout: any, P: Rect)
 	local pad: UDim = get(layout, "Padding", UDim.new())
 	local gap = (if horizontal then P.w else P.h) * pad.Scale + pad.Offset * s
 
-	-- Wraps: waagerechte Liste bricht in Zeilen um (Zeilenabstand = Padding)
+	-- Wraps: a horizontal list wraps into rows (row spacing = padding)
 	if horizontal and get(layout, "Wraps", false) then
 		local rows, row, rowW = {}, {}, 0
 		for _, c in items do
@@ -477,7 +477,7 @@ function Layout.rect(self: Layout, inst: any): Rect?
 	return result
 end
 
--- Ist das Objekt tatsächlich sichtbar (alle Vorfahren sichtbar, ScreenGui aktiv, im PlayerGui)?
+-- Is the object actually visible (all ancestors visible, ScreenGui enabled, in the PlayerGui)?
 function Layout.isShown(inst: any): boolean
 	local node = inst
 	while node do

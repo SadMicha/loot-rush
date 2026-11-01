@@ -1,14 +1,14 @@
-name: Asset-IDs prüfen
+name: Check asset IDs
 
-# Prüft alle Bild-IDs aus src/shared/UI/Assets.luau über öffentliche Roblox-Endpunkte
-# (Image oder Decal, Moderationsstatus) und sucht zu Decal-IDs die Image-ID.
-# Mit „fix“ werden gefundene Image-IDs eingesetzt und auf den Branch assets/fix-ids gepusht.
+# Checks all image IDs from src/shared/UI/Assets.luau against public Roblox endpoints
+# (Image or Decal, moderation status) and looks up the Image ID for Decal IDs.
+# With "fix", found Image IDs are filled in and pushed to the branch assets/fix-ids.
 
 on:
   workflow_dispatch:
     inputs:
       fix:
-        description: "Decal-IDs durch Image-IDs ersetzen und Branch assets/fix-ids pushen"
+        description: "Replace Decal IDs with Image IDs and push the branch assets/fix-ids"
         type: boolean
         default: false
   push:
@@ -23,14 +23,14 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # Manuell mit Key aus dem Environment „Roblox“ (Decal → Bild-ID über Open Cloud, braucht Lese-Recht für Assets)
+    # Manual runs use the key from the "Roblox" environment (Decal → Image ID via Open Cloud, needs asset read permission)
     environment: ${{ github.event_name == 'workflow_dispatch' && 'Roblox' || '' }}
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: IDs prüfen
+      - name: Check IDs
         run: |
           python3 tools/check-assets.py ${{ inputs.fix && '--fix' || '' }} --report asset-report.md
           cat asset-report.md >> "$GITHUB_STEP_SUMMARY"
@@ -42,15 +42,15 @@ jobs:
             asset-report.md
             asset-mapping.json
 
-      - name: Korrektur pushen
+      - name: Push fix
         if: inputs.fix
         run: |
           if git diff --quiet; then
-            echo "Keine Decal-IDs zu ersetzen."
+            echo "No Decal IDs to replace."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898183+github-actions[bot]@users.noreply.github.com"
           git checkout -B assets/fix-ids
-          git commit -am "Assets: Decal-IDs durch Image-IDs ersetzen"
+          git commit -am "Assets: replace Decal IDs with Image IDs"
           git push -f origin assets/fix-ids

@@ -1,16 +1,16 @@
 --!nocheck
--- Unit-Tests ohne Roblox Studio: führt tests/**/*.spec.luau in der Sandbox aus.
+-- Unit tests without Roblox Studio: runs tests/**/*.spec.luau in the sandbox.
 --
 --   lune run tools/lune/test [filter]
 --
--- In einer Spec-Datei stehen zur Verfügung:
---   describe(name, fn) · it(name, fn) · expect(wert).toBe(…) (siehe lib/Expect.luau)
---   require("ReplicatedStorage.Shared.Items") – Pfad im Spiel (wie im Rojo-Build)
---   sim – die Sandbox: sim:boot(), sim:run(sek), sim.player, sim:runAs("server", fn), sim.issues …
---   layoutCheck(größe, touch) – Layout-Befunde des aktuellen UI wie im UI-Check (lib/Checks.luau)
---   closeButtons(), compareClose(liste) – Schließen-Knöpfe sammeln und vergleichen
---   alle Roblox-Globals der Sandbox (game, Instance, Vector3, task, Random …)
--- Jede Spec-Datei bekommt eine frische Sandbox; jeder Test läuft in einem eigenen Thread.
+-- Available in a spec file:
+--   describe(name, fn) · it(name, fn) · expect(value).toBe(…) (see lib/Expect.luau)
+--   require("ReplicatedStorage.Shared.Items") - path in the game (as in the Rojo build)
+--   sim - the sandbox: sim:boot(), sim:run(sec), sim.player, sim:runAs("server", fn), sim.issues …
+--   layoutCheck(size, touch) - layout findings of the current UI like the UI check (lib/Checks.luau)
+--   closeButtons(), compareClose(list) - collect and compare close buttons
+--   all Roblox globals of the sandbox (game, Instance, Vector3, task, Random …)
+-- Every spec file gets a fresh sandbox; every test runs in its own thread.
 
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -83,7 +83,7 @@ for _, file in findSpecs("tests", {}) do
 		if type(m) == "string" then
 			local inst = sb:find(m)
 			if not inst then
-				error("Modul nicht gefunden: " .. m, 2)
+				error("module not found: " .. m, 2)
 			end
 			return sandboxRequire(inst)
 		end
@@ -95,14 +95,14 @@ for _, file in findSpecs("tests", {}) do
 	if not ok then
 		failed += 1
 		table.insert(failures, { name = file, err = tostring(chunk) })
-		print("  ✖ Syntaxfehler: " .. tostring(chunk))
+		print("  ✖ syntax error: " .. tostring(chunk))
 		continue
 	end
 	local collected, err = pcall(chunk)
 	if not collected then
 		failed += 1
 		table.insert(failures, { name = file, err = tostring(err) })
-		print("  ✖ Fehler beim Laden: " .. tostring(err))
+		print("  ✖ error while loading: " .. tostring(err))
 		continue
 	end
 
@@ -121,15 +121,15 @@ for _, file in findSpecs("tests", {}) do
 			guard += 1
 		end
 		if not done then
-			result = { msg = "Zeitüberschreitung (60 s virtuelle Zeit)", trace = "" }
+			result = { msg = "timeout (60 s virtual time)", trace = "" }
 		end
-		-- Fehler in Threads, die der Test gestartet hat, zählen auch
+		-- errors in threads the test started count too
 		if not result then
 			for i = issuesBefore + 1, #sb.issues do
 				local issue = sb.issues[i]
 				if issue.level == "error" then
 					result = {
-						msg = "Fehler im Spielcode: " .. issue.message,
+						msg = "error in game code: " .. issue.message,
 						trace = issue.trace or "",
 					}
 					break
@@ -154,7 +154,7 @@ for _, file in findSpecs("tests", {}) do
 	end
 end
 
-print(string.format("\n%d bestanden, %d fehlgeschlagen", passed, failed))
+print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then
 	process.exit(1)
 end

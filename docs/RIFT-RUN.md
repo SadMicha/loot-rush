@@ -1,51 +1,51 @@
-# Rift-Lauf: Ablauf und Daten für die UI
+# Rift run: flow and data for the UI
 
-Der Server steuert den ganzen Lauf (`src/server/Systems/Rift.luau`). Die UI liest nur und schickt Wünsche.
+The server controls the whole run (`src/server/Systems/Rift.luau`). The UI only reads and sends requests.
 
-## Ablauf
+## Flow
 
-1. **Betreten**: `Net.Rift:FireServer("enter", gebietId)` (Atlas-Fenster). Nur offene Gebiete, ein Rift pro Server.
-2. **3 Wellen → Boss** auf der Start-Tiefe des Gebiets.
-3. **Boss tot**: Phase `clear`, Bestwert wird gespeichert, Zwischenstand kommt über `RiftResult` (`kind = "clear"`).
-   Wahl: `FireServer("deeper")` (nächste Tiefe) oder `FireServer("leave")` (zurück ins Dorf).
-4. **Ende** (immer `RiftResult` mit `kind = "end"`):
-   - `reason = "left"`: nach einem Boss zurück ins Dorf
-   - `reason = "abandoned"`: mitten in der Tiefe verlassen (`leave`)
-   - `reason = "failed"`: gestorben, auch in der Pause oder während der Wahl. Phase steht 4 s auf `failed`, Respawn im Hub.
-   Liegengebliebene Beute wird beim Ende automatisch eingesammelt (bei vollem Inventar verfällt das Item).
-   Bei `left`/`abandoned` wird der Spieler direkt zum Hub-Spawn gesetzt.
+1. **Enter**: `Net.Rift:FireServer("enter", regionId)` (Atlas window). Only open regions, one rift per server.
+2. **3 waves → boss** at the region's starting depth.
+3. **Boss dead**: phase `clear`, best value is saved, interim result arrives via `RiftResult` (`kind = "clear"`).
+   Choice: `FireServer("deeper")` (next depth) or `FireServer("leave")` (back to the village).
+4. **End** (always `RiftResult` with `kind = "end"`):
+   - `reason = "left"`: back to the village after a boss
+   - `reason = "abandoned"`: left in the middle of a depth (`leave`)
+   - `reason = "failed"`: died, also during the pause or during the choice. Phase stays on `failed` for 4 s, respawn in the hub.
+   Loot left lying around is collected automatically at the end (with a full inventory the item is lost).
+   On `left`/`abandoned` the player is placed directly at the hub spawn.
 
-## Player-Attribute (live, für Banner/HUD)
+## Player attributes (live, for banner/HUD)
 
-`RiftPhase` (`""`, `wave`, `boss`, `clear`, `failed`), `RiftRegion`, `RiftDepth`, `RiftWave`, `RiftWaves`, `RiftLeft`, `AtlasBest_<gebiet>`.
+`RiftPhase` (`""`, `wave`, `boss`, `clear`, `failed`), `RiftRegion`, `RiftDepth`, `RiftWave`, `RiftWaves`, `RiftLeft`, `AtlasBest_<region>`.
 
-## RiftResult (Belohnungsbildschirm)
+## RiftResult (reward screen)
 
-Typ `RiftRun.Summary` in `src/shared/RiftRun.luau`. Alle Werte zählen ab Rift-Start über alle Tiefen.
+Type `RiftRun.Summary` in `src/shared/RiftRun.luau`. All values count from rift start across all depths.
 
-| Feld | Bedeutung |
+| Field | Meaning |
 |---|---|
-| `kind`, `reason` | siehe oben |
-| `region`, `startDepth`, `depth` | Gebiet, Start-Tiefe, aktuelle bzw. letzte Tiefe |
-| `cleared` | geschaffte Tiefen in diesem Lauf |
-| `bestBefore`, `best`, `newBest` | Bestwert im Gebiet vorher/jetzt, neuer Rekord? |
-| `unlocked` | neu freigeschaltete Gebiete (ids, `Atlas.ById[id].name`) |
-| `seconds`, `kills`, `bosses` | Dauer und Kills |
-| `xp`, `levelBefore`, `level` | gesammelte Erfahrung, Level vorher/jetzt |
-| `gold`, `items`, `materials` | Beute: Gold, Liste der Items (wie im Inventar), `{ candy, shards, dust }` |
+| `kind`, `reason` | see above |
+| `region`, `startDepth`, `depth` | region, starting depth, current or last depth |
+| `cleared` | depths cleared in this run |
+| `bestBefore`, `best`, `newBest` | best value in the region before/now, new record? |
+| `unlocked` | newly unlocked regions (ids, `Atlas.ById[id].name`) |
+| `seconds`, `kills`, `bosses` | duration and kills |
+| `xp`, `levelBefore`, `level` | collected experience, level before/now |
+| `gold`, `items`, `materials` | loot: gold, list of items (as in the inventory), `{ candy, shards, dust }` |
 
-Beispiel im Client:
+Example on the client:
 
 ```lua
 local Net = require(ReplicatedStorage.Shared.Net)
 Net.RiftResult.OnClientEvent:Connect(function(s: RiftRun.Summary)
 	if s.kind == "end" then
-		-- Belohnungsbildschirm zeigen: s.gold, #s.items, s.xp, s.newBest, s.unlocked …
+		-- show reward screen: s.gold, #s.items, s.xp, s.newBest, s.unlocked …
 	end
 end)
 ```
 
-## Testen
+## Testing
 
-Debug-Menü (Dbg, nur Studio): **Alle Gegner tot** besiegt alle Gegner mit Beute und XP, damit man eine Tiefe in Sekunden durchspielt.
-Automatisch: `tests/RiftLauf.spec.luau`.
+Debug menu (Dbg, Studio only): **All enemies dead** defeats all enemies with loot and XP, so you can play through a depth in seconds.
+Automated: `tests/RiftRun.spec.luau`.

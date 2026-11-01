@@ -1,6 +1,6 @@
 --!nocheck
--- Layout-Prüfungen auf dem UI-Baum einer laufenden Sandbox.
--- Alle Textmaße sind Schätzungen (keine echten Fontmetriken) – darum „vermutlich“.
+-- Layout checks on the UI tree of a running sandbox.
+-- All text sizes are estimates (no real font metrics) - hence "probably".
 
 local roblox = require("@lune/roblox")
 local Layout = require("./Layout")
@@ -10,11 +10,10 @@ local get = Layout.get
 
 local Checks = {}
 
--- Lune liefert für dieselbe Instanz nicht immer dasselbe Objekt: Tabellen-Schlüssel über die Debug-ID
+-- Lune does not always return the same object for the same instance: table keys via the debug ID
 local function id(inst): string
 	return inst:GetDebugId()
 end
-
 
 export type Finding = { level: string, kind: string, path: string, message: string }
 
@@ -37,7 +36,7 @@ local function isImage(n): boolean
 	return n:IsA("ImageLabel") or n:IsA("ImageButton")
 end
 
--- Hat das Objekt selbst etwas Sichtbares (Fläche, Text oder Bild)?
+-- Does the object itself have something visible (fill, text or image)?
 local function hasContent(n): boolean
 	if get(n, "BackgroundTransparency", 1) < 0.99 then
 		return true
@@ -52,7 +51,7 @@ local function hasContent(n): boolean
 end
 Checks.hasContent = hasContent
 
--- Sichtbarer Ausschnitt: Rechteck geschnitten mit allen abschneidenden Vorfahren
+-- Visible part: rectangle intersected with all clipping ancestors
 local function clipRect(layout, n)
 	local node = n.Parent
 	local x0, y0, x1, y1 = -math.huge, -math.huge, math.huge, math.huge
@@ -79,7 +78,7 @@ local function isTextScaled(n): boolean
 	return get(n, "TextScaled", false)
 end
 
--- Innenabstand links, rechts, oben, unten in Bildschirmpixeln
+-- Padding left, right, top, bottom in screen pixels
 local function paddings(n, r)
 	local pad = n:FindFirstChildOfClass("UIPadding")
 	if not pad then
@@ -100,7 +99,7 @@ local function textPadding(n, r)
 	return l + rr, t + b
 end
 
--- Text für Meldungen kürzen, ohne UTF-8-Zeichen zu zerschneiden (sonst scheitert report.json)
+-- Shorten text for messages without cutting UTF-8 characters (otherwise report.json fails)
 local function short(text: string, n: number): string
 	local plain = text:gsub("<[^>]->", "")
 	local len = utf8.len(plain)
@@ -114,7 +113,7 @@ local function short(text: string, n: number): string
 end
 Checks.short = short
 
--- Geschätztes Rechteck, das der Text tatsächlich bedeckt (nach Ausrichtung, Umbruch, TextScaled)
+-- Estimated rectangle the text actually covers (after alignment, wrapping, TextScaled)
 local function inkRect(n, r)
 	local l, rr, t, b = paddings(n, r)
 	local availW, availH = r.w - l - rr, r.h - t - b
@@ -174,8 +173,8 @@ local function hasText(n): boolean
 	return isText(n) and get(n, "Text", "") ~= "" and get(n, "TextTransparency", 0) < 0.99
 end
 
--- Zeichenreihenfolge: Schlüssel vergleichen, größerer Schlüssel = später gezeichnet = liegt oben.
--- Sibling: Pfad aus (ZIndex, Kind-Index) je Ebene, Vorfahren vor Nachkommen. Global: ZIndex, dann Baumreihenfolge.
+-- Draw order: compare keys, larger key = drawn later = on top.
+-- Sibling: path of (ZIndex, child index) per level, ancestors before descendants. Global: ZIndex, then tree order.
 local function drawKey(n, index: { [any]: number }, preorder: { [any]: number }): { number }
 	local chain = {}
 	local node = n
@@ -228,7 +227,7 @@ local function isCloseButton(n): boolean
 		return false
 	end
 	local name = n.Name:lower()
-	if name:find("schlie", 1, true) or name:find("close", 1, true) then
+	if name:find("close", 1, true) then
 		return true
 	end
 	local t = if isText(n) then get(n, "Text", "") else ""
@@ -260,9 +259,9 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	local entries = {} -- sichtbare GuiObjects für die Prüfungen über mehrere Objekte
+	local entries = {} -- visible GuiObjects for the checks across several objects
 	local byNode = {}
-	local overflowing = {} -- Texte mit eigenem text-overflow-Befund
+	local overflowing = {} -- texts with their own text-overflow finding
 
 	for _, n in root:GetDescendants() do
 		if n:IsA("GuiObject") and Layout.isShown(n) then
@@ -295,7 +294,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 					byNode[id(n)] = e
 				end
 
-				-- 1. Ragt aus dem Bildschirm (komplett draußen = absichtlich ausgeblendet, z. B. weggeflogen)
+				-- 1. Sticks out of the screen (completely outside = hidden on purpose, e.g. flown away)
 				if content and visibleArea > 0 then
 					local out = math.max(0, -vx0, vx1 - vw, -vy0, vy1 - vh)
 					if out > 2 then
@@ -303,12 +302,12 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"warn",
 							"offscreen",
 							n,
-							string.format("ragt %dpx aus dem Bildschirm", math.floor(out + 0.5))
+							string.format("sticks out %dpx off the screen", math.floor(out + 0.5))
 						)
 					end
 				end
 
-				-- 2. Von ClipsDescendants abgeschnitten (nur Text und Knöpfe; Scrollbereiche sind Absicht)
+				-- 2. Clipped by ClipsDescendants (only text and buttons; scroll areas are intentional)
 				if
 					clipper
 					and not clipper:IsA("ScrollingFrame")
@@ -322,7 +321,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"clipped",
 							n,
 							string.format(
-								"wird von %s um %dpx abgeschnitten",
+								"is clipped by %s by %dpx",
 								clipper.Name,
 								math.floor(cut + 0.5)
 							)
@@ -330,7 +329,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 					end
 				end
 
-				-- 3. Text passt nicht
+				-- 3. Text does not fit
 				if
 					isText(n)
 					and get(n, "Text", "") ~= ""
@@ -355,7 +354,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 								"text-small",
 								n,
 								string.format(
-									"TextScaled ergibt vermutlich nur ~%dpx Schrift",
+									"TextScaled probably yields only ~%dpx font",
 									math.floor(math.min(fit, maxSize))
 								)
 							)
@@ -377,11 +376,11 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 								"text-overflow",
 								n,
 								string.format(
-									"Text „%s“ braucht vermutlich ~%dpx, Platz %dpx%s",
+									'Text "%s" probably needs ~%dpx, space %dpx%s',
 									short(get(n, "Text", ""), 40),
 									math.floor(b.X),
 									math.floor(availW),
-									if truncate then " (wird mit … gekürzt)" else ""
+									if truncate then " (truncated with …)" else ""
 								)
 							)
 						elseif wrapped and b.Y > availH * 1.1 + 2 then
@@ -391,24 +390,19 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 								"text-overflow",
 								n,
 								string.format(
-									"umbrochener Text braucht vermutlich ~%dpx Höhe, Platz %dpx",
+									"wrapped text probably needs ~%dpx height, space %dpx",
 									math.floor(b.Y),
 									math.floor(availH)
 								)
 							)
 						end
 						if size < 9 then
-							add(
-								"warn",
-								"text-small",
-								n,
-								string.format("Schrift nur %.1fpx groß", size)
-							)
+							add("warn", "text-small", n, string.format("font only %.1fpx", size))
 						end
 					end
 				end
 
-				-- 4. Bild-IDs
+				-- 4. Image IDs
 				if isImage(n) then
 					local img = get(n, "Image", "")
 					if img ~= "" then
@@ -419,21 +413,16 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							and not img:match("^https?://")
 							and not img:match("^rbxthumb://")
 						then
-							add(
-								"error",
-								"image-id",
-								n,
-								string.format("ungültige Bild-ID „%s“", img)
-							)
+							add("error", "image-id", n, string.format('invalid image ID "%s"', img))
 						elseif id == "0" then
-							add("error", "image-id", n, "Bild-ID ist 0")
+							add("error", "image-id", n, "image ID is 0")
 						end
 					elseif get(n, "ImageRectSize", roblox.Vector2.zero).Magnitude > 0 then
-						add("warn", "image-id", n, "ImageRectSize gesetzt, aber kein Bild")
+						add("warn", "image-id", n, "ImageRectSize set, but no image")
 					end
 				end
 
-				-- 5. Zu kleine Touch-Ziele
+				-- 5. Touch targets too small
 				if
 					profile.touch
 					and n:IsA("GuiButton")
@@ -446,7 +435,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"touch-target",
 							n,
 							string.format(
-								"Knopf nur %d×%dpx (Touch: mind. 32px)",
+								"button only %d×%dpx (touch: min. 32px)",
 								math.floor(r.w),
 								math.floor(r.h)
 							)
@@ -469,8 +458,8 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		return k
 	end
 
-	-- Verdeckt: ein großes deckendes Objekt (z. B. Fenster-Hintergrund über dem HUD) liegt darüber.
-	-- Verdeckte Objekte prüfen die folgenden Regeln nicht.
+	-- Covered: a large opaque object (e.g. window background over the HUD) lies on top.
+	-- The following rules do not check covered objects.
 	local covers = {}
 	for _, e in entries do
 		if e.vis.w * e.vis.h >= vArea * 0.25 and isOpaque(e.n) then
@@ -500,7 +489,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 	end
 	entries = visible
 
-	-- 6. Roblox-Knöpfe oben links (Logo, Menü, Chat) verdecken Text, Knöpfe und Icons
+	-- 6. Roblox buttons top left (logo, menu, chat) cover text, buttons and icons
 	local bar = sb:topbarButtons()
 	local tb = { x = 0, y = 0, w = bar.X, h = bar.Y }
 	for _, e in entries do
@@ -518,9 +507,9 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 						"topbar",
 						n,
 						string.format(
-							"%s liegt unter der Roblox-Topbar (oben links %d×%dpx)",
+							"%s lies under the Roblox topbar (top left %d×%dpx)",
 							if e.text
-								then "Text „" .. short(get(n, "Text", ""), 30) .. "“"
+								then 'Text "' .. short(get(n, "Text", ""), 30) .. '"'
 								else n.ClassName,
 							bar.X,
 							bar.Y
@@ -531,7 +520,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 6b. Scrollbereich schneidet quer zur Scrollrichtung ab (z. B. Item-Reihe oben gekappt)
+	-- 6b. Scroll area clips across the scroll direction (e.g. item row cut off at the top)
 	for _, e in entries do
 		local sf = e.clipper
 		if sf and sf:IsA("ScrollingFrame") and e.content and (e.n:IsA("GuiButton") or e.text) then
@@ -549,7 +538,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 					"scroll-cut",
 					e.n,
 					string.format(
-						"%s schneidet %dpx quer zur Scrollrichtung ab (nicht erreichbar)",
+						"%s clips %dpx across the scroll direction (unreachable)",
 						sf.Name,
 						math.floor(cut + 0.5)
 					)
@@ -558,7 +547,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 7. Text liegt unter einem Icon/Knopf oder auf anderem Text
+	-- 7. Text lies under an icon/button or on other text
 	local pairsSeen = {}
 	for _, t in entries do
 		local ink = t.inkVis
@@ -567,7 +556,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 			for _, e in entries do
 				if
 					e ~= t
-					and e.guiId == t.guiId -- Fenster über dem HUD ist Absicht
+					and e.guiId == t.guiId -- window over the HUD is intentional
 					and get(e.n, "Rotation", 0) == 0
 					and not t.n:IsDescendantOf(e.n)
 					and not e.n:IsDescendantOf(t.n)
@@ -577,7 +566,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 						local small = math.min(inkArea, e.inkVis.w * e.inkVis.h)
 						local same = get(e.n, "Text", "") == get(t.n, "Text", "")
 							and math.abs(e.inkVis.x - ink.x) <= 4
-							and math.abs(e.inkVis.y - ink.y) <= 4 -- Schatten-Kopie
+							and math.abs(e.inkVis.y - ink.y) <= 4 -- shadow copy
 						if ov.w > 2 and ov.h > 2 and ov.w * ov.h > small * 0.2 and not same then
 							local a, b = pathOf(t.n, root), pathOf(e.n, root)
 							local pk = if a < b then a .. "|" .. b else b .. "|" .. a
@@ -588,7 +577,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 									"text-overlap",
 									t.n,
 									string.format(
-										"Text „%s“ überlappt Text „%s“ (%s)",
+										'Text "%s" overlaps text "%s" (%s)',
 										short(get(t.n, "Text", ""), 24),
 										short(get(e.n, "Text", ""), 24),
 										e.n.Name
@@ -607,7 +596,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 									"text-covered",
 									t.n,
 									string.format(
-										"Text „%s“ läuft zu %d %% hinter %s",
+										'Text "%s" runs %d %% behind %s',
 										short(get(t.n, "Text", ""), 30),
 										math.floor(ov.w * ov.h / inkArea * 100 + 0.5),
 										e.n.Name
@@ -621,7 +610,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 8. Text ragt aus seinem Panel (nächster Vorfahr mit Fläche/Bild oder Kind „Skin“)
+	-- 8. Text sticks out of its panel (nearest ancestor with fill/image or child "Skin")
 	for _, t in entries do
 		if t.inkVis and not overflowing[id(t.n)] then
 			local node = t.n.Parent
@@ -638,7 +627,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 			if pe and pe.r.w * pe.r.h < vArea * 0.9 then
 				local ink, p = t.ink, pe.r
 				local inside = intersect(ink, p)
-				-- ganz außerhalb = Beschriftung neben/unter dem Objekt (Absicht), nur Überstand zählt
+				-- completely outside = label next to/below the object (intentional), only the overhang counts
 				if inside.w <= 0 or inside.h <= 0 then
 					continue
 				end
@@ -654,7 +643,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 						"text-outside",
 						t.n,
 						string.format(
-							"Text „%s“ ragt %dpx aus %s",
+							'Text "%s" sticks out %dpx from %s',
 							short(get(t.n, "Text", ""), 30),
 							math.floor(out + 0.5),
 							panel.Name
@@ -665,7 +654,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 9. Kapsel zeigt nur eine Zahl (kein Icon, keine Beschriftung)
+	-- 9. Capsule shows only a number (no icon, no label)
 	for _, t in entries do
 		if t.text and isNumberOnly(get(t.n, "Text", "")) then
 			local node = t.n
@@ -704,7 +693,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 						"unlabeled",
 						box,
 						string.format(
-							"zeigt nur „%s“ – Icon oder Beschriftung fehlt",
+							'shows only "%s" - icon or label missing',
 							short(get(t.n, "Text", ""), 12)
 						)
 					)
@@ -713,7 +702,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 10. Leere Zeile in einer Liste, deren andere Zeilen Text haben
+	-- 10. Empty row in a list whose other rows have text
 	local function rowHasText(n): boolean
 		if byNode[id(n)] and byNode[id(n)].text then
 			return true
@@ -761,7 +750,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 			end
 			if withText >= 2 then
 				for _, row in rows do
-					-- schmale Zeilen (Balken, Trennlinien) sind keine leeren Einträge
+					-- narrow rows (bars, dividers) are not empty entries
 					if
 						not row.text
 						and row.h >= textH / withText * 0.6
@@ -771,7 +760,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"warn",
 							"empty-row",
 							row.n,
-							"Zeile ohne Text, die anderen Zeilen haben Text"
+							"row without text, the other rows have text"
 						)
 					end
 				end
@@ -779,14 +768,14 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
-	-- 11. Überlappende Bausteine: direkte Kinder des Root-Frames einer ScreenGui (HUD-Gruppen, Fenster)
+	-- 11. Overlapping building blocks: direct children of a ScreenGui's root frame (HUD groups, windows)
 	for _, gui in root:GetChildren() do
 		if gui:IsA("ScreenGui") and get(gui, "Enabled", true) then
 			local top = gui:FindFirstChild("Root") or gui
 			local boxes = {}
 			for _, n in top:GetChildren() do
 				local r = n:IsA("GuiObject") and Layout.isShown(n) and layout:rect(n)
-				-- Vollbild-Flächen (abgedunkelter Hintergrund) und Weggeflogenes zählen nicht
+				-- fullscreen areas (dimmed background) and things flown away do not count
 				local full = r and r.w * r.h >= vw * vh * 0.9
 				local onScreen = r and r.x < vw and r.y < vh and r.x + r.w > 0 and r.y + r.h > 0
 				if r and r.w > 0 and r.h > 0 and not full and onScreen then
@@ -804,7 +793,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 							"overlap",
 							boxes[i].n,
 							string.format(
-								"überlappt %s um %d×%dpx",
+								"overlaps %s by %d×%dpx",
 								boxes[j].n.Name,
 								math.floor(w + 0.5),
 								math.floor(h + 0.5)
@@ -819,7 +808,7 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 	return findings
 end
 
--- Schließen-Knöpfe mit Aussehen, damit sich Fenster vergleichen lassen (siehe ui.luau / Handy-Test)
+-- Close buttons with their look so windows can be compared (see ui.luau / phone test)
 function Checks.closeButtons(sb): { { path: string, look: string } }
 	local out = {}
 	local pg = sb:playerGui()
@@ -852,7 +841,7 @@ function Checks.closeButtons(sb): { { path: string, look: string } }
 	return out
 end
 
--- Weichen Schließen-Knöpfe voneinander ab? Häufigstes Aussehen gilt als Vorgabe.
+-- Do close buttons differ from each other? The most common look is the reference.
 function Checks.compareClose(list: { { path: string, look: string, state: string? } }): { Finding }
 	local count = {}
 	for _, c in list do
@@ -872,7 +861,7 @@ function Checks.compareClose(list: { { path: string, look: string, state: string
 				kind = "close-style",
 				path = c.path,
 				message = string.format(
-					"Schließen-Knopf sieht anders aus (%s statt %s)",
+					"close button looks different (%s instead of %s)",
 					c.look,
 					best
 				),

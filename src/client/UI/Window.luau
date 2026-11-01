@@ -1,9 +1,9 @@
 --!strict
--- Gemeinsamer Rahmen der Vollbild-Fenster (Fähigkeiten, Sternennetz, Schmiede, Atlas):
--- Szenenbild oder Abdunklung, Titel oben links (neben den Roblox-Knöpfen), Schließen oben rechts,
--- eigene Taste. Der Inhalt liegt in `body` (feste Design-Fläche Window.BODY), die unter der Kopfzeile
--- zentriert und bei Bedarf verkleinert wird – so passt er auf Handy, Tablet und PC.
--- Es ist immer nur eines dieser Fenster offen; Öffnen schließt das vorige.
+-- Shared frame of the fullscreen windows (Abilities, Star Net, Forge, Atlas):
+-- scene image or dimming, title at the top left (next to the Roblox buttons), close at the top right,
+-- own hotkey. The content lives in `body` (fixed design area Window.BODY), which is centered below the header
+-- and scaled down if needed - so it fits phone, tablet and PC.
+-- Only one of these windows is open at a time; opening one closes the previous.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -16,16 +16,16 @@ local Kit = require(script.Parent.Kit)
 
 local Window = {}
 
-Window.BODY = Vector2.new(1520, 790) -- Inhaltsfläche in Design-Pixeln
-local MARGIN = 40 -- Abstand links/rechts
-local HEAD = 48 -- Höhe der Kopfzeile (Titel, Schließen)
+Window.BODY = Vector2.new(1520, 790) -- content area in design pixels
+local MARGIN = 40 -- margin left/right
+local HEAD = 48 -- height of the header (title, close)
 
 export type Options = {
 	name: string,
 	title: string,
-	icon: string?, -- Assets.Icon vor dem Titel
+	icon: string?, -- Assets.Icon before the title
 	key: Enum.KeyCode?,
-	background: string?, -- Schlüssel in Assets.Art
+	background: string?, -- key in Assets.Art
 }
 
 export type Window = {
@@ -39,31 +39,30 @@ export type Window = {
 }
 
 local current: Window? = nil
-local others: { () -> () } = {} -- weitere Vollbild-Fenster (Inventar), die beim Öffnen zugehen
+local others: { () -> () } = {} -- further fullscreen windows (inventory) that close when one opens
 
--- Offenes Fenster schließen (z. B. wenn das Inventar aufgeht)
+-- Close the open window (e.g. when the inventory opens)
 function Window.closeCurrent()
 	if current then
 		current.close()
 	end
 end
 
--- Ein Fenster außerhalb dieses Moduls mitschließen, sobald eines von hier öffnet
+-- Also close a window outside this module as soon as one from here opens
 function Window.exclusive(close: () -> ())
 	table.insert(others, close)
 end
 
--- upper() kennt keine Umlaute
 function Window.caps(text: string): string
-	return (string.upper(text):gsub("ü", "Ü"):gsub("ö", "Ö"):gsub("ä", "Ä"))
+	return string.upper(text)
 end
 
--- Fenstertitel in Großbuchstaben (Titel-Schrift)
+-- Window title in capital letters (title font)
 function Window.heading(text: string, size: number?, color: Color3?): TextLabel
 	return Kit.label(Window.caps(text), size or 20, color or Theme.Color.Text, Theme.Font.Title)
 end
 
--- Rahmenloser Container ohne Hintergrund
+-- Borderless container without background
 function Window.frame(size: UDim2, pos: UDim2?): Frame
 	local f = Instance.new("Frame")
 	f.BackgroundTransparency = 1
@@ -75,7 +74,7 @@ function Window.frame(size: UDim2, pos: UDim2?): Frame
 	return f
 end
 
--- Bild aus Assets.Art (feste Größe, eingepasst) oder nil, solange es fehlt
+-- Image from Assets.Art (fixed size, fitted) or nil while it is missing
 function Window.art(name: string, size: Vector2): ImageLabel?
 	local art = Assets.Art[name]
 	if not art then
@@ -90,8 +89,8 @@ function Window.art(name: string, size: Vector2): ImageLabel?
 	return img
 end
 
--- `fn` ausführen, sobald das Bild wirklich geladen ist (Ersatz aus Code bis dahin sichtbar lassen;
--- ein Bild in Moderation oder mit falscher ID lädt nie)
+-- Run `fn` as soon as the image has really loaded (keep the code fallback visible until then;
+-- an image in moderation or with a wrong ID never loads)
 function Window.whenLoaded(img: ImageLabel | ImageButton, fn: () -> ())
 	if img.IsLoaded then
 		fn()
@@ -106,11 +105,11 @@ function Window.whenLoaded(img: ImageLabel | ImageButton, fn: () -> ())
 	end)
 end
 
--- Gerade Linie zwischen zwei Punkten (Design-Pixel), z. B. Verbindungen im Baum
+-- Straight line between two points (design pixels), e.g. connections in the tree
 function Window.line(parent: GuiObject, a: Vector2, b: Vector2, color: Color3, width: number): Frame
 	local d = b - a
 	local f = Instance.new("Frame")
-	f.Name = "Linie"
+	f.Name = "Line"
 	f.BorderSizePixel = 0
 	f.BackgroundColor3 = color
 	f.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -123,14 +122,14 @@ function Window.line(parent: GuiObject, a: Vector2, b: Vector2, color: Color3, w
 end
 
 export type NodeOptions = {
-	art: string?, -- Ring aus Assets.Art; fehlt er, wird ein Slot nach `rarity` genommen
+	art: string?, -- ring from Assets.Art; if missing, a slot by `rarity` is used
 	rarity: string?,
 	dim: boolean?,
 	selected: boolean?,
-	tint: Color3?, -- färbt das Ring-Bild (Ast-Farbe im Sternennetz)
+	tint: Color3?, -- tints the ring image (branch color in the Star Net)
 }
 
--- Runder Baum-Knoten (Skill-Blüte, Sternennetz), mittig auf `pos` gesetzt
+-- Round tree node (skill bloom, Star Net), centered on `pos`
 function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOptions): ImageButton
 	local ring = if opts.art then Assets.Art[opts.art] else nil
 	local b: ImageButton
@@ -157,7 +156,7 @@ function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOpt
 			selected = opts.selected,
 		})
 	end
-	b.Name = "Knoten"
+	b.Name = "Node"
 	Kit.touchTarget(b)
 	b.AnchorPoint = Vector2.new(0.5, 0.5)
 	b.Position = UDim2.fromOffset(pos.X, pos.Y)
@@ -165,7 +164,7 @@ function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOpt
 	return b
 end
 
--- Zentrierte Beschriftung unter einem Punkt (Knotenname, Punktestand)
+-- Centered caption below a point (node name, point count)
 function Window.caption(
 	parent: GuiObject,
 	text: string,
@@ -183,7 +182,7 @@ function Window.caption(
 	return t
 end
 
--- Roblox-Knöpfe oben links (Logo, Menü, Chat) in Bildschirmpunkten: rechter Rand und Höhe
+-- Roblox buttons at the top left (logo, menu, chat) in screen points: right edge and height
 function Window.topbar(): (number, number)
 	local inset: any = GuiService.TopbarInset
 	if typeof(inset) == "Rect" and inset.Height > 0 then
@@ -197,15 +196,15 @@ function Window.new(opts: Options): Window
 	local gui, root = Kit.scaledGui("LootRush" .. opts.name, 6, true)
 	gui.Enabled = false
 
-	-- Szenenbild über den ganzen Bildschirm, sonst nur abdunkeln
+	-- Scene image over the whole screen, otherwise just dim
 	local back = Instance.new("ImageLabel")
-	back.Name = "Hintergrund"
+	back.Name = "Background"
 	back.BackgroundColor3 = Theme.Color.Bg0
-	back.BackgroundTransparency = 0.1 -- HUD darunter soll nicht durchscheinen
+	back.BackgroundTransparency = 0.1 -- the HUD underneath should not show through
 	back.BorderSizePixel = 0
 	back.Size = UDim2.fromScale(1, 1)
 	back.ZIndex = 0
-	back.Active = true -- Klicks nicht an das HUD darunter durchreichen
+	back.Active = true -- do not pass clicks through to the HUD underneath
 	local art = if opts.background then Assets.Art[opts.background] else nil
 	if art then
 		back.Image = art.id
@@ -215,7 +214,7 @@ function Window.new(opts: Options): Window
 	back.Parent = root
 
 	local head = Window.frame(UDim2.fromOffset(600, HEAD))
-	head.Name = "Kopf"
+	head.Name = "Header"
 	head.AnchorPoint = Vector2.new(0, 0.5)
 	local hl = Kit.list(head, Enum.FillDirection.Horizontal, 12)
 	hl.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -230,7 +229,7 @@ function Window.new(opts: Options): Window
 	head.Parent = root
 
 	local body = Window.frame(UDim2.fromOffset(Window.BODY.X, Window.BODY.Y))
-	body.Name = "Inhalt"
+	body.Name = "Content"
 	body.AnchorPoint = Vector2.new(0.5, 0.5)
 	local bodyScale = Instance.new("UIScale")
 	bodyScale.Parent = body
@@ -280,12 +279,12 @@ function Window.new(opts: Options): Window
 		end,
 	}
 
-	local x = Kit.iconButton("schliessen", "Schließen", HEAD, false, "close")
+	local x = Kit.iconButton("close", "Close", HEAD, false, "close")
 	x.AnchorPoint = Vector2.new(1, 0.5)
 	x.Activated:Connect(close)
 	x.Parent = root
 
-	-- Kopfzeile neben die Roblox-Knöpfe, Inhalt in den Rest einpassen (alles in Design-Pixeln)
+	-- Header next to the Roblox buttons, fit the content into the rest (all in design pixels)
 	local scale = root:FindFirstChildOfClass("UIScale") :: UIScale
 	local function arrange()
 		local camera = workspace.CurrentCamera

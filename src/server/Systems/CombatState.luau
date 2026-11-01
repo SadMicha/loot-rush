@@ -1,7 +1,7 @@
 --!strict
--- Entscheidet serverseitig, ob ein Spieler „im Kampf“ ist.
--- Kampf = ein Gegner (Tag "Enemy") im Radius ODER der Spieler hat gerade Schaden bekommen.
--- Ergebnis: Player-Attribut "InCombat" (repliziert automatisch, der Client liest es nur).
+-- Decides on the server whether a player is "in combat".
+-- Combat = an enemy (tag "Enemy") within the radius OR the player just took damage.
+-- Result: player attribute "InCombat" (replicates automatically, the client only reads it).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -61,7 +61,7 @@ local function update(player: Player, now: number)
 	end
 end
 
--- Kampf sofort beenden (z. B. Rückkehr in den Hub), ohne die Ruhe-Verzögerung abzuwarten
+-- End combat immediately (e.g. returning to the Hub) without waiting for the calm delay
 function CombatState.reset(player: Player)
 	lastCombat[player] = nil
 	lastHealth[player] = nil

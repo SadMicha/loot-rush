@@ -1,8 +1,8 @@
 --!strict
--- Sternennetz-Fenster nach Mockup „Sternennetz“ (Taste N oder Menü-Button):
---   links das Netz mit Sternen und Verbindungen, rechts Punkte, Stern-Details und Aktionen.
--- Zuweisungen prüft und speichert der Server (Systems/Progress); das Fenster zeigt den Schnappschuss
--- aus ProgressController und schickt nur Wünsche (Net.Star).
+-- Star Net window after the "Star Net" mockup (key N or menu button):
+--   the net with stars and connections on the left, points, star details and actions on the right.
+-- Allocations are validated and saved by the server (Systems/Progress); the window shows the snapshot
+-- from ProgressController and only sends requests (Net.Star).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,21 +23,21 @@ local PAD = 28
 local SIDE_W = 420
 local SIZE: { [string]: number } = { core = 100, small = 46, big = 78 }
 local BRANCH_COLOR: { [string]: Color3 } = {
-	kraft = Theme.Rarity.unique,
-	geschick = Theme.Rarity.magic,
-	weisheit = Theme.Rarity.epic,
+	might = Theme.Rarity.unique,
+	finesse = Theme.Rarity.magic,
+	wisdom = Theme.Rarity.epic,
 }
 
 local win: Window.Window
 local net: Frame
 local side: Frame
 
-local allocated: { [string]: boolean } = { herz = true }
-local selected = "eisenhaut"
+local allocated: { [string]: boolean } = { heart = true }
+local selected = "iron_skin"
 
--- Schnappschuss → Nachschlage-Tabelle inkl. Herz
+-- Snapshot -> lookup table incl. Heart
 local function refreshAllocated()
-	allocated = { herz = true }
+	allocated = { heart = true }
 	for id in ProgressController.data().stars do
 		allocated[id] = true
 	end
@@ -67,7 +67,7 @@ local function canRemove(s: StarNet.Star): boolean
 	return (Progression.canRemove(ProgressController.data(), s.id))
 end
 
--- ------------------------------------------------------------------ Netz
+-- ------------------------------------------------------------------ Net
 local function artName(s: StarNet.Star): string
 	if s.kind == "core" then
 		return "star_core"
@@ -80,7 +80,7 @@ local function renderNet()
 	for _, s in StarNet.Stars do
 		if s.from then
 			local parent = StarNet.ById[s.from]
-			local color = BRANCH_COLOR[s.branch or "kraft"]
+			local color = BRANCH_COLOR[s.branch or "might"]
 			local l = Window.line(net, parent.pos, s.pos, color, if allocated[s.id] then 4 else 2)
 			l.BackgroundTransparency = if allocated[s.id] then 0 else 0.55
 		end
@@ -92,7 +92,7 @@ local function renderNet()
 			art = artName(s),
 			rarity = if s.kind == "core"
 				then "rare"
-				elseif on then StarNet.BranchRarity[s.branch or "kraft"]
+				elseif on then StarNet.BranchRarity[s.branch or "might"]
 				else nil,
 			dim = not on,
 			selected = s.id == selected,
@@ -115,15 +115,15 @@ local function renderNet()
 	end
 end
 
--- ------------------------------------------------------------------ Rechts
+-- ------------------------------------------------------------------ Right side
 local function renderSide()
 	clear(side)
 	local w = SIDE_W - 2 * PAD
 	local s = StarNet.ById[selected]
 
-	-- Punkte und Fortschritt
+	-- Points and progress
 	local head = Window.frame(UDim2.fromOffset(w, 60), UDim2.fromOffset(PAD, PAD))
-	local ic = Kit.icon("sternennetz", 44)
+	local ic = Kit.icon("star_net", 44)
 	ic.Parent = head
 	local p = Kit.label(tostring(points()), 30, C.GoldHi)
 	p.Position = UDim2.fromOffset(56, 4)
@@ -152,19 +152,19 @@ local function renderSide()
 	divider.Position = UDim2.fromOffset(PAD, PAD + 76)
 	divider.Parent = side
 
-	-- Stern-Karte
+	-- Star card
 	local kindText = if s.kind == "core"
-		then "Herz"
-		elseif s.kind == "big" then "Großer Stern"
-		else "Stern"
+		then "Heart"
+		elseif s.kind == "big" then "Major Star"
+		else "Star"
 	local branchText = if s.branch then " · " .. StarNet.BranchName[s.branch] else ""
 	local kind = Kit.label(kindText .. branchText, 16, BRANCH_COLOR[s.branch or ""] or C.Gold)
 	kind.Position = UDim2.fromOffset(PAD, PAD + 100)
 	kind.Parent = side
 	local state = if allocated[s.id]
-		then "Zugewiesen"
-		elseif canAllocate(s) then "Verfügbar"
-		else "Gesperrt"
+		then "Allocated"
+		elseif canAllocate(s) then "Available"
+		else "Locked"
 	local st = Kit.label(state, 14, if allocated[s.id] then C.Gold else C.Muted)
 	st.AnchorPoint = Vector2.new(1, 0)
 	st.Position = UDim2.new(1, -PAD, 0, PAD + 102)
@@ -207,11 +207,11 @@ local function renderSide()
 		y += 70
 	end
 
-	-- Kosten
+	-- Cost
 	local cost = StarNet.Cost[s.kind]
 	if cost > 0 then
 		local c = Kit.label(
-			string.format("Kosten: %d Punkt%s", cost, if cost == 1 then "" else "e"),
+			string.format("Cost: %d Point%s", cost, if cost == 1 then "" else "s"),
 			16,
 			C.Text
 		)
@@ -220,7 +220,7 @@ local function renderSide()
 	end
 
 	local note = Kit.label(
-		"Ein Punkt je Level ab Level 2. Zurücksetzen gibt alle Punkte zurück.",
+		"One point per level from level 2. Resetting refunds all points.",
 		14,
 		C.Muted,
 		Theme.Font.Body
@@ -233,13 +233,13 @@ local function renderSide()
 	note.Position = UDim2.new(0, PAD, 1, -PAD - 140)
 	note.Parent = side
 
-	-- Aktionen
+	-- Actions
 	local remove = allocated[s.id] == true
 	local main = Kit.button(
-		if remove then "Entfernen" else "Zuweisen",
+		if remove then "Remove" else "Allocate",
 		C.Gold,
 		Vector2.new(w, 60),
-		if remove then "neu_wuerfeln" else "verbessern"
+		if remove then "reroll" else "upgrade"
 	)
 	Kit.buttonLabel(main).TextSize = Kit.fontSize(22)
 	main.AnchorPoint = Vector2.new(0, 1)
@@ -253,7 +253,7 @@ local function renderSide()
 	end)
 	main.Parent = side
 
-	local reset = Kit.button("Zurücksetzen", C.Danger, Vector2.new(w, 50), "neu_wuerfeln")
+	local reset = Kit.button("Reset", C.Danger, Vector2.new(w, 50), "reroll")
 	reset.AnchorPoint = Vector2.new(0, 1)
 	reset.Position = UDim2.new(0, PAD, 1, -PAD)
 	Kit.setEnabled(reset, next(ProgressController.data().stars) ~= nil)
@@ -265,7 +265,7 @@ local function renderSide()
 	reset.Parent = side
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function StarNetController.render()
 	refreshAllocated()
 	renderNet()
@@ -279,18 +279,18 @@ end
 function StarNetController.init()
 	win = Window.new({
 		name = "StarNet",
-		title = "Sternennetz",
-		icon = "sternennetz",
+		title = "Star Net",
+		icon = "star_net",
 		key = Enum.KeyCode.N,
 		background = "bg_starnet",
 	})
 
-	-- Netz mittig in der Fläche links vom Panel (nach dem Umriss der Sterne, nicht der Leinwand)
+	-- Center the net in the area left of the panel (by the outline of the stars, not the canvas)
 	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
 	for _, s in StarNet.Stars do
 		local r = SIZE[s.kind] / 2
 		x0, y0 = math.min(x0, s.pos.X - r), math.min(y0, s.pos.Y - r)
-		x1, y1 = math.max(x1, s.pos.X + r), math.max(y1, s.pos.Y + r + 28) -- Beschriftung
+		x1, y1 = math.max(x1, s.pos.X + r), math.max(y1, s.pos.Y + r + 28) -- caption
 	end
 	local area = Vector2.new(Window.BODY.X - SIDE_W - 20, Window.BODY.Y)
 	local shift = area / 2 - Vector2.new(x0 + x1, y0 + y1) / 2

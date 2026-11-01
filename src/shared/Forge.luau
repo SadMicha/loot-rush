@@ -1,9 +1,9 @@
 --!strict
--- Glitzer-Schmiede: Aktionen auf ein gewähltes Affix (nach Mockup „Glitzer-Schmiede“).
--- Reine Regeln für Client (Anzeige) und Server (Systems/Forge, der allein würfelt und abbucht).
--- Werte aus LootRush_Balancing.xlsx, Blatt „Schmiede“:
---   jede Aktion außer Versiegeln verbraucht 0–2 Glitzer-Ladungen (10 / 60 / 30 %);
---   sind die Ladungen leer, ist der Gegenstand fertig.
+-- Glitter Forge: actions on a chosen affix (per the "Glitter Forge" mockup).
+-- Pure rules for client (display) and server (Systems/Forge, which alone rolls and deducts).
+-- Values from LootRush_Balancing.xlsx, sheet "Forge":
+--   every action except sealing uses 0–2 Glitter charges (10 / 60 / 30 %);
+--   once the charges are empty, the item is finished.
 
 local Items = require(script.Parent.Items)
 
@@ -13,45 +13,45 @@ export type Materials = { candy: number, shards: number, dust: number }
 export type Action = {
 	id: string,
 	name: string,
-	icon: string, -- Schlüssel in Assets.Icon
-	cost: number, -- Grundkosten (Tier verbessern: je nach Stufe, siehe Forge.cost)
-	material: string, -- Schlüssel in Materials
+	icon: string, -- key in Assets.Icon
+	cost: number, -- base cost (upgrade tier: depends on tier, see Forge.cost)
+	material: string, -- key in Materials
 	needsAffix: boolean,
 	usesCharges: boolean,
 }
 
 export type Result = {
 	ok: boolean,
-	reason: string?, -- Anzeigetext, wenn ok = false
-	item: Items.Item?, -- neuer Stand des Gegenstands
+	reason: string?, -- display text if ok = false
+	item: Items.Item?, -- new state of the item
 	material: string?,
 	cost: number?,
-	used: number?, -- verbrauchte Ladungen
+	used: number?, -- charges used
 }
 
 local Forge = {}
 
 Forge.MaterialName = table.freeze({
-	candy = "Runen-Bonbon",
-	shards = "Kristallsplitter",
-	dust = "Glitzerstaub",
+	candy = "Rune Candy",
+	shards = "Crystal Shard",
+	dust = "Glitter Dust",
 } :: { [string]: string })
 Forge.MaterialPlural = table.freeze({
-	candy = "Runen-Bonbons",
-	shards = "Kristallsplitter",
-	dust = "Glitzerstaub",
+	candy = "Rune Candy",
+	shards = "Crystal Shards",
+	dust = "Glitter Dust",
 } :: { [string]: string })
 Forge.MaterialIcon = table.freeze({
-	candy = "bonbon",
-	shards = "kristall",
-	dust = "glitzerstaub",
+	candy = "candy",
+	shards = "crystal",
+	dust = "glitter_dust",
 } :: { [string]: string })
 
 Forge.Actions = table.freeze({
 	table.freeze({
 		id = "add",
-		name = "Affix hinzufügen",
-		icon = "verbessern",
+		name = "Add Affix",
+		icon = "upgrade",
 		cost = 1,
 		material = "candy",
 		needsAffix = false,
@@ -59,8 +59,8 @@ Forge.Actions = table.freeze({
 	}),
 	table.freeze({
 		id = "tier",
-		name = "Tier verbessern",
-		icon = "itemstufe",
+		name = "Upgrade Tier",
+		icon = "item_level",
 		cost = 20,
 		material = "shards",
 		needsAffix = true,
@@ -68,8 +68,8 @@ Forge.Actions = table.freeze({
 	}),
 	table.freeze({
 		id = "reroll",
-		name = "Neu würfeln",
-		icon = "neu_wuerfeln",
+		name = "Reroll",
+		icon = "reroll",
 		cost = 3,
 		material = "candy",
 		needsAffix = true,
@@ -77,8 +77,8 @@ Forge.Actions = table.freeze({
 	}),
 	table.freeze({
 		id = "seal",
-		name = "Versiegeln",
-		icon = "schloss",
+		name = "Seal",
+		icon = "lock",
 		cost = 1,
 		material = "dust",
 		needsAffix = true,
@@ -92,16 +92,16 @@ for _, a in Forge.Actions do
 end
 Forge.ById = table.freeze(byId)
 
--- Höchstzahl freier (nicht versiegelter) Zusatz-Affixe je Seltenheit
+-- Max number of free (unsealed) extra affixes per rarity
 Forge.MaxAffixes =
 	table.freeze({ normal = 1, magic = 3, rare = 4, epic = 5 } :: { [string]: number })
 
--- Ladungen je Aktion: Chance für 0, 1, 2
+-- Charges per action: chance for 0, 1, 2
 Forge.ChargeOdds = table.freeze({ 0.1, 0.6, 0.3 })
--- Neues Affix kommt auf T5–T7
+-- A new affix lands on T5–T7
 Forge.AddTiers = table.freeze({ 5, 7 })
 
--- Tier verbessern: Kosten nach aktuellem Tier (T7→T4 je 20, T4→T2 je 40, T2→T1 80)
+-- Upgrade tier: cost by current tier (T7→T4 20 each, T4→T2 40 each, T2→T1 80)
 function Forge.tierCost(tier: number): number
 	if tier > 4 then
 		return 20
@@ -111,7 +111,7 @@ function Forge.tierCost(tier: number): number
 	return 80
 end
 
--- Zusatz-Affixe, die einen Platz belegen (ohne Grundwert, ohne versiegelte)
+-- Extra affixes that take a slot (without base value, without sealed ones)
 function Forge.openCount(item: Items.Item): number
 	local n = 0
 	for _, a in item.affixes do
@@ -138,7 +138,7 @@ function Forge.cost(action: Action, item: Items.Item?, index: number?): number
 	return action.cost
 end
 
--- Prüft, ob die Aktion gehen würde. Gibt (true) oder (false, Grund) zurück.
+-- Checks whether the action would work. Returns (true) or (false, reason).
 function Forge.check(
 	actionId: string,
 	item: Items.Item,
@@ -147,50 +147,50 @@ function Forge.check(
 ): (boolean, string?)
 	local action = Forge.ById[actionId]
 	if not action then
-		return false, "Unbekannte Aktion"
+		return false, "Unknown action"
 	end
 	if action.usesCharges and Items.chargesOf(item) <= 0 then
-		return false, "Keine Glitzer-Ladungen mehr"
+		return false, "No Glitter charges left"
 	end
 	local a = if index then item.affixes[index] else nil
 	if action.needsAffix then
 		if not a then
-			return false, "Wähle ein Affix"
+			return false, "Choose an affix"
 		end
 		if a.implicit then
-			return false, "Grundwerte lassen sich nicht schmieden"
+			return false, "Base values cannot be forged"
 		end
 		if a.sealed then
-			return false, "Affix ist versiegelt"
+			return false, "Affix is sealed"
 		end
 	end
 	if action.id == "add" then
 		if Forge.openCount(item) >= (Forge.MaxAffixes[item.rarity] or 0) then
-			return false, "Kein freier Affix-Platz"
+			return false, "No free affix slot"
 		end
 		if #Forge.freeStats(item) == 0 then
-			return false, "Alle Werte sind schon vorhanden"
+			return false, "All stats are already present"
 		end
 	elseif action.id == "tier" then
 		if a and Items.tierOf(a) <= 1 then
-			return false, "Schon auf Tier 1"
+			return false, "Already at tier 1"
 		end
 	elseif action.id == "reroll" then
 		if #Forge.freeStats(item) == 0 then
-			return false, "Kein anderer Wert möglich"
+			return false, "No other stat possible"
 		end
 	elseif action.id == "seal" then
 		if Forge.hasSeal(item) then
-			return false, "Nur ein Siegel je Gegenstand"
+			return false, "Only one seal per item"
 		end
 	end
 	if (mats[action.material] or 0) < Forge.cost(action, item, index) then
-		return false, "Zu wenig " .. Forge.MaterialPlural[action.material]
+		return false, "Not enough " .. Forge.MaterialPlural[action.material]
 	end
 	return true, nil
 end
 
--- Werte, die noch nicht als Zusatz-Affix auf dem Gegenstand sind
+-- Stats not yet on the item as an extra affix
 function Forge.freeStats(item: Items.Item): { string }
 	local taken: { [string]: boolean } = {}
 	for _, a in item.affixes do
@@ -228,7 +228,7 @@ local function copy(item: Items.Item): Items.Item
 	return c
 end
 
--- Führt die Aktion aus (nur Server). Ändert weder `item` noch `mats`; das Ergebnis sagt, was abzubuchen ist.
+-- Performs the action (server only). Changes neither `item` nor `mats`; the result says what to deduct.
 function Forge.apply(
 	actionId: string,
 	item: Items.Item,

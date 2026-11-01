@@ -1,9 +1,9 @@
--- Haustiere: Regeln (rein) und Schlüpfen/Ausrüsten über Net.Pet in der Sandbox.
+-- Pets: rules (pure) and hatching/equipping via Net.Pet in the sandbox.
 local Pets = require("ReplicatedStorage.Shared.Pets")
 local Profile = require("ReplicatedStorage.Shared.Profile")
 
-describe("Haustier-Regeln", function()
-	it("hat für jede Ei-Seltenheit mindestens ein Haustier", function()
+describe("Pet rules", function()
+	it("has at least one pet for every egg rarity", function()
 		local rarities = {}
 		for _, p in Pets.List do
 			rarities[p.rarity] = true
@@ -17,34 +17,165 @@ describe("Haustier-Regeln", function()
 		end
 	end)
 
-	it("würfelt, steigert Stufen und summiert nur belegte Plätze", function()
+	it("rolls, raises levels and only sums occupied slots", function()
 		local rng = Random.new(7)
 		for _ = 1, 50 do
-			expect(Pets.ById[Pets.roll(Pets.EggById.sternen_ei, rng).id]).never.toBeNil()
+			expect(Pets.ById[Pets.roll(Pets.EggById.star_egg, rng).id]).never.toBeNil()
 		end
 		local data = Pets.fresh()
-		expect(Pets.hatchResult(data, "moosfrosch")).toBe(1)
-		data.owned.moosfrosch = Pets.MAX_LEVEL
-		local lvl, shards = Pets.hatchResult(data, "moosfrosch")
+		expect(Pets.hatchResult(data, "moss_frog")).toBe(1)
+		data.owned.moss_frog = Pets.MAX_LEVEL
+		local lvl, shards = Pets.hatchResult(data, "moss_frog")
 		expect(lvl).toBe(Pets.MAX_LEVEL)
 		expect(shards).toBe(Pets.DUPE_SHARDS)
-		data.owned.gluehwuermchen = 2
-		data.equipped = { "gluehwuermchen", "moosfrosch" }
+		data.owned.firefly = 2
+		data.equipped = { "firefly", "moss_frog" }
 		expect(Pets.total(data, 1).gold).toBe(15)
 		expect(Pets.total(data, 1).xp).toBeNil()
 		expect(Pets.total(data, 2).xp).toBe(30)
 	end)
 
-	it("säubert gespeicherte Haustiere", function()
+	it("cleans up saved pets", function()
 		local p = Profile.reconcile({
 			pets = {
-				owned = { moosfrosch = 99, quatsch = 1 },
-				equipped = { "quatsch", "moosfrosch", "moosfrosch" },
+				owned = { moss_frog = 99, bogus = 1 },
+				equipped = { "bogus", "moss_frog", "moss_frog" },
 			},
 		})
-		expect(p.pets.owned.moosfrosch).toBe(Pets.MAX_LEVEL)
-		expect(p.pets.owned.quatsch).toBeNil()
+		expect(p.pets.owned.moss_frog).toBe(Pets.MAX_LEVEL)
 		expect(#p.pets.equipped).toBe(1)
+		expect(p.pets.equipped[1]).toBe("moss_frog")
+	end)
+
+	it("keeps unknown pets and game passes (newer server) but does not count them", function()
+		local p = Profile.reconcile({
+			pets = {
+				owned = {
+					moss_frog = 2,
+					future_pet = 99,
+					broken = "x",
+					nan = 0 / 0,
+					[string.rep("a", 65)] = 1,
+				},
+				equipped = { "future_pet", "moss_frog" },
+			},
+			passes = { vip = true, future_pass = true, wrong = "yes" },
+		})
+		expect(p.pets.owned.future_pet).toBe(Pets.MAX_LEVEL)
+		expect(p.pets.owned.broken).toBeNil()
+		expect(p.pets.owned.nan).toBeNil()
+		expect(p.pets.owned[string.rep("a", 65)]).toBeNil()
+		-- only known pets stay equipped, display and bonuses ignore unknown ones
+		expect(#p.pets.equipped).toBe(1)
+		expect(p.pets.equipped[1]).toBe("moss_frog")
+		expect(Pets.knownOwned(p.pets).future_pet).toBeNil()
+		expect(Pets.knownOwned(p.pets).moss_frog).toBe(2)
+		p.pets.equipped = { "future_pet", "moss_frog" }
+		expect(Pets.total(p.pets, 1).xp).toBe(15)
+		expect(p.passes.future_pass).toBe(true)
+		expect(p.passes.vip).toBe(true)
+		expect(p.passes.wrong).toBeNil()
+		-- survives a second load (save on an old server, load again)
+		local again = Profile.reconcile(Profile.copy(p))
+		expect(again.pets.owned.future_pet).toBe(Pets.MAX_LEVEL)
+		expect(again.passes.future_pass).toBe(true)
+	end)
+
+	it("caps unknown entries", function()
+		local owned = {}
+		local passes = {}
+		for i = 1, Pets.MAX_UNKNOWN + 10 do
+			owned["tier" .. i] = 1
+			passes["pass" .. i] = true
+		end
+		owned.moss_frog = 1
+		local p = Profile.reconcile({ pets = { owned = owned }, passes = passes })
+		local n = 0
+		for _ in p.pets.owned do
+			n += 1
+		end
+		expect(n).toBe(Pets.MAX_UNKNOWN + 1)
+		expect(p.pets.owned.moss_frog).toBe(1)
+		local np = 0
+		for _ in p.passes do
+			np += 1
+		end
+		expect(np).toBe(Profile.MAX_UNKNOWN_PASSES)
+	end)
+end)
+
+describe("Egg odds", function()
+	local function rank(r)
+		return table.find(Pets.RarityOrder, r)
+	end
+
+	it("uses only weight keys from the rarity order", function()
+		for _, egg in Pets.Eggs do
+			for r, w in egg.weights do
+				expect(rank(r)).never.toBeNil()
+				expect(w).toBeGreaterThanOrEqual(0)
+			end
+		end
+	end)
+
+	it("sums to 100, follows the rarity order and omits zero weights", function()
+		for _, egg in Pets.Eggs do
+			local odds = Pets.odds(egg)
+			local sum = 0
+			local last = 0
+			local listed = {}
+			for _, o in odds do
+				sum += o.percent
+				expect(o.percent).toBeGreaterThan(0)
+				expect(rank(o.rarity)).toBeGreaterThan(last)
+				last = rank(o.rarity)
+				listed[o.rarity] = true
+			end
+			expect(sum).toBeCloseTo(100, 1e-9)
+			for r, w in egg.weights do
+				expect(listed[r] == true).toBe(w > 0)
+			end
+		end
+		-- zero weights are left out, also in the roll
+		local egg = {
+			id = "test",
+			name = "",
+			text = "",
+			price = { kind = "gold", amount = 1 },
+			weights = { normal = 0, magic = 1, epic = 3 },
+		}
+		local odds = Pets.odds(egg)
+		expect(#odds).toBe(2)
+		expect(odds[1].rarity).toBe("magic")
+		expect(odds[1].percent).toBeCloseTo(25)
+		expect(odds[2].rarity).toBe("epic")
+		expect(odds[2].percent).toBeCloseTo(75)
+		local rng = Random.new(3)
+		for _ = 1, 200 do
+			local r = Pets.roll(egg, rng).rarity
+			expect(r == "magic" or r == "epic").toBe(true)
+		end
+	end)
+
+	it("matches the frequencies of Pets.roll (seeded)", function()
+		local N = 20000
+		for _, egg in Pets.Eggs do
+			local rng = Random.new(42)
+			local seen = {}
+			for _ = 1, N do
+				local r = Pets.roll(egg, rng).rarity
+				seen[r] = (seen[r] or 0) + 1
+			end
+			local listed = {}
+			for _, o in Pets.odds(egg) do
+				listed[o.rarity] = true
+				-- 20000 rolls: standard error at most ~0.35 percentage points, 1.5 is generous
+				expect((seen[o.rarity] or 0) / N * 100).toBeCloseTo(o.percent, 1.5)
+			end
+			for r in seen do
+				expect(listed[r]).toBe(true)
+			end
+		end
 	end)
 end)
 
@@ -81,22 +212,22 @@ local function state()
 	end)
 end
 
-describe("Haustiere im Spiel", function()
-	it("schlüpft nur mit genug Gold und rüstet das erste Haustier aus", function()
+describe("Pets in game", function()
+	it("only hatches with enough gold and equips the first pet", function()
 		sim:boot({ seconds = 2 })
-		send("hatch", "wiesen_ei")
+		send("hatch", "meadow_egg")
 		expect(state().owned).toBe(0)
 		server(function(req, player)
 			req("ServerScriptService.Server.Systems.Inventory").addGold(player, 1000)
 		end)
-		send("hatch", "wiesen_ei")
+		send("hatch", "meadow_egg")
 		local s = state()
 		expect(s.owned).toBe(1)
 		expect(s.gold).toBe(400)
 		expect(#s.equipped).toBe(1)
 		expect(s.attr).toBe(s.equipped[1])
 		expect(s.slots).toBe(1)
-		-- Bonus kommt an
+		-- the bonus arrives
 		local bonus = server(function(_, player)
 			local total = 0
 			for _, a in
@@ -109,10 +240,15 @@ describe("Haustiere im Spiel", function()
 		expect(bonus).toBeGreaterThan(0)
 	end)
 
-	it("legt ab, ignoriert Fremdes und Unsinn", function()
+	it("unequips, ignores foreign and nonsense input", function()
 		local id = state().equipped[1]
-		send("equip", "runendrache") -- nicht im Besitz
-		send("hatch", "gibtsnicht")
+		send("equip", "rune_dragon") -- not owned
+		-- unknown pet owned (from a newer server): not equippable, no error
+		server(function(req, player)
+			req("ServerScriptService.Server.Systems.Data").get(player).pets.owned.future_pet = 3
+		end)
+		send("equip", "future_pet")
+		send("hatch", "does_not_exist")
 		send(42, {})
 		expect(#state().equipped).toBe(1)
 		send("unequip", id)

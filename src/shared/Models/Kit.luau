@@ -1,8 +1,8 @@
 --!strict
--- Bau-Kit für Part-Modelle: Palette und Bausteine, die alle Builder unter Shared/Models teilen.
--- Regeln (Konzept „Studio oder Blender?“): Farben nur aus der Palette, SmoothPlastic für Flächen,
--- Neon für Glow, Glass für Durchsichtiges. Jedes Modell wird um den Ursprung gebaut,
--- Pivot unten mittig – platziert wird mit model:PivotTo(cf).
+-- Build kit for part models: palette and building blocks shared by all builders under Shared/Models.
+-- Rules (concept "Studio or Blender?"): colors only from the palette, SmoothPlastic for surfaces,
+-- Neon for glow, Glass for see-through parts. Every model is built around the origin,
+-- pivot bottom center - placed with model:PivotTo(cf).
 
 local Kit = {}
 
@@ -79,8 +79,8 @@ function Kit.shade(c: Color3, amount: number): Color3
 	return Color3.fromHSV(h, s, math.clamp(v + amount, 0, 1))
 end
 
--- Schließt ein Modell ab: Pivot unten mittig am Ursprung. Deko-Modelle bekommen weder
--- Kollision noch Abfragen; Teile unter `smallShadow` Studs werfen keinen Schatten.
+-- Finishes a model: pivot bottom center at the origin. Deco models get neither
+-- collision nor queries; parts under `smallShadow` studs cast no shadow.
 function Kit.finish(model: Model, deco: boolean, smallShadow: number?): Model
 	model.WorldPivot = CFrame.new()
 	local limit = smallShadow or 0
@@ -99,9 +99,9 @@ function Kit.finish(model: Model, deco: boolean, smallShadow: number?): Model
 	return model
 end
 
--- Macht ein Modell beweglich: nur `root` bleibt verankert, alle anderen Teile hängen per
--- WeldConstraint daran. Dann reicht ein Tween auf root.CFrame. Der Pivot bleibt dort, wo
--- Kit.finish ihn gesetzt hat (unten mittig), über root.PivotOffset.
+-- Makes a model movable: only `root` stays anchored, all other parts are attached via
+-- WeldConstraint. Then a tween on root.CFrame is enough. The pivot stays where
+-- Kit.finish put it (bottom center), via root.PivotOffset.
 function Kit.rig(model: Model, root: BasePart): Model
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and d ~= root then

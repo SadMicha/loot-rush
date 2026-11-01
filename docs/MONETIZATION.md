@@ -1,37 +1,37 @@
-# Monetarisierung (Robux)
+# Monetization (Robux)
 
-Alle Robux-IDs stehen in **`src/shared/Monetization.luau`** – sonst nirgends. `0` = Platzhalter:
-der Knopf bleibt aus, der Server nimmt nichts an.
+All Robux IDs live in **`src/shared/Monetization.luau`** – nowhere else. `0` = placeholder:
+the button stays off, the server accepts nothing.
 
-## Was es gibt (eigene Annahmen, Preise im Creator Hub maßgeblich)
+## What exists (our own assumptions, prices in Creator Hub are authoritative)
 
-| Art | Schlüssel | Inhalt | Robux (Vorschlag) |
+| Type | Key | Content | Robux (suggestion) |
 |---|---|---|---|
-| Developer Product | `soulstars_s` | 100 Seelensterne | 49 |
-| Developer Product | `soulstars_m` | 550 Seelensterne | 249 |
-| Developer Product | `soulstars_l` | 1.200 Seelensterne | 499 |
-| Gamepass | `vip` | +25 % Gold, +25 % XP | 299 |
-| Gamepass | `pet_slot` | 2. Haustier-Platz | 199 |
-| Gamepass | `magnet` | +8 Studs Aufheberadius, +10 % Item-Chance | 149 |
+| Developer Product | `soulstars_s` | 100 soulstars | 49 |
+| Developer Product | `soulstars_m` | 550 soulstars | 249 |
+| Developer Product | `soulstars_l` | 1,200 soulstars | 499 |
+| Gamepass | `vip` | +25 % gold, +25 % XP | 299 |
+| Gamepass | `pet_slot` | 2nd pet slot | 199 |
+| Gamepass | `magnet` | +8 studs pickup radius, +10 % item chance | 149 |
 
-Seelensterne kauft man im Spiel ein: Goldpakete, Sternen-Ei (Haustiere). Kein Pay-to-win-Zwang:
-alles außer den Pässen gibt es auch ohne Robux (Seelensterne auch über Wiedergeburten).
+Soulstars are spent in the game: gold packs, Star Egg (pets). No pay-to-win pressure:
+everything except the passes is also available without Robux (soulstars also via rebirths).
 
-## IDs eintragen (Micha)
+## Entering the IDs (Micha)
 
-1. Creator Hub → dein Spiel → **Monetization → Developer Products** → je Paket „Create“
-   (Name, Bild, Preis). Die **Product ID** kopieren.
-2. **Monetization → Passes** → je Pass „Create a Pass“, Preis setzen („On Sale“). **Pass ID** kopieren.
-3. In `src/shared/Monetization.luau` eintragen: `ProductIds.soulstars_s = 123…`,
-   bei den Pässen `id = 456…`. Committen → Upload.
-4. Testen: Im Studio kauft man Produkte kostenlos (Testkauf). Pässe testet man im veröffentlichten
-   Spiel mit einem Zweitkonto oder über „Testkauf“ im Studio.
+1. Creator Hub → your game → **Monetization → Developer Products** → "Create" per pack
+   (name, image, price). Copy the **Product ID**.
+2. **Monetization → Passes** → "Create a Pass" per pass, set price ("On Sale"). Copy the **Pass ID**.
+3. Enter them in `src/shared/Monetization.luau`: `ProductIds.soulstars_s = 123…`,
+   for the passes `id = 456…`. Commit → upload.
+4. Testing: In Studio products are bought for free (test purchase). Passes are tested in the published
+   game with a second account or via "test purchase" in Studio.
 
-## Technik
+## Tech
 
-- `Systems/Monetization`: `ProcessReceipt` (verbucht erst nach erfolgreichem Speichern, PurchaseId
-  gegen doppeltes Gutschreiben), Gamepass-Besitz mit Wiederholung und gespeichertem Ausfall-Puffer
-  (`profile.passes`), Kauf im Spiel über `PromptGamePassPurchaseFinished`.
-- Attribute: `Pass_<key>` = true, dazu `PassPetSlot` (Haustiere). Boni laufen über `Systems/Boosts`.
-- Kaufdialog öffnet der Client: `MarketplaceService:PromptProductPurchase(player, id)` bzw.
-  `:PromptGamePassPurchase(player, pass.id)`; Rückmeldung kommt als `Net.ShopResult`.
+- `Systems/Monetization`: `ProcessReceipt` (only grants after a successful save, PurchaseId
+  against double crediting), gamepass ownership with retry and a saved fallback buffer
+  (`profile.passes`), in-game purchase via `PromptGamePassPurchaseFinished`.
+- Attributes: `Pass_<key>` = true, plus `PassPetSlot` (pets). Bonuses run via `Systems/Boosts`.
+- The client opens the purchase dialog: `MarketplaceService:PromptProductPurchase(player, id)` or
+  `:PromptGamePassPurchase(player, pass.id)`; feedback arrives as `Net.ShopResult`.

@@ -1,13 +1,13 @@
 --!strict
--- Rift-Ablauf: Gebiet wählen (Atlas) → Wellen → Boss → Wahl „tiefer“ oder „zurück ins Dorf“.
--- Jedes Gebiet startet auf seiner eigenen Tiefe und würfelt die Wellen aus seinem Gegner-Mix
--- (Shared/Atlas). Geschaffte Tiefen landen im Spielstand (atlas) und schalten Folgegebiete frei.
--- Jeder Spieler hat sein eigenes Rift auf einem eigenen Arena-Platz (World, Config.RIFT_SLOTS);
--- Gegner tragen die Lauf-Nummer und zählen nur für ihren Lauf. Zustand liegt als Attribute am
--- Besitzer (siehe Types.luau), der Client liest nur. Tod, Verlassen oder Abbruch beenden den Lauf.
--- Unterwegs zählt der Server Kills, XP, Gold, Items und Material mit und schickt nach jedem Boss
--- und am Ende eine Zusammenfassung über Net.RiftResult (Shared/RiftRun) – Daten für den
--- Belohnungsbildschirm. Beim Ende wird liegengebliebene Beute eingesammelt.
+-- Rift flow: choose a region (Atlas) → waves → boss → choice "deeper" or "back to the Hub".
+-- Every region starts at its own depth and rolls its waves from its enemy mix
+-- (Shared/Atlas). Cleared depths go into the save (atlas) and unlock follow-up regions.
+-- Every player has their own Rift on their own arena slot (World, Config.RIFT_SLOTS);
+-- enemies carry the run number and only count for their run. State lives as attributes on the
+-- owner (see Types.luau), the client only reads. Death, leaving or aborting end the run.
+-- Along the way the server counts kills, XP, gold, items and materials and sends a summary
+-- after every boss and at the end via Net.RiftResult (Shared/RiftRun) - data for the
+-- reward screen. At the end, loot left lying around is collected.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,12 +29,12 @@ local World = require(script.Parent.World)
 
 type Run = {
 	owner: Player,
-	id: number, -- Lauf-Nummer (Gegner-Attribut „Run“)
-	slot: number, -- Arena-Platz (World)
-	center: Vector3, -- Mitte der Arena
+	id: number, -- run number (enemy attribute "Run")
+	slot: number, -- arena slot (World)
+	center: Vector3, -- center of the arena
 	region: Atlas.Region,
-	depth: number, -- absolute Tiefe (skaliert die Gegner)
-	wallShift: number, -- weiche Wand verschoben (Wiedergeburten des Besitzers)
+	depth: number, -- absolute depth (scales the enemies)
+	wallShift: number, -- soft wall shifted (the owner's Rebirths)
 	wave: number,
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
@@ -44,7 +44,7 @@ type EndReason = "left" | "abandoned" | "failed" | "gone"
 
 local Rift = {}
 
-local FAILED_SHOWN = 4 -- Sekunden, die „gescheitert“ im HUD steht
+local FAILED_SHOWN = 4 -- seconds "failed" stays in the HUD
 local POLL = 0.3
 
 local runs: { [Player]: Run } = {}
@@ -70,7 +70,7 @@ local function alive(r: Run): boolean
 	return humanoid ~= nil and humanoid.Health > 0
 end
 
--- Bestleistung je Gebiet (0 = nie geschafft)
+-- Best result per region (0 = never cleared)
 local function bestOf(player: Player): (string) -> number
 	local profile = Data.get(player)
 	return function(id: string): number
@@ -78,7 +78,7 @@ local function bestOf(player: Player): (string) -> number
 	end
 end
 
--- Bestwerte als Attribute: AtlasBest_<id> je Gebiet und BestDepth (über alle, Shop-Preise)
+-- Best values as attributes: AtlasBest_<id> per region and BestDepth (across all, shop prices)
 function Rift.publishBest(player: Player)
 	local best = bestOf(player)
 	for _, region in Atlas.Regions do
@@ -102,12 +102,12 @@ function Rift.rebirthsOf(player: Player): number
 	return if profile then profile.rebirths else 0
 end
 
--- Läuft gerade ein Rift dieses Spielers?
+-- Is a Rift of this player currently running?
 function Rift.isRunning(player: Player): boolean
 	return runs[player] ~= nil
 end
 
--- Laufende Rifts (für Tests und Messung)
+-- Running Rifts (for tests and metrics)
 function Rift.count(): number
 	local n = 0
 	for _ in runs do
@@ -160,7 +160,7 @@ local function spawn(r: Run, kind: string, pos: Vector3)
 	)
 end
 
--- Wartet, bis alle Gegner tot sind. false = Lauf wurde abgebrochen.
+-- Waits until all enemies are dead. false = run was aborted.
 local function waitClear(r: Run): boolean
 	while alive(r) do
 		local left = Enemies.count(r.id)
@@ -184,7 +184,7 @@ local function returnToHub(player: Player)
 	end
 end
 
--- Beendet den Lauf (Grund siehe RiftRun; "gone" = Spieler hat das Spiel verlassen)
+-- Ends the run (reason see RiftRun; "gone" = player left the game)
 local function finish(r: Run, reason: EndReason)
 	if runs[r.owner] ~= r then
 		return
@@ -195,9 +195,7 @@ local function finish(r: Run, reason: EndReason)
 		r.died = nil
 	end
 	local failed = reason == "failed"
-	Metrics.report(
-		string.format("Tiefe %d %s", r.depth, if failed then "gescheitert" else "verlassen")
-	)
+	Metrics.report(string.format("Depth %d %s", r.depth, if failed then "failed" else "left"))
 	local owner = r.owner
 	if reason ~= "gone" then
 		local gold, items = Loot.collect(owner)
@@ -205,7 +203,7 @@ local function finish(r: Run, reason: EndReason)
 		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
 	end
 	Enemies.clear(r.id)
-	-- Nach dem Tod liegt der Körper bis zum Respawn noch in der Arena: Boden erst danach abbauen
+	-- After death the body stays in the arena until respawn: only tear down the floor after that
 	local function release()
 		World.release(r.slot)
 		slots[r.slot] = nil
@@ -222,7 +220,7 @@ local function finish(r: Run, reason: EndReason)
 	owner:SetAttribute("RiftLeft", 0)
 	report(r, "end", reason)
 	if failed then
-		owner:SetAttribute("RiftPhase", "failed") -- Respawn bringt den Spieler selbst zum Hub
+		owner:SetAttribute("RiftPhase", "failed") -- respawn brings the player to the Hub by itself
 		task.delay(FAILED_SHOWN, function()
 			if owner.Parent and owner:GetAttribute("RiftPhase") == "failed" then
 				owner:SetAttribute("RiftPhase", "")
@@ -239,7 +237,7 @@ local function play(r: Run)
 	for wave = 1, Config.RIFT_WAVES do
 		r.wave = wave
 		publish(r, "wave")
-		local sinceStart = r.depth - r.region.depth -- Tiefen seit Gebietsbeginn
+		local sinceStart = r.depth - r.region.depth -- depths since the region start
 		local count = math.min(
 			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + sinceStart),
 			Config.RIFT_WAVE_MAX
@@ -264,7 +262,7 @@ local function play(r: Run)
 	end
 	record(r)
 	r.tally.cleared += 1
-	Metrics.report(string.format("Tiefe %d geschafft", r.depth))
+	Metrics.report(string.format("Depth %d cleared", r.depth))
 	publish(r, "clear")
 	report(r, "clear", nil)
 end
@@ -287,7 +285,7 @@ local function begin(player: Player, regionId: any)
 		end
 	end
 	if slot == 0 then
-		return -- Server voll (mehr Spieler als Plätze)
+		return -- server full (more players than slots)
 	end
 	nextId += 1
 	local r: Run = {
@@ -303,7 +301,7 @@ local function begin(player: Player, regionId: any)
 	}
 	runs[player] = r
 	slots[slot] = r
-	-- Tod beendet den Lauf sofort, auch in Pausen und bei der Wahl nach dem Boss
+	-- Death ends the run immediately, also during pauses and the choice after the boss
 	r.died = humanoid.Died:Connect(function()
 		finish(r, "failed")
 	end)
@@ -323,7 +321,7 @@ local function deeper(player: Player)
 	task.spawn(play, r)
 end
 
-local allow = RateLimit.new(1, 3) -- Betreten baut eine ganze Arena: Spam bremsen
+local allow = RateLimit.new(1, 3) -- entering builds a whole arena: slow down spam
 
 local function onAction(player: Player, action: any, regionId: any)
 	if not allow(player) then
@@ -341,7 +339,7 @@ local function onAction(player: Player, action: any, regionId: any)
 	end
 end
 
--- Mitzählen für die Zusammenfassung (nur der Besitzer des laufenden Rifts)
+-- Counting for the summary (only the owner of the running Rift)
 local function tallyOf(player: any): RiftRun.Tally?
 	local r = if typeof(player) == "Instance" and player:IsA("Player") then runs[player] else nil
 	return if r then r.tally else nil
@@ -386,7 +384,7 @@ function Rift.init()
 	end)
 end
 
--- Bestleistungen für den Atlas (Client liest die Attribute)
+-- Best results for the Atlas (the client reads the attributes)
 function Rift.start()
 	local function onPlayer(player: Player)
 		if Data.waitFor(player) then

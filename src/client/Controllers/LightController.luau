@@ -1,9 +1,9 @@
 --!strict
--- Licht am Ort des Spielers (Shared/Looks): im Hub das Grundlicht, im Rift das Licht der Arena,
--- in der er steht (Arena-Ordner unter workspace.Arena mit Attributen Region und Center, Systems/World).
--- Läuft nur lokal, darum sieht jeder Spieler sein eigenes Licht – auch wenn andere gleichzeitig
--- in anderen Gebieten kämpfen.
--- Wechsel werden kurz überblendet.
+-- Light at the player's location (Shared/Looks): the base light in the Hub, the light of the arena
+-- the player stands in while in a Rift (arena folder under workspace.Arena with attributes Region and Center, Systems/World).
+-- Runs locally only, so every player sees their own light - even if others are fighting
+-- in other areas at the same time.
+-- Changes are briefly cross-faded.
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -69,7 +69,7 @@ local function apply(l: Looks.Light, instant: boolean)
 	set(mood, { TintColor = pick(l.tint, defaults.tint) or Color3.new(1, 1, 1) })
 end
 
--- Welcher Ort gilt gerade? "hub" oder die Atlas-ID der Arena
+-- Which place applies right now? "hub" or the Atlas ID of the arena
 function LightController.place(): string
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
@@ -77,7 +77,7 @@ function LightController.place(): string
 		if Vector3.new(d.X, 0, d.Z).Magnitude < Looks.HUB_RADIUS then
 			return "hub"
 		end
-		-- nächste Arena (Plätze liegen Config.ARENA_SPACING auseinander)
+		-- nearest arena (slots are Config.ARENA_SPACING apart)
 		local arenas = workspace:FindFirstChild("Arena")
 		local best, bestD = nil :: string?, Config.ARENA_SPACING / 2
 		for _, a in if arenas then arenas:GetChildren() else {} do
@@ -112,7 +112,7 @@ end
 function LightController.init()
 	remember()
 	mood = Instance.new("ColorCorrectionEffect")
-	mood.Name = "Ort"
+	mood.Name = "Location"
 	mood.Parent = Lighting
 end
 

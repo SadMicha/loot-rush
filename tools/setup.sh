@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Werkzeugkette für Prüfungen ohne Roblox Studio nach .tools/ laden (Linux/macOS, CI, Cloud).
-# Lädt die Versionen aus rokit.toml direkt als GitHub-Release (braucht keine GitHub-API),
-# dazu Roblox-Typdefinitionen (luau-lsp) und den Roblox-API-Dump (Sandbox, selene).
-# Unter Windows reicht `rokit install`; .tools/roblox/ füllt dann `bash tools/setup.sh --data-only`.
+# Download the toolchain for checks without Roblox Studio into .tools/ (Linux/macOS, CI, cloud).
+# Downloads the versions from rokit.toml directly as GitHub releases (needs no GitHub API),
+# plus Roblox type definitions (luau-lsp) and the Roblox API dump (sandbox, selene).
+# On Windows `rokit install` is enough; then `bash tools/setup.sh --data-only` fills .tools/roblox/.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -14,7 +14,7 @@ mkdir -p "$BIN" "$DATA"
 DATA_ONLY=0
 [[ "${1:-}" == "--data-only" ]] && DATA_ONLY=1
 
-version() { # version <tool> aus rokit.toml
+version() { # version <tool> from rokit.toml
 	sed -n "s/^$1 = \".*@\(.*\)\"/\1/p" rokit.toml
 }
 
@@ -26,7 +26,7 @@ Darwin-x86_64) OS=macos ARCH=x86_64 ;;
 *) OS=other ARCH=other ;;
 esac
 
-fetch() { # fetch <url> <ziel>
+fetch() { # fetch <url> <target>
 	curl -fsSL --retry 3 -o "$2" "$1"
 }
 
@@ -35,7 +35,7 @@ install_zip() { # install_zip <name> <url>
 	if [[ -x "$BIN/$name" && -f "$stamp" && "$(cat "$stamp")" == "$url" ]]; then
 		return
 	fi
-	echo "  lade $name"
+	echo "  downloading $name"
 	local tmp
 	tmp=$(mktemp -d)
 	fetch "$url" "$tmp/tool.zip"
@@ -49,11 +49,11 @@ install_zip() { # install_zip <name> <url>
 GH=https://github.com
 if [[ $DATA_ONLY == 0 ]]; then
 	if [[ $OS == other ]]; then
-		echo "Kein fertiger Download für $(uname -s)-$(uname -m): Werkzeuge mit 'rokit install' installieren," >&2
-		echo "dann 'bash tools/setup.sh --data-only'." >&2
+		echo "no prebuilt download for $(uname -s)-$(uname -m): install the tools with 'rokit install'," >&2
+		echo "then run 'bash tools/setup.sh --data-only'." >&2
 		exit 1
 	fi
-	echo "▶ Werkzeuge → .tools/bin"
+	echo "▶ tools → .tools/bin"
 	v=$(version rojo)
 	install_zip rojo "$GH/rojo-rbx/rojo/releases/download/v$v/rojo-$v-$OS-$ARCH.zip"
 	v=$(version selene)
@@ -73,24 +73,24 @@ if [[ $DATA_ONLY == 0 ]]; then
 fi
 export PATH="$BIN:$PATH"
 
-echo "▶ Roblox-Daten → .tools/roblox"
+echo "▶ Roblox data → .tools/roblox"
 RAW=https://raw.githubusercontent.com
 LSP=$(version luau-lsp)
-# Typdefinitionen passend zur luau-lsp-Version (Sicherheitsstufe None = normale Spielskripte)
+# type definitions matching the luau-lsp version (security level None = normal game scripts)
 [[ -f "$DATA/globalTypes.d.luau" && -f "$DATA/.lsp-$LSP" ]] || {
 	fetch "$RAW/JohnnyMorganz/luau-lsp/$LSP/scripts/globalTypes.None.d.luau" "$DATA/globalTypes.d.luau"
 	rm -f "$DATA"/.lsp-* && touch "$DATA/.lsp-$LSP"
 }
-# API-Dump höchstens einmal am Tag neu laden
+# reload the API dump at most once a day
 if [[ ! -f "$DATA/API-Dump.json" || -n "$(find "$DATA/API-Dump.json" -mtime +0 2>/dev/null)" ]]; then
 	fetch "$RAW/MaximumADHD/Roblox-Client-Tracker/roblox/API-Dump.json" "$DATA/API-Dump.json"
 fi
 
-# selene lädt seine Roblox-Standardbibliothek selbst; hinter manchen Proxys klappt das nicht.
-# Dann bauen wir sie aus dem API-Dump nach (gleicher Algorithmus, tools/lune/selene-std.luau).
+# selene downloads its Roblox standard library itself; behind some proxies that fails.
+# Then we rebuild it from the API dump (same algorithm, tools/lune/selene-std.luau).
 if command -v selene >/dev/null; then
 	if ! selene generate-roblox-std >/dev/null 2>&1; then
-		echo "  selene erreicht den API-Dump nicht – erzeuge Std lokal"
+		echo "  selene cannot reach the API dump - generating std locally"
 		SV=$(version selene)
 		fetch "$RAW/Kampfkarren/selene/$SV/selene-lib/default_std/roblox_base.yml" "$DATA/roblox_base.yml"
 		case $OS in
@@ -103,4 +103,4 @@ if command -v selene >/dev/null; then
 	fi
 fi
 
-echo "✔ fertig. Für die Shell: export PATH=\"$BIN:\$PATH\""
+echo "✔ done. For the shell: export PATH=\"$BIN:\$PATH\""

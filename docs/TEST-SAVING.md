@@ -1,10 +1,10 @@
-# Test: Speichern (DataStore)
+# Test: Saving (DataStore)
 
-Voraussetzung in Studio: *Game Settings → Security → Enable Studio Access to API Services* an
-(sonst spielt man mit leerem Stand, der nicht gespeichert wird – Output zeigt eine Warnung).
+Prerequisite in Studio: *Game Settings → Security → Enable Studio Access to API Services* on
+(otherwise you play with an empty state that isn't saved – Output shows a warning).
 
-1. Play, ein paar Gegner besiegen (Level/XP), Loot aufheben, etwas anlegen, Gold verdienen.
-2. Stop, erneut Play: Level, XP, Gold, Inventar und Ausrüstung sind wieder da.
-3. Output: keine `[LootRush] … fehlgeschlagen`-Warnungen.
+1. Play, defeat a few enemies (level/XP), pick up loot, equip something, earn gold.
+2. Stop, Play again: level, XP, gold, inventory and equipment are back.
+3. Output: no `[LootRush] … failed` warnings.
 
-Ohne Studio: `bash tools/check.sh test` (tests/Profile, tests/Data, tests/DataLock).
+Without Studio: `bash tools/check.sh test` (tests/Profile, tests/Data, tests/DataLock).

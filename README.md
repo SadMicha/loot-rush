@@ -1,60 +1,61 @@
 # Loot Rush
 
-Roblox-ARPG, das sich wie ein Incremental spielt. Gebaut mit [Rojo](https://rojo.space).
+Roblox ARPG that plays like an incremental. Built with [Rojo](https://rojo.space).
 
-## Einrichten (einmalig)
+## Setup (once)
 
-1. Toolchain installieren: [Rokit](https://github.com/rojo-rbx/rokit) installieren, dann im Projektordner `rokit install`
-2. In VS Code die Erweiterungen **Rojo** und **Luau Language Server** installieren
-3. In Roblox Studio das Rojo-Plugin installieren (Plugins → Rojo)
+1. Install the toolchain: install [Rokit](https://github.com/rojo-rbx/rokit), then run `rokit install` in the project folder
+2. In VS Code, install the extensions **Rojo** and **Luau Language Server**
+3. In Roblox Studio, install the Rojo plugin (Plugins → Rojo)
 
-## Arbeiten
+## Working
 
-1. `rojo serve` im Projektordner starten
-2. In Studio eine leere Baseplate öffnen → Rojo-Plugin → **Connect**
-3. **Play** drücken
+1. Run `rojo serve` in the project folder
+2. In Studio, open an empty Baseplate → Rojo plugin → **Connect**
+3. Press **Play**
 
-Rojo setzt auch die Lighting-Einstellungen (Future Lighting, Atmosphere, Bloom, SunRays, ColorCorrection).
+Rojo also sets the Lighting settings (Future Lighting, Atmosphere, Bloom, SunRays, ColorCorrection).
 
-## Struktur
+## Structure
 
-- `src/shared` → ReplicatedStorage/Shared – Typen, Config, UI-Theme, Hilfsfunktionen
-- `src/server` → ServerScriptService/Server – alles, was Spielzustand entscheidet
-- `src/client` → StarterPlayerScripts/Client – Kamera, Eingabe, UI, Effekte
-- Genau ein Server-Script und ein Client-Script (`init`), alles andere sind Module mit `init()`/`start()`.
+- `src/shared` → ReplicatedStorage/Shared – types, config, UI theme, helpers
+- `src/server` → ServerScriptService/Server – everything that decides game state
+- `src/client` → StarterPlayerScripts/Client – camera, input, UI, effects
+- Exactly one server script and one client script (`init`); everything else is a module with `init()`/`start()`.
 
-## Regeln
+## Rules
 
-- Jede Datei beginnt mit `--!strict`.
-- Farben, Schriften, Icons und Animationen **nur** aus `Shared/UI/Theme.luau`, UI **nur** aus `Client/UI/Kit.luau` – so bleibt alles einheitlich.
-- Der Server vertraut nie Werten vom Client.
+- Every file starts with `--!strict`.
+- Colors, fonts, icons and animations **only** from `Shared/UI/Theme.luau`, UI **only** from `Client/UI/Kit.luau` – that keeps everything consistent.
+- The server never trusts values from the client.
+- Language: all code, comments, UI text and docs are English; localization happens via the Roblox translator.
 
-## Prüfen (ohne Roblox Studio)
+## Checking (without Roblox Studio)
 
-Alles auf einmal (lädt beim ersten Mal die Werkzeuge nach `.tools/`):
+Everything at once (downloads the tools into `.tools/` on first run):
 
 ```bash
 bash tools/check.sh              # format, lint, types, build, test, ui
-bash tools/check.sh test ui      # nur einzelne Schritte
+bash tools/check.sh test ui      # only selected steps
 ```
 
-| Schritt | Werkzeug | prüft |
+| Step | Tool | checks |
 |---|---|---|
-| `format` | StyLua | Formatierung (`stylua src` korrigiert) |
-| `lint` | selene | verdächtiger Code, unbekannte Globals/Enums |
-| `types` | luau-lsp | strikte Typen mit Roblox-Typdefinitionen und Rojo-Sourcemap |
-| `build` | Rojo | Projekt baut zu `.tools/out/LootRush.rbxl` |
-| `test` | Lune | `tests/*.spec.luau` (Jest-Stil: `describe`, `it`, `expect(x).toBe(y)`) |
-| `ui` | Lune + Playwright | startet Server und Client headless, prüft das UI, macht Vorschaubilder |
+| `format` | StyLua | formatting (`stylua src` fixes it) |
+| `lint` | selene | suspicious code, unknown globals/enums |
+| `types` | luau-lsp | strict types with Roblox type definitions and Rojo sourcemap |
+| `build` | Rojo | project builds to `.tools/out/LootRush.rbxl` |
+| `test` | Lune | `tests/*.spec.luau` (Jest style: `describe`, `it`, `expect(x).toBe(y)`) |
+| `ui` | Lune + Playwright | starts server and client headless, checks the UI, renders preview images |
 
-**Sandbox:** `tools/lune/lib/Sandbox.luau` lädt das gebaute Spiel in [Lune](https://lune-org.github.io/docs) und führt die echten Server- und Client-Skripte aus: virtuelle Zeit (`task.wait` wartet nicht wirklich), Events, Remotes (Client ↔ Server im selben Prozess), Tweens, Attribute, `AbsoluteSize`/`AbsolutePosition` aus einem nachgebauten GUI-Layout. Physik, Rendering und Raycasts gibt es nicht. Roblox-Funktionen, die nur als Platzhalter existieren, stehen im Bericht.
+**Sandbox:** `tools/lune/lib/Sandbox.luau` loads the built game in [Lune](https://lune-org.github.io/docs) and runs the real server and client scripts: virtual time (`task.wait` doesn't really wait), events, remotes (client ↔ server in the same process), tweens, attributes, `AbsoluteSize`/`AbsolutePosition` from an emulated GUI layout. There is no physics, rendering or raycasting. Roblox functions that only exist as stubs are listed in the report.
 
-**UI-Check** (`lune run tools/lune/ui`): Start in 4 Bildschirmgrößen (1920×1080, 1366×768, Tablet, Handy quer), jeder Knopf mit Handler wird einmal gedrückt, dazu ein Szenario „Inventar mit 24 Gegenständen“ und typische Tasten. Gemeldet werden Laufzeitfehler (mit `src/…luau:Zeile`), Elemente außerhalb des Bildschirms, abgeschnittener oder zu langer Text (geschätzt), ungültige Bild-IDs, zu kleine Touch-Knöpfe. Ergebnis in `.tools/out/ui/`: `report.md`, `index.html` und je Zustand ein HTML-Abbild (+ PNG, wenn Playwright installiert ist). Mit `LOOTRUSH_IMAGES="ordner1;ordner2"` zeigt die Vorschau die echten PNGs (Dateiname = Name in `Assets.luau`), sonst Platzhalter.
+**UI check** (`lune run tools/lune/ui`): startup in 4 screen sizes (1920×1080, 1366×768, tablet, phone landscape), every button with a handler is pressed once, plus a scenario "inventory with 24 items" and typical keys. Reported: runtime errors (with `src/…luau:line`), elements off screen, clipped or too long text (estimated), invalid image IDs, touch buttons that are too small. Output in `.tools/out/ui/`: `report.md`, `index.html` and one HTML snapshot per state (+ PNG if Playwright is installed). With `LOOTRUSH_IMAGES="folder1;folder2"` the preview shows the real PNGs (file name = name in `Assets.luau`), otherwise placeholders.
 
-**Eigene Tests:** neue Datei `tests/Name.spec.luau`. `require("ReplicatedStorage.Shared.Items")` lädt Module über ihren Spielpfad; `sim:boot()` startet das ganze Spiel, `sim:runAs("server", function(req) … end)` führt Code auf dem Server aus.
+**Your own tests:** new file `tests/Name.spec.luau`. `require("ReplicatedStorage.Shared.Items")` loads modules by their game path; `sim:boot()` starts the whole game, `sim:runAs("server", function(req) … end)` runs code on the server.
 
-**Windows:** `rokit install` installiert dieselben Werkzeuge; `bash tools/setup.sh --data-only` (Git Bash) lädt nur die Roblox-Daten. CI führt `tools/check.sh` bei jedem Push/PR aus und hängt den UI-Bericht als Artefakt `ui-check` an.
+**Windows:** `rokit install` installs the same tools; `bash tools/setup.sh --data-only` (Git Bash) only downloads the Roblox data. CI runs `tools/check.sh` on every push/PR and attaches the UI report as artifact `ui-check`.
 
-## Veröffentlichen
+## Publishing
 
-Jeder Push auf `main` lädt das Spiel automatisch auf den Test-Place hoch (Workflow `Veröffentlichen`, lokal `bash tools/publish.sh`). Einrichtung und Secrets: [docs/PUBLISH.md](docs/PUBLISH.md).
+Every push to `main` automatically uploads the game to the test place (workflow `Publish`, locally `bash tools/publish.sh`). Setup and secrets: [docs/PUBLISH.md](docs/PUBLISH.md).

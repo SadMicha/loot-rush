@@ -1,29 +1,32 @@
-# Haustiere
+# Pets
 
-Haustiere schlüpfen aus Eiern am **Haustier-Stall** im Hub (Station „Pets“) und geben Dauer-Boni,
-solange sie ausgerüstet sind. Ausgerüstete Haustiere schweben hinter ihrem Spieler her.
+Pets hatch from eggs at the **pet stall** in the hub (station "Pets") and give permanent bonuses
+while they are equipped. Equipped pets float behind their player.
 
-| Haustier | Seltenheit | Bonus (Stufe 1) |
+| Pet | Rarity | Bonus (level 1) |
 |---|---|---|
-| Glühwürmchen | Normal | +10 % Gold |
-| Moosfrosch | Normal | +10 % Erfahrung |
-| Kristallkäfer | Magisch | +6 Studs Aufheberadius |
-| Pilzling | Magisch | +10 % Leben |
-| Funkenfuchs | Selten | +10 % Schaden |
-| Wolkenwal | Selten | +15 % Item-Chance |
-| Sternenkatze | Episch | +15 % Gold, +15 % Erfahrung |
-| Runendrache | Legendär | +15 % Schaden, +10 % Item-Chance |
+| Firefly | Normal | +10 % gold |
+| Moss Frog | Normal | +10 % experience |
+| Crystal Beetle | Magic | +6 studs pickup radius |
+| Shroomling | Magic | +10 % health |
+| Spark Fox | Rare | +10 % damage |
+| Cloud Whale | Rare | +15 % item chance |
+| Star Cat | Epic | +15 % gold, +15 % experience |
+| Rune Dragon | Legendary | +15 % damage, +10 % item chance |
 
-- **Eier:** Wiesen-Ei 600 Gold (wächst wie Shop-Preise mit der besten Tiefe; 60/28/10/2 %
-  Normal/Magisch/Selten/Episch), Sternen-Ei 75 Seelensterne (20/40/28/10/2 % inkl. Legendär).
-- **Doppelte** heben die Stufe bis 5; Bonus × 1 / 1,5 / 2 / 2,5 / 3. Auf Stufe 5 gibt ein
-  Duplikat 100 Kristallsplitter.
-- **Plätze:** 1, mit Gamepass „Haustier-Platz“ 2. Das erste geschlüpfte Haustier wird
-  automatisch ausgerüstet; Ausrüsten bei vollen Plätzen ersetzt das älteste.
-- Alle Werte sind eigene Annahmen (`src/shared/Pets.luau`).
+- **Eggs:** Meadow Egg (`meadow_egg`) 600 gold (grows with the best depth like shop prices; 60/28/10/2 %
+  Normal/Magic/Rare/Epic), Star Egg (`star_egg`) 75 soulstars (20/40/28/10/2 % incl. Legendary).
+  The odds per rarity are shown before purchase (`Pets.odds`, one decimal).
+- **Duplicates** raise the level up to 5; bonus × 1 / 1.5 / 2 / 2.5 / 3. At level 5 a
+  duplicate gives 100 crystal shards.
+- **Slots:** 1, with gamepass "Pet Slot" 2. The first hatched pet is
+  equipped automatically; equipping with full slots replaces the oldest.
+- **Unknown IDs** (pets from a newer server version) stay in the save but are not shown,
+  give no bonus and can't be equipped (max. 100 entries).
+- All values are our own assumptions (`src/shared/Pets.luau`).
 
-**Modelle:** Bis es eigene gibt, baut `PetController` kleine Platzhalter aus den Gegner-Bauplänen.
-Ein Modell `Pet_<id>` (z. B. `Pet_runendrache.rbxm`) in `assets/models` ersetzt den Platzhalter
-automatisch (Blickrichtung −Z, Pivot in der Mitte).
+**Models:** Until there are real ones, `PetController` builds small placeholders from the enemy blueprints.
+A model `Pet_<id>` (e.g. `Pet_rune_dragon.rbxm`) in `assets/models` replaces the placeholder
+automatically (facing −Z, pivot in the center).
 
-Schnittstelle fürs UI: `docs/UI-SCHNITTSTELLEN.md`.
+Interface for the UI: `docs/UI-INTERFACES.md`. Playtest: `docs/TEST-PETS.md`.

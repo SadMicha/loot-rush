@@ -1,16 +1,16 @@
 --!strict
--- Baut die Arena per Code (Blockout-Look nach dem 3D-Konzept). Jedes Atlas-Gebiet hat eine eigene
--- Karte: Bodenfarben, Flüssigkeit (Wasser, Lava, Risse), Hindernisse, Deko, Fernkulisse, Partikel
--- und Licht (Tageszeit, Nebel, Farbstimmung). Der Hub ist eine eigene Map (Systems/Hub).
--- Jedes laufende Rift hat einen eigenen Platz (slot): Platz 1 liegt am Ursprung, jeder weitere
--- Config.ARENA_SPACING Studs weiter in +X. World.build(region, slot) baut die Arena dort,
--- World.release(slot) räumt sie wieder ab (Platz 1 zeigt dann wieder die Grünen Ebenen).
--- Die Arena-Ordner tragen die Attribute Region und Center (für Licht im Client).
--- Raster, Spawn und Gegnerzone bleiben in allen Gebieten gleich (Config.ARENA_*, ENEMY_ZONE),
--- damit Gegner-KI und Rift überall gleich funktionieren. Um das Spielfeld liegt ein Ring aus
--- Umgebungs-Kacheln (Hänge, Höhlenwände, Wolken …) mit dichter Deko und einem Wahrzeichen
--- hinter dem Nordrand, damit jede Arena wie ein Ort wirkt und nicht wie ein Brett.
--- Requisiten kommen aus Shared/Models (Part-Builder); die Platzierung bleibt hier.
+-- Builds the arena in code (blockout look per the 3D concept). Every Atlas region has its own
+-- map: floor colors, liquid (water, lava, rifts), obstacles, deco, distant backdrop, particles
+-- and light (time of day, fog, color mood). The Hub is its own map (Systems/Hub).
+-- Every running Rift has its own slot: slot 1 is at the origin, each further one
+-- Config.ARENA_SPACING studs further along +X. World.build(region, slot) builds the arena there,
+-- World.release(slot) tears it down again (slot 1 then shows the Green Plains again).
+-- The arena folders carry the attributes Region and Center (for lighting on the client).
+-- Grid, spawn and enemy zone stay the same in all regions (Config.ARENA_*, ENEMY_ZONE),
+-- so enemy AI and the Rift work the same everywhere. Around the playfield lies a ring of
+-- environment tiles (slopes, cave walls, clouds …) with dense deco and a landmark
+-- behind the north edge, so every arena feels like a place and not like a board.
+-- Props come from Shared/Models (part builders); placement stays here.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -27,56 +27,56 @@ local Props = Models.Props
 local T = Config.TILE_SIZE
 local HX = math.floor(Config.ARENA_TILES_X / 2)
 local HZ = math.floor(Config.ARENA_TILES_Z / 2)
-local RIM = 4 -- Höhe der erhöhten Randkacheln
-local RING = 3 -- Umgebungs-Kacheln hinter Nordrand und Seiten
-local RING_FRONT = 2 -- flache Umgebungs-Kacheln vorne (Kamera schaut von dort)
-local DETAILS = 70 -- kleine Bodendetails (Blumen, Kiesel …) auf dem Spielfeld
+local RIM = 4 -- height of the raised edge tiles
+local RING = 3 -- environment tiles behind the north edge and sides
+local RING_FRONT = 2 -- flat environment tiles in front (the camera looks from there)
+local DETAILS = 70 -- small ground details (flowers, pebbles …) on the playfield
 
--- Flüssigkeit auf abgesenkten Kacheln (begehbar, nur Optik)
+-- Liquid on lowered tiles (walkable, visual only)
 type Liquid = { color: Color3, material: Enum.Material, transparency: number, glow: boolean }
 
 type Look = {
-	top: { Color3 }, -- Schachbrett der Oberseiten
-	edge: Color3, -- schmale Kante unter der Oberseite
-	soil: Color3, -- Sockel auf Bodenhöhe
-	cliff: Color3, -- Sockel der erhöhten Kacheln
+	top: { Color3 }, -- checkerboard of the top faces
+	edge: Color3, -- narrow edge below the top face
+	soil: Color3, -- base at ground level
+	cliff: Color3, -- base of the raised tiles
 	material: Enum.Material,
 	liquid: Liquid?,
-	pool: ((x: number, z: number) -> boolean)?, -- Kachel (Rasterkoordinaten) ist Flüssigkeit
+	pool: ((x: number, z: number) -> boolean)?, -- tile (grid coordinates) is liquid
 	particles: { color: Color3, rate: number, speed: number, size: number }?,
-	-- Umgebungsring: Höhe je Ring-Stufe + Zufall; nil = kein Ring (Abgrund, z. B. Himmelsinseln)
+	-- Environment ring: height per ring step + random; nil = no ring (abyss, e.g. Sky Islands)
 	ring: { step: number, rough: number }?,
-	fill: (r: Random, i: number) -> Model, -- dichte Deko im Ring und am Rand
-	detail: (r: Random, i: number) -> Model, -- kleine Bodendetails ohne Kollision
-	deco: (parent: Instance, rng: Random) -> (), -- feste Platzierungen, Hindernisse, Wahrzeichen
+	fill: (r: Random, i: number) -> Model, -- dense deco in the ring and at the edge
+	detail: (r: Random, i: number) -> Model, -- small ground details without collision
+	deco: (parent: Instance, rng: Random) -> (), -- fixed placements, obstacles, landmark
 }
 
 local rng = Random.new(7)
 local arena: Folder
-local current: { [number]: Folder } = {} -- Platz → Arena
+local current: { [number]: Folder } = {} -- slot → arena
 local currentId: { [number]: string } = {}
-local heights: { [number]: number } = {} -- Bodenhöhe je Kachel (Schlüssel x * 1000 + z)
+local heights: { [number]: number } = {} -- ground height per tile (key x * 1000 + z)
 
--- ------------------------------------------------------------------ Bausteine
+-- ------------------------------------------------------------------ Building blocks
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
 	model:PivotTo(CFrame.new(pos) * CFrame.Angles(0, math.rad(yaw or 0), 0))
 	model.Parent = parent
 	return model
 end
 
--- Ist die Kachel (Rasterkoordinaten) erhöht? Nordrand und hintere Seiten als Klippe.
+-- Is the tile (grid coordinates) raised? North edge and back sides as cliffs.
 local function raised(x: number, z: number): boolean
 	return z == -HZ and math.abs(x) >= 2 or (math.abs(x) == HX and z <= -2)
 end
 
--- Bodenhöhe an einer Weltposition (für Deko); außerhalb gebauter Kacheln 0
+-- Ground height at a world position (for deco); 0 outside built tiles
 local function groundAt(pos: Vector3): number
 	local x = math.floor(pos.X / T + 0.5)
 	local z = math.floor(pos.Z / T + 0.5)
 	return heights[x * 1000 + z] or 0
 end
 
--- Höhen aller Kacheln: Spielfeld (Nordrand/Seiten erhöht) und Umgebungsring
+-- Heights of all tiles: playfield (north edge/sides raised) and environment ring
 local function layout(look: Look, r: Random)
 	heights = {}
 	local ring = look.ring
@@ -89,10 +89,10 @@ local function layout(look: Look, r: Random)
 			elseif ring then
 				local d = math.max(math.abs(x) - HX, -z - HZ, 0)
 				if z > HZ then
-					-- vorne flach auslaufen (freie Sicht für die Kamera)
+					-- taper off flat in front (clear view for the camera)
 					heights[x * 1000 + z] = if math.abs(x) > HX then 1 else 0
 				else
-					-- Seiten nach vorne niedriger, damit sie die Kamera nicht verdecken
+					-- sides lower toward the front so they do not block the camera
 					local front = math.clamp((HZ - z) / (2 * HZ), 0.35, 1)
 					local h = RIM + (d * ring.step + r:NextNumber(0, ring.rough)) * front
 					heights[x * 1000 + z] = math.floor(h + 0.5)
@@ -102,7 +102,7 @@ local function layout(look: Look, r: Random)
 	end
 end
 
--- Setzt ein Modell auf den Boden an (x, z)
+-- Puts a model on the ground at (x, z)
 local function put(parent: Instance, model: Model, x: number, z: number, yaw: number?): Model
 	return place(parent, model, Vector3.new(x, groundAt(Vector3.new(x, 0, z)), z), yaw)
 end
@@ -152,7 +152,7 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 	)
 end
 
--- Steinplatten vom Spawn Richtung Kampfzone
+-- Stone slabs from the spawn toward the combat zone
 local function path(parent: Instance, color: Color3, from: number, to: number)
 	local k = 0
 	local z = from
@@ -169,7 +169,7 @@ local function path(parent: Instance, color: Color3, from: number, to: number)
 	end
 end
 
--- Zufällige Punkte im Randstreifen (außerhalb der Kampffläche, nicht auf dem Spawn-Weg)
+-- Random points in the edge strip (outside the combat area, not on the spawn path)
 local function rim(r: Random, n: number): { Vector3 }
 	local out = {}
 	local maxX, maxZ = HX * T, HZ * T
@@ -192,7 +192,7 @@ local function sparkles(
 	p: { color: Color3, rate: number, speed: number, size: number }
 )
 	local box = Instance.new("Part")
-	box.Name = "Partikel"
+	box.Name = "Particles"
 	box.Anchored = true
 	box.CanCollide = false
 	box.CanQuery = false
@@ -236,13 +236,13 @@ local function beam(parent: Instance, a: BasePart, b: BasePart)
 end
 
 local function pylon(parent: Instance, x: number, z: number): BasePart
-	local core = put(parent, Props.pylon(), x, z):FindFirstChild("Kern")
-	assert(core and core:IsA("BasePart"), "KristallPylon ohne Kern")
+	local core = put(parent, Props.pylon(), x, z):FindFirstChild("Core")
+	assert(core and core:IsA("BasePart"), "CrystalPylon without Core")
 	return core
 end
 
--- Dichte Deko: je Umgebungs-Kachel meist ein Objekt, dazu der Randstreifen des Spielfelds und
--- kleine Bodendetails überall (ohne Kollision, nicht auf dem Weg zum Spawn)
+-- Dense deco: usually one object per environment tile, plus the edge strip of the playfield and
+-- small ground details everywhere (without collision, not on the path to the spawn)
 local function scatter(parent: Instance, look: Look, r: Random)
 	local i = 0
 	for key, h in heights do
@@ -274,10 +274,10 @@ local function scatter(parent: Instance, look: Look, r: Random)
 	end
 end
 
--- ------------------------------------------------------------------ Gebiete
+-- ------------------------------------------------------------------ Regions
 local maxX, maxZ = HX * T, HZ * T
 
--- Wahrzeichen hinter dem Nordrand: steht auf der letzten Umgebungs-Kachel
+-- Landmark behind the north edge: stands on the last environment tile
 local function landmark(parent: Instance, model: Model, x: number, yaw: number?): Model
 	local z = -(HZ + RING) * T
 	return place(parent, model, Vector3.new(x, groundAt(Vector3.new(x, 0, z)), z), yaw)
@@ -287,7 +287,7 @@ local function pick<V>(r: Random, list: { V }): V
 	return list[r:NextInteger(1, #list)]
 end
 
--- Grüne Ebenen = Hub: Wiese mit Wäldchen, Ruinen, Pylon-Dreieck, Dorfrand am Spawn
+-- Green Plains = Hub: meadow with groves, ruins, pylon triangle, village edge at the spawn
 local function meadow(parent: Instance, _r: Random)
 	path(parent, C.stoneLight, maxZ - 6, -6)
 	put(parent, Props.pillar(1.4), -22, -14)
@@ -301,7 +301,7 @@ local function meadow(parent: Instance, _r: Random)
 	beam(parent, p2, p3)
 	beam(parent, p3, p1)
 
-	-- Hub am Spawn: Rift-Portal, Truhe, Häuser, Schmiede, Zaun
+	-- Hub at the spawn: Rift portal, chest, houses, Forge, fence
 	put(parent, Props.portal(), -30, maxZ - 14, 90)
 	put(parent, Props.chest(), 14, maxZ - 8, -15)
 	put(parent, Models.Buildings.house(2), -52, maxZ - 12, 30)
@@ -311,14 +311,14 @@ local function meadow(parent: Instance, _r: Random)
 		put(parent, Props.fence(), -22 - k * 8, maxZ - 1)
 	end
 
-	-- Wahrzeichen: Riesenbaum mit Kristallen, Ruinen daneben
+	-- Landmark: giant tree with crystals, ruins next to it
 	landmark(parent, Props.tree(3.4), -8)
 	landmark(parent, Props.crystalCluster(2.6, 14), 14, 30)
 	landmark(parent, Props.pillar(3), -30, 12)
 	landmark(parent, Props.pillar(2.6), 34, -8)
 
 	local far = Instance.new("Folder")
-	far.Name = "Fernkulisse"
+	far.Name = "Backdrop"
 	far.Parent = parent
 	place(far, Props.island(2.2, true), Vector3.new(-110, 40, -190))
 	place(far, Props.island(2.8, false), Vector3.new(80, 54, -230))
@@ -345,7 +345,7 @@ local function meadowDetail(r: Random, i: number): Model
 	return Props.pebbles(i, C.stoneLight)
 end
 
--- Kristallhöhlen: hohe Felswände, Tropfsteine, leuchtende Kristalle und Teiche
+-- Crystal Caves: tall rock walls, stalagmites, glowing crystals and ponds
 local CAVE_ROCK = Color3.fromHex("#3A4462")
 local function caves(parent: Instance, _r: Random)
 	path(parent, Color3.fromHex("#6C7FA8"), maxZ - 6, -6)
@@ -364,7 +364,7 @@ local function caves(parent: Instance, _r: Random)
 			p.Z
 		)
 	end
-	-- Wahrzeichen: Kristall-Herz der Höhle
+	-- Landmark: crystal heart of the cave
 	landmark(parent, Props.crystalCluster(4.5, 21), 0)
 	landmark(parent, Props.crystalCluster(3, 22, C.magic), -26, 40)
 	landmark(parent, Props.crystalCluster(3.2, 23), 28, -30)
@@ -393,7 +393,7 @@ local function cavesDetail(r: Random, i: number): Model
 	return Props.pebbles(i, Color3.fromHex("#5A6788"))
 end
 
--- Pilzsumpf: Bohlensteg, Riesenpilze, tote Bäume, Teiche, Sporen
+-- Mushroom Swamp: boardwalk, giant mushrooms, dead trees, ponds, spores
 local CAPS = { Color3.fromHex("#B98CFF"), Color3.fromHex("#FF7BB0"), Color3.fromHex("#7FD96A") }
 local function swamp(parent: Instance, r: Random)
 	for k = 0, 16 do
@@ -415,7 +415,7 @@ local function swamp(parent: Instance, r: Random)
 	do
 		put(parent, Props.mushroom(1.4, CAPS[i % #CAPS + 1], i), p.X, p.Z)
 	end
-	-- Wahrzeichen: Sporenmutter-Pilz und Pilzwald dahinter
+	-- Landmark: Spore Mother mushroom and mushroom forest behind it
 	landmark(parent, Props.mushroom(4.2, CAPS[1], 31), 0)
 	landmark(parent, Props.mushroom(3, CAPS[2], 32), -30)
 	landmark(parent, Props.mushroom(3.2, CAPS[3], 33), 32)
@@ -440,7 +440,7 @@ local function swampDetail(r: Random, i: number): Model
 	return Props.reeds(0.6, Color3.fromHex("#8FB04A"), i)
 end
 
--- Feuerwüste (Lava-Backstube): Krustensand, Lavafluss, Ofen-Schlote, Basaltfelsen, Tafelberge
+-- Fire Desert (lava bakery): crust sand, lava river, oven chimneys, basalt rocks, mesas
 local BASALT = Color3.fromHex("#4A2E26")
 local function desert(parent: Instance, r: Random)
 	path(parent, Color3.fromHex("#B07A48"), maxZ - 6, 10)
@@ -457,14 +457,14 @@ local function desert(parent: Instance, r: Random)
 	for i, p in { Vector3.new(-18, 0, 4), Vector3.new(20, 0, 2), Vector3.new(4, 0, -40) } do
 		put(parent, Props.rock(1.5, 500 + i, BASALT), p.X, p.Z, r:NextNumber(0, 360))
 	end
-	-- Wahrzeichen: der Große Ofen des Ofenfürsten
+	-- Landmark: the Great Oven of the Furnace Lord
 	landmark(parent, Props.chimney(3.4), 0)
 	landmark(parent, Props.chimney(2.2), -24, 20)
 	landmark(parent, Props.chimney(2.4), 26, -15)
 	landmark(parent, Props.rock(4, 510, BASALT), -48)
 	landmark(parent, Props.rock(3.6, 511, BASALT), 50)
 	local far = Instance.new("Folder")
-	far.Name = "Fernkulisse"
+	far.Name = "Backdrop"
 	far.Parent = parent
 	for _ = 1, 7 do
 		local a = math.rad(r:NextNumber(-170, -10))
@@ -497,7 +497,7 @@ local function desertDetail(r: Random, i: number): Model
 	return Props.pebbles(i, Color3.fromHex("#8A5A3A"))
 end
 
--- Himmelsinseln: Marmorplateau über dem Wolkenmeer, Torbögen, Schloss im Hintergrund
+-- Sky Islands: marble plateau above the sea of clouds, archways, castle in the background
 local MARBLE = Color3.fromHex("#E8E2D2")
 local function sky(parent: Instance, r: Random)
 	path(parent, Color3.fromHex("#D9C38A"), maxZ - 6, -6)
@@ -508,9 +508,9 @@ local function sky(parent: Instance, r: Random)
 	for _, p in { Vector3.new(-20, 0, 6), Vector3.new(22, 0, -2), Vector3.new(-8, 0, -36) } do
 		put(parent, Props.pillar(1.5), p.X, p.Z)
 	end
-	-- Wahrzeichen: Schloss der Wolkenkönigin auf eigener Insel hinter dem Nordrand
+	-- Landmark: the Cloud Queen's castle on its own island behind the north edge
 	local castle = Instance.new("Folder")
-	castle.Name = "Schloss"
+	castle.Name = "Castle"
 	castle.Parent = parent
 	local z0 = -maxZ - 40
 	block(castle, Vector3.new(90, 6, 36), CFrame.new(0, -3, z0), MARBLE, Enum.Material.Marble)
@@ -523,7 +523,7 @@ local function sky(parent: Instance, r: Random)
 			Vector3.new(x, 0, z0)
 		)
 	end
-	-- Brücke vom Spielfeld zum Schloss
+	-- Bridge from the playfield to the castle
 	block(
 		castle,
 		Vector3.new(10, 1, 20),
@@ -532,7 +532,7 @@ local function sky(parent: Instance, r: Random)
 	)
 
 	local far = Instance.new("Folder")
-	far.Name = "Fernkulisse"
+	far.Name = "Backdrop"
 	far.Parent = parent
 	for i = 1, 30 do
 		local a = i / 30 * math.pi * 2
@@ -566,7 +566,7 @@ local function skyDetail(r: Random, i: number): Model
 	return Props.pebbles(i, MARBLE)
 end
 
--- Veränderte Welt: violetter Fels, Neon-Risse, schwebende Splitter, Riss-Portal als Wahrzeichen
+-- Altered World: violet rock, neon rifts, floating shards, rift portal as landmark
 local RIFT_GLOW = Color3.fromHex("#FF5AD0")
 local function rift(parent: Instance, r: Random)
 	for i, p in
@@ -584,7 +584,7 @@ local function rift(parent: Instance, r: Random)
 	landmark(parent, Props.riftShard(3.5, 1291, C.crystal), 28)
 	landmark(parent, Props.crystalCluster(3.2, 1292, RIFT_GLOW), -50)
 	landmark(parent, Props.crystalCluster(3, 1293, C.magic), 52)
-	-- Schwebende Splitter über der Kampfzone (hoch genug, um nicht zu stören)
+	-- Floating shards above the combat zone (high enough not to get in the way)
 	for i = 1, 10 do
 		place(
 			parent,
@@ -612,7 +612,7 @@ local function riftDetail(r: Random, i: number): Model
 end
 
 local LOOKS: { [string]: Look } = {
-	gruene_ebenen = {
+	green_plains = {
 		top = { C.grass, C.grass2 },
 		edge = C.grassDark,
 		soil = C.dirt,
@@ -624,7 +624,7 @@ local LOOKS: { [string]: Look } = {
 		detail = meadowDetail,
 		deco = meadow,
 	},
-	kristallhoehlen = {
+	crystal_caves = {
 		top = { Color3.fromHex("#4B5878"), Color3.fromHex("#435070") },
 		edge = Color3.fromHex("#2E3A58"),
 		soil = Color3.fromHex("#2A2F45"),
@@ -645,7 +645,7 @@ local LOOKS: { [string]: Look } = {
 		detail = cavesDetail,
 		deco = caves,
 	},
-	pilzsumpf = {
+	mushroom_swamp = {
 		top = { Color3.fromHex("#5E7A3A"), Color3.fromHex("#557034") },
 		edge = Color3.fromHex("#3F5A2A"),
 		soil = Color3.fromHex("#4A3A2E"),
@@ -667,7 +667,7 @@ local LOOKS: { [string]: Look } = {
 		detail = swampDetail,
 		deco = swamp,
 	},
-	feuerwueste = {
+	fire_desert = {
 		top = { Color3.fromHex("#D9A066"), Color3.fromHex("#CF955C") },
 		edge = Color3.fromHex("#A86A3A"),
 		soil = Color3.fromHex("#6B3A26"),
@@ -680,7 +680,7 @@ local LOOKS: { [string]: Look } = {
 			glow = true,
 		},
 		pool = function(x, z)
-			-- gewundener Lavafluss quer durch die Arena, Mitte als Furt
+			-- winding lava river across the arena, middle as a ford
 			local river = math.floor(math.sin(x * 0.5) * 1.2 + 0.5) - 1
 			return z == river and math.abs(x) >= 2
 		end,
@@ -690,7 +690,7 @@ local LOOKS: { [string]: Look } = {
 		detail = desertDetail,
 		deco = desert,
 	},
-	himmelsinseln = {
+	sky_islands = {
 		top = { Color3.fromHex("#EDE6D6"), Color3.fromHex("#E2DACA") },
 		edge = Color3.fromHex("#C9B98F"),
 		soil = Color3.fromHex("#B8C4D6"),
@@ -701,7 +701,7 @@ local LOOKS: { [string]: Look } = {
 		detail = skyDetail,
 		deco = sky,
 	},
-	veraenderte_welt = {
+	altered_world = {
 		top = { Color3.fromHex("#3A2A52"), Color3.fromHex("#33244A") },
 		edge = Color3.fromHex("#B98CFF"),
 		soil = Color3.fromHex("#1E1530"),
@@ -714,7 +714,7 @@ local LOOKS: { [string]: Look } = {
 			glow = true,
 		},
 		pool = function(x, z)
-			-- Risse: zwei gezackte Linien
+			-- Rifts: two jagged lines
 			return (x == z - 1 or x == -z - 2) and math.abs(x) >= 2
 		end,
 		particles = { color = Color3.fromHex("#FF8AE0"), rate = 20, speed = 1.5, size = 0.3 },
@@ -726,17 +726,17 @@ local LOOKS: { [string]: Look } = {
 }
 World.Looks = LOOKS
 
--- ------------------------------------------------------------------ Aufbau
--- Mitte der Arena auf diesem Platz
+-- ------------------------------------------------------------------ Assembly
+-- Center of the arena on this slot
 function World.center(slot: number?): Vector3
 	return Vector3.new(((slot or 1) - 1) * Config.ARENA_SPACING, 0, 0)
 end
 
 local function folderName(id: string, slot: number): string
-	return if slot == 1 then "Gebiet_" .. id else string.format("Gebiet_%s_%d", id, slot)
+	return if slot == 1 then "Region_" .. id else string.format("Region_%s_%d", id, slot)
 end
 
--- Baut die Arena für ein Gebiet (nil = Grüne Ebenen) auf einem Platz. Gleiches Gebiet → nichts zu tun.
+-- Builds the arena for a region (nil = Green Plains) on a slot. Same region → nothing to do.
 function World.build(region: Atlas.Region?, slot: number?)
 	local n = slot or 1
 	local id = if region then region.id else Atlas.Start
@@ -756,21 +756,21 @@ function World.build(region: Atlas.Region?, slot: number?)
 	local r = Random.new(#id * 31)
 	layout(look, r)
 	local ground = Instance.new("Folder")
-	ground.Name = "Boden"
+	ground.Name = "Ground"
 	ground.Parent = folder
 	for key, h in heights do
 		local x = math.floor((key + 500) / 1000)
 		tile(ground, look, x, key - x * 1000, h)
 	end
 	local deco = Instance.new("Folder")
-	deco.Name = "Deko"
+	deco.Name = "Deco"
 	deco.Parent = folder
 	look.deco(deco, r)
 	scatter(deco, look, r)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
-	-- gebaut wird am Ursprung, dann an den Platz geschoben
+	-- built at the origin, then moved to the slot
 	local center = World.center(n)
 	if center.Magnitude > 0 then
 		local shift = CFrame.new(center)
@@ -780,13 +780,13 @@ function World.build(region: Atlas.Region?, slot: number?)
 			end
 		end
 	end
-	folder:SetAttribute("Region", id) -- Licht stellt der Client (LightController)
+	folder:SetAttribute("Region", id) -- the client sets the light (LightController)
 	folder:SetAttribute("Center", center)
 	folder.Parent = arena
 	current[n] = folder
 end
 
--- Platz wieder freigeben (Platz 1 zeigt danach die Grünen Ebenen)
+-- Free the slot again (slot 1 shows the Green Plains afterwards)
 function World.release(slot: number)
 	if slot == 1 then
 		World.build(nil, 1)
@@ -800,7 +800,7 @@ function World.release(slot: number)
 	currentId[slot] = nil
 end
 
--- Gebiet auf einem Platz (Standard: Platz 1)
+-- Region on a slot (default: slot 1)
 function World.current(slot: number?): string
 	return currentId[slot or 1] or ""
 end
@@ -821,7 +821,7 @@ function World.start()
 	arena.Name = "Arena"
 	World.build(nil)
 	arena.Parent = workspace
-	print("[LootRush] Arena gebaut")
+	print("[LootRush] arena built")
 end
 
 return World

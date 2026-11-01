@@ -1,7 +1,7 @@
 --!strict
--- Rift-Anzeige: Banner (Tiefe · Welle · Gegner), Boss-Leiste und die Wahl nach dem Boss.
--- Der Zustand kommt vom Server als Player-Attribute (siehe Types.luau); hier wird nur angezeigt
--- und per Net.Rift „enter“, „deeper“ oder „leave“ angefragt.
+-- Rift display: banner (depth · wave · enemies), boss bar and the choice after the boss.
+-- The state comes from the server as player attributes (see Types.luau); this only displays it
+-- and requests "enter", "deeper" or "leave" via Net.Rift.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -29,7 +29,7 @@ local function phase(): string
 	return (player:GetAttribute("RiftPhase") or "") :: string
 end
 
--- „Im Rift“ = Lauf läuft oder wartet auf die Wahl (nicht bei „failed“)
+-- "In Rift" = run is active or waiting for the choice (not when "failed")
 function RiftController.active(): boolean
 	local p = phase()
 	return p == "wave" or p == "boss" or p == "clear"
@@ -53,14 +53,14 @@ local function refresh()
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
 		bannerText.Text =
-			string.format("%sTiefe %d · Welle %d/%d · Gegner %d", where, depth, wave, waves, left)
+			string.format("%sDepth %d · Wave %d/%d · Enemies %d", where, depth, wave, waves, left)
 	elseif p == "boss" then
-		bannerText.Text = string.format("%sTiefe %d · Boss", where, depth)
+		bannerText.Text = string.format("%sDepth %d · Boss", where, depth)
 	elseif p == "clear" then
-		bannerText.Text = string.format("%sTiefe %d geschafft", where, depth)
-		Kit.buttonLabel(deeperButton).Text = string.format("Tiefer (Tiefe %d)", depth + 1)
+		bannerText.Text = string.format("%sDepth %d cleared", where, depth)
+		Kit.buttonLabel(deeperButton).Text = string.format("Deeper (Depth %d)", depth + 1)
 	elseif p == "failed" then
-		bannerText.Text = "Rift gescheitert"
+		bannerText.Text = "Rift failed"
 	end
 end
 
@@ -112,13 +112,13 @@ function RiftController.init()
 	choice.Visible = false
 	choice.Parent = root
 	Kit.list(choice, Enum.FillDirection.Horizontal, 12)
-	deeperButton = Kit.button("Tiefer", C.Gold, Vector2.new(180, 48))
+	deeperButton = Kit.button("Deeper", C.Gold, Vector2.new(180, 48))
 	deeperButton.LayoutOrder = 1
 	deeperButton.Activated:Connect(function()
 		Net.Rift:FireServer("deeper")
 	end)
 	deeperButton.Parent = choice
-	local home = Kit.button("Zurück ins Dorf", C.Cyan, Vector2.new(180, 48))
+	local home = Kit.button("Back to Hub", C.Cyan, Vector2.new(180, 48))
 	home.LayoutOrder = 2
 	home.Activated:Connect(function()
 		Net.Rift:FireServer("leave")

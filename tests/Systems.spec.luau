@@ -1,4 +1,4 @@
--- Server-Systeme hinter den Fenstern: Sternennetz, Skill-Blüte und Schmiede über echte Remotes.
+-- Server systems behind the windows: Star Net, Skill Bloom and Forge via real remotes.
 local function server(fn)
 	local out = {}
 	sim:runAs("server", function(req)
@@ -24,38 +24,38 @@ local function sent(name: string): { any }
 	return list
 end
 
-describe("Systeme", function()
-	it("startet und schickt den Fortschritt", function()
+describe("Systems", function()
+	it("starts and sends the progress", function()
 		sim:boot({ seconds = 3 })
 		expect(#sent("Progress")).toBeGreaterThan(0)
 	end)
 
-	it("weist Sterne nur nach den Regeln zu und wendet sie an", function()
+	it("allocates stars only by the rules and applies them", function()
 		server(function(_, player)
-			player:SetAttribute("Level", 4) -- 3 Punkte
+			player:SetAttribute("Level", 4) -- 3 points
 		end)
 		client(function(_, Net)
-			Net.Star:FireServer("alloc", "eisenhaut") -- nicht verbunden
-			Net.Star:FireServer("alloc", "k1")
-			Net.Star:FireServer("alloc", "k2")
-			Net.Star:FireServer("alloc", "k4")
-			Net.Star:FireServer("alloc", "g1") -- keine Punkte mehr
-			Net.Star:FireServer("alloc", { "quatsch" })
+			Net.Star:FireServer("alloc", "iron_skin") -- not connected
+			Net.Star:FireServer("alloc", "m1")
+			Net.Star:FireServer("alloc", "m2")
+			Net.Star:FireServer("alloc", "m4")
+			Net.Star:FireServer("alloc", "f1") -- no points left
+			Net.Star:FireServer("alloc", { "bogus" })
 			Net.Star:FireServer(42)
 		end)
 		local stars, damage = server(function(req, player)
 			local p = req("ServerScriptService.Server.Systems.Data").get(player)
 			return p.progress.stars, player:GetAttribute("StatDamage")
 		end)
-		expect(stars.k1).toBe(true)
-		expect(stars.k2).toBe(true)
-		expect(stars.k4).toBe(true)
-		expect(stars.eisenhaut).toBeNil()
-		expect(stars.g1).toBeNil()
+		expect(stars.m1).toBe(true)
+		expect(stars.m2).toBe(true)
+		expect(stars.m4).toBe(true)
+		expect(stars.iron_skin).toBeNil()
+		expect(stars.f1).toBeNil()
 		expect(damage).toBeGreaterThanOrEqual(6)
 
 		client(function(_, Net)
-			Net.Star:FireServer("remove", "k1") -- k2/k4 hängen dran
+			Net.Star:FireServer("remove", "m1") -- m2/m4 hang on it
 			Net.Star:FireServer("reset")
 		end)
 		local after = server(function(req, player)
@@ -64,51 +64,51 @@ describe("Systeme", function()
 		expect(next(after)).toBeNil()
 	end)
 
-	it("vergibt Blüten-Punkte nur mit Skill-Stufen", function()
+	it("grants Bloom Points only with skill levels", function()
 		client(function(_, Net)
-			Net.Bloom:FireServer("spend", "funkenball", "trunk1")
+			Net.Bloom:FireServer("spend", "spark_ball", "trunk1")
 		end)
 		local before = server(function(req, player)
 			local p = req("ServerScriptService.Server.Systems.Data").get(player)
-			local sp = p.progress.skills.funkenball
+			local sp = p.progress.skills.spark_ball
 			local pts = if sp then sp.bloom.trunk1 else nil
-			-- Stufe 3 geben: 2 Punkte
-			req("ReplicatedStorage.Shared.Progression").skillMut(p.progress, "funkenball").level = 3
+			-- give level 3: 2 points
+			req("ReplicatedStorage.Shared.Progression").skillMut(p.progress, "spark_ball").level = 3
 			return pts
 		end)
 		expect(before).toBeNil()
 		client(function(_, Net)
-			Net.Bloom:FireServer("spend", "funkenball", "trunk1")
-			Net.Bloom:FireServer("spend", "funkenball", "left2") -- Knoten davor fehlt
-			Net.Bloom:FireServer("spend", "funkenball", "trunk1")
-			Net.Bloom:FireServer("spend", "funkenball", "trunk1") -- keine Punkte mehr
+			Net.Bloom:FireServer("spend", "spark_ball", "trunk1")
+			Net.Bloom:FireServer("spend", "spark_ball", "left2") -- previous node missing
+			Net.Bloom:FireServer("spend", "spark_ball", "trunk1")
+			Net.Bloom:FireServer("spend", "spark_ball", "trunk1") -- no points left
 		end)
 		local bloom = server(function(req, player)
-			return req("ServerScriptService.Server.Systems.Data").get(player).progress.skills.funkenball.bloom
+			return req("ServerScriptService.Server.Systems.Data").get(player).progress.skills.spark_ball.bloom
 		end)
 		expect(bloom.trunk1).toBe(2)
 		expect(bloom.left2).toBeNil()
 	end)
 
-	it("schmiedet mit Material und lehnt Unsinn ab", function()
+	it("forges with materials and rejects nonsense", function()
 		local id = server(function(req, player)
 			local p = req("ServerScriptService.Server.Systems.Data").get(player)
 			p.materials.candy = 1
 			table.insert(p.inventory, {
-				id = "schmiede-test",
-				slot = "waffe",
+				id = "forge-test",
+				slot = "weapon",
 				rarity = "magic",
-				name = "Teststab",
+				name = "Test Staff",
 				ilvl = 5,
 				affixes = { { stat = "damage", value = 4, implicit = true } },
 			})
-			return "schmiede-test"
+			return "forge-test"
 		end)
 		client(function(_, Net)
 			Net.ForgeAct:FireServer("add", id, nil)
-			Net.ForgeAct:FireServer("add", id, nil) -- kein Bonbon mehr
+			Net.ForgeAct:FireServer("add", id, nil) -- no candy left
 			Net.ForgeAct:FireServer("tier", id, 0 / 0)
-			Net.ForgeAct:FireServer("tier", "gibtsnicht", 1)
+			Net.ForgeAct:FireServer("tier", "does_not_exist", 1)
 		end)
 		local item, candy = server(function(req, player)
 			local p = req("ServerScriptService.Server.Systems.Data").get(player)
@@ -127,7 +127,7 @@ describe("Systeme", function()
 		expect(results[2][1].ok).toBe(false)
 	end)
 
-	it("Rüstung, Block und Arkaner Schild schützen", function()
+	it("armor, block and Arcane Shield protect", function()
 		local armored, blocked, shield, shielded = server(function(req, player)
 			local Combat = req("ServerScriptService.Server.Systems.Combat")
 			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
@@ -138,7 +138,7 @@ describe("Systeme", function()
 			Combat.hurtPlayer(player, 20)
 			local armored = before - humanoid.Health
 			player:SetAttribute("StatArmor", 0)
-			player:SetAttribute("StatBlock", 100) -- gedeckelt auf 75 %
+			player:SetAttribute("StatBlock", 100) -- capped at 75 %
 			local blocked = 0
 			for _ = 1, 400 do
 				if not Combat.hurtPlayer(player, 1) then
@@ -155,7 +155,7 @@ describe("Systeme", function()
 		expect(blocked).toBeGreaterThan(250)
 		expect(blocked).toBeLessThan(350)
 		client(function(_, Net)
-			Net.CastSkill:FireServer(1, Vector3.zero, Vector3.zero) -- Klingenwirbel, braucht kein Ziel
+			Net.CastSkill:FireServer(1, Vector3.zero, Vector3.zero) -- Thunderstorm, needs no target
 		end)
 		shield, shielded = server(function(req, player)
 			local Combat = req("ServerScriptService.Server.Systems.Combat")
@@ -168,17 +168,17 @@ describe("Systeme", function()
 		expect(shield).toBe(50)
 		expect(shielded).toBe(1000)
 		sim:run(0.2)
-		local text = sim.player.PlayerGui.LootRushHUD:FindFirstChild("SchildText", true)
+		local text = sim.player.PlayerGui.LootRushHUD:FindFirstChild("Shield", true)
 		expect(text).never.toBeNil()
 		expect(text.Visible).toBe(true)
-		expect(text.Text).toBe("+20 Schild") -- 50 Schild − 30 Treffer
+		expect(text.Text).toBe("+20 Shield") -- 50 shield − 30 hit
 		sim:run(5)
 		expect(server(function(_, player)
 			return player:GetAttribute("Shield")
 		end)).toBe(0)
 	end)
 
-	it("Sonderknoten der Skill-Blüten treffen ohne Fehler", function()
+	it("special nodes of the Skill Blooms hit without errors", function()
 		local hpBefore = server(function(req, player)
 			local Progression = req("ReplicatedStorage.Shared.Progression")
 			local Skills = req("ReplicatedStorage.Shared.Skills")
@@ -192,7 +192,7 @@ describe("Systeme", function()
 					end
 				end
 			end
-			player:SetAttribute("StatCrit", 100) -- jeder Treffer krit → Splitter
+			player:SetAttribute("StatCrit", 100) -- every hit crits → shard
 			player:SetAttribute("StatCritShard", 30)
 			local root = player.Character.HumanoidRootPart.Position
 			local total = 0
@@ -224,7 +224,7 @@ describe("Systeme", function()
 		expect(hpAfter).toBeLessThan(hpBefore)
 	end)
 
-	it("läuft ohne Laufzeitfehler", function()
+	it("runs without runtime errors", function()
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")
 		end

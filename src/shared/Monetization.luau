@@ -1,13 +1,13 @@
 --!strict
--- Alle Robux-IDs an einem Ort: Developer Products (Seelensterne) und Gamepässe.
--- IDs kommen aus dem Creator Hub (Spiel → Monetization → Developer Products / Passes).
--- 0 = noch nicht angelegt: der Kaufknopf bleibt aus, der Server nimmt nichts an.
--- Robux-Preise hier sind nur Anzeige – maßgeblich ist der Preis im Creator Hub.
--- Server: Systems/Monetization (ProcessReceipt, Gamepass-Besitz). Anleitung: docs/MONETARISIERUNG.md
+-- All Robux IDs in one place: Developer Products (Soulstars) and game passes.
+-- IDs come from the Creator Hub (experience → Monetization → Developer Products / Passes).
+-- 0 = not created yet: the buy button stays off, the server accepts nothing.
+-- Robux prices here are display only - the price in the Creator Hub is authoritative.
+-- Server: Systems/Monetization (ProcessReceipt, game pass ownership). Guide: docs/MONETIZATION.md
 
 local Monetization = {}
 
--- Developer Products (mehrfach kaufbar). Schlüssel = Shop.OFFERS[].product
+-- Developer Products (can be bought repeatedly). Key = Shop.OFFERS[].product
 Monetization.ProductIds = table.freeze({
 	soulstars_s = 0,
 	soulstars_m = 0,
@@ -16,13 +16,13 @@ Monetization.ProductIds = table.freeze({
 
 export type Pass = {
 	key: string,
-	id: number, -- Gamepass-ID; 0 = Platzhalter
+	id: number, -- game pass ID; 0 = placeholder
 	name: string,
 	text: string,
 	robux: number,
 	icon: string,
-	bonus: { [string]: number }, -- Dauer-Boni wie Systems/Boosts (Prozent, magnet = Studs)
-	attr: string?, -- zusätzliches Player-Attribut = true (z. B. PassPetSlot für Systems/Pets)
+	bonus: { [string]: number }, -- permanent bonuses like Systems/Boosts (percent, magnet = studs)
+	attr: string?, -- extra player attribute = true (e.g. PassPetSlot for Systems/Pets)
 }
 
 local PASSES: { Pass } = {
@@ -30,28 +30,28 @@ local PASSES: { Pass } = {
 		key = "vip",
 		id = 0,
 		name = "VIP",
-		text = "+25 % Gold und +25 % Erfahrung für immer.",
+		text = "+25 % gold and +25 % XP forever.",
 		robux = 299,
-		icon = "krone",
+		icon = "crown",
 		bonus = { gold = 25, xp = 25 },
 	},
 	{
 		key = "pet_slot",
 		id = 0,
-		name = "Haustier-Platz",
-		text = "Ein zweites Haustier begleitet dich.",
+		name = "Pet Slot",
+		text = "A second pet joins you.",
 		robux = 199,
-		icon = "herz",
+		icon = "heart",
 		bonus = {},
 		attr = "PassPetSlot",
 	},
 	{
 		key = "magnet",
 		id = 0,
-		name = "Beutemagnet",
-		text = "+8 Studs Aufheberadius und +10 % Item-Chance.",
+		name = "Loot Magnet",
+		text = "+8 studs pickup radius and +10 % item chance.",
 		robux = 149,
-		icon = "truhe",
+		icon = "chest",
 		bonus = { magnet = 8, items = 10 },
 	},
 }
@@ -64,7 +64,7 @@ end
 Monetization.Passes = table.freeze(PASSES)
 Monetization.PassByKey = table.freeze(byKey)
 
--- Attribut am Spieler, wenn er den Pass besitzt (Server setzt es)
+-- Attribute on the player when they own the pass (set by the server)
 function Monetization.passAttr(key: string): string
 	return "Pass_" .. key
 end
@@ -81,7 +81,7 @@ function Monetization.passById(id: number): Pass?
 	return nil
 end
 
--- Summe der Boni aller Pässe, für die owned(key) true ist
+-- Sum of the bonuses of all passes for which owned(key) is true
 function Monetization.bonus(owned: (string) -> boolean): { [string]: number }
 	local sum: { [string]: number } = {}
 	for _, p in PASSES do

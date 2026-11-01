@@ -1,7 +1,7 @@
 --!strict
--- Hochgeladene UI-Bilder im Mock-up-Look (assets/ui_upload_v3) und Icon-Atlanten (ui_upload_v2).
--- Slice = dehnbar (ScaleType Slice, center in Quellpixeln), Fixed = feste Größe (ScaleType Fit).
--- Fehlt ein Eintrag, nutzt Kit den flachen Stil.
+-- Uploaded UI images in the mock-up look (assets/ui_upload_v3) and icon atlases (ui_upload_v2).
+-- Slice = stretchable (ScaleType Slice, center in source pixels), Fixed = fixed size (ScaleType Fit).
+-- If an entry is missing, Kit uses the flat style.
 
 export type Slice = { id: string, size: Vector2, center: Rect }
 export type Fixed = { id: string, size: Vector2 }
@@ -210,64 +210,64 @@ local ATLAS = {
 	icons_10 = "rbxassetid://76489694074987",
 }
 
--- Icons in den Sammelbildern: ImageRectOffset = offset, ImageRectSize = IconSize.
--- Nicht zugeordnete Icons behalten ihren Bogen-Code (A11 … K44), siehe Icon_Zuordnung.csv.
+-- Icons in the atlas images: ImageRectOffset = offset, ImageRectSize = IconSize.
+-- Unassigned icons keep their sheet code (A11 ... K44), see Icon_Zuordnung.csv.
 Assets.Icon = table.freeze({
-	inventar = { id = ATLAS.icons_01, offset = Vector2.new(0, 0) },
-	sternennetz = { id = ATLAS.icons_01, offset = Vector2.new(256, 0) },
+	inventory = { id = ATLAS.icons_01, offset = Vector2.new(0, 0) },
+	star_net = { id = ATLAS.icons_01, offset = Vector2.new(256, 0) },
 	skills = { id = ATLAS.icons_01, offset = Vector2.new(512, 0) },
-	schmiede = { id = ATLAS.icons_01, offset = Vector2.new(768, 0) },
-	dorf = { id = ATLAS.icons_01, offset = Vector2.new(0, 256) },
-	begleiter = { id = ATLAS.icons_01, offset = Vector2.new(256, 256) },
+	forge = { id = ATLAS.icons_01, offset = Vector2.new(768, 0) },
+	hub = { id = ATLAS.icons_01, offset = Vector2.new(0, 256) },
+	companion = { id = ATLAS.icons_01, offset = Vector2.new(256, 256) },
 	atlas = { id = ATLAS.icons_01, offset = Vector2.new(512, 256) },
-	seelenstern = { id = ATLAS.icons_01, offset = Vector2.new(768, 256) },
+	soulstar = { id = ATLAS.icons_01, offset = Vector2.new(768, 256) },
 	gold = { id = ATLAS.icons_01, offset = Vector2.new(0, 512) },
-	kristall = { id = ATLAS.icons_01, offset = Vector2.new(256, 512) },
+	crystal = { id = ATLAS.icons_01, offset = Vector2.new(256, 512) },
 	quest = { id = ATLAS.icons_01, offset = Vector2.new(512, 512) },
-	schwert = { id = ATLAS.icons_01, offset = Vector2.new(768, 512) },
-	feuer = { id = ATLAS.icons_01, offset = Vector2.new(0, 768) },
-	blitz = { id = ATLAS.icons_01, offset = Vector2.new(256, 768) },
-	eis = { id = ATLAS.icons_01, offset = Vector2.new(512, 768) },
-	trank_leben = { id = ATLAS.icons_01, offset = Vector2.new(768, 768) },
-	trank_mana = { id = ATLAS.icons_02, offset = Vector2.new(0, 0) },
+	sword = { id = ATLAS.icons_01, offset = Vector2.new(768, 512) },
+	fire = { id = ATLAS.icons_01, offset = Vector2.new(0, 768) },
+	lightning = { id = ATLAS.icons_01, offset = Vector2.new(256, 768) },
+	ice = { id = ATLAS.icons_01, offset = Vector2.new(512, 768) },
+	flask_red = { id = ATLAS.icons_01, offset = Vector2.new(768, 768) },
+	flask_blue = { id = ATLAS.icons_02, offset = Vector2.new(0, 0) },
 	skill_dash = { id = ATLAS.icons_02, offset = Vector2.new(256, 0) },
 	portal = { id = ATLAS.icons_02, offset = Vector2.new(512, 0) },
-	schliessen = { id = ATLAS.icons_02, offset = Vector2.new(768, 0) },
-	bonbon = { id = ATLAS.icons_02, offset = Vector2.new(0, 256) },
-	glitzerstaub = { id = ATLAS.icons_02, offset = Vector2.new(256, 256) },
-	beutel = { id = ATLAS.icons_02, offset = Vector2.new(512, 256) },
-	einstellungen = { id = ATLAS.icons_02, offset = Vector2.new(768, 256) },
-	schloss = { id = ATLAS.icons_02, offset = Vector2.new(0, 512) },
-	neu_wuerfeln = { id = ATLAS.icons_02, offset = Vector2.new(256, 512) },
-	ziel = { id = ATLAS.icons_02, offset = Vector2.new(512, 512) },
-	leben = { id = ATLAS.icons_02, offset = Vector2.new(768, 512) },
+	close = { id = ATLAS.icons_02, offset = Vector2.new(768, 0) },
+	candy = { id = ATLAS.icons_02, offset = Vector2.new(0, 256) },
+	glitter_dust = { id = ATLAS.icons_02, offset = Vector2.new(256, 256) },
+	pouch = { id = ATLAS.icons_02, offset = Vector2.new(512, 256) },
+	settings = { id = ATLAS.icons_02, offset = Vector2.new(768, 256) },
+	lock = { id = ATLAS.icons_02, offset = Vector2.new(0, 512) },
+	reroll = { id = ATLAS.icons_02, offset = Vector2.new(256, 512) },
+	target = { id = ATLAS.icons_02, offset = Vector2.new(512, 512) },
+	life = { id = ATLAS.icons_02, offset = Vector2.new(768, 512) },
 	filter = { id = ATLAS.icons_02, offset = Vector2.new(0, 768) },
-	sortieren = { id = ATLAS.icons_02, offset = Vector2.new(256, 768) },
-	verbessern = { id = ATLAS.icons_02, offset = Vector2.new(512, 768) },
+	sort = { id = ATLAS.icons_02, offset = Vector2.new(256, 768) },
+	upgrade = { id = ATLAS.icons_02, offset = Vector2.new(512, 768) },
 	timer = { id = ATLAS.icons_02, offset = Vector2.new(768, 768) },
-	itemstufe = { id = ATLAS.icons_03, offset = Vector2.new(0, 0) },
-	heilen = { id = ATLAS.icons_03, offset = Vector2.new(256, 0) },
-	verwerten = { id = ATLAS.icons_03, offset = Vector2.new(512, 0) },
+	item_level = { id = ATLAS.icons_03, offset = Vector2.new(0, 0) },
+	heal = { id = ATLAS.icons_03, offset = Vector2.new(256, 0) },
+	salvage = { id = ATLAS.icons_03, offset = Vector2.new(512, 0) },
 	horn = { id = ATLAS.icons_03, offset = Vector2.new(768, 0) },
-	gift = { id = ATLAS.icons_03, offset = Vector2.new(0, 256) },
-	wirbel = { id = ATLAS.icons_03, offset = Vector2.new(256, 256) },
-	eiswuerfel = { id = ATLAS.icons_03, offset = Vector2.new(512, 256) },
-	schild_buff = { id = ATLAS.icons_03, offset = Vector2.new(768, 256) },
-	krone = { id = ATLAS.icons_03, offset = Vector2.new(0, 512) },
-	pokal = { id = ATLAS.icons_03, offset = Vector2.new(256, 512) },
-	truhe = { id = ATLAS.icons_03, offset = Vector2.new(512, 512) },
-	fluegel = { id = ATLAS.icons_03, offset = Vector2.new(768, 512) },
-	slot_helm = { id = ATLAS.icons_03, offset = Vector2.new(0, 768) },
-	slot_brust = { id = ATLAS.icons_03, offset = Vector2.new(256, 768) },
-	slot_handschuhe = { id = ATLAS.icons_03, offset = Vector2.new(512, 768) },
-	slot_guertel = { id = ATLAS.icons_03, offset = Vector2.new(768, 768) },
-	slot_stiefel = { id = ATLAS.icons_04, offset = Vector2.new(0, 0) },
+	poison = { id = ATLAS.icons_03, offset = Vector2.new(0, 256) },
+	whirl = { id = ATLAS.icons_03, offset = Vector2.new(256, 256) },
+	ice_cube = { id = ATLAS.icons_03, offset = Vector2.new(512, 256) },
+	shield_buff = { id = ATLAS.icons_03, offset = Vector2.new(768, 256) },
+	crown = { id = ATLAS.icons_03, offset = Vector2.new(0, 512) },
+	trophy = { id = ATLAS.icons_03, offset = Vector2.new(256, 512) },
+	chest = { id = ATLAS.icons_03, offset = Vector2.new(512, 512) },
+	wings = { id = ATLAS.icons_03, offset = Vector2.new(768, 512) },
+	slot_helmet = { id = ATLAS.icons_03, offset = Vector2.new(0, 768) },
+	slot_armor = { id = ATLAS.icons_03, offset = Vector2.new(256, 768) },
+	slot_gloves = { id = ATLAS.icons_03, offset = Vector2.new(512, 768) },
+	slot_belt = { id = ATLAS.icons_03, offset = Vector2.new(768, 768) },
+	slot_boots = { id = ATLAS.icons_04, offset = Vector2.new(0, 0) },
 	slot_ring = { id = ATLAS.icons_04, offset = Vector2.new(256, 0) },
-	slot_amulett = { id = ATLAS.icons_04, offset = Vector2.new(512, 0) },
-	slot_schild = { id = ATLAS.icons_04, offset = Vector2.new(768, 0) },
-	slot_waffe = { id = ATLAS.icons_04, offset = Vector2.new(0, 256) },
-	slot_stab = { id = ATLAS.icons_04, offset = Vector2.new(256, 256) },
-	slot_bogen = { id = ATLAS.icons_04, offset = Vector2.new(512, 256) },
+	slot_amulet = { id = ATLAS.icons_04, offset = Vector2.new(512, 0) },
+	slot_shield = { id = ATLAS.icons_04, offset = Vector2.new(768, 0) },
+	slot_weapon = { id = ATLAS.icons_04, offset = Vector2.new(0, 256) },
+	slot_staff = { id = ATLAS.icons_04, offset = Vector2.new(256, 256) },
+	slot_bow = { id = ATLAS.icons_04, offset = Vector2.new(512, 256) },
 	A12 = { id = ATLAS.icons_04, offset = Vector2.new(768, 256) },
 	A13 = { id = ATLAS.icons_04, offset = Vector2.new(0, 512) },
 	A22 = { id = ATLAS.icons_04, offset = Vector2.new(256, 512) },
@@ -363,9 +363,9 @@ Assets.Icon = table.freeze({
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
 } :: { [string]: Icon })
 
--- Szenenbilder und Knoten der Fenster Fähigkeiten, Sternennetz, Schmiede, Atlas und Shop
--- (Upload-Paket LootRush_Upload_v8_Fenster). Einträge ohne ID werden ignoriert; die Fenster
--- zeigen dann den flachen Stil (Knoten als Slots, Linien als dünne Striche).
+-- Scene images and nodes of the Abilities, Star Net, Forge, Atlas and Shop windows
+-- (upload package LootRush_Upload_v8_Fenster). Entries without an ID are ignored; the windows
+-- then show the flat style (nodes as slots, lines as thin strokes).
 local ART: { [string]: Fixed } = {
 	bg_skills = { id = "rbxassetid://124530469380025", size = Vector2.new(1024, 576) },
 	bg_starnet = { id = "rbxassetid://139376981558417", size = Vector2.new(1024, 576) },
@@ -382,18 +382,18 @@ local ART: { [string]: Fixed } = {
 	plaque_region = { id = "rbxassetid://117854959815810", size = Vector2.new(543, 230) },
 	plaque_status = { id = "rbxassetid://101106260708476", size = Vector2.new(818, 282) },
 	forge_anvil = { id = "rbxassetid://117223988059627", size = Vector2.new(1000, 536) },
-	island_gruene_ebenen = { id = "rbxassetid://128994372809509", size = Vector2.new(493, 485) },
-	island_kristallhoehlen = { id = "rbxassetid://120779780565906", size = Vector2.new(471, 474) },
-	island_pilzsumpf = { id = "rbxassetid://104699148537669", size = Vector2.new(479, 480) },
-	island_feuerwueste = { id = "rbxassetid://131302023646308", size = Vector2.new(512, 518) },
-	island_himmelsinseln = { id = "rbxassetid://95013806127090", size = Vector2.new(512, 497) },
-	island_veraenderte_welt = { id = "rbxassetid://119053802123572", size = Vector2.new(498, 481) },
-	region_gruene_ebenen = { id = "rbxassetid://89294082178280", size = Vector2.new(768, 432) },
-	region_kristallhoehlen = { id = "rbxassetid://107712681289481", size = Vector2.new(768, 432) },
-	region_pilzsumpf = { id = "rbxassetid://128283999127426", size = Vector2.new(768, 432) },
-	region_feuerwueste = { id = "rbxassetid://110395739727001", size = Vector2.new(768, 432) },
-	region_himmelsinseln = { id = "rbxassetid://84354190494860", size = Vector2.new(768, 432) },
-	region_veraenderte_welt = { id = "rbxassetid://115295026536755", size = Vector2.new(768, 432) },
+	island_green_plains = { id = "rbxassetid://128994372809509", size = Vector2.new(493, 485) },
+	island_crystal_caves = { id = "rbxassetid://120779780565906", size = Vector2.new(471, 474) },
+	island_mushroom_swamp = { id = "rbxassetid://104699148537669", size = Vector2.new(479, 480) },
+	island_fire_desert = { id = "rbxassetid://131302023646308", size = Vector2.new(512, 518) },
+	island_sky_islands = { id = "rbxassetid://95013806127090", size = Vector2.new(512, 497) },
+	island_altered_world = { id = "rbxassetid://119053802123572", size = Vector2.new(498, 481) },
+	region_green_plains = { id = "rbxassetid://89294082178280", size = Vector2.new(768, 432) },
+	region_crystal_caves = { id = "rbxassetid://107712681289481", size = Vector2.new(768, 432) },
+	region_mushroom_swamp = { id = "rbxassetid://128283999127426", size = Vector2.new(768, 432) },
+	region_fire_desert = { id = "rbxassetid://110395739727001", size = Vector2.new(768, 432) },
+	region_sky_islands = { id = "rbxassetid://84354190494860", size = Vector2.new(768, 432) },
+	region_altered_world = { id = "rbxassetid://115295026536755", size = Vector2.new(768, 432) },
 }
 local art: { [string]: Fixed } = {}
 for name, a in ART do
@@ -402,5 +402,42 @@ for name, a in ART do
 	end
 end
 Assets.Art = table.freeze(art)
+
+-- In-game HUD (assets/ui/icons/hud, assets/ui/icons/skills, assets/ui/icons/*.png).
+-- Fill in the id after the upload; entries with an empty id are ignored and Kit draws the flat HUD
+-- (flat orbs, ring frames, atlas icons). Sizes = pixel size of the uploaded file.
+local HUD: { [string]: Fixed } = {
+	-- Orbs: frame and fill share the same 512x512 canvas (Aligned_HUD_512)
+	orb_health_frame = { id = "rbxassetid://123008289598540", size = Vector2.new(512, 512) },
+	orb_health_fill = { id = "rbxassetid://125390058242273", size = Vector2.new(512, 512) },
+	orb_mana_frame = { id = "rbxassetid://112168174760943", size = Vector2.new(512, 512) },
+	orb_mana_fill = { id = "rbxassetid://76117262356717", size = Vector2.new(512, 512) },
+	-- Rings (Icons_256: centered squares)
+	minimap_frame = { id = "rbxassetid://75741502477555", size = Vector2.new(256, 256) },
+	ring_gold = { id = "rbxassetid://101733664786827", size = Vector2.new(256, 256) },
+	ring_silver = { id = "rbxassetid://107397262650494", size = Vector2.new(256, 256) },
+	-- Skill icons (skills/128px)
+	skill_storm = { id = "rbxassetid://119271064945748", size = Vector2.new(128, 128) }, -- Mage/Mage_05_Thunderstorm.png
+	skill_spark = { id = "rbxassetid://110139009058803", size = Vector2.new(128, 128) },
+	skill_chain = { id = "rbxassetid://75188928851964", size = Vector2.new(128, 128) },
+	skill_nova = { id = "rbxassetid://78541866026299", size = Vector2.new(128, 128) },
+	skill_dash = { id = "rbxassetid://125754218329440", size = Vector2.new(128, 128) },
+	-- Hub icon bar (assets/ui/icons/*.png, native size)
+	menu_inventory = { id = "rbxassetid://84376860245263", size = Vector2.new(376, 380) },
+	menu_star_net = { id = "rbxassetid://125186955183258", size = Vector2.new(377, 370) },
+	menu_skills = { id = "rbxassetid://89943484818795", size = Vector2.new(445, 379) },
+	menu_hub = { id = "rbxassetid://119271064945748", size = Vector2.new(441, 417) },
+	menu_atlas = { id = "rbxassetid://104595046752790", size = Vector2.new(416, 362) },
+	menu_forge = { id = "rbxassetid://80101622482185", size = Vector2.new(405, 395) },
+	menu_shop = { id = "rbxassetid://113985532990245", size = Vector2.new(362, 384) },
+	hud_settings = { id = "rbxassetid://96002533781558", size = Vector2.new(373, 368) },
+}
+local hud: { [string]: Fixed } = {}
+for name, h in HUD do
+	if h.id ~= "" then
+		hud[name] = table.freeze(h)
+	end
+end
+Assets.Hud = table.freeze(hud)
 
 return table.freeze(Assets)

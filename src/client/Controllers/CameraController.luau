@@ -1,8 +1,8 @@
 --!strict
--- Isometrische ARPG-Kamera: folgt dem Charakter weich, Mausrad/Pinch = Zoom,
--- rechte Maustaste ziehen = drehen, auf Touch: mit einem Finger über freie Fläche wischen.
--- Bewegung (WASD/Stick) richtet sich automatisch nach der Kamera.
--- Die Kamera ist Scriptable, darum dreht Roblox selbst nichts – jede Eingabe dafür steht hier.
+-- Isometric ARPG camera: follows the character smoothly, mouse wheel/pinch = zoom,
+-- drag right mouse button = rotate, on touch: swipe with one finger over free space.
+-- Movement (WASD/stick) automatically aligns to the camera.
+-- The camera is Scriptable, so Roblox rotates nothing itself - all input for it lives here.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,10 +19,10 @@ local yaw = math.rad(Config.CAMERA_YAW)
 local pitch = math.rad(Config.CAMERA_PITCH)
 local focus: Vector3? = nil
 local rotating = false
-local touchTurn: InputObject? = nil -- Finger, der gerade die Kamera dreht
-local freeTouches: { [InputObject]: true } = {} -- Finger auf freier Fläche (zwei = Pinch-Zoom)
+local touchTurn: InputObject? = nil -- finger currently rotating the camera
+local freeTouches: { [InputObject]: true } = {} -- fingers on free space (two = pinch zoom)
 
-local MOUSE_TURN = 0.006 -- Bogenmaß je Pixel
+local MOUSE_TURN = 0.006 -- radians per pixel
 local TOUCH_TURN = 0.008
 
 local function rootPart(): BasePart?
@@ -37,12 +37,12 @@ local function rootPart(): BasePart?
 	return nil
 end
 
--- Für andere Controller (z. B. Minimap): aktuelle Kamera-Drehung
+-- For other controllers (e.g. minimap): current camera rotation
 function CameraController.getYaw(): number
 	return yaw
 end
 
--- Bewegungs-Stick von Roblox (unten links): Finger dort steuern die Figur, nicht die Kamera
+-- Roblox movement stick (bottom left): fingers there steer the character, not the camera
 local function inThumbstickZone(pos: Vector3): boolean
 	local camera = workspace.CurrentCamera
 	if not camera then

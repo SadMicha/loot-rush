@@ -1,8 +1,8 @@
-name: Veröffentlichen
+name: Publish
 
-# Baut das Spiel mit Rojo und lädt es per Open Cloud auf den Place hoch.
-# Secrets im Environment "Roblox" (Settings → Environments): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
-# Anleitung: docs/PUBLISH.md
+# Builds the game with Rojo and uploads it to the place via Open Cloud.
+# Secrets in the "Roblox" environment (Settings → Environments): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
+# Guide: docs/PUBLISH.md
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       versionType:
-        description: "Published = sofort spielbar, Saved = nur als Version speichern"
+        description: "Published = playable right away, Saved = only save as a version"
         type: choice
         options: [Published, Saved]
         default: Published
@@ -30,23 +30,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Secrets vorhanden?
+      - name: Secrets present?
         id: secrets
         run: |
           if [[ -n "$ROBLOX_API_KEY" && -n "$ROBLOX_UNIVERSE_ID" && -n "$ROBLOX_PLACE_ID" ]]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Roblox-Secrets fehlen, Veröffentlichen übersprungen (docs/PUBLISH.md)."
+            echo "::warning::Roblox secrets missing, publish skipped (docs/PUBLISH.md)."
           fi
 
-      - name: Werkzeuge laden
+      - name: Install tools
         if: steps.secrets.outputs.ok == 'true'
         run: bash tools/setup.sh
 
-      - name: Prüfen (format, lint, types, build, test)
+      - name: Check (format, lint, types, build, test)
         if: steps.secrets.outputs.ok == 'true'
         run: bash tools/check.sh format lint types build test
 
-      - name: Auf Roblox hochladen
+      - name: Upload to Roblox
         if: steps.secrets.outputs.ok == 'true'
         run: bash tools/publish.sh "${{ inputs.versionType || 'Published' }}"

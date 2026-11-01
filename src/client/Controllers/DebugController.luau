@@ -1,9 +1,9 @@
 --!strict
--- Mess-Overlay für Playtests (F3 oder „Dbg“-Knopf unten links, damit es auch auf dem Handy geht):
--- FPS, Ping, Speicher, Instanzen (Client) sowie Server-Frame, Sendelast, Gegnerzahl und der letzte Rift-Bericht.
--- Server-Werte liefert Systems/Metrics als workspace-Attribute. Abschaltbar über Config.DEBUG_OVERLAY.
--- Test-Befehle (Gold, Level, Material, …) erscheinen nur, wenn der Server „DebugTools“ setzt
--- (Studio oder freigeschaltete UserId, siehe Systems/Debug); geprüft wird dort, nicht hier.
+-- Measurement overlay for playtests (F3 or the "Dbg" button bottom left, so it also works on phones):
+-- FPS, ping, memory, instances (client) as well as server frame, send load, enemy count and the last Rift report.
+-- Server values are provided by Systems/Metrics as workspace attributes. Can be disabled via Config.DEBUG_OVERLAY.
+-- Test commands (gold, level, materials, ...) only appear if the server sets "DebugTools"
+-- (Studio or whitelisted UserId, see Systems/Debug); validation happens there, not here.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,24 +19,23 @@ local Kit = require(script.Parent.Parent.UI.Kit)
 local DebugController = {}
 
 local player = Players.LocalPlayer
-local REFRESH = 0.5 -- Sekunden zwischen Textaktualisierungen
+local REFRESH = 0.5 -- seconds between text updates
 
 local panel: Frame
 local text: TextLabel
 local tools: Frame
 
--- Knopf → Befehl an Systems/Debug
+-- Button -> command to Systems/Debug
 local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "+10k Gold", command = "gold", value = 10000 },
 	{ label = "Level 10", command = "level", value = 10 },
 	{ label = "Level 50", command = "level", value = 50 },
-	{ label = "+100 Material", command = "materials", value = 100 },
-	{ label = "+500 Seelensterne", command = "soulstars", value = 500 },
-	{ label = "+10 Tränke", command = "potions", value = 10 },
-	{ label = "+5 Skill-Stufen", command = "skills", value = 5 },
+	{ label = "+100 Materials", command = "materials", value = 100 },
+	{ label = "+500 Soulstars", command = "soulstars", value = 500 },
+	{ label = "+5 Skill Levels", command = "skills", value = 5 },
 	{ label = "+10 Items", command = "items", value = 10 },
-	{ label = "Gebiete frei", command = "atlas" },
-	{ label = "Alle Gegner tot", command = "slay" },
+	{ label = "Unlock Areas", command = "atlas" },
+	{ label = "Kill All Enemies", command = "slay" },
 }
 
 local function toggle()
@@ -58,7 +57,7 @@ local function render(fps: number)
 	end
 	local report = workspace:GetAttribute("LastReport")
 	text.Text = string.format(
-		"Client  %d FPS · Ping %d ms · %d MB · %s Instanzen\nServer  Frame Ø %s / max %s ms · %s kbps · %s Gegner\nLetzter Lauf: %s",
+		"Client  %d FPS · Ping %d ms · %d MB · %s Instances\nServer  Frame avg %s / max %s ms · %s kbps · %s Enemies\nLast run: %s",
 		fps,
 		math.floor(player:GetNetworkPing() * 1000 + 0.5),
 		math.floor(Stats:GetTotalMemoryUsageMb() + 0.5),
@@ -77,7 +76,7 @@ function DebugController.init()
 	end
 	local gui, root = Kit.scaledGui("LootRushDebug", 10)
 
-	-- Feste Größen statt AutomaticSize: das Panel wächst vom Dbg-Knopf nach oben und bleibt im Bild
+	-- Fixed sizes instead of AutomaticSize: the panel grows upward from the Dbg button and stays on screen
 	local W, PAD, TEXT_H, GAP, COLS, CELL_W = 560, 10, 54, 8, 3, 174
 	panel = Kit.panel(Vector2.new(W, 0), Theme.Color.Line2)
 	panel.AnchorPoint = Vector2.new(0, 1)
@@ -95,7 +94,7 @@ function DebugController.init()
 	text.Parent = panel
 
 	tools = Instance.new("Frame")
-	tools.Name = "Befehle"
+	tools.Name = "Commands"
 	tools.BackgroundTransparency = 1
 	tools.Position = UDim2.fromOffset(0, TEXT_H + GAP)
 	local grid = Instance.new("UIGridLayout")
@@ -114,7 +113,7 @@ function DebugController.init()
 	end
 	tools.Parent = panel
 
-	-- Raster bestimmt die Knopfgröße (Kit.touchTarget greift hier nicht): auf Touch ≥ 33 px nach HUD-Skalierung
+	-- The grid determines the button size (Kit.touchTarget does not apply here): on touch >= 33 px after HUD scaling
 	local function relayout()
 		local cellH = if UserInputService.TouchEnabled then 60 else 36
 		local rows = math.ceil(#COMMANDS / COLS)

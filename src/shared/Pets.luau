@@ -1,12 +1,12 @@
 --!strict
--- Haustiere: Katalog, Eier und Regeln (rein, für Server und UI).
---   • Haustiere schlüpfen aus Eiern (Gold oder Seelensterne) und geben Dauer-Boni, solange sie
---     ausgerüstet sind (Systems/Boosts). Ausgerüstete Haustiere folgen dem Spieler (PetController).
---   • Doppelte heben die Stufe (max. MAX_LEVEL, Bonus × levelMult). Auf Höchststufe gibt es
---     stattdessen Kristallsplitter.
---   • Plätze: 1, mit Gamepass „Haustier-Platz“ 2 (Shared/Monetization).
--- Spielstand-Feld: profile.pets = { owned = { [id] = Stufe }, equipped = { id } }.
--- Werte sind eigene Annahmen, siehe docs/HAUSTIERE.md.
+-- Pets: catalog, eggs and rules (pure, for server and UI).
+--   • Pets hatch from eggs (gold or Soulstars) and give permanent bonuses while they are
+--     equipped (Systems/Boosts). Equipped pets follow the player (PetController).
+--   • Duplicates raise the level (max. MAX_LEVEL, bonus × levelMult). At max level they give
+--     Crystal Shards instead.
+--   • Slots: 1, 2 with the "Pet Slot" game pass (Shared/Monetization).
+-- Save field: profile.pets = { owned = { [id] = level }, equipped = { id } }.
+-- Values are own assumptions, see docs/PETS.md.
 
 local Pets = {}
 
@@ -14,10 +14,10 @@ export type Stat = "damage" | "life" | "gold" | "xp" | "items" | "magnet"
 export type Pet = {
 	id: string,
 	name: string,
-	rarity: string, -- normal | magic | rare | epic | legend (Rahmenfarbe wie Items)
+	rarity: string, -- normal | magic | rare | epic | legend (frame color like items)
 	text: string,
-	bonus: { [string]: number }, -- Stat → Prozent (magnet = Studs Aufheberadius)
-	look: string, -- Bauplan im PetController (Creatures.*) bis es ein Modell „Pet_<id>“ gibt
+	bonus: { [string]: number }, -- stat → percent (magnet = pickup radius in studs)
+	look: string, -- blueprint in PetController (Creatures.*) until there is a "Pet_<id>" model
 	color: Color3,
 	glow: Color3,
 }
@@ -25,101 +25,101 @@ export type Egg = {
 	id: string,
 	name: string,
 	text: string,
-	price: { kind: string, amount: number }, -- "gold" (wächst mit der Tiefe) oder "soulstars"
-	weights: { [string]: number }, -- Seltenheit → Gewicht
+	price: { kind: string, amount: number }, -- "gold" (grows with depth) or "soulstars"
+	weights: { [string]: number }, -- rarity → weight
 }
 export type Data = { owned: { [string]: number }, equipped: { string } }
 
 Pets.MAX_LEVEL = 5
 Pets.BASE_SLOTS = 1
 Pets.MAX_SLOTS = 2
-Pets.DUPE_SHARDS = 100 -- Kristallsplitter für ein Duplikat auf Höchststufe
+Pets.DUPE_SHARDS = 100 -- Crystal Shards for a duplicate at max level
 
 Pets.StatName = table.freeze({
-	damage = "Schaden %",
-	life = "Leben %",
+	damage = "Damage %",
+	life = "Life %",
 	gold = "Gold %",
-	xp = "Erfahrung %",
-	items = "Item-Chance %",
-	magnet = "Aufheberadius (Studs)",
+	xp = "XP %",
+	items = "Item Chance %",
+	magnet = "Pickup Radius (studs)",
 } :: { [string]: string })
 
 local LIST: { Pet } = {
 	{
-		id = "gluehwuermchen",
-		name = "Glühwürmchen",
+		id = "firefly",
+		name = "Firefly",
 		rarity = "normal",
-		text = "Leuchtet dir den Weg zu mehr Gold.",
+		text = "Lights your way to more gold.",
 		bonus = { gold = 10 },
 		look = "wisp",
 		color = Color3.fromHex("#FFF3B0"),
 		glow = Color3.fromHex("#FFD54A"),
 	},
 	{
-		id = "moosfrosch",
-		name = "Moosfrosch",
+		id = "moss_frog",
+		name = "Moss Frog",
 		rarity = "normal",
-		text = "Quakt bei jedem Sieg – du lernst schneller.",
+		text = "Croaks after every win - you learn faster.",
 		bonus = { xp = 10 },
 		look = "frog",
 		color = Color3.fromHex("#7FD96A"),
 		glow = Color3.fromHex("#C8F27A"),
 	},
 	{
-		id = "kristallkaefer",
-		name = "Kristallkäfer",
+		id = "crystal_beetle",
+		name = "Crystal Beetle",
 		rarity = "magic",
-		text = "Zieht Beute aus größerer Entfernung an.",
+		text = "Pulls in loot from farther away.",
 		bonus = { magnet = 6 },
 		look = "beetle",
 		color = Color3.fromHex("#4FD8F5"),
 		glow = Color3.fromHex("#B8F4FF"),
 	},
 	{
-		id = "pilzling",
-		name = "Pilzling",
+		id = "shroomling",
+		name = "Shroomling",
 		rarity = "magic",
-		text = "Zäher Begleiter, der dich zäher macht.",
+		text = "A tough companion that makes you tougher.",
 		bonus = { life = 10 },
 		look = "mushroom",
 		color = Color3.fromHex("#F2E3C9"),
 		glow = Color3.fromHex("#E86A9A"),
 	},
 	{
-		id = "funkenfuchs",
-		name = "Funkenfuchs",
+		id = "spark_fox",
+		name = "Spark Fox",
 		rarity = "rare",
-		text = "Seine Funken treffen härter.",
+		text = "Its sparks hit harder.",
 		bonus = { damage = 10 },
 		look = "imp",
 		color = Color3.fromHex("#FF8A3D"),
 		glow = Color3.fromHex("#FFD27A"),
 	},
 	{
-		id = "wolkenwal",
-		name = "Wolkenwal",
+		id = "cloud_whale",
+		name = "Cloud Whale",
 		rarity = "rare",
-		text = "Findet öfter Gegenstände.",
+		text = "Finds items more often.",
 		bonus = { items = 15 },
 		look = "wisp",
 		color = Color3.fromHex("#DDEBFF"),
 		glow = Color3.fromHex("#9CE5FF"),
 	},
 	{
-		id = "sternenkatze",
-		name = "Sternenkatze",
+		id = "star_cat",
+		name = "Star Cat",
 		rarity = "epic",
-		text = "Bringt Glück bei Gold und Erfahrung.",
+		text = "Brings luck with gold and XP.",
 		bonus = { gold = 15, xp = 15 },
 		look = "lantern",
 		color = Color3.fromHex("#B57BFF"),
 		glow = Color3.fromHex("#E7D2FF"),
 	},
 	{
-		id = "runendrache",
-		name = "Runendrache",
+		id = "rune_dragon",
+		name = "Rune Dragon",
 		rarity = "legend",
-		text = "Uralt und mächtig: mehr Schaden und mehr Beute.",
+		text = "Ancient and mighty: more damage and more loot.",
 		bonus = { damage = 15, items = 10 },
 		look = "imp",
 		color = Color3.fromHex("#FFB23F"),
@@ -129,28 +129,39 @@ local LIST: { Pet } = {
 
 local EGGS: { Egg } = {
 	{
-		id = "wiesen_ei",
-		name = "Wiesen-Ei",
-		text = "Meist gewöhnliche Begleiter, selten etwas Besonderes.",
+		id = "meadow_egg",
+		name = "Meadow Egg",
+		text = "Mostly common companions, rarely something special.",
 		price = { kind = "gold", amount = 600 },
 		weights = { normal = 60, magic = 28, rare = 10, epic = 2 },
 	},
 	{
-		id = "sternen_ei",
-		name = "Sternen-Ei",
-		text = "Bessere Chancen – sogar auf den Runendrachen.",
+		id = "star_egg",
+		name = "Star Egg",
+		text = "Better odds - even for the Rune Dragon.",
 		price = { kind = "soulstars", amount = 75 },
 		weights = { normal = 20, magic = 40, rare = 28, epic = 10, legend = 2 },
 	},
 }
 
+-- Fixed order so equal random numbers roll the same (also the display order).
+-- odds and roll only walk this list: a weight key missing here would silently never roll,
+-- so the module checks at load time that every egg only uses these keys.
+local RARITY_ORDER = table.freeze({ "normal", "magic", "rare", "epic", "legend" })
+Pets.RarityOrder = RARITY_ORDER
+
 local byId: { [string]: Pet } = {}
 for _, p in LIST do
+	assert(table.find(RARITY_ORDER, p.rarity), `pet {p.id}: unknown rarity {p.rarity}`)
 	table.freeze(p.bonus)
 	byId[p.id] = table.freeze(p)
 end
 local eggById: { [string]: Egg } = {}
 for _, e in EGGS do
+	for r, w in e.weights do
+		assert(table.find(RARITY_ORDER, r), `egg {e.id}: weight key {r} missing from RARITY_ORDER`)
+		assert(w >= 0, `egg {e.id}: negative weight for {r}`)
+	end
 	table.freeze(e.price)
 	table.freeze(e.weights)
 	eggById[e.id] = table.freeze(e)
@@ -165,16 +176,36 @@ function Pets.fresh(): Data
 	return { owned = {}, equipped = {} }
 end
 
--- Gespeicherte Rohdaten säubern (unbekannte Haustiere fliegen raus)
+-- Clean up saved raw data. Unknown pets (from a newer server) stay owned, otherwise they
+-- would be gone forever after visiting an old server. They never count anywhere (bonuses,
+-- display and equipping check Pets.ById); only known pets stay equipped. Capped at
+-- MAX_UNKNOWN entries so junk cannot bloat the save.
+Pets.MAX_UNKNOWN = 100
+Pets.MAX_ID_LEN = 64
+
 function Pets.reconcile(raw: any): Data
 	local data = Pets.fresh()
 	if typeof(raw) ~= "table" then
 		return data
 	end
 	if typeof(raw.owned) == "table" then
+		local unknown = 0
 		for id, lvl in raw.owned do
-			if typeof(id) == "string" and byId[id] and typeof(lvl) == "number" and lvl == lvl then
-				data.owned[id] = math.clamp(math.floor(lvl), 1, Pets.MAX_LEVEL)
+			if
+				typeof(id) == "string"
+				and #id > 0
+				and #id <= Pets.MAX_ID_LEN
+				and typeof(lvl) == "number"
+				and lvl == lvl
+			then
+				local keep = byId[id] ~= nil
+				if not keep and unknown < Pets.MAX_UNKNOWN then
+					unknown += 1
+					keep = true
+				end
+				if keep then
+					data.owned[id] = math.clamp(math.floor(lvl), 1, Pets.MAX_LEVEL)
+				end
 			end
 		end
 	end
@@ -182,6 +213,7 @@ function Pets.reconcile(raw: any): Data
 		for _, id in raw.equipped do
 			if
 				typeof(id) == "string"
+				and byId[id]
 				and data.owned[id]
 				and not table.find(data.equipped, id)
 				and #data.equipped < Pets.MAX_SLOTS
@@ -193,12 +225,23 @@ function Pets.reconcile(raw: any): Data
 	return data
 end
 
--- Bonus-Faktor je Stufe: 1, 1,5, 2, 2,5, 3
+-- Only the pets this server knows (for display/payload; unknown ones stay saved)
+function Pets.knownOwned(data: Data): { [string]: number }
+	local out: { [string]: number } = {}
+	for id, lvl in data.owned do
+		if byId[id] then
+			out[id] = lvl
+		end
+	end
+	return out
+end
+
+-- Bonus factor per level: 1, 1.5, 2, 2.5, 3
 function Pets.levelMult(level: number): number
 	return 1 + 0.5 * (math.clamp(level, 1, Pets.MAX_LEVEL) - 1)
 end
 
--- Bonus eines Haustiers auf seiner Stufe
+-- Bonus of a pet at its level
 function Pets.bonusOf(id: string, level: number): { [string]: number }
 	local pet = byId[id]
 	local out: { [string]: number } = {}
@@ -210,11 +253,16 @@ function Pets.bonusOf(id: string, level: number): { [string]: number }
 	return out
 end
 
--- Summe der ausgerüsteten Haustiere (höchstens `slots`)
+-- Sum of the equipped pets (at most `slots`, unknown ones take no slot)
 function Pets.total(data: Data, slots: number): { [string]: number }
 	local sum: { [string]: number } = {}
-	for i, id in data.equipped do
-		if i > slots then
+	local used = 0
+	for _, id in data.equipped do
+		if not byId[id] then
+			continue
+		end
+		used += 1
+		if used > slots then
 			break
 		end
 		for stat, v in Pets.bonusOf(id, data.owned[id] or 1) do
@@ -224,16 +272,39 @@ function Pets.total(data: Data, slots: number): { [string]: number }
 	return sum
 end
 
--- Würfelt die Seltenheit aus den Ei-Gewichten und dann ein Haustier dieser Seltenheit
-function Pets.roll(egg: Egg, rng: Random): Pet
+local function weightTotal(egg: Egg): number
 	local total = 0
 	for _, w in egg.weights do
 		total += w
 	end
-	local pick = rng:NextNumber() * total
+	return total
+end
+
+export type Odd = { rarity: string, percent: number }
+
+-- Odds of an egg in percent (required for paid random items). Comes from the same
+-- `weights` Pets.roll rolls with. Only rarities with weight > 0, in RARITY_ORDER.
+-- Percent unrounded (sum 100); the display rounds itself.
+function Pets.odds(egg: Egg): { Odd }
+	local total = weightTotal(egg)
+	local out: { Odd } = {}
+	if total <= 0 then
+		return out
+	end
+	for _, r in RARITY_ORDER do
+		local w = egg.weights[r] or 0
+		if w > 0 then
+			table.insert(out, { rarity = r, percent = w / total * 100 })
+		end
+	end
+	return out
+end
+
+-- Rolls the rarity from the egg weights, then a pet of that rarity
+function Pets.roll(egg: Egg, rng: Random): Pet
+	local pick = rng:NextNumber() * weightTotal(egg)
 	local rarity = "normal"
-	-- feste Reihenfolge, damit gleiche Zufallszahlen gleich würfeln
-	for _, r in { "normal", "magic", "rare", "epic", "legend" } do
+	for _, r in RARITY_ORDER do
 		local w = egg.weights[r] or 0
 		if w > 0 then
 			rarity = r
@@ -252,7 +323,7 @@ function Pets.roll(egg: Egg, rng: Random): Pet
 	return pool[rng:NextInteger(1, #pool)]
 end
 
--- Ergebnis, wenn `pet` schlüpft: neue Stufe, oder Splitter bei Höchststufe
+-- Result when `pet` hatches: new level, or shards at max level
 function Pets.hatchResult(data: Data, id: string): (number, number)
 	local level = data.owned[id]
 	if not level then

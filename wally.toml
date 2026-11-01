@@ -9,4 +9,4 @@ realm = "shared"
 # Trove = "sleitnick/trove@1"
 
 [server-dependencies]
-# ProfileStore = "loleris/profilestore@1"   # ab Meilenstein 3 (Speichern)
+# ProfileStore = "loleris/profilestore@1"   # from milestone 3 (saving)

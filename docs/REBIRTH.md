@@ -1,21 +1,21 @@
-# Wiedergeburt (Rebirth)
+# Rebirth
 
-Freiwillig, nie erzwungen. Ohne Wiedergeburt wird es ab Tiefe 20 spürbar zäher (weiche Wand,
-`docs/balancing.md`); mit Wiedergeburt kommt man schneller und tiefer.
+Voluntary, never forced. Without rebirth it gets noticeably tougher from depth 20 (soft wall,
+`docs/balancing.md`); with rebirth you get faster and deeper.
 
 | | |
 |---|---|
-| Bedingung | beste Tiefe (über alle Gebiete) ≥ 20 + 5 × bisherige Wiedergeburten |
-| Zurückgesetzt | Level, XP, Gold, Atlas-Fortschritt (Gebiete wieder ab Grüne Ebenen), Sternennetz (Sternpunkte kommen aus dem Level) |
-| Bleibt | Ausrüstung, Inventar, Material, Skill-Stufen und Blüten, Tränke, Seelensterne, Haustiere |
-| Belohnung je Wiedergeburt | +25 % Schaden, +10 % Leben, +20 % Gold, +20 % XP (addiert sich) |
-| Weiche Wand | beginnt je Wiedergeburt 5 Tiefen später |
-| Einmalig | 25 + 25 × n Seelensterne für die n-te Wiedergeburt |
-| Obergrenze | 50 Wiedergeburten |
+| Condition | best depth (across all regions) ≥ 20 + 5 × previous rebirths |
+| Reset | level, XP, gold, Atlas progress (regions again from Green Plains), Star Web (star points come from the level) |
+| Kept | equipment, inventory, material, skill levels and blooms, soulstars, pets |
+| Reward per rebirth | +25 % damage, +10 % health, +20 % gold, +20 % XP (stacks) |
+| Soft wall | starts 5 depths later per rebirth |
+| One-time | 25 + 25 × n soulstars for the n-th rebirth |
+| Cap | 50 rebirths |
 
-Alle Werte sind eigene Annahmen und stehen in `src/shared/Rebirth.luau`.
-Gedanke: Die behaltene Ausrüstung trägt den Spieler schnell durch die ersten Tiefen zurück,
-die Boni bringen ihn danach über die alte Wand hinaus.
+All values are our own assumptions and live in `src/shared/Rebirth.luau`.
+Idea: the kept equipment carries the player quickly back through the first depths,
+the bonuses then take them beyond the old wall.
 
-Technik: Regeln `Shared/Rebirth`, Server `Systems/Rebirth`, Boni über `Systems/Boosts`.
-Schnittstelle fürs UI: `docs/UI-SCHNITTSTELLEN.md`.
+Tech: rules `Shared/Rebirth`, server `Systems/Rebirth`, bonuses via `Systems/Boosts`.
+Interface for the UI: `docs/UI-INTERFACES.md`.

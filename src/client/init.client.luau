@@ -1,5 +1,5 @@
 --!strict
--- Loot Rush – Client-Einstiegspunkt. Zwei Phasen wie auf dem Server.
+-- Loot Rush – client entry point. Two phases, like on the server.
 
 local Controllers = script:FindFirstChild("Controllers")
 
@@ -24,4 +24,4 @@ for _, controller in loaded do
 	end
 end
 
-print("[LootRush] Client gestartet")
+print("[LootRush] Client started")

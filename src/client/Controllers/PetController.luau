@@ -1,9 +1,9 @@
 --!strict
--- Lässt ausgerüstete Haustiere aller Spieler hinter ihnen herschweben (nur Optik, rein lokal).
--- Welche Haustiere jemand trägt, steht im Player-Attribut "Pets" (kommagetrennt, Systems/Pets).
--- Modell: ReplicatedStorage.Assets.Pet_<id>, wenn Micha eins importiert hat, sonst ein kleiner
--- Platzhalter aus Shared/Models/Creatures (Bauplan Pets.look).
--- Für das Haustier-Fenster: PetController.state (letzter Net.Pets-Stand) und PetController.Changed.
+-- Makes every player's equipped pets float behind them (visuals only, purely local).
+-- Which pets someone carries is stored in the player attribute "Pets" (comma-separated, Systems/Pets).
+-- Model: ReplicatedStorage.Assets.Pet_<id> if Micha imported one, otherwise a small
+-- placeholder from Shared/Models/Creatures (blueprint Pets.look).
+-- For the pet window: PetController.state (latest Net.Pets state) and PetController.Changed.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,14 +14,14 @@ local Pets = require(ReplicatedStorage.Shared.Pets)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 
 local PetController = {
-	-- letzter Stand vom Server: { owned = { [id] = Stufe }, equipped = { id }, slots = number }
+	-- latest state from the server: { owned = { [id] = level }, equipped = { id }, slots = number }
 	state = { owned = {}, equipped = {}, slots = 1 } :: { [string]: any },
-	-- feuert nach jedem neuen Stand (Net.Pets)
+	-- fires after every new state (Net.Pets)
 	Changed = Instance.new("BindableEvent"),
 }
 
 local SCALE = 0.45
-local FOLLOW = 8 -- höher = enger hinterher
+local FOLLOW = 8 -- higher = follows more tightly
 local OFFSETS = { Vector3.new(3, 2.5, 3.5), Vector3.new(-3, 2.5, 3.5) }
 
 type Follower = { id: string, model: Model, cf: CFrame }
@@ -81,7 +81,7 @@ local function refresh(player: Player)
 		end
 		local model = build(id)
 		if model then
-			model.Name = "Haustier_" .. id
+			model.Name = "Companion_" .. id
 			model.Parent = folder
 			table.insert(list, { id = id, model = model, cf = model:GetPivot() })
 		end
@@ -107,7 +107,7 @@ local function step(dt: number)
 		for i, f in list do
 			local bob = math.sin(t * 3 + i) * 0.4
 			local target = root.CFrame * CFrame.new(OFFSETS[i] + Vector3.new(0, bob, 0))
-			-- nicht durch Teleporte (Hub ↔ Rift) schweben
+			-- don't glide across teleports (Hub <-> Rift)
 			if (f.cf.Position - target.Position).Magnitude > 60 then
 				f.cf = target
 			else
@@ -120,7 +120,7 @@ end
 
 function PetController.init()
 	folder = Instance.new("Folder")
-	folder.Name = "Haustiere"
+	folder.Name = "Pets"
 	folder.Parent = workspace
 	Net.Pets.OnClientEvent:Connect(function(data: any)
 		if typeof(data) == "table" then

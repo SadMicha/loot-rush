@@ -1,8 +1,8 @@
 --!strict
--- Atlas-Fenster nach Mockup „Atlas“ (Taste M oder Menü-Button):
---   links die Karte mit Gebieten und Pfaden, rechts Steckbrief des gewählten Gebiets und „Reisen“.
--- Reisen startet das Rift des Gebiets (Net.Rift „enter“, Gebiet). Ob ein Gebiet offen ist, folgt aus
--- den Bestleistungen, die der Server als Attribute AtlasBest_<Gebiet> setzt (Regel in Shared/Atlas).
+-- Atlas window after the "Atlas" mockup (key M or menu button):
+--   the map with areas and paths on the left, profile of the selected area and "Travel" on the right.
+-- Traveling starts the area's Rift (Net.Rift "enter", area). Whether an area is open follows from
+-- the personal bests that the server sets as attributes AtlasBest_<area> (rule in Shared/Atlas).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,9 +19,9 @@ local AtlasController = {}
 local C = Theme.Color
 local PAD = 28
 local SIDE_W = 440
-local LABEL = Vector2.new(230, 98) -- Seitenverhältnis wie plaque_region
+local LABEL = Vector2.new(230, 98) -- aspect ratio like plaque_region
 local DOT_GAP = 18
-local MARK_Y = 22 -- Raute/Schloss sitzt so weit unter dem Schild
+local MARK_Y = 22 -- diamond/lock sits this far below the plate
 
 local win: Window.Window
 local map: Frame
@@ -54,8 +54,8 @@ local function wrapLabel(text: string, size: number, color: Color3, width: numbe
 	return t
 end
 
--- ------------------------------------------------------------------ Karte
--- Liegt der Punkt auf einem Namensschild oder einer Markierung? Dort keine Pfad-Punkte.
+-- ------------------------------------------------------------------ Map
+-- Is the point on a name plate or a marker? No path dots there.
 local function covered(p: Vector2): boolean
 	for _, r in Atlas.Regions do
 		local dx, dy = math.abs(p.X - r.pos.X), r.pos.Y - p.Y
@@ -69,7 +69,7 @@ local function covered(p: Vector2): boolean
 	return false
 end
 
--- Gepunkteter Pfad von Markierung zu Markierung
+-- Dotted path from marker to marker
 local function path(a: Atlas.Region, b: Atlas.Region)
 	local from = a.pos + Vector2.new(0, MARK_Y)
 	local d = b.pos - a.pos
@@ -81,7 +81,7 @@ local function path(a: Atlas.Region, b: Atlas.Region)
 			continue
 		end
 		local dot = Instance.new("Frame")
-		dot.Name = "Pfad"
+		dot.Name = "Path"
 		dot.AnchorPoint = Vector2.new(0.5, 0.5)
 		dot.Position = UDim2.fromOffset(p.X, p.Y)
 		dot.Size = UDim2.fromOffset(6, 6)
@@ -114,7 +114,7 @@ local function renderMap()
 			island.Parent = map
 		end
 
-		-- Namensschild
+		-- Name plate
 		local plate = Instance.new("ImageButton")
 		plate.Name = r.id
 		plate.AutoButtonColor = false
@@ -122,7 +122,7 @@ local function renderMap()
 		plate.Position = UDim2.fromOffset(r.pos.X, r.pos.Y)
 		plate.Size = UDim2.fromOffset(LABEL.X, LABEL.Y)
 		plate.ZIndex = 2
-		-- Ersatz-Schild aus Code, bis das Bild geladen ist
+		-- Fallback plate built in code until the image has loaded
 		plate.BackgroundColor3 = C.Bg1
 		plate.BackgroundTransparency = 0.1
 		Kit.corner(plate, LABEL.Y // 2)
@@ -146,7 +146,7 @@ local function renderMap()
 		name.Position = UDim2.new(0.5, 0, 0, 20)
 		name.ZIndex = 3
 		name.Parent = plate
-		local lv = Kit.label("Stufe " .. r.levels, 14, C.Muted, Theme.Font.Body)
+		local lv = Kit.label("Level " .. r.levels, 14, C.Muted, Theme.Font.Body)
 		lv.AnchorPoint = Vector2.new(0.5, 1)
 		lv.Position = UDim2.new(0.5, 0, 1, -22)
 		lv.ZIndex = 3
@@ -157,7 +157,7 @@ local function renderMap()
 		end)
 		plate.Parent = map
 
-		-- Raute oder Schloss unter dem Schild
+		-- Diamond or lock below the plate
 		local mark: GuiObject
 		if isOpen(r) then
 			local diamond = Instance.new("Frame")
@@ -168,7 +168,7 @@ local function renderMap()
 			Kit.stroke(diamond, if on then C.GoldHi else r.color, 3)
 			mark = diamond
 		else
-			mark = Kit.icon("schloss", 34)
+			mark = Kit.icon("lock", 34)
 		end
 		mark.AnchorPoint = Vector2.new(0.5, 0.5)
 		mark.Position = UDim2.fromOffset(r.pos.X, r.pos.Y + MARK_Y)
@@ -177,7 +177,7 @@ local function renderMap()
 	end
 end
 
--- ------------------------------------------------------------------ Steckbrief
+-- ------------------------------------------------------------------ Profile
 local function infoTile(iconName: string, text: string, width: number, order: number): Frame
 	local f = Window.frame(UDim2.fromOffset(width, 56))
 	f.LayoutOrder = order
@@ -189,7 +189,7 @@ local function infoTile(iconName: string, text: string, width: number, order: nu
 	ic.Parent = f
 	local t = Kit.label(text, 16, C.Text)
 	t.AutomaticSize = Enum.AutomaticSize.None
-	t.Size = UDim2.new(1, -60, 1, -8) -- in der Kapsel bleiben, notfalls zweizeilig
+	t.Size = UDim2.new(1, -60, 1, -8) -- stay inside the capsule, two lines if necessary
 	t.TextWrapped = true
 	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.AnchorPoint = Vector2.new(0, 0.5)
@@ -212,9 +212,9 @@ local function renderSide()
 	local r = Atlas.ById[selected]
 	local w = SIDE_W - 2 * PAD
 
-	-- Vorschaubild; darunter immer der Ersatz (Gebietsfarbe + Boss), falls das Bild nicht lädt
+	-- Preview image; the fallback (area color + boss) always sits underneath in case the image fails to load
 	local ph = Window.frame(UDim2.fromOffset(w, 200), UDim2.fromOffset(PAD, PAD))
-	ph.Name = "Vorschau"
+	ph.Name = "Preview"
 	ph.BackgroundTransparency = 0.8
 	ph.BackgroundColor3 = r.color
 	Kit.corner(ph, Theme.Radius.M)
@@ -239,8 +239,8 @@ local function renderSide()
 	local top = row(PAD + 262, w)
 	local record = best(r.id)
 	local depthText = if record > 0
-		then string.format("Rekord: Tiefe %d", record)
-		else string.format("Ab Tiefe %d", r.depth)
+		then string.format("Best: Depth %d", record)
+		else string.format("From Depth %d", r.depth)
 	infoTile("portal", depthText, half, 1).Parent = top
 	infoTile(r.bossIcon, r.boss, half, 2).Parent = top
 	local mods = row(PAD + 328, w)
@@ -252,7 +252,7 @@ local function renderSide()
 	desc.Position = UDim2.fromOffset(PAD, PAD + 398)
 	desc.Parent = side
 
-	local rewardHead = Window.heading("Mögliche Belohnungen", 16, C.Text)
+	local rewardHead = Window.heading("Possible Rewards", 16, C.Text)
 	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 490)
 	rewardHead.Parent = side
 	local rewards = row(PAD + 524, w)
@@ -267,10 +267,10 @@ local function renderSide()
 	local inRift = RiftController.active()
 	local open = isOpen(r)
 	local text = if not open
-		then string.format("Erst Tiefe %d schaffen", r.depth - 1)
-		elseif inRift then "Schon im Rift"
-		else "Reisen"
-	local go = Kit.button(text, C.Gold, Vector2.new(w, 64), if open then "portal" else "schloss")
+		then string.format("Clear Depth %d first", r.depth - 1)
+		elseif inRift then "Already in Rift"
+		else "Travel"
+	local go = Kit.button(text, C.Gold, Vector2.new(w, 64), if open then "portal" else "lock")
 	Kit.buttonLabel(go).TextSize = Kit.fontSize(24)
 	go.AnchorPoint = Vector2.new(0, 1)
 	go.Position = UDim2.new(0, PAD, 1, -PAD)
@@ -285,7 +285,7 @@ local function renderSide()
 	go.Parent = side
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function AtlasController.render()
 	renderMap()
 	renderSide()

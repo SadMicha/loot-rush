@@ -1,44 +1,45 @@
 --!strict
--- Spielwerte aus LootRush_Balancing.xlsx (Blatt „Parameter“), Namen wie in der Tabelle.
--- Ändert sich die Tabelle, hier nachziehen; tests/Balancing.spec.luau rechnet Tiefe 1–30 durch.
--- Abweichungen und eigene Annahmen stehen in docs/balancing.md.
+-- Game values from LootRush_Balancing.xlsx (sheet "Parameter"); keys are English versions of
+-- the table names.
+-- If the table changes, update here; tests/Balancing.spec.luau works through depths 1–30.
+-- Deviations and own assumptions are in docs/balancing.md.
 
 local Balance = {}
 
 Balance.P = table.freeze({
-	-- Gegner (normaler Gegner, Archetyp-Faktor 1)
-	hp_basis = 40,
-	hp_wachstum = 1.18,
-	dmg_basis = 6,
-	dmg_wachstum = 1.12,
+	-- Enemies (normal enemy, archetype factor 1)
+	hp_base = 40,
+	hp_growth = 1.18,
+	dmg_base = 6,
+	dmg_growth = 1.12,
 	boss_hp = 40,
-	-- Weiche Wand (eigene Annahme, Michas Vorgabe): ab dieser Tiefe wächst das Gegner-Leben schneller.
-	-- Ohne Wiedergeburt bleibt es schaffbar, braucht aber Farmen, Schmiede und Sterne.
-	wand_ab = 20,
-	wand_wachstum = 1.1,
-	-- Belohnung
-	gold_basis = 2,
-	gold_wachstum = 1.13,
-	xp_basis = 15,
-	xp_wachstum = 1.16,
-	boss_beute = 25,
-	-- Spieler
-	xp_level_basis = 100,
+	-- Soft wall (own assumption, Micha's spec): from this depth on, enemy life grows faster.
+	-- Without Rebirth it stays doable, but needs farming, the Forge and stars.
+	wall_from = 20,
+	wall_growth = 1.1,
+	-- Rewards
+	gold_base = 2,
+	gold_growth = 1.13,
+	xp_base = 15,
+	xp_growth = 1.16,
+	boss_loot = 25,
+	-- Player
+	xp_level_base = 100,
 	xp_level_exp = 1.6,
 	level_max = 100,
-	leben_basis = 100,
-	leben_pro_level = 12,
-	waffe_basis = 12,
-	waffe_wachstum = 1.155,
+	life_base = 100,
+	life_per_level = 12,
+	weapon_base = 12,
+	weapon_growth = 1.155,
 	-- Loot
 	drop_normal = 0.12,
 	drops_boss = 3,
-	loot_tiefe = 50,
-	ip_pro_tiefe = 10,
+	loot_depth = 50,
+	ip_per_depth = 10,
 })
 
--- Seltenheits-Gewichte auf Tiefe 1 und Exponent der Verschiebung (Blatt „Loot“).
--- Einzigartig/Legendär (0,45 / 0,05) gibt es im Spiel noch nicht.
+-- Rarity weights at depth 1 and exponent of the shift (sheet "Loot").
+-- Unique/Legendary (0.45 / 0.05) do not exist in the game yet.
 Balance.Rarity = table.freeze({
 	{ id = "normal", weight = 60, exp = 0 },
 	{ id = "magic", weight = 28, exp = 0.5 },
@@ -46,7 +47,7 @@ Balance.Rarity = table.freeze({
 	{ id = "epic", weight = 2, exp = 1.5 },
 })
 
--- IP-Bonus je Seltenheit (Blatt „Loot · Affixe & Verwerten“)
+-- IP bonus per rarity (sheet "Loot · Affixes & Salvage")
 Balance.IpBonus =
 	table.freeze({ normal = 0, magic = 5, rare = 10, epic = 20 } :: { [string]: number })
 
@@ -56,61 +57,61 @@ local function steps(depth: number): number
 	return math.max(0, math.floor(depth) - 1)
 end
 
--- Je Tiefe (normaler Gegner, vor Archetyp- und Boss-Faktor).
--- wallShift: so viele Tiefen liegt die weiche Wand weiter hinten (Wiedergeburten, Shared/Rebirth)
+-- Per depth (normal enemy, before archetype and boss factor).
+-- wallShift: the soft wall sits this many depths further back (Rebirths, Shared/Rebirth)
 function Balance.enemyHealth(depth: number, wallShift: number?): number
-	local wall = math.max(0, math.floor(depth) - P.wand_ab - (wallShift or 0))
-	return P.hp_basis * P.hp_wachstum ^ steps(depth) * P.wand_wachstum ^ wall
+	local wall = math.max(0, math.floor(depth) - P.wall_from - (wallShift or 0))
+	return P.hp_base * P.hp_growth ^ steps(depth) * P.wall_growth ^ wall
 end
 
 function Balance.enemyDamage(depth: number): number
-	return P.dmg_basis * P.dmg_wachstum ^ steps(depth)
+	return P.dmg_base * P.dmg_growth ^ steps(depth)
 end
 
 function Balance.gold(depth: number): number
-	return P.gold_basis * P.gold_wachstum ^ steps(depth)
+	return P.gold_base * P.gold_growth ^ steps(depth)
 end
 
 function Balance.xp(depth: number): number
-	return P.xp_basis * P.xp_wachstum ^ steps(depth)
+	return P.xp_base * P.xp_growth ^ steps(depth)
 end
 
--- Item-Power der Beute auf dieser Tiefe (Gegenstandsstufe = IP / 10)
+-- Item power of loot at this depth (item level = IP / 10)
 function Balance.itemPower(depth: number): number
-	return math.max(1, math.floor(depth)) * P.ip_pro_tiefe
+	return math.max(1, math.floor(depth)) * P.ip_per_depth
 end
 
--- Spieler: XP von Level L auf L + 1 und Grundleben
+-- Player: XP from level L to L + 1 and base life
 function Balance.xpForLevel(level: number): number
-	return math.floor(P.xp_level_basis * level ^ P.xp_level_exp)
+	return math.floor(P.xp_level_base * level ^ P.xp_level_exp)
 end
 
 function Balance.life(level: number): number
-	return P.leben_basis + (level - 1) * P.leben_pro_level
+	return P.life_base + (level - 1) * P.life_per_level
 end
 
--- Waffen-Grundschaden bei dieser Item-Power (12 bei IP 10, ×1,155 je 10 IP)
+-- Weapon base damage at this item power (12 at IP 10, ×1.155 per 10 IP)
 function Balance.weaponDamage(ip: number): number
-	return P.waffe_basis * P.waffe_wachstum ^ (math.max(10, ip) / 10 - 1)
+	return P.weapon_base * P.weapon_growth ^ (math.max(10, ip) / 10 - 1)
 end
 
--- Faktor auf allen Spieler-Schaden: Waffen-Grundschaden relativ zu IP 10
+-- Factor on all player damage: weapon base damage relative to IP 10
 function Balance.weaponFactor(ip: number): number
-	return Balance.weaponDamage(ip) / P.waffe_basis
+	return Balance.weaponDamage(ip) / P.weapon_base
 end
 
--- Preisfaktor im Shop: Goldpreise (und Goldpakete) wachsen wie das Kill-Gold mit der besten
--- geschafften Tiefe, damit Gold nicht wertlos wird (eigene Annahme, docs/balancing.md)
+-- Shop price factor: gold prices (and gold packs) grow like kill gold with the best
+-- depth cleared, so gold does not become worthless (own assumption, docs/balancing.md)
 function Balance.shopFactor(bestDepth: number): number
-	return P.gold_wachstum ^ steps(math.max(1, bestDepth))
+	return P.gold_growth ^ steps(math.max(1, bestDepth))
 end
 
--- Verschiebung der Seltenheit: 1 + Tiefe / loot_tiefe
+-- Rarity shift: 1 + depth / loot_depth
 function Balance.rarityShift(depth: number): number
-	return 1 + math.max(1, math.floor(depth)) / P.loot_tiefe
+	return 1 + math.max(1, math.floor(depth)) / P.loot_depth
 end
 
--- Wahrscheinlichkeiten je Seltenheit auf dieser Verschiebung (Summe 1)
+-- Probabilities per rarity at this shift (sum 1)
 function Balance.rarityOdds(shift: number): { [string]: number }
 	local out: { [string]: number } = {}
 	local total = 0

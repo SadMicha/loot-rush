@@ -1,8 +1,8 @@
 --!strict
--- Shop-Fenster (Taste P oder das + an den Kapseln oben): links Reiter und Bestand, rechts die Angebote
--- des Reiters als Karten mit Kauf-Knopf. Regeln und Katalog liegen in Shared.Shop; gekauft wird auf dem
--- Server (Systems/Shop) über Net.Buy, die Rückmeldung kommt über Net.ShopResult.
--- Robux-Angebote öffnen den Roblox-Kaufdialog, sobald in Shared.Shop.Products echte IDs stehen.
+-- Shop window (key P or the + on the capsules at the top): tabs and holdings on the left, the tab's
+-- offers as cards with a buy button on the right. Rules and catalog live in Shared.Shop; purchases happen on
+-- the server (Systems/Shop) via Net.Buy, feedback arrives via Net.ShopResult.
+-- Robux offers open the Roblox purchase dialog as soon as Shared.Shop.Products contains real IDs.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -25,7 +25,7 @@ local GAP = 24
 local TAB_H = 64
 local CARD_GAP = 20
 local CARD_H = 520
-local ART = 150 -- Bild/Slot oben in der Karte
+local ART = 150 -- image/slot at the top of the card
 
 local win: Window.Window
 local left: Frame
@@ -34,16 +34,15 @@ local right: Frame
 local tab = Shop.Tabs[1].id
 local lastResult: { ok: boolean, text: string }? = nil
 
--- Bestand aus Player-Attributen (Server setzt sie: Inventory, Progress, Shop)
+-- Holdings from player attributes (set by the server: Inventory, Progress, Shop)
 local ATTR: { [string]: string } = {
 	gold = "Gold",
 	soulstars = "Soulstars",
-	potions = "Potions",
 	candy = "Candy",
 	shards = "Shards",
 	dust = "Dust",
 }
-local WALLET_ORDER = { "gold", "soulstars", "potions", "shards", "candy", "dust" }
+local WALLET_ORDER = { "gold", "soulstars", "shards", "candy", "dust" }
 
 local function wallet(): Shop.Wallet
 	local w: Shop.Wallet = {}
@@ -71,7 +70,7 @@ local function wrapLabel(text: string, size: number, color: Color3, width: numbe
 	return t
 end
 
--- ------------------------------------------------------------------ Links: Reiter und Bestand
+-- ------------------------------------------------------------------ Left: tabs and holdings
 local function renderLeft(have: Shop.Wallet)
 	clear(left)
 	local w = LEFT_W - 2 * PAD
@@ -93,7 +92,7 @@ local function renderLeft(have: Shop.Wallet)
 	local divider = Kit.divider(w)
 	divider.Position = UDim2.fromOffset(PAD, top)
 	divider.Parent = left
-	local head = Window.heading("Dein Bestand", 18, C.Muted)
+	local head = Window.heading("Your Holdings", 18, C.Muted)
 	head.Position = UDim2.fromOffset(PAD, top + 24)
 	head.Parent = left
 
@@ -112,9 +111,7 @@ local function renderLeft(have: Shop.Wallet)
 		name.Position = UDim2.new(0, 44, 0.5, 0)
 		name.Parent = row
 		local n = have[kind :: Shop.Kind] or 0
-		local max = Shop.Max[kind]
-		local amount =
-			Kit.label(if max then string.format("%d / %d", n, max) else Format.int(n), 17, C.Text)
+		local amount = Kit.label(Format.int(n), 17, C.Text)
 		amount.AnchorPoint = Vector2.new(1, 0.5)
 		amount.Position = UDim2.fromScale(1, 0.5)
 		amount.Parent = row
@@ -123,8 +120,8 @@ local function renderLeft(have: Shop.Wallet)
 	rows.Parent = left
 end
 
--- ------------------------------------------------------------------ Rechts: Angebote
--- Beste Tiefe über alle Gebiete (Server-Attribut), bestimmt die Goldpreise
+-- ------------------------------------------------------------------ Right: offers
+-- Best depth across all areas (server attribute), determines the gold prices
 local function bestDepth(): number
 	local v = player:GetAttribute("BestDepth")
 	return if typeof(v) == "number" then v else 1
@@ -158,12 +155,12 @@ local function priceButton(offer: Shop.Offer, have: Shop.Wallet, w: number): (Im
 			MarketplaceService:PromptProductPurchase(player, product.id)
 		end
 	end)
-	return b, if product then nil else "Bald verfügbar"
+	return b, if product then nil else "Coming soon"
 end
 
 local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
 	local f = Window.frame(UDim2.fromOffset(w, CARD_H))
-	f.Name = "Angebot_" .. offer.id
+	f.Name = "Offer_" .. offer.id
 	Kit.skin(f, "stat_tile", 96, 0.4)
 	local inner = w - 2 * PAD
 
@@ -206,13 +203,13 @@ local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
 	info.Parent = f
 
 	local buy, why = priceButton(offer, have, inner)
-	buy.Name = "Kaufen"
+	buy.Name = "Buy"
 	buy.AnchorPoint = Vector2.new(0.5, 1)
 	buy.Position = UDim2.new(0.5, 0, 1, -PAD)
 	buy.ZIndex = 2
 	buy.Parent = f
 	if why then
-		-- im Textfluss unter der Beschreibung, damit große Handy-Schrift nichts überdeckt
+		-- in the text flow below the description so large phone text covers nothing
 		local reason =
 			Kit.label(why, 14, if offer.price then C.Danger else C.Muted, Theme.Font.Body)
 		reason.LayoutOrder = 4
@@ -251,21 +248,21 @@ local function renderRight(have: Shop.Wallet)
 
 	local note = if lastResult
 		then lastResult.text
-		elseif tab == "seelensterne" then "Robux-Käufe sind noch nicht freigeschaltet."
-		else "Gold gibt es im Rift, Seelensterne kommen bald."
+		elseif tab == "soulstars" then "Robux purchases are not unlocked yet."
+		else "Gold drops in Rifts, Soulstars are coming soon."
 	local foot = Kit.label(
 		note,
 		16,
 		if lastResult and not lastResult.ok then C.Danger elseif lastResult then C.Good else C.Muted,
 		Theme.Font.Body
 	)
-	foot.Name = "Hinweis"
+	foot.Name = "Hint"
 	foot.AnchorPoint = Vector2.new(0, 1)
 	foot.Position = UDim2.new(0, PAD, 1, -PAD)
 	foot.Parent = right
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function ShopController.render()
 	local have = wallet()
 	renderLeft(have)
@@ -276,7 +273,7 @@ function ShopController.toggle()
 	win.toggle()
 end
 
--- Shop auf einem Reiter öffnen (das + an den Kapseln)
+-- Open the shop on a tab (the + on the capsules)
 function ShopController.open(tabId: string?)
 	if tabId then
 		tab = tabId
@@ -293,7 +290,7 @@ function ShopController.init()
 	win = Window.new({
 		name = "Shop",
 		title = "Shop",
-		icon = "beutel",
+		icon = "pouch",
 		key = Enum.KeyCode.P,
 		background = "bg_shop",
 	})
@@ -316,7 +313,7 @@ function ShopController.init()
 	for _, attr in ATTR do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
-	player:GetAttributeChangedSignal("BestDepth"):Connect(refresh) -- Goldpreise
+	player:GetAttributeChangedSignal("BestDepth"):Connect(refresh) -- gold prices
 	Net.ShopResult.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" or typeof(data.text) ~= "string" then
 			return

@@ -1,12 +1,12 @@
 --!strict
--- Hub „Lumenhafen“ als eigene Map, getrennt von der Kampf-Arena (Lageplan:
--- art-prompts/Hub_Lumenhafen.md, Konzept hub_lageplan_raster.png). 16 × 16 Felder à 8 Studs um
--- Config.HUB_ORIGIN: Spawn im Süden, Marktplatz mit Kompass, Rift-Tor auf der Nordterrasse,
--- Schmiede und Markt im Westen, Stash und Haustiere im Osten, Klippen, Wasserfälle, Burg.
--- Böden, Treppen und Klippen baut der Code; Gebäude und Requisiten kommen aus
--- ReplicatedStorage.Assets (Blender-Modelle, z. B. „Hub_Schmiede“). Fehlt ein Modell, steht ein
--- Platzhalter aus Parts an seiner Stelle. Stationen tragen einen ProximityPrompt mit dem
--- Attribut „Fenster“; der HubController öffnet damit das passende Fenster.
+-- Hub "Lumenhaven" as its own map, separate from the combat arena (site plan:
+-- art-prompts/Hub_Lumenhafen.md, concept hub_lageplan_raster.png). 16 × 16 cells of 8 studs around
+-- Config.HUB_ORIGIN: spawn in the south, market square with compass, Rift Gate on the north terrace,
+-- Forge and market in the west, stash and pets in the east, cliffs, waterfalls, castle.
+-- Floors, stairs and cliffs are built in code; buildings and props come from
+-- ReplicatedStorage.Assets (Blender models, see ASSET). If a model is missing, a
+-- placeholder made of parts stands in its place. Stations carry a ProximityPrompt with the
+-- attribute "Window"; the HubController uses it to open the matching window.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -19,15 +19,34 @@ local C = Models.Kit.C
 local block = Models.Kit.block
 local Props = Models.Props
 
-local T = 8 -- Feldgröße (Studs)
-local N = 16 -- Felder je Seite
--- Drehung der Blender-Modelle, bis ihre Vorderseite nach +Z zeigt. Nach dem 3D-Import
--- zeigt die Blender-Front (−Y) nach −Z, darum 180° (in Studio geprüft, 2026-10-29).
+local T = 8 -- cell size (studs)
+local N = 16 -- cells per side
+-- Rotation of the Blender models until their front faces +Z. After the 3D import
+-- the Blender front (−Y) faces −Z, hence 180° (checked in Studio, 2026-10-29).
 local ASSET_YAW = 180
 
--- Lageplan, Zeile 16 (Norden) bis 1 (Süden), Spalten A–P.
--- G Gras, g Grashügel, K Klippe, W Wasser, C Burgfelsen, S Spawn-Weg, P Marktplatz,
--- T Terrassen (West/Ost), R Rift-Terrasse, X Treppe zur Rift-Terrasse, Y Treppe vom Spawn
+-- File names of the Blender models in assets/models (= instance names under
+-- ReplicatedStorage.Assets). They are binary .rbxm files and keep their original names;
+-- only code-side names are English.
+local ASSET = table.freeze({
+	riftGate = "Hub_RiftTor",
+	forge = "Hub_Schmiede",
+	lantern = "Hub_Laterne",
+	banner = "Hub_Banner",
+	flowerBox = "Hub_Blumenkasten",
+	market = "Hub_Markt",
+	barrel = "Hub_Fass",
+	crate = "Hub_Kiste",
+	stash = "Hub_Stash",
+	pets = "Hub_Haustiere",
+	fence = "Hub_Zaun",
+	tree = "Hub_Baum",
+	fir = "Hub_Tanne",
+})
+
+-- Site plan, row 16 (north) to 1 (south), columns A–P.
+-- G grass, g grass hill, K cliff, W water, C castle rock, S spawn path, P market square,
+-- T terraces (west/east), R Rift terrace, X stairs to the Rift terrace, Y stairs from the spawn
 local PLAN = {
 	"KKKKKKKKKWWKKKCC", -- 16
 	"KGGGKKgggWWKKKCC", -- 15
@@ -59,8 +78,8 @@ local root: Model
 local origin = Vector3.zero
 local rng = Random.new(11)
 
--- ------------------------------------------------------------------ Raster
--- Feldmitte (Spalte 1–16 = A–P, Zeile 1–16 = Süd–Nord) in lokalen Koordinaten; Bruchteile erlaubt
+-- ------------------------------------------------------------------ Grid
+-- Cell center (column 1–16 = A–P, row 1–16 = south–north) in local coordinates; fractions allowed
 local function cell(col: number, row: number): Vector3
 	return Vector3.new((col - 8.5) * T, 0, (8.5 - row) * T)
 end
@@ -70,8 +89,8 @@ local function kind(col: number, row: number): string
 	return if line then string.sub(line, col, col) else "G"
 end
 
--- Bodenhöhe an einer lokalen Position
--- Höhe eines Feldes; Klippen bekommen eine feste Unebenheit je Feld
+-- Ground height at a local position
+-- Height of a cell; cliffs get a fixed unevenness per cell
 local function height(col: number, row: number): number
 	local k = kind(col, row)
 	local h = H[k] or 1
@@ -91,7 +110,7 @@ local function at(local_: Vector3): CFrame
 	return CFrame.new(origin + local_)
 end
 
--- ------------------------------------------------------------------ Bausteine
+-- ------------------------------------------------------------------ Building blocks
 local function tile(parent: Instance, col: number, row: number)
 	local k = kind(col, row)
 	local p = cell(col, row)
@@ -110,7 +129,7 @@ local function tile(parent: Instance, col: number, row: number)
 		return
 	end
 	if k == "X" or k == "Y" then
-		h = 0 -- Treppen bekommen ihren Sockel von stairs()
+		h = 0 -- stairs get their base from stairs()
 	end
 	local top = if k == "S" or k == "P"
 		then COBBLE[(col * 7 + row * 3) % #COBBLE + 1]
@@ -139,7 +158,7 @@ local function tile(parent: Instance, col: number, row: number)
 	end
 end
 
--- Treppe von `a` nach `b` (lokal, Höhe in Y), Breite quer zur Laufrichtung
+-- Stairs from `a` to `b` (local, height in Y), width across the walking direction
 local function stairs(parent: Instance, a: Vector3, b: Vector3, width: number)
 	local flat = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
 	local run = flat.Magnitude
@@ -160,7 +179,7 @@ local function stairs(parent: Instance, a: Vector3, b: Vector3, width: number)
 			Enum.Material.Slate
 		)
 	end
-	-- Wangen links und rechts
+	-- Side walls left and right
 	local side = dir:Cross(Vector3.yAxis)
 	for _, s in { -1, 1 } do
 		local mid = (a + b) / 2 + side * s * (width / 2 + 0.6)
@@ -174,7 +193,7 @@ local function stairs(parent: Instance, a: Vector3, b: Vector3, width: number)
 	end
 end
 
--- Modell bündig auf den Boden stellen: Unterkante der Bounding Box auf `pos` (lokal)
+-- Put a model flush on the ground: bottom of the bounding box at `pos` (local)
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
 	model:PivotTo(CFrame.new() * CFrame.Angles(0, math.rad(yaw or 0), 0))
 	local box, size = model:GetBoundingBox()
@@ -185,11 +204,12 @@ local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?)
 	return model
 end
 
--- Blender-Modell vorbereiten: verankern, „_Neon“ leuchtet, „_Deko“ ohne Kollision
--- Leuchtfarbe je Modell (Neon zeigt keine Textur, nur die Farbe)
+-- Prepare a Blender model: anchor it, "_Neon" glows, "_Deko" (deco suffix baked into the
+-- .rbxm part names) without collision
+-- Glow color per model (Neon shows no texture, only the color)
 local GLOW: { [string]: Color3 } = {
-	Hub_RiftTor = Color3.fromHex("#4FD8F5"),
-	Hub_Schmiede = Color3.fromHex("#FF8A3D"),
+	[ASSET.riftGate] = Color3.fromHex("#4FD8F5"),
+	[ASSET.forge] = Color3.fromHex("#FF8A3D"),
 }
 local WARM = Color3.fromHex("#FFC86B")
 
@@ -216,7 +236,7 @@ local function prepare(model: Model): Model
 	return model
 end
 
--- Modell aus ReplicatedStorage.Assets, sonst der Platzhalter
+-- Model from ReplicatedStorage.Assets, otherwise the placeholder
 local function asset(name: string, fallback: () -> Model): (Model, boolean)
 	local folder = ReplicatedStorage:FindFirstChild("Assets")
 	local found = folder and folder:FindFirstChild(name)
@@ -230,7 +250,7 @@ local function asset(name: string, fallback: () -> Model): (Model, boolean)
 	return m, false
 end
 
--- Asset auf den Boden an (x, z) stellen; `face` = lokaler Punkt, zu dem die Vorderseite zeigt
+-- Put an asset on the ground at (x, z); `face` = local point the front faces
 local function put(
 	parent: Instance,
 	name: string,
@@ -251,7 +271,7 @@ local function put(
 	return place(parent, m, Vector3.new(x, y or groundAt(x, z), z), yaw)
 end
 
--- Unsichtbarer Auslöser mit ProximityPrompt; `window` = Fenster, das der Client öffnet
+-- Invisible trigger with a ProximityPrompt; `window` = window the client opens
 local function station(
 	parent: Instance,
 	pos: Vector3,
@@ -269,12 +289,12 @@ local function station(
 	prompt.ObjectText = title
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
-	prompt:SetAttribute("Fenster", window)
+	prompt:SetAttribute("Window", window)
 	prompt.Parent = p
 end
 
--- ------------------------------------------------------------------ Platzhalter
--- Grobe Part-Formen, bis die Blender-Modelle im Spiel sind (Maße wie in der Asset-Liste)
+-- ------------------------------------------------------------------ Placeholders
+-- Rough part shapes until the Blender models are in the game (sizes as in the asset list)
 local function stall(roofA: Color3, roofB: Color3, w: number, d: number): () -> Model
 	return function()
 		local m = Instance.new("Model")
@@ -304,7 +324,7 @@ local function lantern(): Model
 	block(m, Vector3.new(1.8, 0.4, 0.4), CFrame.new(0.7, 6.2, 0), C.woodDark)
 	local glow =
 		block(m, Vector3.new(0.9, 1.1, 0.9), CFrame.new(1.3, 5.4, 0), C.gold, Enum.Material.Neon)
-	glow.Name = "Licht_Neon"
+	glow.Name = "Light_Neon"
 	Models.Kit.light(glow, Color3.fromHex("#FFC86B"), 16, 1.4)
 	return Models.Kit.finish(m, false, 1)
 end
@@ -384,8 +404,8 @@ local function stashBox(): Model
 	return Models.Kit.finish(m, false, 1)
 end
 
--- ------------------------------------------------------------------ Aufbau
-local PLAZA = cell(8.5, 6.5) -- Mitte des Marktplatzes
+-- ------------------------------------------------------------------ Assembly
+local PLAZA = cell(8.5, 6.5) -- center of the market square
 local GATE = Vector3.new(0, H.R, -38)
 
 local function compass(parent: Instance)
@@ -445,14 +465,14 @@ end
 
 local function buildGround(parent: Instance)
 	local ground = Instance.new("Folder")
-	ground.Name = "Boden"
+	ground.Name = "Ground"
 	ground.Parent = parent
 	for row = 1, N do
 		for col = 1, N do
 			tile(ground, col, row)
 		end
 	end
-	-- Rand außerhalb des Plans: Wiese, damit die Kamera nicht ins Leere schaut
+	-- Edge outside the plan: meadow, so the camera does not look into the void
 	for i = -2, N + 3 do
 		for _, j in { -2, -1, 0, N + 1, N + 2, N + 3 } do
 			for _, pair in { { i, j }, { j, i } } do
@@ -474,7 +494,7 @@ local function buildGround(parent: Instance)
 			end
 		end
 	end
-	-- Treppen: Spawn → Marktplatz, Marktplatz → Rift-Terrasse, Marktplatz → Terrassen
+	-- Stairs: spawn → market square, market square → Rift terrace, market square → terraces
 	stairs(ground, Vector3.new(0, H.S, 40), Vector3.new(0, H.P, 32), 16)
 	stairs(ground, Vector3.new(0, H.P, -8), Vector3.new(0, H.R, -24), 16)
 	stairs(ground, Vector3.new(-16, H.P, 4), Vector3.new(-24, H.T, 4), 8)
@@ -483,91 +503,84 @@ end
 
 local function buildTown(parent: Instance)
 	local deco = Instance.new("Folder")
-	deco.Name = "Deko"
+	deco.Name = "Deco"
 	deco.Parent = parent
 
 	compass(deco)
 
-	-- Rift-Tor mit Bannern und Laternen
-	put(deco, "Hub_RiftTor", Props.portal, GATE.X, GATE.Z, PLAZA)
-	station(parent, GATE + Vector3.new(0, 0, 5), "Atlas öffnen", "Rift-Tor", "Atlas")
-	station(parent, GATE + Vector3.new(10, 0, 6), "Wiedergeburt", "Seelenaltar", "Rebirth")
+	-- Rift Gate with banners and lanterns
+	put(deco, ASSET.riftGate, Props.portal, GATE.X, GATE.Z, PLAZA)
+	station(parent, GATE + Vector3.new(0, 0, 5), "Open Atlas", "Rift Gate", "Atlas")
+	station(parent, GATE + Vector3.new(10, 0, 6), "Rebirth", "Soul Altar", "Rebirth")
 	for _, s in { -1, 1 } do
-		put(deco, "Hub_Banner", banner, s * 13, -36, PLAZA)
-		put(deco, "Hub_Laterne", lantern, s * 10, -26, PLAZA)
-		put(deco, "Hub_Laterne", lantern, s * 10, -6, PLAZA)
-		put(deco, "Hub_Banner", banner, s * 12, 40, Vector3.new(0, 0, 60))
-		put(deco, "Hub_Laterne", lantern, s * 10, 30, Vector3.new(0, 0, 60))
-		put(deco, "Hub_Blumenkasten", flowerBox, s * 14, -2, PLAZA)
-		put(deco, "Hub_Blumenkasten", flowerBox, s * 30, 18, PLAZA)
+		put(deco, ASSET.banner, banner, s * 13, -36, PLAZA)
+		put(deco, ASSET.lantern, lantern, s * 10, -26, PLAZA)
+		put(deco, ASSET.lantern, lantern, s * 10, -6, PLAZA)
+		put(deco, ASSET.banner, banner, s * 12, 40, Vector3.new(0, 0, 60))
+		put(deco, ASSET.lantern, lantern, s * 10, 30, Vector3.new(0, 0, 60))
+		put(deco, ASSET.flowerBox, flowerBox, s * 14, -2, PLAZA)
+		put(deco, ASSET.flowerBox, flowerBox, s * 30, 18, PLAZA)
 	end
 
-	-- Westen: Glitzer-Schmiede und Markt
+	-- West: Glitter Forge and market
 	local forge = cell(3, 8.8)
-	put(deco, "Hub_Schmiede", function()
+	put(deco, ASSET.forge, function()
 		return Models.Buildings.forge(2)
 	end, forge.X, forge.Z, PLAZA)
-	station(parent, forge + Vector3.new(8, H.T, 2), "Schmieden", "Glitzer-Schmiede", "Forge")
+	station(parent, forge + Vector3.new(8, H.T, 2), "Forge", "Glitter Forge", "Forge")
 	local market = cell(6, 10)
-	put(deco, "Hub_Markt", stall(C.roof, C.cream, 8, 5), market.X, market.Z, PLAZA)
-	station(parent, market + Vector3.new(2, H.T, 4), "Einkaufen", "Markt", "Shop")
-	put(deco, "Hub_Fass", barrel, -30, -8)
-	put(deco, "Hub_Kiste", crate, -28, -4, PLAZA)
-	put(deco, "Hub_Fass", barrel, -54, 8)
-	put(deco, "Hub_Kiste", crate, -52, 12)
+	put(deco, ASSET.market, stall(C.roof, C.cream, 8, 5), market.X, market.Z, PLAZA)
+	station(parent, market + Vector3.new(2, H.T, 4), "Shop", "Market", "Shop")
+	put(deco, ASSET.barrel, barrel, -30, -8)
+	put(deco, ASSET.crate, crate, -28, -4, PLAZA)
+	put(deco, ASSET.barrel, barrel, -54, 8)
+	put(deco, ASSET.crate, crate, -52, 12)
 
-	-- Osten: Stash und Haustiere
+	-- East: stash and pets
 	local stash = cell(11, 10)
-	put(deco, "Hub_Stash", stashBox, stash.X, stash.Z, PLAZA)
-	station(parent, stash + Vector3.new(-2, H.T, 4), "Öffnen", "Stash", "Inventory")
+	put(deco, ASSET.stash, stashBox, stash.X, stash.Z, PLAZA)
+	station(parent, stash + Vector3.new(-2, H.T, 4), "Open", "Stash", "Inventory")
 	local pets = cell(13.4, 8.6)
-	put(
-		deco,
-		"Hub_Haustiere",
-		stall(Color3.fromHex("#D94A4A"), C.cream, 10, 6),
-		pets.X,
-		pets.Z,
-		PLAZA
-	)
-	station(parent, pets + Vector3.new(-2, H.T, 4), "Haustiere", "Haustier-Stall", "Pets")
-	put(deco, "Hub_Fass", barrel, 30, -8)
-	put(deco, "Hub_Kiste", crate, 54, 14, PLAZA)
+	put(deco, ASSET.pets, stall(Color3.fromHex("#D94A4A"), C.cream, 10, 6), pets.X, pets.Z, PLAZA)
+	station(parent, pets + Vector3.new(-2, H.T, 4), "Pets", "Pet Stable", "Pets")
+	put(deco, ASSET.barrel, barrel, 30, -8)
+	put(deco, ASSET.crate, crate, 54, 14, PLAZA)
 
-	-- Zäune an den Terrassenkanten
+	-- Fences on the terrace edges
 	for _, s in { -1, 1 } do
 		for k = 0, 2 do
 			put(
 				deco,
-				"Hub_Zaun",
+				ASSET.fence,
 				Props.fence,
 				s * (36 + k * 8),
 				-26,
 				Vector3.new(s * (36 + k * 8), 0, 0)
 			)
 		end
-		-- Südkante des Marktplatzes neben der Spawn-Treppe
-		put(deco, "Hub_Zaun", Props.fence, s * 24, 31, Vector3.new(s * 24, 0, 60))
+		-- South edge of the market square next to the spawn stairs
+		put(deco, ASSET.fence, Props.fence, s * 24, 31, Vector3.new(s * 24, 0, 60))
 	end
 
-	-- Bäume auf Gras, Tannen auf den Klippen
+	-- Trees on grass, firs on the cliffs
 	for row = 1, N do
 		for col = 1, N do
 			local k = kind(col, row)
 			local p = cell(col, row)
 				+ Vector3.new(rng:NextNumber(-2.5, 2.5), 0, rng:NextNumber(-2.5, 2.5))
 			if k == "G" and rng:NextNumber() < 0.45 then
-				put(deco, "Hub_Baum", function()
+				put(deco, ASSET.tree, function()
 					return Props.tree(rng:NextNumber(1.1, 1.6))
 				end, p.X, p.Z, nil)
 			elseif
 				(k == "g" and rng:NextNumber() < 0.35) or (k == "K" and rng:NextNumber() < 0.3)
 			then
-				put(deco, "Hub_Tanne", fir, p.X, p.Z, nil)
+				put(deco, ASSET.fir, fir, p.X, p.Z, nil)
 			end
 		end
 	end
 
-	-- Wasserfälle und Burg im Nordosten
+	-- Waterfalls and castle in the northeast
 	waterfall(deco, cell(10.5, 16.4) + Vector3.new(0, H.K + 4, 0), H.K + 5, 10)
 	waterfall(deco, cell(15.4, 11) + Vector3.new(0, H.K, 0), H.K + 1, 7)
 	for i, p in { cell(15, 15.6), cell(16.2, 16.6), cell(15.9, 14.6) } do
@@ -576,9 +589,9 @@ local function buildTown(parent: Instance)
 	end
 
 	local far = Instance.new("Folder")
-	far.Name = "Fernkulisse"
+	far.Name = "Backdrop"
 	far.Parent = parent
-	-- Inseln haben ihren Pivot oben auf dem Gras (Felsen hängen darunter): direkt per Pivot setzen
+	-- Islands have their pivot on top of the grass (rocks hang below): set directly via pivot
 	local function island(m: Model, pos: Vector3)
 		m:PivotTo(CFrame.new(origin + pos))
 		m.Parent = far
@@ -591,7 +604,7 @@ end
 function Hub.init()
 	origin = Config.HUB_ORIGIN
 	root = Instance.new("Model")
-	root.Name = "Lumenhafen"
+	root.Name = "Lumenhaven"
 	buildGround(root)
 	buildTown(root)
 
@@ -611,7 +624,7 @@ function Hub.init()
 	root.Parent = workspace
 end
 
--- Lokale Position im Hub → Welt (für Tests und andere Systeme)
+-- Local position in the Hub → world (for tests and other systems)
 function Hub.toWorld(pos: Vector3): Vector3
 	return Config.HUB_ORIGIN + pos
 end

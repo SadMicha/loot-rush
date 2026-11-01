@@ -1,8 +1,8 @@
 --!strict
--- Licht je Ort (reine Daten): Hub „Lumenhafen“ und jedes Rift-Gebiet. Angewendet wird es nur im
--- Client (Controllers/LightController) – so sieht jeder Spieler das Licht des Ortes, an dem er
--- gerade steht, auch wenn ein anderer im Rift kämpft. Fehlende Felder = Werte aus
--- default.project.json (Lighting/Atmosphere beim Start).
+-- Light per place (pure data): Hub "Lumenhaven" and every Rift region. It is only applied on the
+-- client (Controllers/LightController) - so every player sees the light of the place they are
+-- currently in, even while someone else fights in a Rift. Missing fields = values from
+-- default.project.json (Lighting/Atmosphere at start).
 
 export type Light = {
 	clock: number?,
@@ -13,18 +13,18 @@ export type Light = {
 	decay: Color3?, -- Atmosphere.Decay
 	density: number?,
 	haze: number?,
-	tint: Color3?, -- Farbkorrektur
+	tint: Color3?, -- color correction
 }
 
 local Looks = {}
 
--- Hub: Grundlicht aus default.project.json (sonnig, warm)
+-- Hub: base light from default.project.json (sunny, warm)
 Looks.Hub = table.freeze({} :: Light)
 
--- Rift-Gebiete (Schlüssel = Atlas-ID)
+-- Rift regions (key = Atlas ID)
 Looks.Regions = table.freeze({
-	gruene_ebenen = {},
-	kristallhoehlen = {
+	green_plains = {},
+	crystal_caves = {
 		clock = 20.6,
 		brightness = 1.2,
 		ambient = Color3.fromHex("#40527F"),
@@ -35,7 +35,7 @@ Looks.Regions = table.freeze({
 		haze = 2,
 		tint = Color3.fromHex("#D6F2FF"),
 	},
-	pilzsumpf = {
+	mushroom_swamp = {
 		clock = 18.2,
 		brightness = 1.8,
 		ambient = Color3.fromHex("#5A476B"),
@@ -46,7 +46,7 @@ Looks.Regions = table.freeze({
 		haze = 2.5,
 		tint = Color3.fromHex("#F2E0FF"),
 	},
-	feuerwueste = {
+	fire_desert = {
 		clock = 18.4,
 		brightness = 2.2,
 		ambient = Color3.fromHex("#733F33"),
@@ -57,7 +57,7 @@ Looks.Regions = table.freeze({
 		haze = 2.2,
 		tint = Color3.fromHex("#FFE2C8"),
 	},
-	himmelsinseln = {
+	sky_islands = {
 		clock = 13,
 		brightness = 3,
 		ambient = Color3.fromHex("#66738C"),
@@ -68,7 +68,7 @@ Looks.Regions = table.freeze({
 		haze = 1,
 		tint = Color3.fromHex("#F4FBFF"),
 	},
-	veraenderte_welt = {
+	altered_world = {
 		clock = 0.5,
 		brightness = 1.2,
 		ambient = Color3.fromHex("#59336F"),
@@ -81,7 +81,7 @@ Looks.Regions = table.freeze({
 	},
 } :: { [string]: Light })
 
--- Abstand (Studs, waagerecht) zur Hub-Mitte, ab dem ein Spieler als „im Hub“ gilt
+-- Horizontal distance (studs) from the Hub center within which a player counts as "in the Hub"
 Looks.HUB_RADIUS = 300
 
 return table.freeze(Looks)

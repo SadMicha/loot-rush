@@ -1,5 +1,5 @@
 --!nocheck
--- Kleine expect()-Bibliothek im Jest-Stil für tests/*.spec.luau.
+-- Small Jest-style expect() library for tests/*.spec.luau.
 
 local function show(v, depth: number?): string
 	if type(v) == "string" then
@@ -47,7 +47,7 @@ local function expect(actual)
 	local self = { never = {} }
 	local function check(ok: boolean, negated: boolean, message: string)
 		if ok == negated then
-			error((if negated then "erwartet NICHT: " else "erwartet: ") .. message, 4)
+			error((if negated then "expected NOT: " else "expected: ") .. message, 4)
 		end
 	end
 	local matchers = {
@@ -58,7 +58,7 @@ local function expect(actual)
 			check(
 				deepEqual(actual, expected),
 				neg,
-				string.format("%s gleich %s", show(actual), show(expected))
+				string.format("%s equals %s", show(actual), show(expected))
 			)
 		end,
 		toBeCloseTo = function(neg, expected, eps)
@@ -69,13 +69,13 @@ local function expect(actual)
 			)
 		end,
 		toBeTruthy = function(neg)
-			check(not not actual, neg, show(actual) .. " ist wahr")
+			check(not not actual, neg, show(actual) .. " is truthy")
 		end,
 		toBeFalsy = function(neg)
-			check(not actual, neg, show(actual) .. " ist falsch")
+			check(not actual, neg, show(actual) .. " is falsy")
 		end,
 		toBeNil = function(neg)
-			check(actual == nil, neg, show(actual) .. " ist nil")
+			check(actual == nil, neg, show(actual) .. " is nil")
 		end,
 		toBeGreaterThan = function(neg, n)
 			check(actual > n, neg, string.format("%s > %s", show(actual), show(n)))
@@ -90,13 +90,13 @@ local function expect(actual)
 			check(actual <= n, neg, string.format("%s <= %s", show(actual), show(n)))
 		end,
 		toHaveLength = function(neg, n)
-			check(#actual == n, neg, string.format("Länge %d == %d", #actual, n))
+			check(#actual == n, neg, string.format("length %d == %d", #actual, n))
 		end,
 		toMatch = function(neg, pattern)
 			check(
 				type(actual) == "string" and actual:match(pattern) ~= nil,
 				neg,
-				string.format("%s passt zu %q", show(actual), pattern)
+				string.format("%s matches %q", show(actual), pattern)
 			)
 		end,
 		toContain = function(neg, item)
@@ -110,7 +110,7 @@ local function expect(actual)
 					end
 				end
 			end
-			check(found, neg, string.format("%s enthält %s", show(actual), show(item)))
+			check(found, neg, string.format("%s contains %s", show(actual), show(item)))
 		end,
 		toThrow = function(neg, pattern)
 			local ok, err = pcall(actual)
@@ -119,9 +119,9 @@ local function expect(actual)
 			check(
 				matches,
 				neg,
-				"Funktion wirft Fehler"
-					.. (if pattern then " mit „" .. pattern .. "“" else "")
-					.. (if ok then "" else " (war: " .. tostring(err) .. ")")
+				"function throws an error"
+					.. (if pattern then ' with "' .. pattern .. '"' else "")
+					.. (if ok then "" else " (was: " .. tostring(err) .. ")")
 			)
 		end,
 		toBeA = function(neg, typeName)

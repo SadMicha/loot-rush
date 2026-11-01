@@ -1,6 +1,6 @@
 --!strict
--- Kampf-Effekte: Schadenszahlen, Projektile, Ringe, Blitzketten, Todes-Burst, Level-Up
--- und Lebensbalken über Gegnern. Alles kommt als Net.Fx-Ereignis vom Server (siehe Types.luau).
+-- Combat effects: damage numbers, projectiles, rings, lightning chains, death burst, level-up
+-- and health bars above enemies. Everything arrives as a Net.Fx event from the server (see Types.luau).
 
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
@@ -78,11 +78,9 @@ local handlers: { [string]: (data: any) -> () } = {}
 function handlers.dmg(d)
 	local pos = d.pos :: Vector3
 	if d.dodge then
-		popText(pos, "Ausgewichen!", C.Cyan, 22)
+		popText(pos, "Dodged!", C.Cyan, 22)
 	elseif d.text then
 		popText(pos, d.text, (d.color :: Color3?) or C.Gold, 22)
-	elseif d.heal then
-		popText(pos, "+" .. tostring(d.amount), C.Good, 26)
 	elseif d.hurt then
 		popText(pos, "-" .. tostring(d.amount), C.Danger, 28)
 	elseif d.crit then
@@ -159,7 +157,7 @@ function handlers.levelup(d)
 	ring(Vector3.new(pos.X, 0.3, pos.Z), 12, C.Gold, 0.6)
 end
 
--- ------------------------------------------------------------------ Lebensbalken über Gegnern
+-- ------------------------------------------------------------------ Health bars above enemies
 local function attachBar(model: Instance)
 	if not model:IsA("Model") then
 		return

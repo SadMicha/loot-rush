@@ -1,5 +1,5 @@
--- Kamera auf Touch: Wischen über freie Fläche dreht, Finger am Bewegungs-Stick oder auf Knöpfen nicht.
-local HANDY = Vector2.new(844, 390)
+-- Camera on touch: swiping over free space rotates, a finger on the move stick or on buttons does not.
+local PHONE = Vector2.new(844, 390)
 
 local function yaw()
 	local lv = workspace.CurrentCamera.CFrame.LookVector
@@ -28,22 +28,22 @@ local function swipe(from: Vector2, dx: number, processed: boolean)
 	sim:run(0.1)
 end
 
-describe("Kamera Touch", function()
-	it("dreht beim Wischen über freie Fläche", function()
+describe("Camera touch", function()
+	it("rotates when swiping over free space", function()
 		sim:boot({ seconds = 2 })
-		sim:setViewport(HANDY, true)
+		sim:setViewport(PHONE, true)
 		local before = yaw()
 		swipe(Vector2.new(600, 150), 100, false)
 		expect(math.abs(yaw() - before) > 0.3).toBe(true)
 	end)
 
-	it("dreht nicht am Bewegungs-Stick unten links", function()
+	it("does not rotate on the move stick bottom left", function()
 		local before = yaw()
 		swipe(Vector2.new(120, 300), 100, false)
 		expect(math.abs(yaw() - before) < 0.01).toBe(true)
 	end)
 
-	it("dreht nicht, wenn ein Knopf den Finger hat", function()
+	it("does not rotate when a button has the finger", function()
 		local before = yaw()
 		swipe(Vector2.new(600, 150), 100, true)
 		expect(math.abs(yaw() - before) < 0.01).toBe(true)

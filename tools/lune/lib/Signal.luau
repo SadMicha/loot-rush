@@ -1,5 +1,5 @@
 --!strict
--- Nachbau von RBXScriptSignal/RBXScriptConnection auf dem Sandbox-Scheduler.
+-- Port of RBXScriptSignal/RBXScriptConnection on top of the sandbox scheduler.
 
 local Scheduler = require("./Scheduler")
 
