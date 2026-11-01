@@ -1,10 +1,10 @@
 --!strict
--- UI-Kit-Bausteine (Luau-Fassung von tools/lr_ui_kit.py).
--- Jedes UI im Spiel wird hieraus gebaut – nie eigene Farben/Rundungen erfinden.
--- Maße sind in Design-Pixeln (1600×900); das HUD skaliert per UIScale.
--- Look kommt komplett aus den Bildern (Assets.Slice / Assets.Fixed, von ChatGPT gestaltet):
--- Fenster, Buttons, Slots, Tabs, Menü, Kapseln, Chips, Balken. Der Code legt nur Text und Icons darauf.
--- Fehlt ein Bild, bleibt der einfache flache Stil als Notlösung.
+-- UI kit building blocks (Luau version of tools/lr_ui_kit.py).
+-- Every UI in the game is built from this - never invent your own colors/roundings.
+-- Sizes are in design pixels (1600×900); the HUD scales via UIScale.
+-- The look comes entirely from the images (Assets.Slice / Assets.Fixed, designed with ChatGPT):
+-- windows, buttons, slots, tabs, menu, capsules, chips, bars. The code only places text and icons on top.
+-- If an image is missing, the simple flat style remains as a fallback.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -36,7 +36,7 @@ function Kit.padding(parent: GuiObject, px: number)
 	p.PaddingLeft = UDim.new(0, px)
 	p.PaddingRight = UDim.new(0, px)
 	p.Parent = parent
-	-- Das Hintergrundbild soll weiter das ganze Panel füllen, nicht nur die gepolsterte Fläche
+	-- The background image should still fill the whole panel, not just the padded area
 	local skin = parent:FindFirstChild("Skin")
 	if skin and skin:IsA("GuiObject") then
 		skin.Position = UDim2.fromOffset(-px, -px)
@@ -44,7 +44,7 @@ function Kit.padding(parent: GuiObject, px: number)
 	end
 end
 
--- Schriftgröße in Design-Pixeln → tatsächliche TextSize (Theme.FontScale)
+-- Font size in design pixels -> actual TextSize (Theme.FontScale)
 function Kit.fontSize(size: number): number
 	return math.floor(size * Theme.FontScale + 0.5)
 end
@@ -65,23 +65,23 @@ function Kit.list(
 	return l
 end
 
--- Mindestgrößen in echten Bildschirmpixeln (nach UIScale). Auf kleinen Bildschirmen wächst
--- kleine Schrift immer, mit Kit.touchTarget markierte Knöpfe nur auf Touch-Geräten.
+-- Minimum sizes in real screen pixels (after UIScale). On small screens
+-- small text always grows, buttons marked with Kit.touchTarget only on touch devices.
 Kit.MIN_TEXT_PX = 9.5
 Kit.MIN_TOUCH_PX = 33
 
--- Knopf auf Touch-Geräten mindestens Kit.MIN_TOUCH_PX groß machen (nur Offset-Größen)
+-- Make a button at least Kit.MIN_TOUCH_PX large on touch devices (offset sizes only)
 function Kit.touchTarget(b: GuiButton)
 	b:SetAttribute("TouchTarget", true)
 end
 
--- Hält Schrift und markierte Knöpfe unter `root` über den Mindestgrößen; gibt die Neu-Anwenden-Funktion zurück.
--- Die Design-Größe merkt sich jedes Objekt selbst (Attribute), damit sie Umhängen und spätere Änderungen übersteht.
+-- Keeps text and marked buttons under `root` above the minimum sizes; returns the re-apply function.
+-- Each object remembers its design size itself (attributes) so it survives re-parenting and later changes.
 local function minimums(root: Frame, scale: UIScale): () -> ()
 	local texts: { [Instance]: true } = {}
 	local hits: { [GuiButton]: true } = {}
 
-	-- Gesamtskalierung inkl. weiterer UIScales unter dem Root (z. B. Fenster-Inhalt)
+	-- Total scale incl. further UIScales under the root (e.g. window content)
 	local function scaleOf(d: Instance): number
 		local s = scale.Scale
 		local node: Instance? = d
@@ -100,7 +100,7 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 			return
 		end
 		if t.TextSize ~= t:GetAttribute("FitTextSize") then
-			t:SetAttribute("BaseTextSize", t.TextSize) -- Größe wurde von außen neu gesetzt
+			t:SetAttribute("BaseTextSize", t.TextSize) -- size was set anew from outside
 		end
 		local want =
 			math.max(t:GetAttribute("BaseTextSize"), math.ceil(Kit.MIN_TEXT_PX / scaleOf(t)))
@@ -159,7 +159,7 @@ end
 
 local refitters: { [Frame]: () -> () } = {}
 
--- Mindestgrößen neu anwenden, nachdem sich eine innere UIScale geändert hat
+-- Re-apply minimum sizes after an inner UIScale has changed
 function Kit.refit(root: Frame)
 	local fn = refitters[root]
 	if fn then
@@ -167,22 +167,27 @@ function Kit.refit(root: Frame)
 	end
 end
 
--- ScreenGui mit Root-Frame, der auf die Design-Auflösung (1600×900) skaliert.
--- UIScale skaliert auch den Root selbst, darum bekommt er die Gegengröße 1/s und füllt den Bildschirm.
--- fit = true (Vollbild-Fenster): nie kleiner als die Design-Fläche, auch wenn der Bildschirm
--- dafür stärker verkleinert werden muss (Handy); das HUD bleibt bei mindestens 0.55.
--- design = liefert eine eigene Design-Fläche statt Theme.DesignSize (HUD auf Touch: kleinere Fläche =
--- größere Elemente); wird bei jeder Größenänderung neu gefragt.
+-- ScreenGui with a root frame that scales to the design resolution (1600×900).
+-- UIScale also scales the root itself, so it gets the inverse size 1/s and fills the screen.
+-- fit = true (fullscreen window): never smaller than the design area, even if the screen
+-- has to be scaled down further for it (phone); the HUD stays at 0.55 minimum.
+-- design = supplies its own design area instead of Theme.DesignSize (HUD on touch: smaller area =
+-- larger elements); asked again on every size change.
 function Kit.scaledGui(
 	name: string,
 	order: number,
 	fit: boolean?,
-	design: (() -> Vector2)?
+	design: (() -> Vector2)?,
+	safeArea: boolean?
 ): (ScreenGui, Frame)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
+	if safeArea then
+		-- Notch / rounded corners: the root only covers the area that is safe on this device
+		gui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+	end
 	gui.DisplayOrder = order
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -200,6 +205,9 @@ function Kit.scaledGui(
 		local camera = workspace.CurrentCamera
 		if camera then
 			local v = camera.ViewportSize
+			if safeArea and gui.AbsoluteSize.X > 0 then
+				v = gui.AbsoluteSize -- smaller than the viewport by the device insets
+			end
 			local d = if design then design() else Theme.DesignSize
 			local s = math.clamp(math.min(v.X / d.X, v.Y / d.Y), if fit then 0.3 else 0.55, 1.4)
 			scale.Scale = s
@@ -212,10 +220,13 @@ function Kit.scaledGui(
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 	end
+	if safeArea then
+		gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
+	end
 	return gui, root
 end
 
--- Rand ≈ ein Drittel der Höhe, höchstens `maxScale` (Roblox rechnet SliceScale auf die Quellpixel)
+-- Border ≈ one third of the height, at most `maxScale` (Roblox applies SliceScale to the source pixels)
 local function sliceScale(slice: Assets.Slice, height: number?, maxScale: number): number
 	if height then
 		return math.min(maxScale, height * 0.34 / math.max(1, slice.center.Min.Y))
@@ -223,7 +234,7 @@ local function sliceScale(slice: Assets.Slice, height: number?, maxScale: number
 	return maxScale
 end
 
--- Bild-Eigenschaften eines 9-Slice auf ein Image-Objekt anwenden
+-- Apply the image properties of a 9-slice to an image object
 local function applySlice(
 	img: ImageLabel | ImageButton,
 	name: string,
@@ -231,15 +242,15 @@ local function applySlice(
 	maxScale: number
 )
 	local slice = Assets.Slice[name]
-	local target = img :: ImageLabel -- gleiche Bild-Properties wie ImageButton
+	local target = img :: ImageLabel -- same image properties as ImageButton
 	target.Image = slice.id
 	target.ScaleType = Enum.ScaleType.Slice
 	target.SliceCenter = slice.center
 	target.SliceScale = sliceScale(slice, height, maxScale)
 end
 
--- 9-Slice-Bild als unterste Ebene in parent legen (nur für Frames, die selbst keinen Text haben).
--- nil = kein Bild vorhanden.
+-- Put a 9-slice image as the bottom layer into parent (only for frames that have no text themselves).
+-- nil = no image available.
 function Kit.skin(parent: GuiObject, name: string, height: number?, maxScale: number?): ImageLabel?
 	if not Assets.Slice[name] then
 		return nil
@@ -255,7 +266,7 @@ function Kit.skin(parent: GuiObject, name: string, height: number?, maxScale: nu
 	return img
 end
 
--- Standard-Panel: Fenster mit Goldrahmen (hoch / breit / klein), sonst flache Fläche
+-- Standard panel: window with gold frame (tall / wide / small), otherwise flat surface
 function Kit.panel(size: Vector2, accent: Color3?): Frame
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
@@ -274,7 +285,7 @@ function Kit.panel(size: Vector2, accent: Color3?): Frame
 	return f
 end
 
--- Panel, das ein- und ausfliegen kann (CanvasGroup → ein Fade für alle Kinder)
+-- Panel that can fly in and out (CanvasGroup -> one fade for all children)
 function Kit.flyPanel(size: Vector2): CanvasGroup
 	local g = Instance.new("CanvasGroup")
 	g.Size = UDim2.fromOffset(size.X, size.Y)
@@ -299,7 +310,7 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	return t
 end
 
--- Icon aus dem Sammelbild (Assets.Icon), sonst neutraler Platzhalter
+-- Icon from the atlas image (Assets.Icon), otherwise a neutral placeholder
 function Kit.icon(name: string, size: number, color: Color3?): GuiObject
 	local icon = Assets.Icon[name]
 	if icon then
@@ -318,24 +329,24 @@ function Kit.icon(name: string, size: number, color: Color3?): GuiObject
 	ph.BackgroundTransparency = 1
 	Kit.corner(ph, math.floor(size * 0.2))
 	Kit.stroke(ph, color or Theme.Color.Muted, 2)
-	ph.Name = "Platzhalter_" .. name
+	ph.Name = "Placeholder_" .. name
 	return ph
 end
 
 export type SlotOptions = {
-	rarity: string?, -- nil = leerer Slot
-	count: number?, -- Stapelzahl unten links
+	rarity: string?, -- nil = empty slot
+	count: number?, -- stack count bottom left
 	selected: boolean?,
-	dim: boolean?, -- Icon abgeschwächt (leerer Ausrüstungsplatz)
+	dim: boolean?, -- icon dimmed (empty equipment slot)
 }
 
--- Slot-Bild nach Seltenheit; Rand und Raute stecken im Bild
+-- Slot image by rarity; border and diamond are part of the image
 local function slotImage(rarity: string?): string?
 	local fixed = Assets.Fixed["slot_" .. (rarity or "empty")] or Assets.Fixed.slot_normal
 	return if fixed then fixed.id else nil
 end
 
--- Flacher Notlösungs-Slot, falls ein Bild fehlt
+-- Flat fallback slot in case an image is missing
 local function flatSlot(b: GuiObject, edge: Color3?)
 	b.BackgroundColor3 = Theme.Color.Bg1
 	b.BackgroundTransparency = 0
@@ -371,7 +382,7 @@ local function slotIcon(b: GuiObject, size: number, iconName: string, edge: Colo
 	ic.Parent = b
 end
 
--- Item-Slot wie im Inventar-Mockup: Bild je Seltenheit, Icon darauf, Auswahl-Rahmen als Overlay
+-- Item slot like in the inventory mockup: image per rarity, icon on top, selection frame as overlay
 function Kit.itemSlot(size: number, iconName: string?, opts: SlotOptions?): ImageButton
 	local o: SlotOptions = opts or {}
 	local edge = if o.rarity then Theme.Rarity[o.rarity] or Theme.Rarity.normal else nil
@@ -406,13 +417,13 @@ function Kit.itemSlot(size: number, iconName: string?, opts: SlotOptions?): Imag
 	return b
 end
 
--- Quadratischer Slot (Skills) mit zentriertem Icon und optionalem Tasten-Label
+-- Square slot (skills) with centered icon and optional key label
 function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): ImageButton
 	local f = slotBase(size, "normal", edge)
 	f.Active = false
 	slotIcon(f, size, iconName, edge)
 	if key then
-		-- Taste unten im Slot wie in hud_hotbar; Icon rückt dafür etwas nach oben
+		-- Key at the bottom of the slot like in hud_hotbar; the icon moves up a bit for it
 		local ic = f:FindFirstChild("Icon_" .. iconName)
 		if ic and ic:IsA("GuiObject") then
 			ic.Position = UDim2.fromScale(0.5, 0.42)
@@ -427,7 +438,7 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 	return f
 end
 
--- Kurzer Druck-Effekt (Button schrumpft kurz)
+-- Short press effect (button shrinks briefly)
 local function pressFeedback(b: GuiButton)
 	local scale = Instance.new("UIScale")
 	scale.Parent = b
@@ -441,7 +452,7 @@ local function pressFeedback(b: GuiButton)
 	b.MouseLeave:Connect(release)
 end
 
--- Button-Farbe → Bildname (Gold = Hauptaktion, Danger = rot, alles andere blau)
+-- Button color -> image name (gold = primary action, danger = red, everything else blue)
 local function buttonSkin(color: Color3): string
 	if color == Theme.Color.Gold then
 		return "btn_gold"
@@ -451,12 +462,12 @@ local function buttonSkin(color: Color3): string
 	return "btn_blue"
 end
 
--- Text des Buttons (liegt in einem Kind-Label, damit das Bild nicht darüber zeichnet)
+-- Text of the button (lives in a child label so the image does not draw over it)
 function Kit.buttonLabel(b: GuiObject): TextLabel
 	return b:FindFirstChild("Label") :: TextLabel
 end
 
--- Button an/aus: tauscht auf das Bild "disabled" (Gold, Blau) und sperrt Eingaben
+-- Button on/off: swaps to the "disabled" image (gold, blue) and blocks input
 function Kit.setEnabled(b: ImageButton, enabled: boolean)
 	local base = b:GetAttribute("Skin") :: string?
 	if not base then
@@ -470,8 +481,8 @@ function Kit.setEnabled(b: ImageButton, enabled: boolean)
 	Kit.buttonLabel(b).TextTransparency = if enabled then 0 else 0.4
 end
 
--- Text-Button (Gold = Hauptaktion, Danger = rot, sonst blau), optional mit Icon links vom Text.
--- Rückgabe ist ein ImageButton; den Text setzt man über Kit.buttonLabel(b).Text.
+-- Text button (gold = primary action, danger = red, otherwise blue), optionally with an icon left of the text.
+-- Returns an ImageButton; set the text via Kit.buttonLabel(b).Text.
 function Kit.button(text: string, color: Color3, size: Vector2, iconName: string?): ImageButton
 	local skinName = buttonSkin(color)
 	local b = Instance.new("ImageButton")
@@ -530,8 +541,8 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	return b
 end
 
--- Balken (Leben, Fortschritt). Gibt Rahmen und Füllung zurück; die Füllung wird über Size.X skaliert.
--- Ab 12 px Höhe mit Bildern, darunter (dünne Linien) flach.
+-- Bar (life, progress). Returns frame and fill; the fill is scaled via Size.X.
+-- From 12 px height with images, below that (thin lines) flat.
 function Kit.bar(size: Vector2, color: Color3): (Frame, Frame)
 	local back = Instance.new("Frame")
 	back.Size = UDim2.fromOffset(size.X, size.Y)
@@ -566,12 +577,259 @@ function Kit.bar(size: Vector2, color: Color3): (Frame, Frame)
 	return back, fill
 end
 
+-- ------------------------------------------------------------------ In-game HUD pieces
+-- Image from Assets.Hud at a fixed size; nil if it has not been uploaded yet (-> flat fallback)
+function Kit.hudImage(name: string, size: Vector2): ImageLabel?
+	local fixed = Assets.Hud[name]
+	if not fixed then
+		return nil
+	end
+	local img = Instance.new("ImageLabel")
+	img.Name = name
+	img.BackgroundTransparency = 1
+	img.Image = fixed.id
+	img.ScaleType = Enum.ScaleType.Fit
+	img.Size = UDim2.fromOffset(size.X, size.Y)
+	return img
+end
+
+local function circle(f: GuiObject)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0.5, 0)
+	c.Parent = f
+end
+
+export type Orb = {
+	root: Frame,
+	setRatio: (ratio: number) -> (),
+	text: TextLabel,
+}
+
+-- Orb (life / experience): metal frame on top, liquid below that is clipped from the top as the value
+-- drops (frame and fill share one canvas, see Assets.Hud). kind = "health" | "mana".
+function Kit.orb(size: number, kind: string, color: Color3): Orb
+	local H = Theme.Hud
+	local span = H.OrbBottom - H.OrbTop
+	local diameter = math.floor(size * span)
+	local frameImg = Kit.hudImage("orb_" .. kind .. "_frame", Vector2.new(size, size))
+	local fillImg = Kit.hudImage("orb_" .. kind .. "_fill", Vector2.new(size, size))
+
+	local root = Instance.new("Frame")
+	root.Name = "Orb_" .. kind
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.fromOffset(size, size)
+
+	-- Dark well behind the liquid, so an empty orb still reads as an orb
+	local well = Instance.new("Frame")
+	well.Name = "Well"
+	well.AnchorPoint = Vector2.new(0.5, 0.5)
+	well.Position = UDim2.fromScale(0.5, (H.OrbTop + H.OrbBottom) / 2)
+	well.Size = UDim2.fromOffset(diameter, diameter)
+	well.BackgroundColor3 = Theme.Color.Bg0
+	well.BackgroundTransparency = 0.2
+	well.BorderSizePixel = 0
+	circle(well)
+	if not frameImg then
+		Kit.stroke(well, Theme.Color.Gold, 3)
+	end
+	well.Parent = root
+
+	-- Clip window from the bottom edge of the orb upward
+	local clip = Instance.new("Frame")
+	clip.Name = "Fill"
+	clip.AnchorPoint = Vector2.new(0, 1)
+	clip.Position = UDim2.fromScale(0, H.OrbBottom)
+	clip.Size = UDim2.fromOffset(size, 0)
+	clip.BackgroundTransparency = 1
+	clip.ClipsDescendants = true
+	clip.ZIndex = 2
+	clip.Parent = root
+	if fillImg and frameImg then
+		-- The image stays aligned to the canvas, only the window shrinks
+		fillImg.AnchorPoint = Vector2.new(0, 1)
+		fillImg.Position = UDim2.new(0, 0, 1, math.floor(size * (1 - H.OrbBottom)))
+		fillImg.Parent = clip
+	else
+		local liquid = Instance.new("Frame")
+		liquid.Name = "Liquid"
+		liquid.AnchorPoint = Vector2.new(0.5, 1)
+		liquid.Position = UDim2.fromScale(0.5, 1)
+		liquid.Size = UDim2.fromOffset(diameter, diameter)
+		liquid.BackgroundColor3 = color
+		liquid.BorderSizePixel = 0
+		circle(liquid)
+		liquid.Parent = clip
+	end
+	if frameImg then
+		frameImg.ZIndex = 3
+		frameImg.Parent = root
+	end
+
+	local text = Kit.label("", 13)
+	text.Name = "Value"
+	text.AnchorPoint = Vector2.new(0.5, 0.5)
+	text.Position = UDim2.fromScale(0.5, (H.OrbTop + H.OrbBottom) / 2)
+	text.TextStrokeTransparency = 0.25
+	text.ZIndex = 5
+	text.Parent = root
+
+	local function setRatio(ratio: number)
+		local r = math.clamp(ratio, 0, 1)
+		TweenService:Create(
+			clip,
+			Theme.Tween.Bar,
+			{ Size = UDim2.fromOffset(size, math.floor(diameter * r + 0.5)) }
+		):Play()
+	end
+	return { root = root, setRatio = setRatio, text = text }
+end
+
+-- Round cooldown veil over a button: dark layer that shrinks from the top down (ratio 1 = just started)
+-- with the remaining seconds as text. Returns the update function.
+function Kit.cooldownVeil(parent: GuiObject): (number, number) -> ()
+	local veil = Instance.new("Frame")
+	veil.Name = "CooldownVeil"
+	veil.AnchorPoint = Vector2.new(0.5, 0.5)
+	veil.Position = UDim2.fromScale(0.5, 0.5)
+	veil.Size = UDim2.fromScale(0.84, 0.84)
+	veil.BackgroundColor3 = Theme.Color.Bg0
+	veil.BorderSizePixel = 0
+	veil.ZIndex = 4
+	veil.Visible = false
+	circle(veil)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90 -- top (0) to bottom (1)
+	gradient.Parent = veil
+	veil.Parent = parent
+	local text = Kit.label("", 18)
+	text.Name = "CooldownText"
+	text.AnchorPoint = Vector2.new(0.5, 0.5)
+	text.Position = UDim2.fromScale(0.5, 0.5)
+	text.TextStrokeTransparency = 0.3
+	text.ZIndex = 5
+	text.Parent = parent
+
+	local lastStep = -1
+	return function(ratio: number, remaining: number)
+		local step = math.floor(math.clamp(ratio, 0, 1) * 100 + 0.5)
+		if step ~= lastStep then
+			lastStep = step
+			veil.Visible = step > 0
+			-- Hard edge: clear above, veil below; the veil covers the lower `ratio` part
+			local edge = math.clamp(1 - ratio, 0.001, 0.998)
+			local veilT = Theme.Hud.Veil
+			gradient.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(edge, 1),
+				NumberSequenceKeypoint.new(edge + 0.001, veilT),
+				NumberSequenceKeypoint.new(1, veilT),
+			})
+		end
+		text.Text = if step > 0 then string.format("%.1f", remaining) else ""
+	end
+end
+
+-- Round HUD button (skill, dash): ring image with icon in the center, optional key label (keyboard only)
+-- and cooldown veil. ring = "gold" | "cyan" (cyan = tinted silver ring). Returns button and veil updater.
+function Kit.roundButton(
+	size: number,
+	ring: string,
+	artName: string?,
+	fallbackIcon: string?,
+	key: string?
+): (ImageButton, (number, number) -> ())
+	local b = Instance.new("ImageButton")
+	b.Name = "RoundButton"
+	b.Size = UDim2.fromOffset(size, size)
+	b.BackgroundTransparency = 1
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	Kit.touchTarget(b)
+	local ringArt = Assets.Hud[if ring == "gold" then "ring_gold" else "ring_silver"]
+	if ringArt then
+		b.Image = ringArt.id
+		b.ScaleType = Enum.ScaleType.Fit
+		if ring ~= "gold" then
+			b.ImageColor3 = Theme.Hud.RingCyan
+		end
+	else
+		b.BackgroundTransparency = 0
+		b.BackgroundColor3 = Theme.Color.Bg1
+		circle(b)
+		Kit.stroke(b, if ring == "gold" then Theme.Color.Gold else Theme.Color.Cyan, 3)
+	end
+
+	local inner = math.floor(size * 0.66)
+	local ic: GuiObject? = nil
+	if artName then
+		ic = Kit.hudImage(artName, Vector2.new(inner, inner))
+	end
+	if not ic and fallbackIcon then
+		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
+	end
+	if ic then
+		ic.AnchorPoint = Vector2.new(0.5, 0.5)
+		ic.Position = UDim2.fromScale(0.5, 0.5)
+		ic.ZIndex = 2
+		ic.Parent = b
+	end
+	if key then
+		local k = Kit.label(key, 11)
+		k.Name = "Key"
+		k.AnchorPoint = Vector2.new(0.5, 1)
+		k.Position = UDim2.new(0.5, 0, 1, -2)
+		k.TextStrokeTransparency = 0.3
+		k.ZIndex = 6
+		k.Parent = b
+	end
+	local update = Kit.cooldownVeil(b)
+	pressFeedback(b)
+	return b, update
+end
+
+-- Bare icon button (hub bar, settings): no frame, caption below. artName = Assets.Hud key,
+-- fallbackIcon = atlas icon while the image is missing. Hit area = whole cell.
+function Kit.hudIconButton(
+	size: number,
+	artName: string,
+	fallbackIcon: string,
+	caption: string?
+): ImageButton
+	local captionH = if caption then Theme.Hud.BarCaption else 0
+	local b = Instance.new("ImageButton")
+	b.Name = fallbackIcon
+	b.Size = UDim2.fromOffset(size + 12, size + captionH)
+	b.BackgroundTransparency = 1
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	Kit.touchTarget(b)
+	local ic: GuiObject = Kit.hudImage(artName, Vector2.new(size, size))
+		or Kit.icon(fallbackIcon, size, Theme.Color.Muted)
+	ic.AnchorPoint = Vector2.new(0.5, 0)
+	ic.Position = UDim2.fromScale(0.5, 0)
+	ic.ZIndex = 2
+	ic.Parent = b
+	if caption then
+		local t = Kit.label(caption, 10, Theme.Color.Text)
+		t.AutomaticSize = Enum.AutomaticSize.None
+		t.AnchorPoint = Vector2.new(0.5, 1)
+		t.Position = UDim2.fromScale(0.5, 1)
+		t.Size = UDim2.new(1, 0, 0, captionH)
+		t.TextXAlignment = Enum.TextXAlignment.Center
+		t.TextStrokeTransparency = 0.3
+		t.ZIndex = 3
+		t.Parent = b
+	end
+	pressFeedback(b)
+	return b
+end
+
 local PILL_KEY = { gold = "gold", cyan = "cyan", purple = "purple" }
 local PILL_HEIGHT = 40
 local PILL_PLUS = 32
 
--- Ressourcen-Anzeige: Kapsel mit Icon links, Zahl in der Mitte und eigenem +-Knopf rechts.
--- Gibt Kapsel, Zahlen-Label und +-Knopf zurück (Knopf nil ohne Bild).
+-- Resource display: capsule with icon on the left, number in the middle and its own + button on the right.
+-- Returns capsule, number label and + button (button is nil without an image).
 function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextLabel, ImageButton?)
 	local c = color or Theme.Color.Gold
 	local key = if c == Theme.Color.Cyan
@@ -586,7 +844,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	local slice = Assets.Slice["pill3_" .. key]
 	local plusFixed = Assets.Fixed["plus_" .. key]
 	if skin and slice then
-		-- Kapsel nie verzerren: Skalierung = Anzeigehöhe / Bildhöhe
+		-- Never distort the capsule: scale = display height / image height
 		skin.SliceScale = PILL_HEIGHT / slice.size.Y
 	else
 		Kit.corner(f, PILL_HEIGHT // 2)
@@ -599,7 +857,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	ic.Parent = f
 	local plus: ImageButton? = nil
 	if plusFixed then
-		-- Unsichtbare Trefferfläche (wächst auf Touch), das Bild sitzt fest am rechten Rand
+		-- Invisible hit area (grows on touch), the image sits fixed at the right edge
 		local pb = Instance.new("ImageButton")
 		pb.Name = "Plus"
 		pb.AnchorPoint = Vector2.new(1, 0.5)
@@ -610,7 +868,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 		pb.ZIndex = 3
 		Kit.touchTarget(pb)
 		local img = Instance.new("ImageLabel")
-		img.Name = "Bild"
+		img.Name = "Image"
 		img.AnchorPoint = Vector2.new(1, 0.5)
 		img.Position = UDim2.fromScale(1, 0.5)
 		img.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
@@ -646,7 +904,7 @@ end
 
 export type IconButtonKind = "nav" | "tab" | "close"
 
--- Icon-Button: Menü (nav), Filter-Tab (tab) oder Schließen (close). Text nur als Name.
+-- Icon button: menu (nav), filter tab (tab) or close (close). Text only as a name.
 function Kit.iconButton(
 	iconName: string,
 	label: string,
@@ -657,7 +915,7 @@ function Kit.iconButton(
 ): ImageButton
 	local s = size or 48
 	local k = kind or "nav"
-	-- Aktiver Tab mit Beschriftung wird breiter und zeigt den Namen unter dem Icon
+	-- An active tab with a caption gets wider and shows the name below the icon
 	local captioned = k == "tab" and active == true and caption ~= nil
 	local b = Instance.new("ImageButton")
 	b.Name = label
@@ -667,7 +925,7 @@ function Kit.iconButton(
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1
 	if k == "close" then
-		-- Immer rot: Hover gibt es auf Touch nicht, sonst wirkt der Knopf je Fenster anders
+		-- Always red: there is no hover on touch, otherwise the button would look different per window
 		local fixed = Assets.Fixed.close_red or Assets.Fixed.close_dark
 		if fixed then
 			b.Image = fixed.id
@@ -697,7 +955,7 @@ function Kit.iconButton(
 	ic.ZIndex = 2
 	ic.Parent = b
 	if captioned then
-		-- Inneres Leuchten: Gold am Rand, zur Mitte hin klar
+		-- Inner glow: gold at the edge, clear toward the center
 		local glow = Instance.new("Frame")
 		glow.Name = "Glow"
 		glow.Size = UDim2.fromScale(1, 1)
@@ -723,7 +981,7 @@ function Kit.iconButton(
 	return b
 end
 
--- Trennlinie mit Raute (Bild, nur in der Breite gezogen)
+-- Divider with diamond (image, stretched in width only)
 function Kit.divider(width: number): GuiObject
 	local fixed = Assets.Fixed.divider
 	if not fixed then
@@ -742,7 +1000,7 @@ function Kit.divider(width: number): GuiObject
 	return img
 end
 
--- Eingabefeld (Suche) im Look des Sortier-Buttons mit Lupe links. Gibt Rahmen und TextBox zurück.
+-- Input field (search) in the look of the sort button with a magnifier on the left. Returns frame and TextBox.
 function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
@@ -757,7 +1015,7 @@ function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	if lens then
 		local iconSize = math.floor(size.Y * 0.5)
 		local ic = Instance.new("ImageLabel")
-		ic.Name = "Lupe"
+		ic.Name = "Magnifier"
 		ic.BackgroundTransparency = 1
 		ic.AnchorPoint = Vector2.new(0, 0.5)
 		ic.Position = UDim2.new(0, 14, 0.5, 0)
