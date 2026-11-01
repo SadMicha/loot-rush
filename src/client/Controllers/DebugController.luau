@@ -36,10 +36,17 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "+10 Items", command = "items", value = 10 },
 	{ label = "Unlock Areas", command = "atlas" },
 	{ label = "Kill All Enemies", command = "slay" },
+	{ label = "Pet egg", command = "pet" },
+	{ label = "Rebirth", command = "rebirth" },
 }
 
+-- Overlay nur in Studio oder für freigeschaltete Entwickler (Systems/Debug setzt „DebugTools“)
+local function allowed(): boolean
+	return RunService:IsStudio() or player:GetAttribute("DebugTools") == true
+end
+
 local function toggle()
-	panel.Visible = not panel.Visible
+	panel.Visible = allowed() and not panel.Visible
 end
 
 local function serverNumber(name: string): string
@@ -138,6 +145,10 @@ function DebugController.init()
 	button.AnchorPoint = Vector2.new(0, 1)
 	button.Position = UDim2.new(0, 28, 1, -28)
 	button.Activated:Connect(toggle)
+	button.Visible = allowed()
+	player:GetAttributeChangedSignal("DebugTools"):Connect(function()
+		button.Visible = allowed()
+	end)
 	button.Parent = root
 
 	gui.Parent = player:WaitForChild("PlayerGui")
