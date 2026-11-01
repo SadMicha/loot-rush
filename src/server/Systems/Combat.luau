@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
+local Crit = require(ReplicatedStorage.Shared.Crit)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
@@ -40,6 +41,9 @@ local states: { [Player]: PState } = {}
 local allowCast = RateLimit.new(20, 30)
 local allowAction = RateLimit.new(8, 12)
 local rng = Random.new()
+local function roll(): number
+	return rng:NextNumber()
+end
 local BODY_RADIUS = 1.7 -- enemy body, added to the hit radius
 
 -- Special effects (own assumptions, not in the balancing sheet)
@@ -298,22 +302,28 @@ damageEnemy = function(
 	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
 		bonus += num(player, "StatLowLife") / 100
 	end
-	local crit = not proc and rng:NextNumber() < critChance
+	local tier = if proc then 0 else Crit.rollTier(critChance, roll) -- overcrit: Shared/Crit
+	local crit = tier >= 1
 	local critMult = Config.CRIT_MULT + num(player, "StatCritDamage") / 100
 	local weapon = num(player, "StatWeapon") -- weapon base damage as a factor (Systems/Stats)
-	local amount = base
-		* (if weapon > 0 then weapon else 1)
-		* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
-		* (1 + num(player, "BonusDamage") / 100) -- Rebirth, pet … (Systems/Boosts)
-		* (if crit then critMult else 1)
+	local amount = Crit.damage(
+		base
+			* (if weapon > 0 then weapon else 1)
+			* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
+			* (1 + num(player, "BonusDamage") / 100), -- Rebirth, pet … (Systems/Boosts)
+		tier,
+		critMult
+	)
 	amount = math.max(1, math.floor(amount + 0.5))
 	hp = math.max(0, hp - amount)
 	enemy:SetAttribute("Health", hp)
 	local pos = enemyPos(enemy)
-	Net.Fx:FireAllClients(
-		"dmg",
-		{ pos = pos + Vector3.new(0, 3.5, 0), amount = amount, crit = crit }
-	)
+	Net.Fx:FireAllClients("dmg", {
+		pos = pos + Vector3.new(0, 3.5, 0),
+		amount = amount,
+		crit = crit,
+		critTier = if crit then tier else nil,
+	})
 
 	if skill and not proc then
 		if skill.slow then
@@ -368,6 +378,9 @@ damageEnemy = function(
 		end
 	end
 end
+
+-- One hit with the full damage formula (crit tiers included); also used by the specs
+Combat.damageEnemy = damageEnemy
 
 -- Test command (Systems/Debug): defeat an enemy instantly, loot and XP as with a real kill
 function Combat.slay(player: Player, enemy: Model)

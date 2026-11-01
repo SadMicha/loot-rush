@@ -81,13 +81,14 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 
 TTK = seconds per normal enemy (single target). Hits = how many hits the player survives.
 Regenerated from `tests/Balancing.spec.luau` (`lune run tools/lune/test Balancing`) after the
-nine gear slots: the simulated player fills all nine slots (best piece per slot), and crit is
-capped like in the game (see below). Total for depths 1-30: 25 min.
+nine gear slots: the simulated player fills all nine slots (best piece per slot), crit uncapped
+with overcrit (see below). Total for depths 1-30: 25 min.
 
-Caps (`Config.STAT_SPEED_CAP` / `STAT_CRIT_CAP`, applied in `Stats.refresh`): gear + Star Net
-move speed is limited to +50% and crit chance to +50% (60% total with the base 10%). The
-absolute best nine-piece set (tier 1 speed and crit on every piece) would reach ~98% speed and
-~77% crit uncapped; the caps only bite on near-perfect sets.
+No caps: gear + Star Net move speed and crit chance are uncapped. Crit chance above 100% overcrits:
+floor(total) crit tiers are guaranteed, the remainder is the chance of one more tier, and every
+tier multiplies the damage by the crit multiplier again (`Shared/Crit`; 130% = every hit tier 1
+and 30% tier 2, damage `base * critMult^tier`). The simulation uses the average factor
+(`Crit.expectedMult`). Best nine-piece set uncapped: ~98% speed (WalkSpeed ~40) and ~77% gear crit.
 
 | Depth | Level | TTK | Boss s | Run s | Hits normal | Hits boss | Gold/run |
 |---|---|---|---|---|---|---|---|
