@@ -53,3 +53,5 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 Platform stack order (N8-N13, open decisions D1-D6 in `docs/specs/PLATFORM-STACK.md`): N8 → N9 (‖ N10) → N11 → N13; N12 runs in parallel in the UI lane after N8.
 
 System order per plan: Star Web → Forge → Village & offline income → Rebirth. Star Web, Forge and Rebirth are built (🔧); Village & offline income (N5) remains open.
+
+Release steps: `docs/RELEASE.md` (debug tools for developers only, release checklist, test commands, from #39).
