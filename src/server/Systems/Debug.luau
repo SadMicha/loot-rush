@@ -131,18 +131,15 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	pet = {
 		run = function(player)
 			Shop.grant(player, "soulstars", 75)
-			local ok, text = Pets.hatch(player, "sternen_ei")
+			local ok, text = Pets.hatch(player, "star_egg")
 			Net.PetResult:FireClient(player, { ok = ok, text = text })
 		end,
 	},
 	rebirth = {
 		run = function(player)
-			-- Nicht mitten im Lauf, und tief genug für die nächste Wiedergeburt (Wand wandert mit)
+			-- Not in the middle of a run, and deep enough for the next rebirth (the wall moves with it)
 			if Rift.isRunning(player) then
-				Net.RebirthResult:FireClient(
-					player,
-					{ ok = false, text = "Erst das Rift verlassen" }
-				)
+				Net.RebirthResult:FireClient(player, { ok = false, text = "Leave the Rift first" })
 				return
 			end
 			unlockAtlas(player, RebirthRules.required(Rift.rebirthsOf(player)))
