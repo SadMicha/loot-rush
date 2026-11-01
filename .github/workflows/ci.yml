@@ -11,8 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tools (rojo, selene, stylua, lune, luau-lsp)
+      - name: Install tools and Wally packages (rojo, selene, stylua, lune, luau-lsp, wally)
         run: bash tools/setup.sh
+
+      - name: wally.lock up to date
+        run: git diff --exit-code -- wally.lock || { echo "::error::wally install changed wally.lock - run it locally and commit the lock file"; exit 1; }
 
       - name: Format
         run: bash tools/check.sh format

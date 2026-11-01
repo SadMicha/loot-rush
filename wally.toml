@@ -4,9 +4,9 @@ version = "0.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
+# Shared packages -> ReplicatedStorage.Packages (Fusion follows in N12.1)
 [dependencies]
-# Promise = "evaera/promise@4"
-# Trove = "sleitnick/trove@1"
 
+# Server packages -> ServerScriptService.ServerPackages
 [server-dependencies]
-# ProfileStore = "loleris/profilestore@1"   # from milestone 3 (saving)
+ProfileStore = "lm-loleris/profilestore@1.0.3"

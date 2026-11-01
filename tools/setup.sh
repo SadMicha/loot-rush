@@ -70,6 +70,18 @@ if [[ $DATA_ONLY == 0 ]]; then
 	[[ $OS == linux && $ARCH == aarch64 ]] && lsp_os=linux-arm64
 	[[ $OS == linux && $ARCH == x86_64 ]] && lsp_os=linux-x86_64
 	install_zip luau-lsp "$GH/JohnnyMorganz/luau-lsp/releases/download/$v/luau-lsp-$lsp_os.zip"
+	# wally ships only linux (x86_64) and macos (x86_64, runs under Rosetta) builds
+	v=$(version wally)
+	if [[ $OS == linux && $ARCH == aarch64 ]]; then
+		echo "  no wally build for linux-aarch64: install it with 'rokit install'" >&2
+	else
+		install_zip wally "$GH/UpliftGames/wally/releases/download/v$v/wally-v$v-$OS.zip"
+	fi
+	v=$(version wally-package-types)
+	wpt_os=$OS-$ARCH
+	[[ $OS == macos && $ARCH == x86_64 ]] && wpt_os=macos
+	install_zip wally-package-types \
+		"$GH/JohnnyMorganz/wally-package-types/releases/download/v$v/wally-package-types-$wpt_os.zip"
 fi
 export PATH="$BIN:$PATH"
 
@@ -102,5 +114,8 @@ if command -v selene >/dev/null; then
 		lune run tools/lune/selene-std "$DATA/roblox_base.yml" "$DATA/API-Dump.json" "$CACHE/roblox.yml" "$SV"
 	fi
 fi
+
+echo "▶ Wally packages → Packages/, ServerPackages/"
+bash tools/packages.sh
 
 echo "✔ done. For the shell: export PATH=\"$BIN:\$PATH\""
