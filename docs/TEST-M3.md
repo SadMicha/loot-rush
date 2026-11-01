@@ -18,6 +18,19 @@
 - [x] Unequip and sell (gold goes up) work
 - [x] Inventory full (40) → items stay on the ground
 
+## Gear slots 5 → 9 (boots, gloves, belt, offhand)
+
+Needs the matching inventory/forge UI update (ui-designer) before the visual checks.
+
+- [ ] Loot drops all 9 slots (Helmet, Armor, Gloves, Belt, Boots, Weapon, Offhand, Amulet, Ring), roughly evenly
+- [ ] New base names show up: Leather Boots/Iron Greaves/Cloud Striders, Cloth Wraps/Iron Gauntlets/Crystal Grips, Rope Belt/Studded Belt/Soul Girdle, Wooden Buckler/Spark Orb/Crystal Tome
+- [ ] Fixed stat: boots = move speed, gloves = crit, belt = life, offhand = damage
+- [ ] Equip each new piece: it shows in its own slot, stats go up (faster walk, more crit, more max health, higher damage numbers); equipping a second one swaps the old one back into the grid
+- [ ] Unequip a new piece: back into the grid, stat drops again
+- [ ] Forge works on an equipped belt/boots/gloves/offhand (listed among the equipped items)
+- [ ] Old save (from before this change, 5 slots equipped) loads unchanged; the 4 new slots are empty
+- [ ] Quit and rejoin: items in the new slots are still equipped
+
 ## Saving
 
 - [x] Quit and restart the game: gold, inventory and equipment are back (in Studio: Game Settings → Security → enable "Enable Studio Access to API Services", otherwise warning "Loading failed" and nothing is saved)

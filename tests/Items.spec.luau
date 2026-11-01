@@ -16,6 +16,35 @@ describe("Items.roll", function()
 		end
 	end)
 
+	it("rolls all 9 slots roughly uniformly, with the slot's implicit stat", function()
+		expect(#Items.Slots).toBe(9)
+		local implicit = {
+			helmet = "life",
+			armor = "life",
+			gloves = "crit",
+			belt = "life",
+			boots = "speed",
+			weapon = "damage",
+			offhand = "damage",
+			amulet = "crit",
+			ring = "speed",
+		}
+		local seen = {}
+		local n = 4500
+		for seed = 1, n do
+			local item = Items.roll(5, Random.new(seed))
+			seen[item.slot] = (seen[item.slot] or 0) + 1
+			expect(item.affixes[1].stat).toBe(implicit[item.slot])
+			expect(#item.name).toBeGreaterThan(0)
+		end
+		for _, slot in Items.Slots do
+			expect(Items.SlotName[slot]).never.toBeNil()
+			-- 1/9 = 500 per slot; generous band against PRNG noise
+			expect(seen[slot] or 0).toBeGreaterThan(n / 9 * 0.75)
+			expect(seen[slot] or 0).toBeLessThan(n / 9 * 1.25)
+		end
+	end)
+
 	it("has no duplicate extra stats", function()
 		for seed = 1, 200 do
 			local seen = {}

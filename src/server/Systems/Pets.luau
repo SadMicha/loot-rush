@@ -2,14 +2,13 @@
 -- Pets on the server (rules: Shared/Pets). The client only sends requests via Net.Pet:
 --   "hatch", eggId  → deduct the price, roll a pet, raise the level or give shards
 --   "equip", petId / "unequip", petId → take/free a slot
--- State goes to the client as Net.Pets, feedback as Net.PetResult. Equipped pets
+-- State goes to the client as Net.Pets, feedback as Net.PetResult (kind = the action). Equipped pets
 -- are listed comma-separated in the attribute "Pets" (for all clients, PetController makes them follow),
 -- the slot count in "PetSlots". Bonuses run via Systems/Boosts.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Balance = require(ReplicatedStorage.Shared.Balance)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Pets)
@@ -33,14 +32,6 @@ end
 function Pets.slots(player: Player): number
 	local extra = if player:GetAttribute("PassPetSlot") == true then 1 else 0
 	return math.min(Rules.MAX_SLOTS, Rules.BASE_SLOTS + extra)
-end
-
--- Price of an egg for this player (gold grows with the best depth, like in the shop)
-function Pets.eggPrice(egg: Rules.Egg, bestDepth: number): number
-	if egg.price.kind ~= "gold" then
-		return egg.price.amount
-	end
-	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
 end
 
 -- More equipped than there are slots (game pass gone)? Drop the extras - only on a
@@ -91,7 +82,7 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	if not profile or not egg then
 		return false, "Unknown egg", nil
 	end
-	local price = Pets.eggPrice(egg, Rebirth.bestDepth(profile.atlas))
+	local price = Rules.eggPrice(egg, Rebirth.bestDepth(profile.atlas))
 	local have = if egg.price.kind == "gold" then profile.gold else profile.soulstars
 	if have < price then
 		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil
@@ -162,15 +153,16 @@ local function onPet(player: Player, action: any, id: any)
 		local ok, text, petId = Pets.hatch(player, id)
 		local profile = Data.get(player)
 		reply(player, ok, text, {
+			kind = "hatch",
 			pet = petId,
 			level = if petId and profile then profile.pets.owned[petId] else nil,
 		})
 	elseif action == "equip" then
 		local ok, text = Pets.equip(player, id)
-		reply(player, ok, text, { pet = id })
+		reply(player, ok, text, { kind = "equip", pet = id })
 	elseif action == "unequip" then
 		local ok, text = Pets.unequip(player, id)
-		reply(player, ok, text, { pet = id })
+		reply(player, ok, text, { kind = "unequip", pet = id })
 	end
 end
 

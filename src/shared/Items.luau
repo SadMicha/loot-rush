@@ -28,12 +28,28 @@ export type Item = {
 
 local Items = {}
 
-Items.Slots = table.freeze({ "helmet", "armor", "weapon", "amulet", "ring" })
+-- Display order: armor head to toe, then hands (weapon, offhand), then jewelry.
+-- Items.roll picks from this list uniformly (each slot 1/9).
+Items.Slots = table.freeze({
+	"helmet",
+	"armor",
+	"gloves",
+	"belt",
+	"boots",
+	"weapon",
+	"offhand",
+	"amulet",
+	"ring",
+})
 
 Items.SlotName = table.freeze({
 	helmet = "Helmet",
 	armor = "Armor",
+	gloves = "Gloves",
+	belt = "Belt",
+	boots = "Boots",
 	weapon = "Weapon",
+	offhand = "Offhand",
 	amulet = "Amulet",
 	ring = "Ring",
 })
@@ -60,6 +76,10 @@ local IMPLICIT: { [string]: string } = {
 	weapon = "damage",
 	amulet = "crit",
 	ring = "speed",
+	boots = "speed",
+	gloves = "crit",
+	belt = "life",
+	offhand = "damage",
 }
 
 -- Rarities (colors in Theme.Rarity); affixes = {min, max} random extra stats.
@@ -82,7 +102,14 @@ local BASE = {
 	weapon = { "Wooden Staff", "Spark Staff", "Crystal Scepter" },
 	amulet = { "Stone Pendant", "Gold Chain", "Soul Amulet" },
 	ring = { "Copper Ring", "Silver Ring", "Spark Ring" },
+	boots = { "Leather Boots", "Iron Greaves", "Cloud Striders" },
+	gloves = { "Cloth Wraps", "Iron Gauntlets", "Crystal Grips" },
+	belt = { "Rope Belt", "Studded Belt", "Soul Girdle" },
+	offhand = { "Wooden Buckler", "Spark Orb", "Crystal Tome" },
 }
+for _, slot in Items.Slots do
+	assert(IMPLICIT[slot] and BASE[slot], `slot {slot}: implicit stat or base names missing`)
+end
 local SUFFIX =
 	{ damage = "of Fury", life = "of Toughness", crit = "of Precision", speed = "of Haste" }
 local TITLES = {
