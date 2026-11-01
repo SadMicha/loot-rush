@@ -64,14 +64,39 @@ describe("Monetization in game", function()
 
 	it("leaves no ownership entry behind when the player leaves while loading", function()
 		local players = game:GetService("Players")
-		local leaver = sim:joinPlayer("Leaver") -- loadPasses now waits for the save
+		local leaver = sim:joinPlayer("Leaver")
+		sim:run(1) -- the save is loaded, so loadPasses gets past Data.waitFor
+		local hasProfile, started
+		-- Ownership query that only answers after the player has left (real passes have id 0,
+		-- so the query would never run without a pass with a real id)
+		local CUSTOM_KEY = "MarketplaceService.UserOwnsGamePassAsync"
+		sim:custom("MarketplaceService", "UserOwnsGamePassAsync", {
+			method = function()
+				started = true
+				task.wait(1)
+				return true
+			end,
+		})
+		sim.customCache[CUSTOM_KEY] = nil
+		sim:runAs("server", function(req)
+			hasProfile = req("ServerScriptService.Server.Systems.Data").get(leaver) ~= nil
+			local M = req("ServerScriptService.Server.Systems.Monetization")
+			local pass = table.clone(req("ReplicatedStorage.Shared.Monetization").Passes[1])
+			pass.id = 4242
+			task.spawn(M.loadPasses, leaver, { pass })
+		end)
+		sim:run(0.2)
 		leaver.Parent = nil
 		sim:signal(players, "PlayerRemoving"):Fire(leaver)
 		sim:run(2)
+		sim.customs.MarketplaceService.UserOwnsGamePassAsync = nil
+		sim.customCache[CUSTOM_KEY] = nil
 		local tracked
 		sim:runAs("server", function(req)
 			tracked = req("ServerScriptService.Server.Systems.Monetization").isTracked(leaver)
 		end)
+		expect(hasProfile).toBe(true)
+		expect(started).toBe(true)
 		expect(tracked).toBe(false)
 	end)
 end)

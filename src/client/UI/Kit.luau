@@ -308,7 +308,31 @@ function Kit.textShadow(t: TextLabel)
 	shadow.Color = Theme.Shadow.Color
 	shadow.Thickness = Theme.Shadow.TextThickness
 	shadow.Transparency = Theme.Shadow.TextTransparency
+	shadow:SetAttribute("Base", shadow.Transparency)
 	shadow.Parent = t
+	t.TextStrokeTransparency = 1 -- one outline only (the UIStroke); no second built-in text stroke
+end
+
+-- Outline strength of a label made by Kit.label / Kit.textShadow (0 = solid, 1 = none)
+function Kit.textOutline(t: TextLabel, transparency: number)
+	local shadow = t:FindFirstChild("Shadow")
+	if shadow and shadow:IsA("UIStroke") then
+		shadow.Transparency = transparency
+		shadow:SetAttribute("Base", transparency)
+	else
+		t.TextStrokeTransparency = transparency
+	end
+end
+
+-- Text transparency incl. its outline (the outline fades with the text)
+function Kit.setTextTransparency(t: TextLabel, transparency: number)
+	t.TextTransparency = transparency
+	local shadow = t:FindFirstChild("Shadow")
+	if shadow and shadow:IsA("UIStroke") then
+		local base = shadow:GetAttribute("Base")
+		local b = if typeof(base) == "number" then base else Theme.Shadow.TextTransparency
+		shadow.Transparency = 1 - (1 - b) * (1 - transparency)
+	end
 end
 
 function Kit.label(text: string, size: number, color: Color3?, font: Font?): TextLabel
@@ -324,21 +348,31 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	return t
 end
 
--- Drop shadow for an image icon: `img` becomes the crisp face (child), the returned image is a dark
--- copy of it that sits behind (a child always draws above its parent, so the shadow is the parent and
--- the face is shifted up-left by Theme.Shadow.Offset). The caller sizes/places/parents the result.
+-- Drop shadow for an image icon: the returned image is an invisible holder (the caller sizes, places and
+-- parents it) with two children: "Shadow" (dark copy, offset down-right by Theme.Shadow.Offset) and
+-- "Face" (the crisp icon exactly at the holder's position, so it stays centered in slots and rings).
 function Kit.shadowed(img: ImageLabel): ImageLabel
+	local holder = img:Clone()
+	holder.Image = ""
+	holder.ImageRectOffset = Vector2.zero
+	holder.ImageRectSize = Vector2.zero
+	holder.BackgroundTransparency = 1
 	local back = img:Clone()
+	back.Name = "Shadow"
 	back.ImageColor3 = Theme.Shadow.Color
 	back.ImageTransparency = Theme.Shadow.Transparency
-	back.ImageRectOffset = img.ImageRectOffset
+	back.AnchorPoint = Vector2.zero
+	back.Position = UDim2.fromScale(Theme.Shadow.Offset, Theme.Shadow.Offset)
+	back.Size = UDim2.fromScale(1, 1)
+	back.ZIndex = 1
+	back.Parent = holder
 	img.Name = "Face"
 	img.AnchorPoint = Vector2.zero
-	img.Position = UDim2.fromScale(-Theme.Shadow.Offset, -Theme.Shadow.Offset)
+	img.Position = UDim2.fromScale(0, 0)
 	img.Size = UDim2.fromScale(1, 1)
-	img.ZIndex = 1
-	img.Parent = back
-	return back
+	img.ZIndex = 2
+	img.Parent = holder
+	return holder
 end
 
 -- Icon transparency incl. its shadow (dimmed / disabled icons)
@@ -349,7 +383,10 @@ function Kit.setIconTransparency(icon: GuiObject, transparency: number)
 	local face = icon:FindFirstChild("Face")
 	if face and face:IsA("ImageLabel") then
 		face.ImageTransparency = transparency
-		icon.ImageTransparency = math.max(transparency, Theme.Shadow.Transparency)
+		local back = icon:FindFirstChild("Shadow")
+		if back and back:IsA("ImageLabel") then
+			back.ImageTransparency = math.max(transparency, Theme.Shadow.Transparency)
+		end
 	else
 		icon.ImageTransparency = transparency
 	end
@@ -521,7 +558,7 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 		local k = Kit.label(key, 11, Theme.Color.Text)
 		k.AnchorPoint = Vector2.new(0.5, 1)
 		k.Position = UDim2.new(0.5, 0, 1, -2)
-		k.TextStrokeTransparency = 0.3
+		Kit.textOutline(k, 0.3)
 		k.ZIndex = 3
 		k.Parent = f
 	end
@@ -568,7 +605,7 @@ function Kit.setEnabled(b: ImageButton, enabled: boolean)
 		b.Image = slice.id
 	end
 	b.Active = enabled
-	Kit.buttonLabel(b).TextTransparency = if enabled then 0 else 0.4
+	Kit.setTextTransparency(Kit.buttonLabel(b), if enabled then 0 else 0.4)
 end
 
 -- Text button (gold = primary action, danger = red, otherwise blue), optionally with an icon left of the text.
@@ -707,7 +744,7 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 	local H = Theme.Hud
 	local span = H.OrbBottom - H.OrbTop
 	local diameter = math.floor(size * span)
-	local frameImg = Kit.hudImage("orb_" .. kind .. "_frame", Vector2.new(size, size), true)
+	local frameImg = Kit.hudImage("orb_" .. kind .. "_frame", Vector2.new(size, size)) -- no shadow: must stay aligned with the liquid
 	local fillImg = Kit.hudImage("orb_" .. kind .. "_fill", Vector2.new(size, size))
 
 	local root = Instance.new("Frame")
@@ -765,7 +802,7 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 	text.Name = "Value"
 	text.AnchorPoint = Vector2.new(0.5, 0.5)
 	text.Position = UDim2.fromScale(0.5, (H.OrbTop + H.OrbBottom) / 2)
-	text.TextStrokeTransparency = 0.25
+	Kit.textOutline(text, 0.25)
 	text.ZIndex = 5
 	text.Parent = root
 
@@ -801,7 +838,7 @@ function Kit.cooldownVeil(parent: GuiObject): (number, number) -> ()
 	text.Name = "CooldownText"
 	text.AnchorPoint = Vector2.new(0.5, 0.5)
 	text.Position = UDim2.fromScale(0.5, 0.5)
-	text.TextStrokeTransparency = 0.3
+	Kit.textOutline(text, 0.3)
 	text.ZIndex = 5
 	text.Parent = parent
 
@@ -874,7 +911,7 @@ function Kit.roundButton(
 		k.Name = "Key"
 		k.AnchorPoint = Vector2.new(0.5, 1)
 		k.Position = UDim2.new(0.5, 0, 1, -2)
-		k.TextStrokeTransparency = 0.3
+		Kit.textOutline(k, 0.3)
 		k.ZIndex = 6
 		k.Parent = b
 	end
@@ -912,7 +949,7 @@ function Kit.hudIconButton(
 		t.Position = UDim2.fromScale(0.5, 1)
 		t.Size = UDim2.new(1, 0, 0, captionH)
 		t.TextXAlignment = Enum.TextXAlignment.Center
-		t.TextStrokeTransparency = 0.3
+		Kit.textOutline(t, 0.3)
 		t.ZIndex = 3
 		t.Parent = b
 	end

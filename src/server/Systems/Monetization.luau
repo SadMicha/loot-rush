@@ -70,7 +70,8 @@ local function askOwns(player: Player, id: number): boolean?
 	return nil
 end
 
-local function loadPasses(player: Player)
+-- passes: defaults to Rules.Passes (tests pass a list with a real id to force the ownership query)
+local function loadPasses(player: Player, passes: { Rules.Pass }?)
 	local profile = Data.waitFor(player)
 	-- The player may have left while the save loaded: PlayerRemoving already cleared owned[player]
 	-- and writing it again would leak the entry (same check after every yielding query below)
@@ -78,7 +79,7 @@ local function loadPasses(player: Player)
 		return
 	end
 	owned[player] = owned[player] or {}
-	for _, pass in Rules.Passes do
+	for _, pass in passes or Rules.Passes do
 		local has: boolean? = nil
 		if pass.id > 0 then
 			has = askOwns(player, pass.id)
@@ -98,6 +99,7 @@ local function loadPasses(player: Player)
 	end
 	Boosts.refresh(player)
 end
+Monetization.loadPasses = loadPasses
 
 -- ------------------------------------------------------------------ Developer Products
 function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision

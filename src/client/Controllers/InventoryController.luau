@@ -742,6 +742,8 @@ function InventoryController.init()
 	gui.Enabled = false
 	Window.exclusive(function()
 		gui.Enabled = false
+	end, function()
+		return gui.Enabled
 	end)
 
 	local window = Instance.new("Frame")

@@ -173,7 +173,7 @@ local function orbCaption(parent: GuiObject, x: number, color: Color3): TextLabe
 	t.Position = UDim2.fromOffset(x, 0)
 	t.Size = UDim2.fromOffset(H.OrbSize, H.BarCaption)
 	t.TextXAlignment = Enum.TextXAlignment.Center
-	t.TextStrokeTransparency = 0.35
+	Kit.textOutline(t, 0.35)
 	t.Parent = parent
 	return t
 end
@@ -289,14 +289,14 @@ local function buildMinimap()
 		local north = Kit.label("N", 14, C.GoldHi, Theme.Font.Title)
 		north.AnchorPoint = Vector2.new(0.5, 0)
 		north.Position = UDim2.new(0.5, 0, 0, 22)
-		north.TextStrokeTransparency = 0.4
+		Kit.textOutline(north, 0.4)
 		north.ZIndex = 4
 		north.Parent = mapFrame
 	end
 
 	-- Terrain: round view exactly as large as the map area (MAP_RANGE studs from the center to the edge)
 	mapView = MiniMapView.new()
-	local terrain = mapView.root
+	local terrain: GuiObject = mapView.root
 	terrain.AnchorPoint = Vector2.new(0.5, 0.5)
 	terrain.Position = UDim2.fromScale(0.5, 0.5)
 	terrain.Size = UDim2.fromOffset(MAP_SIZE * mapInner * 2, MAP_SIZE * mapInner * 2)
@@ -771,6 +771,9 @@ function HudController.start()
 	RunService.Heartbeat:Connect(function(dt: number)
 		for i, update in skillVeils do
 			update(SkillController.cooldownRatio(i), SkillController.remaining(i))
+		end
+		if Window.anyOpen() then
+			return -- a fullscreen window covers the minimap: no terrain or dot work behind it
 		end
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")

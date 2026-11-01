@@ -1,20 +1,24 @@
 --!strict
 -- Terrain view for the minimap: a top-down ViewportFrame that follows the player and shows a light
 -- copy of the ground and props within Theme.MiniMap.Range. Purely client-side, nothing is replicated.
--- Cost control: part set refreshed at PartHz, camera at ViewHz, at most PartCap parts, a few new copies
--- per refresh, nothing runs while the view is hidden or there is no character. Only streamed-in parts
+-- Only the real map containers (workspace.Arena, workspace.Lumenhaven) are scanned, never pets, loot, fx.
+-- Cost control: part set refreshed at PartHz, camera at ViewHz, at most PartCap parts (applied after the
+-- filters, ground first), a few new copies per refresh, nothing runs while the view is hidden or there
+-- is no character (the last copies are kept meanwhile, so a respawn never shows a half-empty map). Only streamed-in parts
 -- are visible (StreamingEnabled-safe: a query simply returns what exists on this client).
 
-local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 
 local MiniMapView = {}
 
+-- Containers of the walkable world (see World.luau / Hub.luau); everything else in workspace is ignored
+local CONTAINERS = { "Arena", "Lumenhaven" }
+local BACKDROP = "Backdrop" -- far scenery folder inside the containers, not part of the map
+
 export type View = {
-	root: ViewportFrame,
+	root: CanvasGroup, -- circular clip around the terrain viewport and its tint
 	-- Call every frame; throttles itself. rootPart = the player's root (nil = no character), yaw = camera yaw
 	update: (dt: number, rootPart: BasePart?, yaw: number) -> boolean,
 }
@@ -47,16 +51,32 @@ local function isCreature(part: BasePart): boolean
 	return model ~= nil and model:FindFirstChildOfClass("Humanoid") ~= nil
 end
 
+-- Ground tiles live in a folder named "Ground"; the hub spawn pad counts as ground too
+local function isGround(part: BasePart): boolean
+	local folder = part:FindFirstAncestor("Ground")
+	return folder ~= nil and folder:IsA("Folder")
+end
+
 function MiniMapView.new(): View
 	local M = Theme.MiniMap
+	local group = Instance.new("CanvasGroup") -- clips the viewport render to a circle (UICorner)
+	group.Name = "Terrain"
+	group.BackgroundTransparency = 1
+	group.BorderSizePixel = 0
+	group.Size = UDim2.fromScale(1, 1)
+	local groupCorner = Instance.new("UICorner")
+	groupCorner.CornerRadius = UDim.new(0.5, 0)
+	groupCorner.Parent = group
+
 	local viewport = Instance.new("ViewportFrame")
-	viewport.Name = "Terrain"
+	viewport.Name = "Viewport"
 	viewport.BackgroundTransparency = 1
 	viewport.BorderSizePixel = 0
 	viewport.Ambient = M.Ambient
 	viewport.LightColor = M.Light
 	viewport.LightDirection = Vector3.new(-0.35, -1, -0.25)
 	viewport.Size = UDim2.fromScale(1, 1)
+	viewport.Parent = group
 	local camera = Instance.new("Camera")
 	camera.FieldOfView = M.Fov
 	camera.Parent = viewport
@@ -70,30 +90,36 @@ function MiniMapView.new(): View
 	tint.BackgroundTransparency = M.Tint
 	tint.BorderSizePixel = 0
 	tint.ZIndex = 2
-	tint.Parent = viewport
+	tint.Parent = group
+	local tintCorner = Instance.new("UICorner")
+	tintCorner.CornerRadius = UDim.new(0.5, 0)
+	tintCorner.Parent = tint
 
 	local height = M.Range / math.tan(math.rad(M.Fov) / 2)
 	local copies: { [BasePart]: BasePart } = {}
 	local params = OverlapParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.MaxParts = M.PartCap * 2
-	local exclude: { Instance } = {}
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.MaxParts = 0 -- the Include list already limits the query to the map; the cap comes after filtering
+	local include: { Instance } = {}
 	local sincePart, sinceView = math.huge, math.huge
+	local hadRoot = false
 
 	local function refreshParts(origin: Vector3)
-		table.clear(exclude)
-		for _, p in Players:GetPlayers() do
-			if p.Character then
-				table.insert(exclude, p.Character)
+		table.clear(include)
+		for _, name in CONTAINERS do
+			local c = workspace:FindFirstChild(name)
+			if c then
+				table.insert(include, c)
 			end
 		end
-		for _, e in CollectionService:GetTagged("Enemy") do
-			table.insert(exclude, e)
+		if #include == 0 then
+			return
 		end
-		params.FilterDescendantsInstances = exclude
+		params.FilterDescendantsInstances = include
 
 		local found = workspace:GetPartBoundsInRadius(origin, M.Range * 1.15, params)
-		local wanted: { BasePart } = {}
+		local ground: { BasePart } = {}
+		local props: { BasePart } = {}
 		for _, part in found do
 			local dy = part.Position.Y - origin.Y
 			if
@@ -103,17 +129,32 @@ function MiniMapView.new(): View
 				and dy > -M.MaxBelow
 				and not part:IsA("Terrain")
 				and not isCreature(part)
+				and not part:FindFirstAncestor(BACKDROP)
 			then
-				table.insert(wanted, part)
+				table.insert(if isGround(part) then ground else props, part)
 			end
 		end
-		-- Big parts (ground) first so the cap never drops the floor
-		table.sort(wanted, function(a: BasePart, b: BasePart)
+		local function bySize(a: BasePart, b: BasePart)
 			return a.Size.Magnitude > b.Size.Magnitude
-		end)
+		end
+		table.sort(ground, bySize)
+		table.sort(props, bySize)
+		-- The cap comes after the filters: the largest ground parts first (never more than 3/4 of the
+		-- cap, so props still show), then the largest props
+		local wanted: { BasePart } = {}
+		local groundMax = math.floor(M.PartCap * 0.75)
+		for i = 1, math.min(#ground, groundMax) do
+			table.insert(wanted, ground[i])
+		end
+		for i = 1, #props do
+			if #wanted >= M.PartCap then
+				break
+			end
+			table.insert(wanted, props[i])
+		end
 		local keep: { [BasePart]: boolean } = {}
-		for i = 1, math.min(#wanted, M.PartCap) do
-			keep[wanted[i]] = true
+		for _, part in wanted do
+			keep[part] = true
 		end
 		for src, copy in copies do
 			if not keep[src] then
@@ -122,8 +163,7 @@ function MiniMapView.new(): View
 			end
 		end
 		local budget = M.ClonesPerRefresh
-		for i = 1, math.min(#wanted, M.PartCap) do
-			local src = wanted[i]
+		for _, src in wanted do
 			local copy = copies[src]
 			if copy then
 				if copy.CFrame ~= src.CFrame then
@@ -140,19 +180,18 @@ function MiniMapView.new(): View
 		end
 	end
 
-	local function clear()
-		for src, copy in copies do
-			copy:Destroy()
-			copies[src] = nil
-		end
-	end
-
 	local function update(dt: number, rootPart: BasePart?, yaw: number): boolean
-		if not rootPart or not viewport.Visible or viewport.AbsoluteSize.X <= 0 then
-			if next(copies) ~= nil and not rootPart then
-				clear()
-			end
+		if not rootPart then
+			-- Respawn: keep the last copies until the new character exists (no half-empty map)
+			hadRoot = false
 			return false
+		end
+		if not group.Visible or group.AbsoluteSize.X <= 0 then
+			return false
+		end
+		if not hadRoot then
+			hadRoot = true
+			sincePart = math.huge -- refresh right away for the new character
 		end
 		sincePart += dt
 		sinceView += dt
@@ -174,7 +213,7 @@ function MiniMapView.new(): View
 		return true
 	end
 
-	return { root = viewport, update = update }
+	return { root = group, update = update }
 end
 
 return MiniMapView

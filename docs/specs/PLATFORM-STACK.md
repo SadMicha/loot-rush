@@ -1,7 +1,7 @@
 # Platform stack: Fusion, ProfileStore, cross-server, Open Cloud support, analytics
 
-Status: planned (nothing of this is built). Roadmap rows N8-N13 in `docs/ROADMAP.md`.
-Written against HEAD `a773170`. Package versions checked on the Wally index on 2026-11-01.
+Status: planned, decisions D1-D6 made by the user on 2026-11-01 (nothing of this is built). Roadmap rows N8-N13 in `docs/ROADMAP.md`.
+Written against HEAD `a773170`, decisions recorded against `a5f95e1`. Package versions checked on the Wally index on 2026-11-01.
 
 ## Goal
 
@@ -11,13 +11,13 @@ Move Loot Rush onto the stack the user chose for running a live game:
 |---|---|---|
 | Package tooling (Wally) | prerequisite for everything below | N8 |
 | ProfileStore for player saves | ProfileStore by loleris | N9 |
-| Live tracking / balancing | GameAnalytics and/or PlayFab, AnalyticsService evaluated | N10 |
-| Customer support on player data | Open Cloud Data Stores v2 | N11 |
-| UI framework | Fusion, replacing imperative Kit UI | N12 |
-| Cross-server | MemoryStoreService (matchmaking, announcements), MessagingService only if justified | N13 |
+| Live tracking / balancing | Roblox AnalyticsService behind a server facade (D2) | N10 |
+| Customer support on player data | Open Cloud Data Stores v2, local CLI (D5) | N11 |
+| UI framework | Fusion, pilot on the Shop window, then go/no-go (D1) | N12 |
+| Cross-server | Announcements over MessagingService, MemoryStore only for a "recent" list (D4); no matchmaking (D3) | N13 |
 
-Non-goals: co-op rifts, server browser, trading, global leaderboards, PlayFab LiveOps, an admin web panel,
-a big-bang UI rewrite. See "Parked".
+Non-goals: co-op rifts, matchmaking, server browser, trading, global leaderboards, PlayFab, GameAnalytics (parked),
+a GitHub support workflow (parked), an admin web panel, a big-bang UI rewrite. See "Parked".
 
 ---
 
@@ -62,9 +62,8 @@ a big-bang UI rewrite. See "Parked".
 |---|---|---|---|
 | ProfileStore | `lm-loleris/profilestore` | `1.0.3` | server |
 | Fusion | `elttob/fusion` | `0.3.0` | shared |
-| GameAnalytics SDK | `gameanalytics/gameanalytics-sdk` | `3.0.0` | shared |
-
-N8 only adds ProfileStore. Fusion is added in N12, GameAnalytics in N10b. That way no unused package ships.
+N8 only adds ProfileStore. Fusion is added in N12.1. GameAnalytics (`gameanalytics/gameanalytics-sdk@3.0.0`) is parked (D2)
+and not installed. That way no unused package ships.
 
 ---
 
@@ -100,8 +99,8 @@ and are removed after N9 is green.
   is rewritten to ProfileStore semantics ("a save with an active foreign session is never loaded into two servers";
   ProfileStore waits for/requests the other session instead of an immediate kick). Seed data must use ProfileStore's
   raw value format, which N9.1 documents in this spec. **Other agents are editing `tests/` concurrently; rebase before touching `tests/Data*.spec`.**
-- `docs/TEST-SAVING.md` gets a ProfileStore section (planner, after N9 lands). Do N9 **before** the TEST-SAVING round in N1,
-  otherwise that playtest tests code about to be replaced.
+- `docs/TEST-SAVING.md` gets a ProfileStore section (planner, after N9 lands). N9 lands **before** the TEST-SAVING round in N1
+  (D6); the rest of N1 does not wait for N9.
 
 **User actions:** none new (Studio: *Game Settings -> Security -> Enable Studio Access to API Services*, already in TEST-SAVING).
 
@@ -121,20 +120,10 @@ ProfileStore autosaves roughly every 5 min (fewer writes than today's 60 s).
 
 ## 3. Analytics (N10)
 
-**Evaluation:**
-
-| | Roblox AnalyticsService | GameAnalytics | PlayFab |
-|---|---|---|---|
-| Package | built-in | `gameanalytics/gameanalytics-sdk@3.0.0` (Wally) | no official Roblox SDK (Microsoft ships C#/Java/JS/Python/Lua for Defold/Corona; `@rbxts/playfab` is community, roblox-ts only) |
-| Events | economy, funnel, onboarding funnel, progression, custom (max 100 custom event names) | business, resource, progression, design, error + remote configs | events + player data + LiveOps (overlaps ProfileStore) |
-| Latency | daily aggregation, up to 24 h | near real time | near real time |
-| Setup | none, server only, published games only (not Studio) | account, game key + secret key in server code, `HttpService.HttpEnabled` | title, secret key, hand-written REST over HttpService |
-| Privacy | stays with Roblox | third party (UserId + device info) | third party |
-| Cost | free | core free, raw export paid | free dev tier, then paid |
-
-**Recommendation:** one server facade `Systems/Analytics.luau` that gameplay calls once; sink 1 = AnalyticsService (now),
-sink 2 = GameAnalytics (N10b, only if the user picks it and keys exist). PlayFab not adopted: no SDK, duplicates ProfileStore
-and AnalyticsService, adds a secret and HTTP budget for no current need. See Decision D2.
+**Decided (D2):** one server facade `Systems/Analytics.luau` that gameplay calls; the only sink now is Roblox
+AnalyticsService (built-in, free, server only, works in published games only, daily aggregation up to 24 h, max 100 custom
+event names). The facade keeps sinks pluggable so a GameAnalytics sink stays a one-file job if daily data proves too slow
+(parked, see "Parked"). PlayFab not adopted: no official Roblox SDK and it duplicates ProfileStore/AnalyticsService.
 
 **Event contract (fixed, backend owns):** `Analytics.economy(player, flow: "source"|"sink", currency: "gold"|"soulstars", amount, balance, txType, sku)`,
 `Analytics.progression(player, "rift_<region>", "start"|"complete"|"fail", depth)`, `Analytics.onboarding(player, step, name)`,
@@ -147,15 +136,10 @@ and AnalyticsService, adds a secret and HTTP budget for no current need. See Dec
 - Onboarding "first" flags: derived from existing save fields where possible; if a new save field is needed it goes
   through `Profile.luau` DEFAULTS (backend).
 
-**Privacy/policy:** UserId only; never Name/DisplayName, chat or free text; no custom IDs. AnalyticsService needs no consent flow.
-If GameAnalytics is added: mention third-party analytics in the experience description, keep `setEnabledEventSubmission`
-wired to a server flag (kill switch), and on a right-to-erasure request also file a deletion with GameAnalytics for that UserId.
+**Privacy/policy:** UserId only; never Name/DisplayName, chat or free text; no custom IDs. AnalyticsService needs no consent flow
+and no third party sees player data.
 
-**User actions:** none for AnalyticsService (dashboards: Creator Hub -> experience -> Analytics). For GameAnalytics:
-free account at gameanalytics.com, create game (platform Roblox) -> Game Key + Secret Key -> GitHub env `Roblox` secrets
-`GA_GAME_KEY`, `GA_SECRET_KEY`; publish step injects them into a gitignored server module (never committed);
-`HttpService.HttpEnabled = true` set via `default.project.json` (publish replaces the place, so Rojo is authoritative).
-HttpService budget: 500 requests/min per server (GA batches, well within).
+**User actions:** none (dashboards: Creator Hub -> experience -> Analytics; data only from published sessions).
 
 ### Task order N10
 
@@ -163,8 +147,7 @@ HttpService budget: 500 requests/min per server (GA batches, well within).
 |---|---|---|---|
 | N10.1 | backend-developer | `Systems/Analytics.luau` facade + AnalyticsService sink + call sites; Lune test with a fake sink | none (no package) |
 | N10.2 | code-reviewer | Review: no PII, server only, no hot-path spam (no per-hit events) | N10.1 |
-| N10b.1 | backend-developer | GameAnalytics sink behind keys, key injection at publish | N8, N10.1, D2 = GA |
-| N10b.2 | frontend-developer | GameAnalytics client init in `init.client.luau` (SDK needs its client part) | N10b.1 |
+| ~~N10b~~ | - | GameAnalytics sink + client init: **parked** (D2); reopen only if 24 h AnalyticsService data blocks balancing | - |
 
 ---
 
@@ -183,22 +166,36 @@ Commands (minimal): `get <userId>` (prints `data` pretty), `revisions <userId>`,
 - `delete` serves right-to-erasure requests. Roblox can also auto-delete data store entries whose key matches a
   configured RTBF template (key contains the UserId, which `p_<UserId>` does); configure that in Creator Hub (user action).
 
-**Depends on N9** (value format). Read-only first (N11.1), writes second (N11.2).
+**Depends on N9** (value format). Read-only first (N11.1), writes second (N11.2). **Local CLI only (D5).** A GitHub
+`workflow_dispatch` version is parked (would need the key in env `Roblox` and an open IP range).
 
 **User actions:** Creator Hub -> Open Cloud -> API Keys -> new key `loot-rush-support`, system **universe-datastores**:
 `objects:list`, `objects:read`, `objects:update`, `objects:delete`, `versions:list`, `versions:read`, only for the test (later live)
-universe; IP restriction = your own IP (local use). Keep it out of the repo: env var `ROBLOX_SUPPORT_API_KEY` locally.
-Separate from the publish key (least privilege). Only if the user wants support from GitHub (D5): also store it in env
-`Roblox` and add a `workflow_dispatch` workflow (then IP `0.0.0.0/0`). Optional: Creator Hub -> Data stores -> RTBF template for `p_{UserId}`.
+universe; IP restriction = your own IP (local use). For N13.2 add **universe-messaging-service** `publish` to the same key.
+Keep it out of the repo: env var `ROBLOX_SUPPORT_API_KEY` locally. Separate from the publish key (least privilege).
+Optional: Creator Hub -> Data stores -> RTBF template for `p_{UserId}`.
 
 **Cost:** free; volume is a handful of calls.
+
+### Task order N11
+
+| # | Owner | Task | Depends |
+|---|---|---|---|
+| N11.0 | Micha | Create API key `loot-rush-support` (scopes above), set `ROBLOX_SUPPORT_API_KEY` locally | none |
+| N11.1 | backend-developer | `tools/support.luau` read-only: `get`, `revisions` | N9.2, N11.0 |
+| N11.2 | backend-developer | Writes: `set`, `restore`, `delete` with diff, `--yes`, online-session refusal | N11.1 |
+| N11.3 | code-reviewer | Review: no key in repo, whole-value PATCH keeps users/attributes, refusal works | N11.2 |
+| N11.4 | planner | Support section in `docs/PUBLISH.md` | N11.3 |
 
 ---
 
 ## 5. Fusion UI (N12)
 
+**Decided (D1):** pilot on the Shop window, then a recorded go/no-go before any further screen. Not a full migration
+commitment yet: nothing in the UI is playtested (N1), so the pilot answers the sandbox/tooling risk without churning screens under test.
+
 **Package:** `elttob/fusion@0.3.0` (latest release; `main` is already `0.4.0-dev1`, so expect API breaks at 0.4).
-Alternative checked: React-lua `jsdotlua/react` + `jsdotlua/react-roblox` `17.2.1` - heavier, JS idioms, more boilerplate; not recommended for a 1-person team.
+React-lua not chosen: heavier, JS idioms, more boilerplate for a 1-person team.
 
 **Coexistence plan (no big bang):**
 - Theme and Assets stay the only source of tokens/images. Kit stays the visual primitive layer: Fusion components
@@ -220,54 +217,65 @@ when nothing changes; the pilot must show no extra per-frame work in the Shop.
 
 | # | Owner | Task | Depends |
 |---|---|---|---|
-| N12.1 | ui-designer | Spike: add Fusion, prove it runs in Lune sandbox + UI check with one Hydrated Kit button | N8, D1 |
-| N12.2 | frontend-developer | `Client/State.luau` with the Shop's fields | N12.1 |
+| N12.1 | ui-designer | Spike: add Fusion, prove it runs in Lune sandbox + UI check with one Hydrated Kit button | N8 |
+| N12.1b | backend-developer | Only if N12.1 reports sandbox gaps: fix them in `tools/lune/**` | N12.1 |
+| N12.2 | frontend-developer | `Client/State.luau` with the Shop's fields | N12.1 green |
 | N12.3 | ui-designer | Shop window in Fusion, same look/behavior, UI check green | N12.2 |
 | N12.4 | code-reviewer + Micha | Review + playtest; go/no-go recorded here | N12.3 |
 
+Further screens (Atlas -> Forge -> Star Web -> Abilities -> Inventory) are planned only after a "go" in N12.4.
+
 ---
 
-## 6. Cross-server: matchmaking and announcements (N13)
+## 6. Cross-server announcements (N13)
 
-**Matchmaking:** not needed today. Rifts are solo on per-player arenas inside the current server; Roblox's own server
-fill already "matches" players into hubs. Matchmaking (MemoryStore queue + `TeleportService:ReserveServer`) only makes
-sense with co-op rifts, which are not designed. Decision D3.
+**Matchmaking: dropped (D3).** Rifts are solo on per-player arenas inside the current server and Roblox's server fill
+already places players into hubs. Matchmaking only makes sense with co-op rifts, which are not designed; that would be a
+new feature spec, not platform work.
 
-**Announcements:** MessagingService is the justified primitive here: it is pub/sub (push) and best effort, messages
-are small (~1 KB) and quotas scale with player count. MemoryStore would have to be polled, which costs request units
-(quota `1000 + 120 x CCU` per minute) for no gain. MemoryStore is used only if D4 includes "show recent announcements
-to players who join later": one sorted map `announce_recent`, TTL 10 min, last 5 entries (quota `64 KB + 1.2 KB x users` is plenty).
+**Announcements (D4):** MessagingService carries all live announcements (push, best effort, ~1 KB messages, quotas scale
+with players). MemoryStore is used **only** for a short "recent announcements" list so players who join later still see them.
 
-Minimal scope (D4 recommendation):
+Scope:
 1. **Admin broadcast:** Micha sends a text to all servers via the Open Cloud Messaging API
-   (`POST /cloud/v2/universes/{id}:publishMessage`, topic `lr_announce`) from `tools/support.luau announce "<text>"`.
+   (`POST /cloud/v2/universes/{id}:publishMessage`, topic `lr_announce`) from `lune run tools/support announce "<text>"`.
    Needs `universe-messaging-service:publish` on the support key. Use: "update in 5 min".
-2. **Player feats** (only those the user picks): e.g. rebirth, first clear of a region boss. Payload
-   `{ kind: string, userId: number, region: string?, value: number? }`; the receiving server resolves the display name.
-   Server-side rate limit per sender (1 per 30 s) and per server (10/min).
+2. **Player feats:** exactly two kinds, `rebirth` and `boss_first_clear` (first time *this player* defeats a given region's
+   boss). Published by the server where it happened; the receiving server resolves the display name.
+   Rate limits: per player 1 per 30 s, per server 10 published per minute; excess is dropped silently.
+3. **Recent list for late joiners:** MemoryStore sorted map `lr_announce_recent`, entry key = message `id`, sort key =
+   publish time, TTL 600 s. On `PlayerAdded`, the server reads the 5 newest and sends them to that player only.
+   Writers: the publishing server for feats; for admin messages every receiving server upserts the same `id`
+   (idempotent; admin messages are rare, quota `1000 + 120 x CCU` requests/min is ample). Read once per join, never polled.
 
-Contract (backend owns): topic `lr_announce`; new remote `Net.Announce` server->client `{ kind, text?, name?, region?, value? }`.
-Client toast: ui-designer (look), frontend-developer (queue/timing).
+**Contract (backend owns, fixed):**
+- Topic `lr_announce`, message `{ id: string, kind: "admin"|"rebirth"|"boss_first_clear", t: number, userId: number?, region: string?, value: number?, text: string? }`
+  (`id` = `HttpService:GenerateGUID(false)` or generated by the CLI; `t` = `os.time()`; `text` only for `admin`, max 200 chars,
+  never published by game servers; `value` = rebirth count for `rebirth`).
+- Remote `Net.Announce` server->client, payload `{ id: string, kind: string, t: number, name: string?, region: string?, value: number?, text: string?, recent: boolean }`
+  (`recent = true` for entries replayed from the MemoryStore list on join). Client dedupes by `id`.
+- Client toast: frontend-developer (queue/timing, dedupe), ui-designer (look).
 
 | # | Owner | Task | Depends |
 |---|---|---|---|
-| N13.1 | backend-developer | `Systems/Announce.luau`: subscribe/publish, rate limits, `Net.Announce`; sandbox MessagingService stub (shared with N9.1) | D4 |
+| N13.1 | backend-developer | `Systems/Announce.luau`: subscribe/publish, feats from Rebirth + boss kill, rate limits, recent list, `Net.Announce`; sandbox MessagingService (from N9.1) + MemoryStore sorted-map stub | N9.1 |
 | N13.2 | backend-developer | `announce` command in `tools/support.luau` | N11.1, N13.1 |
-| N13.3 | frontend-developer | Toast queue from `Net.Announce` | N13.1 |
-| N13.4 | ui-designer | Toast look (Kit/Theme; Fusion if N12 is go) | N13.3 |
+| N13.3 | frontend-developer | Toast queue from `Net.Announce` (dedupe by `id`, recent entries shown once after spawn) | N13.1 |
+| N13.4 | ui-designer | Toast look (Kit/Theme; Fusion only if N12.4 is go) | N13.3 |
+| N13.5 | code-reviewer | Review: servers cannot publish `admin`, no free text from players, errors never break gameplay | N13.4 |
 
 ---
 
-## Decisions needed (user)
+## Decisions (made by the user, 2026-11-01)
 
-| # | Question | Options | Recommendation |
+| # | Question | Chosen | Why the others were not taken |
 |---|---|---|---|
-| D1 | Fusion now? | (a) Pilot on Shop, then go/no-go; (b) commit to full migration now; (c) stay with Kit until after release; (d) React-lua instead | **(a)**. Nothing in the UI is playtested yet (N1); a pilot answers the sandbox/tooling risk cheaply without churning screens under test. |
-| D2 | Analytics stack | (a) AnalyticsService now behind a facade, GameAnalytics later if daily data is not enough; (b) AnalyticsService + GameAnalytics both now; (c) GameAnalytics only; (d) PlayFab | **(a)**. Free, no keys, no third-party data, the facade makes adding GA a one-file job. Choose (b) if you want real-time numbers from the first public test. PlayFab not recommended. |
-| D3 | Matchmaking | (a) none; (b) co-op rifts with reserved servers + MemoryStore queue (new feature spec) | **(a)**. No co-op design exists; it would be a new milestone, not platform work. |
-| D4 | Cross-server announcements | (a) admin broadcast + 1-2 player feats you pick, MessagingService only; (b) (a) + MemoryStore "recent" list for late joiners; (c) none now | **(a)**, feats: rebirth and first region-boss clear. |
-| D5 | Support tool where | (a) local CLI only; (b) also a GitHub `workflow_dispatch` (usable from phone, key in env `Roblox`, IP open) | **(a)** first; (b) is one small task later. |
-| D6 | Timing of ProfileStore vs. playtest N1 | (a) N9 before the TEST-SAVING part of N1; (b) after N1 | **(a)**, otherwise TEST-SAVING is played twice. |
+| D1 | Fusion now? | **Pilot on the Shop window, then go/no-go** | Full migration now would churn untested screens; staying on Kit leaves the tooling risk unanswered; React-lua is heavier. |
+| D2 | Analytics stack | **Server facade, Roblox AnalyticsService now; GameAnalytics only later if needed (parked)** | GameAnalytics adds keys, HTTP and a third party before daily data has proven too slow; PlayFab has no Roblox SDK. |
+| D3 | Matchmaking | **None (dropped)** | No co-op design exists; it would be a new feature, not platform work. |
+| D4 | Cross-server announcements | **Admin broadcast + `rebirth` and `boss_first_clear` feats over MessagingService; MemoryStore only for a recent-announcements list for late joiners** | Without the recent list, players joining after a broadcast (e.g. "update in 5 min") miss it; "none now" gives up the admin channel. |
+| D5 | Support tool where | **Local command-line tool first; GitHub workflow version parked** | A workflow needs the key in GitHub and an open IP range; not needed yet. |
+| D6 | ProfileStore vs. playtest N1 | **N9 lands before the saving part of N1 (TEST-SAVING)** | Otherwise TEST-SAVING would be played on code about to be replaced. |
 
 ## Assumptions (planner, reversible)
 
@@ -275,17 +283,36 @@ Client toast: ui-designer (look), frontend-developer (queue/timing).
 - Store `LootRush_Profile_v3`, key `p_<UserId>`, `profile.Data = { v, data }`.
 - Tooling (`tools/**`, `default.project.json`, CI, setup) is done by backend-developer in this plan.
 - Analytics events never on per-hit/per-frame paths; per run, per purchase, per milestone only.
+- `boss_first_clear` = first clear per player per region (not server-wide or global first). No save field tracks boss clears
+  today (`Profile.atlas` stores only highest depth per region); if detection needs a field it goes through `Profile.luau` DEFAULTS.
+- Recent list: 5 entries, 10 min TTL; admin entries upserted by every receiving server (idempotent by `id`).
 
-## Recommended order
+## Final task order
 
-1. N8 package tooling (backend) ->
-2. N9 ProfileStore (backend, review, TEST-SAVING) - before N1's saving test and before N4 monetization live.
-3. N10.1 analytics facade + AnalyticsService (backend) - can start in parallel with N9 (no package).
-4. N11 support CLI read-only, then writes (backend) - after N9.
-5. N12 Fusion pilot (ui-designer + frontend) - after N8 and D1, parallel to 2-4 (different lane); after N1 UI testing is preferred.
-6. N13 announcements - last, only useful with live traffic (several servers).
+1. **N8.1** package tooling (backend-developer) -> N8.2 review (code-reviewer). Start condition: see "Sequencing against running work".
+2. **N10.1** analytics facade (backend-developer) - no package, may run before or alongside N8; N10.2 review.
+3. **N9.1** ProfileStore spike + sandbox (backend-developer) -> N9.2 `Data.luau` rewrite -> N9.3 review -> N9.4 TEST-SAVING update (planner) -> Micha plays TEST-SAVING (N1 saving part).
+4. **N12.1** Fusion spike (ui-designer) - after N8, parallel to N9 (different lane) -> N12.1b if gaps -> N12.2 -> N12.3 -> N12.4 go/no-go.
+5. **N11.0** API key (Micha, any time) -> **N11.1** read-only CLI -> N11.2 writes -> N11.3 review -> N11.4 docs. After N9.2.
+6. **N13.1** announcements server (backend-developer) -> N13.2 CLI `announce` -> N13.3 toast queue -> N13.4 toast look -> N13.5 review. Last.
 
-Parallel: N10.1 || N9; N12 || N9/N10/N11. Blocking: N8 -> N9, N12, N10b; N9 -> N11; N11.1 -> N13.2.
+Blocking: N8 -> N9, N12; N9.1 -> N13.1; N9.2 -> N11; N11.1 -> N13.2. Parallel: N10.1 || N8/N9 (but not in the same files at
+the same time, see below); N12 || N9/N10/N11. One backend-developer runs one backend task at a time.
+
+Dropped/parked: matchmaking (dropped, D3); GameAnalytics sink, former N10b (parked, D2); support workflow on GitHub,
+former N11-with-workflow (parked, D5).
+
+## Sequencing against running work
+
+Other agents are editing `src/`, `tools/`, `tests/` and `.github/` right now.
+- **N8.1 starts only when no other agent is editing `tools/`, `tests/`, `wally.toml`, `default.project.json` or
+  `.github/workflows/ci.yml`.** It changes setup/CI/Rojo mapping that every other task's check run depends on.
+- **N9 touches `src/server/Systems/Data.luau` and the Lune sandbox (`tools/lune/lib/Sandbox.luau`)** plus `tests/Data*.spec.luau`.
+  Do not run N9 while any other task edits those files (including N10.1 if it needs a `Profile.luau` field, and N13.1, which
+  extends the same sandbox).
+- N10.1 touches many server Systems (call sites); schedule it when no other backend task is editing gameplay Systems.
+- N12.1 touches `wally.toml` (Fusion line) and the Shop controller; run it after N8 is merged.
+- Every brief starts with "run `git status` first and only touch your area".
 
 ## Acceptance criteria
 
@@ -294,17 +321,27 @@ Parallel: N10.1 || N9; N12 || N9/N10/N11. Blocking: N8 -> N9, N12, N10b; N9 -> N
 - N10.1: in a published test session, Creator Hub Analytics shows the onboarding funnel and gold economy within 24 h; no event contains a name or text.
 - N11: `get` prints a player's save; `set data.gold` on an offline player shows up after rejoin; `set` on an online player is refused; `delete` removes the entry.
 - N12: Shop in Fusion looks and behaves as before on 4 UI-check sizes and on a phone; UI check reports no new issues; go/no-go written in this spec.
-- N13: admin broadcast appears on all running test servers within seconds; feats rate-limited; nothing breaks when MessagingService errors.
+- N13: admin broadcast appears on all running test servers within seconds; a player joining within 10 min after it sees it once
+  (marked recent); a rebirth and a first region-boss clear show on other servers with the player's display name; feats rate-limited;
+  nothing breaks when MessagingService or MemoryStore errors.
 
-## Parked
+## Parked / dropped
 
-Co-op rifts and matchmaking; MemoryStore weekly depth leaderboard; Open Cloud user-restrictions (ban) command; PlayFab; GameAnalytics remote configs / A/B tests.
+- Dropped: matchmaking and co-op rifts (D3).
+- Parked: GameAnalytics sink and client init, former N10b (D2; reopen if 24 h AnalyticsService data blocks balancing).
+- Parked: support tool as a GitHub `workflow_dispatch` (D5).
+- Parked: MemoryStore weekly depth leaderboard; Open Cloud user-restrictions (ban) command; PlayFab; Fusion migration beyond the Shop (until N12.4 go).
 
 ---
 
 ## Briefs (first task of each item)
 
+Send order: N8.1 (when its start condition holds) -> N10.1 -> N9.1 -> N12.1 -> N11.1 -> N13.1. Details in "Final task order".
+
 ### Brief N8.1 - backend-developer: Wally package tooling
+
+Other agents may be editing files concurrently; run git status first and only touch your area.
+Start condition: no other agent is editing `tools/`, `tests/`, `wally.toml`, `default.project.json` or `.github/workflows/ci.yml`.
 
 **Context.** Loot Rush (Roblox ARPG, Rojo, Luau `--!strict`). No packages are used yet. `rokit.toml` pins `wally 0.3.2`.
 `wally.toml` has only comments. `.gitignore` ignores `Packages/`, `ServerPackages/`, `wally.lock`. CI runs `tools/check.sh`
@@ -327,6 +364,9 @@ built place; README "Setup" mentions `wally install` (one line).
 
 ### Brief N9.1 - backend-developer: ProfileStore spike in the Lune sandbox
 
+Other agents may be editing files concurrently; run git status first and only touch your area.
+Precondition: N8 merged. Must land before Micha plays TEST-SAVING (user decision D6).
+
 **Context.** Saves today: `src/server/Systems/Data.luau` (own session lock, store `LootRush_Profile_v2`, value `{ v, data, lock }`),
 schema in `src/shared/Profile.luau`, tests `tests/Data.spec.luau`, `tests/DataLock.spec.luau`, `tests/Profile.spec.luau`.
 The Lune sandbox fakes DataStores in `tools/lune/lib/Sandbox.luau` (`Sandbox:dataStore`): `UpdateAsync(k, fn)` calls `fn(value)` only,
@@ -337,7 +377,7 @@ no `DataStoreKeyInfo`, ignores returned userIds/metadata; there is no MessagingS
 1. Extend the sandbox so ProfileStore runs unmodified: `UpdateAsync(k, fn)` passes `(value, keyInfo)` with
    `keyInfo:GetUserIds()`, `GetMetadata()`, `Version`, `CreatedTime`, `UpdatedTime`, stores returned userIds/metadata; add whatever else
    ProfileStore calls at startup (DataStore access check, `GetAsync` options); MessagingService `PublishAsync`/`SubscribeAsync`
-   delivered in-process via the scheduler.
+   delivered in-process via the scheduler (N13.1 reuses this stub, keep it generic: any topic, `{ Data, Sent }` message shape).
 2. New test `tests/ProfileStore.spec.luau`: start a session for `p_1` in store `LootRush_Profile_v3`, change data, `Save()`, see it in
    `sim.datastores`; end session; second `StartSessionAsync` while a session is active elsewhere does not return two active profiles.
 3. Write down for the planner (in your final report, not a file): the raw stored value shape (where `Data`, session and
@@ -350,6 +390,9 @@ no `DataStoreKeyInfo`, ignores returned userIds/metadata; there is no MessagingS
 **Do not touch.** `src/**`, existing `tests/Data*.spec` (concurrently edited by others), `docs/**`.
 
 ### Brief N10.1 - backend-developer: analytics facade + AnalyticsService
+
+Other agents may be editing files concurrently; run git status first and only touch your area.
+User decision D2: AnalyticsService is the only sink; GameAnalytics is parked (do not add it, but keep `setSink` so it could be added later).
 
 **Context.** No analytics exist; `Systems/Metrics.luau` is a local dev tool (keep it). Server systems: Rift (runs, regions, depth),
 Shop, Forge, Pets, Rebirth, Monetization (ProcessReceipt), Inventory/Loot (pickup/equip), Combat (kills). Spec:
@@ -373,6 +416,9 @@ Shop, Forge, Pets, Rebirth, Monetization (ProcessReceipt), Inventory/Loot (picku
 
 ### Brief N11.1 - backend-developer: Open Cloud support CLI (read-only)
 
+Other agents may be editing files concurrently; run git status first and only touch your area.
+Preconditions: N9.2 merged; Micha has created key `loot-rush-support` (N11.0). User decision D5: local CLI only, no GitHub workflow.
+
 **Context.** After N9, saves live in data store `LootRush_Profile_v3`, key `p_<UserId>`, ProfileStore value format (documented in
 `docs/specs/PLATFORM-STACK.md` section 2 after N9.1). Tooling uses Lune (`tools/lune/*`); publishing already calls Open Cloud with curl
 (`tools/publish.sh`). Spec section 4.
@@ -388,6 +434,9 @@ Clear errors for 401/403 (point to key scopes), 404 (no save). A section in `doc
 **Do not touch.** `src/**`, `tests/**`, writes (N11.2).
 
 ### Brief N12.1 - ui-designer: Fusion spike (one Hydrated Kit button)
+
+Other agents may be editing files concurrently; run git status first and only touch your area.
+Precondition: N8 merged. User decision D1: this is a pilot; further screens only after a recorded go (N12.4).
 
 **Context.** UI is imperative: `src/client/UI/Kit.luau` (builders), `Window.luau`, tokens `Shared/UI/Theme.luau`, images
 `Shared/UI/Assets.luau`; screens are controllers in `src/client/Controllers/`. Headless UI check `tools/lune/ui.luau` (Lune sandbox)
@@ -408,15 +457,28 @@ Package tooling exists (N8).
 
 ### Brief N13.1 - backend-developer: cross-server announcements (server side)
 
-**Precondition:** user decision D4 (which feats). Context: no cross-server code exists; `src/shared/Net.luau` defines remotes;
-`src/server/Util/RateLimit.luau` exists. Spec section 6.
+Other agents may be editing files concurrently; run git status first and only touch your area.
+Precondition: N9.1 merged (MessagingService stub) and no other task is editing `tools/lune/lib/Sandbox.luau`.
+User decision D4: admin broadcast + feats `rebirth` and `boss_first_clear`, MessagingService for delivery, MemoryStore only for a recent list.
 
-**Task.** `Systems/Announce.luau`: subscribe topic `lr_announce` on start (in `pcall`, retry with backoff), `Announce.feat(player, kind, fields)`
-publishes `{ kind, userId, region?, value? }` with rate limits (1 per player per 30 s, 10 per server per minute); on receive, resolve display name
-and fire `Net.Announce` to all clients `{ kind, name?, region?, value? }`; admin messages `{ kind = "admin", text }` (developer-authored, only ever
-published via Open Cloud) are passed through, text truncated to 200 chars; servers never publish `admin` themselves. Call `feat` from the systems picked in D4. Sandbox MessagingService stub
-from N9.1; test: publish on server -> client receives `Net.Announce`; rate limit drops the 2nd feat within 30 s.
+**Context.** No cross-server code exists; `src/shared/Net.luau` defines remotes; `src/server/Util/RateLimit.luau` exists;
+`Systems/Rebirth.luau` handles rebirth; boss kills happen in the rift/enemy systems. `Profile.atlas` stores only the highest depth per region,
+no boss-clear flags. Spec `docs/specs/PLATFORM-STACK.md` section 6 (contract fixed there).
 
-**Definition of done.** Check green; MessagingService errors never break gameplay.
+**Task.**
+1. `Systems/Announce.luau`: subscribe topic `lr_announce` on start (in `pcall`, retry with backoff). `Announce.feat(player, kind, fields)`
+   publishes `{ id, kind, t, userId, region?, value? }` with rate limits (1 per player per 30 s, 10 per server per minute, excess dropped).
+   On receive: resolve display name, fire `Net.Announce` to all clients with the spec payload (`recent = false`). Admin messages
+   `{ id, kind = "admin", t, text }` come only from Open Cloud; pass through with text truncated to 200 chars; servers never publish `admin`.
+2. Feats: call `feat(player, "rebirth", { value = rebirthCount })` from Rebirth; `feat(player, "boss_first_clear", { region })` the first time
+   this player defeats that region's boss. If detecting "first" needs a save field, add it via `Profile.luau` DEFAULTS (+ sanitize).
+3. Recent list: MemoryStore sorted map `lr_announce_recent`, key = `id`, sort key = `t`, TTL 600 s. Publishing server writes feats; every receiving
+   server upserts admin entries (same `id`, idempotent). On `PlayerAdded` read the 5 newest once and `FireClient` them with `recent = true`. Never poll.
+4. Sandbox: extend `tools/lune/lib/Sandbox.luau` with a minimal `MemoryStoreService:GetSortedMap` stub (`SetAsync(key, value, ttl, sortKey)`,
+   `GetRangeAsync(direction, count)`), documented in the header comment.
+5. Tests `tests/Announce.spec.luau`: feat on one server -> client receives `Net.Announce`; second feat within 30 s dropped; a player joining after a
+   feat receives it with `recent = true`; MessagingService/MemoryStore throwing does not error the caller.
 
-**Do not touch.** Client code, `docs/**`.
+**Definition of done.** `bash tools/check.sh` green; MessagingService/MemoryStore errors never break gameplay; `Net.Announce` payload exactly as in the spec.
+
+**Do not touch.** Client code (N13.3), `tools/support.luau` (N13.2), `docs/**`.

@@ -40,6 +40,7 @@ export type Window = {
 
 local current: Window? = nil
 local others: { () -> () } = {} -- further fullscreen windows (inventory) that close when one opens
+local otherOpen: { () -> boolean } = {} -- their "is open" probes
 
 -- Close the open window (e.g. when the inventory opens)
 function Window.closeCurrent()
@@ -49,8 +50,24 @@ function Window.closeCurrent()
 end
 
 -- Also close a window outside this module as soon as one from here opens
-function Window.exclusive(close: () -> ())
+function Window.exclusive(close: () -> (), isOpen: (() -> boolean)?)
 	table.insert(others, close)
+	if isOpen then
+		table.insert(otherOpen, isOpen)
+	end
+end
+
+-- True while any fullscreen window is open (the HUD can pause expensive work behind it)
+function Window.anyOpen(): boolean
+	if current then
+		return true
+	end
+	for _, probe in otherOpen do
+		if probe() then
+			return true
+		end
+	end
+	return false
 end
 
 function Window.caps(text: string): string
@@ -176,7 +193,7 @@ function Window.caption(
 	t.AnchorPoint = Vector2.new(0.5, 0)
 	t.Position = UDim2.fromOffset(pos.X, pos.Y)
 	t.TextXAlignment = Enum.TextXAlignment.Center
-	t.TextStrokeTransparency = 0.4
+	Kit.textOutline(t, 0.4)
 	t.ZIndex = 3
 	t.Parent = parent
 	return t

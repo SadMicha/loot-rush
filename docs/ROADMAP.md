@@ -43,14 +43,17 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 | N5 | Village & offline income | Make village house tiers productive, income on rejoin (none of it found in `src/`); spec needed | planner (spec) → backend-developer → ui-designer → frontend-developer | ⏳ |
 | N6 | Content & assets | Missing scene images/node icons (`Assets.Art`), pet models `Pet_<id>`, audio | ui-designer (prompts), Micha (images/Blender) | ⏳ |
 | N7 | Release preparation | Mobile performance budget, store page, live data/analytics, starting region polish | all | ⏳ |
-| N8 | Package tooling | Wally packages (`wally install` in setup/CI, Rojo mapping `Packages`/`ServerPackages`, package types, commit `wally.lock`); prerequisite for N9/N10b/N12 (`docs/specs/PLATFORM-STACK.md` §1) | backend-developer → code-reviewer | ⏳ |
-| N9 | ProfileStore saving | `lm-loleris/profilestore@1.0.3` behind the unchanged `Data` API, new store `LootRush_Profile_v3` (no migration), sandbox support, `Data*.spec` kept green, TEST-SAVING update; before N1's saving test (§2) | backend-developer → code-reviewer → planner (checklist) → Micha | ⏳ |
-| N10 | Analytics | Server facade `Systems/Analytics` + Roblox AnalyticsService (onboarding funnel, economy, rift progression); GameAnalytics sink (N10b) only after decision D2 (§3) | backend-developer → code-reviewer (N10b: + frontend-developer, Micha: GA account/keys) | ⏳ |
-| N11 | Support tooling (Open Cloud) | `tools/support.luau`: get/revisions, then set/restore/delete on Data Stores v2; separate support API key; RTBF template; after N9 (§4) | Micha (API key), backend-developer → code-reviewer | ⏳ |
-| N12 | Fusion UI pilot | `elttob/fusion@0.3.0`, coexisting with Kit/Theme/Assets via Hydrate; Shop window as pilot, go/no-go before further screens (HUD last or never); decision D1 (§5) | ui-designer, frontend-developer (client state) → code-reviewer → Micha | ⏳ |
-| N13 | Cross-server announcements | MessagingService topic `lr_announce`: admin broadcast via Open Cloud + selected player feats, toast; no matchmaking (D3); MemoryStore only if D4 (b) (§6) | backend-developer → frontend-developer → ui-designer → code-reviewer | ⏳ |
+| N8 | Package tooling | Wally packages (`wally install` in setup/CI, Rojo mapping `Packages`/`ServerPackages`, package types, commit `wally.lock`); prerequisite for N9/N12. Starts only when no other agent edits `tools/`, `tests/`, `wally.toml`, `default.project.json`, `ci.yml` (`docs/specs/PLATFORM-STACK.md` §1) | backend-developer → code-reviewer | ⏳ |
+| N9 | ProfileStore saving | `lm-loleris/profilestore@1.0.3` behind the unchanged `Data` API, new store `LootRush_Profile_v3` (no migration), sandbox support, `Data*.spec` kept green, TEST-SAVING update; lands before the saving part of N1 (D6, §2) | backend-developer → code-reviewer → planner (checklist) → Micha | ⏳ |
+| N10 | Analytics | Server facade `Systems/Analytics` + Roblox AnalyticsService only (onboarding funnel, economy, rift progression, 5 custom events) (D2, §3) | backend-developer → code-reviewer | ⏳ |
+| N11 | Support tooling (Open Cloud) | Local CLI `tools/support.luau`: get/revisions, then set/restore/delete on Data Stores v2; separate support API key; RTBF template; after N9 (D5, §4) | Micha (API key), backend-developer → code-reviewer | ⏳ |
+| N12 | Fusion UI pilot | `elttob/fusion@0.3.0`, coexisting with Kit/Theme/Assets via Hydrate; Shop window only, then go/no-go before further screens (HUD last or never) (D1, §5) | ui-designer, frontend-developer (client state) → code-reviewer → Micha | ⏳ |
+| N13 | Cross-server announcements | MessagingService topic `lr_announce`: admin broadcast via Open Cloud + feats `rebirth` / first region-boss clear, toast; MemoryStore only for a 10-min recent list for late joiners (D4, §6) | backend-developer → frontend-developer → ui-designer → code-reviewer | ⏳ |
+| ~~N10b~~ | GameAnalytics sink | **Parked** (D2): only if 24 h AnalyticsService data blocks balancing | - | parked |
+| ~~N11b~~ | Support tool as GitHub workflow | **Parked** (D5): `workflow_dispatch` version of the support CLI | - | parked |
+| ~~N13b~~ | Matchmaking / co-op rifts | **Dropped** (D3): no co-op design; would be a new feature spec | - | dropped |
 
-Platform stack order (N8-N13, open decisions D1-D6 in `docs/specs/PLATFORM-STACK.md`): N8 → N9 (‖ N10) → N11 → N13; N12 runs in parallel in the UI lane after N8.
+Platform stack order (decisions D1-D6 made by the user on 2026-11-01, see `docs/specs/PLATFORM-STACK.md`): N8 → N9 → N11 → N13; N10 can run before/alongside N8 (no package); N12 runs in the UI lane after N8. N9 must land before the TEST-SAVING part of N1.
 
 System order per plan: Star Web → Forge → Village & offline income → Rebirth. Star Web, Forge and Rebirth are built (🔧); Village & offline income (N5) remains open.
 
