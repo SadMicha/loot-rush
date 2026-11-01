@@ -133,6 +133,18 @@ Theme.Class = table.freeze({
 	} :: { [string]: { string } }),
 })
 
+-- Floating damage numbers: normal hit and crit tiers (tier 1 = crit, 2 = double, 3+ = triple and up)
+Theme.Damage = table.freeze({
+	NormalSize = 24,
+	Tiers = table.freeze({
+		table.freeze({ size = 36, color = hex("#E8B04A"), suffix = "!", pop = 1 }),
+		table.freeze({ size = 46, color = hex("#FF8A2A"), suffix = "!!", pop = 1.25 }),
+		table.freeze({ size = 54, color = hex("#FF3B30"), suffix = "!!!", pop = 1.4 }),
+	}),
+	Rise = 4, -- studs the number floats up
+	PopTime = 0.12, -- seconds of the pop-in scale tween
+})
+
 Theme.Radius = table.freeze({ S = 8, M = 12, L = 18 })
 Theme.Stroke = 1
 
