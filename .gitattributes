@@ -1,0 +1,34 @@
+# Always check text files out with LF (StyLua line_endings = Unix, otherwise
+# `stylua --check` fails on Windows checkouts with CRLF).
+* text=auto eol=lf
+
+# Never convert binary files
+*.rbxm binary
+*.rbxl binary
+*.rbxmx binary
+*.rbxlx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.tga binary
+*.bmp binary
+*.psd binary
+*.ico binary
+*.fbx binary
+*.obj binary
+*.mtl binary
+*.glb binary
+*.gltf binary
+*.blend binary
+*.blend1 binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
+*.flac binary
+*.mp4 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.7z binary
