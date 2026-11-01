@@ -1,17 +1,17 @@
--- Wiedergeburt (Regeln + echter Ablauf über Net.Rebirth) und mitwachsende Shop-Preise.
+-- Rebirth (rules + real flow via Net.Rebirth) and scaling shop prices.
 local Balance = require("ReplicatedStorage.Shared.Balance")
 local Rebirth = require("ReplicatedStorage.Shared.Rebirth")
 local Shop = require("ReplicatedStorage.Shared.Shop")
 
-describe("Wiedergeburt-Regeln", function()
-	it("verlangt die weiche Wand und schiebt sie mit jeder Wiedergeburt", function()
-		expect(Rebirth.required(0)).toBe(Balance.P.wand_ab)
-		expect(Rebirth.required(2)).toBe(Balance.P.wand_ab + 10)
+describe("Rebirth rules", function()
+	it("requires the soft wall and pushes it with every Rebirth", function()
+		expect(Rebirth.required(0)).toBe(Balance.P.wall_from)
+		expect(Rebirth.required(2)).toBe(Balance.P.wall_from + 10)
 		expect((Rebirth.check(0, 19))).toBe(false)
 		expect((Rebirth.check(0, 20))).toBe(true)
 		expect((Rebirth.check(1, 24))).toBe(false)
 		expect(Rebirth.bestDepth({ a = 3, b = 17 })).toBe(17)
-		-- verschobene Wand: Tiefe 25 nach einer Wiedergeburt so zäh wie Tiefe 20 ohne Wand-Anteil
+		-- shifted wall: depth 25 after one Rebirth is as tough as depth 20 without the wall share
 		local plain = Balance.enemyHealth(25, 0)
 		local shifted = Balance.enemyHealth(25, Rebirth.wallShift(1))
 		expect(shifted < plain).toBe(true)
@@ -20,18 +20,18 @@ describe("Wiedergeburt-Regeln", function()
 	end)
 end)
 
-describe("Shop-Preise je Tiefe", function()
-	it("wachsen mit der besten Tiefe, Goldpakete auch", function()
-		local potion = Shop.ById.potion_1
-		expect(Shop.price(potion, 1).amount).toBe(40)
-		local deep = Shop.price(potion, 20).amount
-		expect(deep).toBeGreaterThan(300)
+describe("Shop prices per depth", function()
+	it("grow with the best depth, gold packs too", function()
+		local shards = Shop.ById.shards_50
+		expect(Shop.price(shards, 1).amount).toBe(150)
+		local deep = Shop.price(shards, 20).amount
+		expect(deep).toBeGreaterThan(1000)
 		expect(Shop.amount(Shop.ById.gold_s, 1)).toBe(1000)
 		expect(Shop.amount(Shop.ById.gold_s, 20)).toBeGreaterThan(9000)
-		-- Seelenstern-Preise und Material-Mengen bleiben fest
+		-- Soulstar prices and material amounts stay fixed
 		expect(Shop.price(Shop.ById.gold_s, 30).amount).toBe(20)
 		expect(Shop.amount(Shop.ById.shards_50, 30)).toBe(50)
-		expect((Shop.check(potion, { gold = 100 } :: any, 20))).toBe(false)
+		expect((Shop.check(shards, { gold = 1000 } :: any, 20))).toBe(false)
 	end)
 end)
 
@@ -72,8 +72,8 @@ local function state()
 	end)
 end
 
-describe("Wiedergeburt im Spiel", function()
-	it("lehnt ab, solange die Tiefe fehlt", function()
+describe("Rebirth in game", function()
+	it("refuses while the depth is missing", function()
 		sim:boot({ seconds = 2 })
 		rebirth()
 		local s = state()
@@ -83,14 +83,14 @@ describe("Wiedergeburt im Spiel", function()
 		expect(s.bonusDamage).toBe(0)
 	end)
 
-	it("setzt Level, Gold und Atlas zurück, behält Items und gibt Boni", function()
+	it("resets level, gold and Atlas, keeps items and gives bonuses", function()
 		server(function(req, player)
 			local Data = req("ServerScriptService.Server.Systems.Data")
 			local p = Data.get(player)
-			p.atlas.gruene_ebenen = 22
+			p.atlas.green_plains = 22
 			req("ServerScriptService.Server.Systems.Inventory").addGold(player, 5000)
 			req("ServerScriptService.Server.Systems.Combat").setLevel(player, 25, 0)
-			p.progress.stars.k1 = true
+			p.progress.stars.m1 = true
 			local Items = req("ReplicatedStorage.Shared.Items")
 			req("ServerScriptService.Server.Systems.Inventory").add(
 				player,
@@ -112,8 +112,8 @@ describe("Wiedergeburt im Spiel", function()
 		local stars = server(function(req, player)
 			return req("ServerScriptService.Server.Systems.Data").get(player).progress.stars
 		end)
-		expect(stars.k1).toBeNil()
-		rebirth() -- Tiefe fehlt wieder
+		expect(stars.m1).toBeNil()
+		rebirth() -- depth missing again
 		expect(state().rebirths).toBe(1)
 	end)
 end)

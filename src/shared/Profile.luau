@@ -1,13 +1,12 @@
 --!strict
--- Spielstand-Schema: Standardwerte, Migration alter Stände und die Session-Lock-Regeln.
--- Reine Logik ohne DataStore (testbar). Laden/Speichern selbst macht Systems/Data.
+-- Save schema: defaults, migration of old saves and the session lock rules.
+-- Pure logic without DataStore (testable). Loading/saving itself is done by Systems/Data.
 --
--- Neues Feld? Im Typ Data und in DEFAULTS eintragen – fehlende Felder werden beim Laden ergänzt.
--- Felder mit eigener Prüfung (z. B. Progression) stattdessen in Profile.reconcile anhängen.
--- Feld umbenennen/umbauen? VERSION erhöhen und einen Schritt in MIGRATIONS anlegen.
--- Nur JSON-taugliche Werte: Zahlen, Strings, Bools, Listen und Tabellen mit String-Schlüsseln.
+-- New field? Add it to the Data type and to DEFAULTS - missing fields are filled in on load.
+-- Fields with their own validation (e.g. Progression) are appended in Profile.reconcile instead.
+-- Renaming/restructuring a field? Bump VERSION and add a step to MIGRATIONS.
+-- JSON-safe values only: numbers, strings, bools, lists and tables with string keys.
 
-local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
@@ -21,21 +20,20 @@ export type Data = {
 	level: number,
 	xp: number,
 	inventory: { Items.Item },
-	equipped: { [string]: Items.Item }, -- Slot → Item
-	progress: Progression.Data, -- Skill-Stufen, Skill-Blüten, Sternennetz
-	materials: Progression.Materials, -- Schmiede-Material
-	atlas: { [string]: number }, -- Gebiet → höchste geschaffte Rift-Tiefe (Shared/Atlas)
-	potions: number, -- Heiltränke (Shop, Taste 1)
-	soulstars: number, -- Seelensterne (Shop, später auch für Robux)
-	receipts: { string }, -- zuletzt verbuchte Robux-Käufe (PurchaseId), gegen doppeltes Gutschreiben
-	rebirths: number, -- Anzahl Wiedergeburten (Shared/Rebirth)
-	pets: Pets.Data, -- Haustiere (Shared/Pets)
-	passes: { [string]: boolean }, -- zuletzt bekannter Gamepass-Besitz (Ausfall-Puffer, Systems/Monetization)
+	equipped: { [string]: Items.Item }, -- slot → item
+	progress: Progression.Data, -- skill levels, Skill Blooms, Star Net
+	materials: Progression.Materials, -- Forge materials
+	atlas: { [string]: number }, -- region → highest Rift depth cleared (Shared/Atlas)
+	soulstars: number, -- Soulstars (shop, later also for Robux)
+	receipts: { string }, -- recently booked Robux purchases (PurchaseId), against double crediting
+	rebirths: number, -- number of Rebirths (Shared/Rebirth)
+	pets: Pets.Data, -- pets (Shared/Pets)
+	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 }
 
 export type Lock = { job: string, t: number }
 
--- So liegt ein Spielstand im DataStore
+-- How a save is stored in the DataStore
 export type Record = {
 	v: number,
 	data: Data,
@@ -44,6 +42,8 @@ export type Record = {
 
 Profile.VERSION = 3
 Profile.MAX_RECEIPTS = 50
+Profile.MAX_UNKNOWN_PASSES = 20 -- game passes only a newer server knows (stay saved)
+Profile.MAX_KEY_LEN = 64
 
 local DEFAULTS: Data = {
 	gold = 0,
@@ -51,10 +51,9 @@ local DEFAULTS: Data = {
 	xp = 0,
 	inventory = {},
 	equipped = {},
-	progress = Progression.fresh(), -- Inhalt prüft Progression.reconcile
+	progress = Progression.fresh(), -- contents checked by Progression.reconcile
 	materials = Progression.freshMaterials(),
 	atlas = {},
-	potions = Config.POTION_START,
 	soulstars = 0,
 	receipts = {},
 	rebirths = 0,
@@ -62,16 +61,16 @@ local DEFAULTS: Data = {
 	passes = {},
 }
 
--- MIGRATIONS[n] hebt einen Record von Version n auf n + 1
+-- MIGRATIONS[n] lifts a record from version n to n + 1
 local MIGRATIONS: { [number]: (any) -> any } = {
-	-- v1: der Spielstand lag direkt im Key ({ version = 1, gold, inventory, equipped })
+	-- v1: the save sat directly in the key ({ version = 1, gold, inventory, equipped })
 	[1] = function(raw)
 		local data = table.clone(raw)
 		data.version = nil
 		return { v = 2, data = data }
 	end,
-	-- v2 → v3: Beute-Stufe war Tiefe × 2 − 1, jetzt Tiefe (Item-Power = Tiefe × 10, Balancing-Tabelle).
-	-- Alte Items auf die neue Stufe ihrer Tiefe ziehen, sonst wäre ihr Waffen-Grundschaden viel zu hoch.
+	-- v2 → v3: loot level was depth × 2 − 1, now depth (item power = depth × 10, balancing table).
+	-- Pull old items to the new level of their depth, otherwise their weapon base damage would be far too high.
 	[2] = function(raw)
 		local record = table.clone(raw)
 		local data: any = if typeof(record.data) == "table" then table.clone(record.data) else {}
@@ -116,8 +115,8 @@ end
 
 Profile.copy = copy
 
--- Ergänzt fehlende Felder und ersetzt Felder mit falschem Typ durch den Standard.
--- Felder, die DEFAULTS nicht kennt, bleiben erhalten (z. B. von einem neueren Server).
+-- Fills in missing fields and replaces fields of the wrong type with the default.
+-- Fields DEFAULTS does not know are kept (e.g. from a newer server).
 local function fill(target: { [any]: any }, defaults: { [any]: any })
 	for k, def in defaults do
 		local value = target[k]
@@ -129,7 +128,7 @@ local function fill(target: { [any]: any }, defaults: { [any]: any })
 	end
 end
 
--- Ganze Zahl ≥ 0 (NaN und Unendlich → 0)
+-- Whole number ≥ 0 (NaN and infinity → 0)
 local function whole(v: number): number
 	if v ~= v or v < 0 or v == math.huge then
 		return 0
@@ -156,7 +155,6 @@ function Profile.reconcile(raw: any): Data
 		end
 	end
 	data.atlas = atlas
-	data.potions = math.clamp(whole(data.potions), 0, Config.POTION_MAX)
 	data.soulstars = whole(data.soulstars)
 	local receipts = {}
 	for _, id in data.receipts do
@@ -170,19 +168,34 @@ function Profile.reconcile(raw: any): Data
 	data.receipts = receipts
 	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
 	data.pets = Pets.reconcile(data.pets)
+	-- Unknown pass keys (newer server) are kept; Systems/Monetization only reads
+	-- the known ones from Monetization.Passes. Capped so no junk gets saved.
 	local passes = {}
+	local unknownPasses = 0
 	for key, owned in data.passes do
-		if typeof(key) == "string" and Monetization.PassByKey[key] and owned == true then
-			passes[key] = true
+		if
+			typeof(key) == "string"
+			and #key > 0
+			and #key <= Profile.MAX_KEY_LEN
+			and owned == true
+		then
+			local keep = Monetization.PassByKey[key] ~= nil
+			if not keep and unknownPasses < Profile.MAX_UNKNOWN_PASSES then
+				unknownPasses += 1
+				keep = true
+			end
+			if keep then
+				passes[key] = true
+			end
 		end
 	end
 	data.passes = passes
 	return data :: Data
 end
 
--- Macht einen Stand speicherbar, ohne Tabellen auszutauschen (andere Systeme halten Verweise):
--- NaN/unendlich → 0, Werte ohne JSON-Form (Instanzen, Funktionen …) und Schlüssel, die weder
--- String noch Zahl sind, fliegen raus. Gibt die Anzahl der Reparaturen zurück.
+-- Makes a save storable without swapping tables (other systems hold references):
+-- NaN/infinite → 0, values without a JSON form (instances, functions …) and keys that are
+-- neither string nor number are dropped. Returns the number of repairs.
 function Profile.sanitize(data: any): number
 	local fixed = 0
 	local function walk(t: { [any]: any }, depth: number)
@@ -207,37 +220,37 @@ function Profile.sanitize(data: any): number
 	return fixed
 end
 
--- Frischer Stand für neue Spieler (eigene Tabellen, nie die DEFAULTS selbst)
+-- Fresh save for new players (own tables, never the DEFAULTS themselves)
 function Profile.fresh(): Data
 	return Profile.reconcile({})
 end
 
--- Bringt einen gelesenen Wert auf die aktuelle Version.
--- nil = noch kein Spielstand. Fehler, wenn der Stand neuer ist als dieser Server.
+-- Brings a loaded value up to the current version.
+-- nil = no save yet. Errors if the save is newer than this server.
 function Profile.migrate(raw: any): Record
 	if raw == nil then
 		return { v = Profile.VERSION, data = Profile.fresh() }
 	end
-	assert(typeof(raw) == "table", "Spielstand ist keine Tabelle")
+	assert(typeof(raw) == "table", "save is not a table")
 	local record = raw
 	if record.v == nil then
-		record = MIGRATIONS[1](record) -- Format v1 hatte noch kein v
+		record = MIGRATIONS[1](record) -- format v1 had no v yet
 	end
-	assert(typeof(record.v) == "number", "Spielstand ohne Version")
+	assert(typeof(record.v) == "number", "save without version")
 	assert(record.v <= Profile.VERSION, "NEWER")
 	while record.v < Profile.VERSION do
 		local step = MIGRATIONS[record.v]
-		assert(step, `keine Migration von v{record.v}`)
+		assert(step, `no migration from v{record.v}`)
 		local from = record.v
 		record = step(record)
-		assert(record.v == from + 1, `Migration v{from} setzt v falsch`)
+		assert(record.v == from + 1, `migration v{from} sets v incorrectly`)
 	end
 	record.data = Profile.reconcile(record.data)
 	return record
 end
 
--- Gehört der Key gerade einem anderen Server? Ein Lock älter als staleAfter gilt als verwaist
--- (Server abgestürzt), weil jeder Autosave ihn auffrischt.
+-- Does the key currently belong to another server? A lock older than staleAfter counts as orphaned
+-- (server crashed), because every autosave refreshes it.
 function Profile.lockedByOther(record: any, job: string, now: number, staleAfter: number): boolean
 	local lock = typeof(record) == "table" and record.lock
 	if typeof(lock) ~= "table" or lock.job == job then

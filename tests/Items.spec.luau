@@ -1,7 +1,7 @@
 local Items = require("ReplicatedStorage.Shared.Items")
 
 describe("Items.roll", function()
-	it("würfelt gültige Gegenstände", function()
+	it("rolls valid items", function()
 		for seed = 1, 200 do
 			local item = Items.roll(1 + seed % 20, Random.new(seed))
 			expect(Items.SlotName[item.slot]).never.toBeNil()
@@ -16,7 +16,7 @@ describe("Items.roll", function()
 		end
 	end)
 
-	it("hat keine doppelten Zusatzwerte", function()
+	it("has no duplicate extra stats", function()
 		for seed = 1, 200 do
 			local seen = {}
 			for i, a in Items.roll(10, Random.new(seed)).affixes do
@@ -28,7 +28,7 @@ describe("Items.roll", function()
 		end
 	end)
 
-	it("vergibt jede Seltenheit irgendwann", function()
+	it("hands out every rarity eventually", function()
 		local seen = {}
 		for seed = 1, 2000 do
 			seen[Items.roll(5, Random.new(seed)).rarity] = true
@@ -38,7 +38,7 @@ describe("Items.roll", function()
 		end
 	end)
 
-	it("würfelt mit Fundbonus öfter seltene Items", function()
+	it("rolls rare items more often with a find bonus", function()
 		local function rare(find)
 			local n = 0
 			for seed = 1, 1500 do
@@ -53,8 +53,8 @@ describe("Items.roll", function()
 end)
 
 describe("Items.sellValue", function()
-	it("steigt mit Stufe und Seltenheit", function()
-		local base = { id = "x", slot = "helm", name = "", affixes = {} }
+	it("rises with level and rarity", function()
+		local base = { id = "x", slot = "helmet", name = "", affixes = {} }
 		local function value(rarity, ilvl)
 			return Items.sellValue({
 				id = base.id,
@@ -72,12 +72,12 @@ describe("Items.sellValue", function()
 end)
 
 describe("Items.affixText", function()
-	it("formatiert mit Komma und Einheit", function()
-		expect(Items.affixText({ stat = "damage", value = 4.5 })).toBe("+4,5% Schaden")
-		expect(Items.affixText({ stat = "life", value = 12 })).toBe("+12 Leben")
+	it("formats with decimal point and unit", function()
+		expect(Items.affixText({ stat = "damage", value = 4.5 })).toBe("+4.5% Damage")
+		expect(Items.affixText({ stat = "life", value = 12 })).toBe("+12 Life")
 	end)
 
-	it("Qualität liegt zwischen 0 und 1", function()
+	it("quality lies between 0 and 1", function()
 		for seed = 1, 100 do
 			local item = Items.roll(7, Random.new(seed))
 			for _, a in item.affixes do
@@ -89,7 +89,7 @@ describe("Items.affixText", function()
 	end)
 end)
 
-describe("Items.roll nach Balancing-Tabelle", function()
+describe("Items.roll per balancing table", function()
 	local function count(opts, rarity)
 		local n = 0
 		for seed = 1, 3000 do
@@ -100,19 +100,19 @@ describe("Items.roll nach Balancing-Tabelle", function()
 		return n
 	end
 
-	it("verschiebt die Seltenheit mit der Tiefe", function()
+	it("shifts rarity with depth", function()
 		expect(count({ shift = 3 }, "epic")).toBeGreaterThan(count({ shift = 1 }, "epic") + 40)
 		expect(count({ shift = 3 }, "normal")).toBeLessThan(count({ shift = 1 }, "normal"))
 	end)
 
-	it("garantiert eine Mindest-Seltenheit (Boss: Selten+)", function()
+	it("guarantees a minimum rarity (boss: Rare+)", function()
 		for seed = 1, 300 do
 			local r = Items.roll(5, Random.new(seed), nil, { min = "rare" }).rarity
 			expect(r == "rare" or r == "epic").toBe(true)
 		end
 	end)
 
-	it("lässt Prozentwerte nur übers Tier wachsen, Leben auch mit der Stufe", function()
+	it("grows percent stats only via tier, life also with level", function()
 		local lo = Items.rollAffix("crit", 1, 7, Random.new(1))
 		local hi = Items.rollAffix("crit", 60, 7, Random.new(1))
 		expect(hi.value).toBe(lo.value)
@@ -121,11 +121,11 @@ describe("Items.roll nach Balancing-Tabelle", function()
 		expect(l60.value).toBeGreaterThan(l1.value * 5)
 	end)
 
-	it("gibt seltenen Items mehr Item-Power", function()
+	it("gives rarer items more item power", function()
 		local function ip(rarity)
 			return Items.itemPower({
 				id = "x",
-				slot = "waffe",
+				slot = "weapon",
 				rarity = rarity,
 				name = "",
 				ilvl = 10,

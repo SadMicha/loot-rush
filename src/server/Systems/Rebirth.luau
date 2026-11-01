@@ -1,9 +1,9 @@
 --!strict
--- Wiedergeburt auf dem Server (Regeln: Shared/Rebirth). Der Client schickt nur Net.Rebirth,
--- der Server prüft Bedingung und Zustand (kein laufendes Rift), setzt zurück, gibt Seelensterne,
--- speichert sofort und antwortet über Net.RebirthResult.
--- Für das UI: Player-Attribute "Rebirths", "RebirthNeed" (nötige beste Tiefe), "BestDepth" (Rift)
--- und die Bonus-Attribute aus Systems/Boosts.
+-- Rebirth on the server (rules: Shared/Rebirth). The client only sends Net.Rebirth,
+-- the server checks the condition and state (no running Rift), resets, gives Soulstars,
+-- saves immediately and answers via Net.RebirthResult.
+-- For the UI: player attributes "Rebirths", "RebirthNeed" (required best depth), "BestDepth" (Rift)
+-- and the bonus attributes from Systems/Boosts.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,33 +33,33 @@ local function reply(player: Player, ok: boolean, text: string, rebirths: number
 	Net.RebirthResult:FireClient(player, { ok = ok, text = text, rebirths = rebirths })
 end
 
--- Führt die Wiedergeburt aus. true = geklappt (auch für Tests)
+-- Performs the Rebirth. true = succeeded (also for tests)
 function Rebirth.perform(player: Player): (boolean, string)
 	local profile = Data.get(player)
 	if not profile then
-		return false, "Spielstand nicht geladen"
+		return false, "Save not loaded"
 	end
 	if Rift.isRunning(player) or player:GetAttribute("RiftRegion") ~= nil then
-		return false, "Erst das Rift verlassen"
+		return false, "Leave the Rift first"
 	end
 	local ok, why = Rules.check(profile.rebirths, Rules.bestDepth(profile.atlas))
 	if not ok then
-		return false, why or "Geht noch nicht"
+		return false, why or "Not yet possible"
 	end
 	local n = profile.rebirths + 1
 	profile.rebirths = n
 	profile.atlas = {}
-	profile.progress.stars = {} -- Sternpunkte kommen aus dem Level
+	profile.progress.stars = {} -- star points come from the level
 	Inventory.addGold(player, -profile.gold)
 	Combat.setLevel(player, 1, 0)
 	Shop.grant(player, "soulstars", Rules.reward(n))
 	publish(player, n)
 	Rift.publishBest(player)
-	Boosts.refresh(player) -- neuer Leben-Bonus zuerst, damit das Auffüllen ihn mitnimmt
+	Boosts.refresh(player) -- new life bonus first, so the refill includes it
 	Stats.refresh(player, true)
 	Progress.sync(player)
 	Data.saveNow(player)
-	return true, string.format("Wiedergeburt %d! +%d Seelensterne", n, Rules.reward(n))
+	return true, string.format("Rebirth %d! +%d Soulstars", n, Rules.reward(n))
 end
 
 local function onRebirth(player: Player)

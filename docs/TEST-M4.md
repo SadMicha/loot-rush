@@ -1,30 +1,30 @@
-# Testliste M4 – Rift-Ablauf
+# Checklist M4 – Rift flow
 
-Hinweis: Die Arena ist jetzt leer, bis du ein Rift startest (kein Dauer-Respawn mehr).
+Note: The arena is now empty until you start a rift (no constant respawn anymore).
 
-## Betreten
-- [ ] Beim Start stehen keine Gegner in der Arena; unten „Rift betreten“ (in Ruhe sichtbar)
-- [ ] Klick → du landest vor der Gegnerzone, oben mittig Banner „Tiefe 1 · Welle 1/3 · Gegner 6“
-- [ ] Der Gegner-Zähler im Banner sinkt mit jedem Kill
+## Entering
+- [ ] At start there are no enemies in the arena; "Enter Rift" at the bottom (visible when idle)
+- [ ] Click → you land in front of the enemy zone, banner at top center "Depth 1 · Wave 1/3 · Enemies 6"
+- [ ] The enemy counter in the banner drops with every kill
 
-## Wellen & Boss
-- [ ] Welle 2 = 8 Gegner, Welle 3 = 10 Gegner, dazwischen ca. 1,5 s Pause
-- [ ] Nach Welle 3 erscheint der Kristallkönig (groß, lila) mit Leiste „Kristallkönig“ unter dem Banner
-- [ ] Boss schlägt mit großem Flächenschlag (roter Kreis, Radius 14) – per Dash ausweichbar
-- [ ] Bei halbem Leben ruft er 4 Kristallschleime
+## Waves & boss
+- [ ] Wave 2 = 8 enemies, wave 3 = 10 enemies, about 1.5 s pause in between
+- [ ] After wave 3 the Crystal King appears (big, purple) with a "Crystal King" bar below the banner
+- [ ] Boss attacks with a big area slam (red circle, radius 14) – dodgeable by dash
+- [ ] At half health he summons 4 crystal slimes
 
-## Ende
-- [ ] Boss tot → Banner „Tiefe 1 geschafft“, Beute liegt am Boden (5× Gold, 3 Items), Panel mit „Tiefer (Tiefe 2)“ und „Zurück ins Dorf“
-- [ ] Du kannst erst Beute aufsammeln und dann den Knopf drücken (kein Zeitlimit)
-- [ ] „Tiefer“ → volle Heilung, Gegner mit +35 % Leben / +15 % Schaden, Welle 1 beginnt (mehr Gegner: 8)
-- [ ] „Zurück ins Dorf“ → du stehst am Startpunkt (Hub), voll geheilt, Banner weg, Menü/Quests/Rift-Button fliegen sofort ein (auch direkt nach einem Kampf)
-- [ ] Gold/Kristalle/Seelenstern oben bleiben auch im Kampf sichtbar
-- [ ] „Rift verlassen“ (unten, in Ruhe) mitten im Lauf → Gegner verschwinden, Rückkehr in den Hub
-- [ ] Im Rift sterben → „Rift gescheitert“ (4 s), Gegner weg, Respawn im Hub, danach neues Rift startbar
+## End
+- [ ] Boss dead → banner "Depth 1 cleared", loot lies on the ground (5× gold, 3 items), panel with "Deeper (Depth 2)" and "Back to the village"
+- [ ] You can first pick up loot and then press the button (no time limit)
+- [ ] "Deeper" → full heal, enemies with +35 % health / +15 % damage, wave 1 starts (more enemies: 8)
+- [ ] "Back to the village" → you stand at the starting point (hub), fully healed, banner gone, menu/quests/rift button slide in immediately (even right after a fight)
+- [ ] Gold/crystals/soulstar at the top stay visible in combat too
+- [ ] "Leave Rift" (bottom, when idle) in the middle of a run → enemies disappear, return to the hub
+- [ ] Die in the rift → "Rift failed" (4 s), enemies gone, respawn in the hub, a new rift can be started afterwards
 
-## Grenzen (bewusst noch offen)
-- Es läuft nur ein Rift pro Server (der Starter ist Besitzer); weitere Spieler können es nicht starten, solange eins läuft
-- Tiefe beginnt immer bei 1, die beste Tiefe wird noch nicht gespeichert
+## Limits (deliberately still open)
+- Only one rift runs per server (the starter is the owner); other players can't start one while one is running
+- Depth always starts at 1, the best depth isn't saved yet
 
-## Gefühl
-- Länge pro Welle, Schwierigkeit des Bosses, Skalierung pro Tiefe, Menge der Boss-Beute?
+## Feel
+- Length per wave, boss difficulty, scaling per depth, amount of boss loot?

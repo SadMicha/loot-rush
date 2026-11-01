@@ -1,6 +1,6 @@
 --!strict
--- Inventar & Ausrüstung: Items aufnehmen, anlegen, ablegen, verkaufen (= verwerten: Gold + Material).
--- Werte rechnet Systems/Stats in Player-Attribute um. Der Client bekommt nur Schnappschüsse (Net.Inv).
+-- Inventory & gear: pick up, equip, unequip, sell items (= salvage: gold + materials).
+-- Systems/Stats turns the values into player attributes. The client only gets snapshots (Net.Inv).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,7 +16,7 @@ local Inventory = {}
 
 local MAX_ITEMS = 40
 
--- Jede Aktion schickt den ganzen Inventar-Schnappschuss zurück: Spam drosseln
+-- Every action sends the whole inventory snapshot back: throttle spam
 local allow = RateLimit.new(8, 16)
 
 local function snapshot(player: Player)

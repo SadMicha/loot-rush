@@ -1,22 +1,22 @@
 --!strict
--- Wiedergeburt (Rebirth): freiwillig, nie erzwungen. Reine Regeln für Server (Systems/Rebirth) und UI.
---   • Möglich, sobald die beste Tiefe (über alle Gebiete) die weiche Wand erreicht hat:
---     Tiefe 20 beim ersten Mal, danach je Wiedergeburt 5 Tiefen mehr.
---   • Zurückgesetzt: Level, XP, Gold, Atlas-Fortschritt (Gebiete) und das Sternennetz
---     (Sternpunkte kommen aus dem Level). Behalten: Ausrüstung, Inventar, Material, Skill-Stufen
---     und Blüten, Tränke, Seelensterne, Haustiere.
---   • Jede Wiedergeburt gibt dauerhaft mehr Schaden, Leben, Gold und XP und schiebt die weiche
---     Wand (Shared/Balance, wand_ab) 5 Tiefen nach hinten. Dazu einmalig Seelensterne.
--- Werte sind eigene Annahmen (nicht im Balancing-Blatt), siehe docs/WIEDERGEBURT.md.
+-- Rebirth: voluntary, never forced. Pure rules for server (Systems/Rebirth) and UI.
+--   • Possible once the best depth (across all regions) has reached the soft wall:
+--     depth 20 the first time, then 5 more depths per Rebirth.
+--   • Reset: level, XP, gold, Atlas progress (regions) and the Star Net
+--     (star points come from the level). Kept: gear, inventory, materials, skill levels
+--     and Blooms, Soulstars, pets.
+--   • Every Rebirth permanently gives more damage, life, gold and XP and pushes the soft
+--     wall (Shared/Balance, wall_from) back by 5 depths. Plus a one-time Soulstar reward.
+-- Values are own assumptions (not in the balancing sheet), see docs/REBIRTH.md.
 
 local Balance = require(script.Parent.Balance)
 
 local Rebirth = {}
 
-Rebirth.WALL_STEP = 5 -- Tiefen, um die jede Wiedergeburt die weiche Wand verschiebt
-Rebirth.MAX = 50 -- Obergrenze (Schutz vor Unsinn im Spielstand)
+Rebirth.WALL_STEP = 5 -- depths every Rebirth moves the soft wall by
+Rebirth.MAX = 50 -- upper bound (protection against nonsense in the save)
 
--- Bonus je Wiedergeburt in Prozent (addiert sich: 3 Wiedergeburten = +75 % Schaden)
+-- Bonus per Rebirth in percent (adds up: 3 Rebirths = +75 % damage)
 Rebirth.PerRebirth = table.freeze({
 	damage = 25,
 	life = 10,
@@ -24,22 +24,22 @@ Rebirth.PerRebirth = table.freeze({
 	xp = 20,
 } :: { [string]: number })
 
--- Seelensterne für die n-te Wiedergeburt
+-- Soulstars for the n-th Rebirth
 function Rebirth.reward(n: number): number
 	return 25 + 25 * n
 end
 
--- Beste Tiefe, die für die nächste Wiedergeburt nötig ist (rebirths = bisherige Anzahl)
+-- Best depth needed for the next Rebirth (rebirths = count so far)
 function Rebirth.required(rebirths: number): number
-	return Balance.P.wand_ab + Rebirth.WALL_STEP * rebirths
+	return Balance.P.wall_from + Rebirth.WALL_STEP * rebirths
 end
 
--- Um so viele Tiefen liegt die weiche Wand weiter hinten
+-- The soft wall sits this many depths further back
 function Rebirth.wallShift(rebirths: number): number
 	return Rebirth.WALL_STEP * rebirths
 end
 
--- Bonus-Prozente nach `rebirths` Wiedergeburten (Schlüssel wie Rebirth.PerRebirth)
+-- Bonus percent after `rebirths` Rebirths (keys like Rebirth.PerRebirth)
 function Rebirth.bonus(rebirths: number): { [string]: number }
 	local out: { [string]: number } = {}
 	for stat, pct in Rebirth.PerRebirth do
@@ -48,7 +48,7 @@ function Rebirth.bonus(rebirths: number): { [string]: number }
 	return out
 end
 
--- Höchste geschaffte Tiefe über alle Gebiete (profile.atlas)
+-- Highest depth cleared across all regions (profile.atlas)
 function Rebirth.bestDepth(atlas: { [string]: number }): number
 	local best = 0
 	for _, depth in atlas do
@@ -59,14 +59,14 @@ function Rebirth.bestDepth(atlas: { [string]: number }): number
 	return best
 end
 
--- Darf der Spieler wiedergeboren werden? (Grund für den gesperrten Knopf)
+-- May the player be reborn? (reason for the locked button)
 function Rebirth.check(rebirths: number, best: number): (boolean, string?)
 	if rebirths >= Rebirth.MAX then
-		return false, "Höchste Wiedergeburt erreicht"
+		return false, "Max Rebirth reached"
 	end
 	local need = Rebirth.required(rebirths)
 	if best < need then
-		return false, string.format("Erst Tiefe %d schaffen", need)
+		return false, string.format("Clear depth %d first", need)
 	end
 	return true, nil
 end

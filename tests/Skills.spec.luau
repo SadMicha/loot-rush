@@ -7,7 +7,7 @@ describe("Skills", function()
 		table.insert(all, s)
 	end
 
-	it("haben eindeutige IDs und gültige Werte", function()
+	it("have unique IDs and valid values", function()
 		local ids = {}
 		for _, s in all do
 			expect(ids[s.id]).toBeNil()
@@ -23,7 +23,7 @@ describe("Skills", function()
 		end
 	end)
 
-	it("verweisen auf vorhandene Icons", function()
+	it("reference existing icons", function()
 		for _, s in all do
 			expect(Assets.Icon[s.icon]).never.toBeNil()
 		end

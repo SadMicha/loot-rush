@@ -1,15 +1,15 @@
 --!strict
--- Gegner-Pool und KI. Jeder Gegnertyp hat einen Archetyp (Balancing-Blatt „Archetypen“) und
--- eine Angriffsart; jeder Angriff zeigt vorher einen roten Boden-Telegraph (Ausweichen per Dash):
---   slam    – läuft heran, Flächenschlag um sich (Schwarm, Tank)
---   charge  – Linie am Boden, dann Ansturm entlang der Linie (Lader)
---   ranged  – hält Abstand, Kreis unter dem Ziel, Geschoss schlägt dort ein (Fernkämpfer)
---   summon  – hält Abstand und ruft Minis (Beschwörer)
--- Bosse rufen bei halbem Leben einmal Helfer (`adds`); `summonEvery` ruft regelmäßig welche.
--- Gespawnt wird nur auf Abruf (Systems/Rift, Gegner-Mix je Gebiet in Shared/Atlas).
--- Leben/XP/Gold/Farbe liegen als Attribute am Model; Schaden an Gegnern macht Systems/Combat.
--- Werte je Tiefe aus Shared/Balance (LootRush_Balancing.xlsx); health/damage/xp/gold eines Typs
--- sind Faktoren darauf (normaler Gegner = 1).
+-- Enemy pool and AI. Every enemy type has an archetype (balancing sheet "Archetypes") and
+-- an attack type; every attack shows a red ground telegraph first (dodge with dash):
+--   slam    - walks up, area slam around itself (swarm, tank)
+--   charge  - line on the ground, then a charge along the line (charger)
+--   ranged  - keeps distance, circle under the target, projectile lands there (ranged)
+--   summon  - keeps distance and calls minis (summoner)
+-- Bosses call helpers once at half life (`adds`); `summonEvery` calls some regularly.
+-- Spawning only happens on demand (Systems/Rift, enemy mix per region in Shared/Atlas).
+-- Life/XP/gold/color live as attributes on the model; damage to enemies is done by Systems/Combat.
+-- Values per depth from Shared/Balance (LootRush_Balancing.xlsx); health/damage/xp/gold of a type
+-- are factors on top (normal enemy = 1).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -29,23 +29,23 @@ type Ai = "slam" | "charge" | "ranged" | "summon"
 type Kind = {
 	name: string,
 	ai: Ai,
-	health: number, -- Faktoren auf die Balance-Werte der Tiefe
+	health: number, -- factors on the balance values of the depth
 	damage: number,
 	xp: number,
 	gold: number,
 	speed: number,
-	attackRange: number, -- ab dieser Entfernung wird angegriffen
-	keepAway: number, -- ranged/summon weichen zurück, wenn der Spieler näher ist
-	radius: number, -- slam/ranged: Kreisradius · charge: halbe Linienbreite
+	attackRange: number, -- attacks from this distance
+	keepAway: number, -- ranged/summon back off when the player is closer
+	radius: number, -- slam/ranged: circle radius · charge: half line width
 	windup: number,
 	cooldown: number,
 	scale: number,
-	hover: number, -- Schwebehöhe über dem normalen Körpermittelpunkt
-	shots: number, -- ranged: Einschläge pro Angriff
+	hover: number, -- hover height above the normal body center
+	shots: number, -- ranged: impacts per attack
 	boss: boolean,
-	adds: string?, -- Gegnertyp, den Bosse/Beschwörer rufen
-	summonEvery: number?, -- Sekunden zwischen Beschwörungen (nil = nur Boss bei halbem Leben)
-	color: Color3, -- Farbe für Tod-Effekt und Treffer-Anzeige
+	adds: string?, -- enemy type bosses/summoners call
+	summonEvery: number?, -- seconds between summons (nil = only boss at half life)
+	color: Color3, -- color for the death effect and hit display
 	build: (s: number) -> Model,
 }
 
@@ -54,27 +54,27 @@ type Enemy = {
 	kind: Kind,
 	damage: number,
 	depth: number,
-	wallShift: number, -- weiche Wand verschoben (Wiedergeburten)
-	center: Vector3, -- Mitte der eigenen Arena (Rift-Platz)
-	run: number, -- Rift-Lauf, zu dem der Gegner gehört (0 = keiner)
+	wallShift: number, -- soft wall shifted (Rebirths)
+	center: Vector3, -- center of the own arena (Rift slot)
+	run: number, -- Rift run the enemy belongs to (0 = none)
 	summoned: boolean,
 	phase: number,
 	nextAttack: number,
 	nextSummon: number,
 	minions: { Model },
-	windupEnd: number, -- 0 = kein Angriff in Vorbereitung
+	windupEnd: number, -- 0 = no attack being prepared
 	telegraphs: { BasePart },
-	targets: { Vector3 }, -- slam/ranged: Kreismitten · charge: Start der Linie
-	dir: Vector3, -- charge: Richtung der Linie
+	targets: { Vector3 }, -- slam/ranged: circle centers · charge: start of the line
+	dir: Vector3, -- charge: direction of the line
 	dashFrom: Vector3,
 	dashTo: Vector3,
-	dashEnd: number, -- 0 = kein Ansturm
+	dashEnd: number, -- 0 = no charge
 }
 
 local Enemies = {}
 
 local BASE_SPEED = 9.2
--- Leben ×, Schaden ×, Tempo ×, Gold/XP × (LootRush_Balancing.xlsx, Blatt „Archetypen“)
+-- Life ×, damage ×, speed ×, gold/XP × (LootRush_Balancing.xlsx, sheet "Archetypes")
 local ARCH = {
 	swarm = { 0.5, 0.6, 1.2, 0.5 },
 	ranged = { 0.8, 1, 0.9, 1 },
@@ -87,7 +87,7 @@ local CHARGE_TIME = 0.3
 local MAX_MINIONS = 4
 local BOSS_SUMMONS = 4
 local BASE_BODY_Y = Creatures.BODY_Y
--- Laufbereich: Arena-Raster ohne erhöhten Nordrand und Seitenklippen (siehe Systems/World)
+-- Walking area: arena grid without the raised north edge and side cliffs (see Systems/World)
 local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
 local MAX_Z = math.floor(Config.ARENA_TILES_Z / 2) * Config.TILE_SIZE - 6
 local MIN_Z = -MAX_Z + 6
@@ -113,13 +113,13 @@ local function archetype(arch: string, k: { [string]: any }): Kind
 	return table.freeze(out) :: any
 end
 
--- Bosse: Leben = boss_hp (×40) mal eigenem Faktor, Gold/XP = boss_beute (×25).
--- Schaden hat die Tabelle für Bosse nicht: eigener Faktor je Boss (eigene Annahme, 1,2–1,7).
+-- Bosses: life = boss_hp (×40) times own factor, gold/XP = boss_loot (×25).
+-- The table has no damage for bosses: own factor per boss (own assumption, 1.2–1.7).
 local function boss(k: { [string]: any }): Kind
 	k.boss = true
 	k.health = Balance.P.boss_hp * k.health
-	k.xp = Balance.P.boss_beute
-	k.gold = Balance.P.boss_beute
+	k.xp = Balance.P.boss_loot
+	k.gold = Balance.P.boss_loot
 	return archetype("tank", k)
 end
 
@@ -128,9 +128,9 @@ local function hex(s: string): Color3
 end
 
 local KINDS: { [string]: Kind } = {
-	-- Grüne Ebenen
+	-- Green Plains
 	slime = archetype("swarm", {
-		name = "Kristallschleim",
+		name = "Crystal Slime",
 		ai = "slam",
 		attackRange = 5,
 		radius = 7,
@@ -143,7 +143,7 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	beetle = archetype("charger", {
-		name = "Stachelkäfer",
+		name = "Spike Beetle",
 		ai = "charge",
 		attackRange = 14,
 		radius = 2.5,
@@ -155,8 +155,8 @@ local KINDS: { [string]: Kind } = {
 			return Creatures.beetle(s)
 		end,
 	}),
-	kristallkoenig = boss({
-		name = "Kristallkönig",
+	crystal_king = boss({
+		name = "Crystal King",
 		ai = "slam",
 		health = 1.0,
 		damage = 1.3,
@@ -173,9 +173,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 
-	-- Kristallhöhlen
+	-- Crystal Caves
 	crab = archetype("tank", {
-		name = "Kristallkrabbe",
+		name = "Crystal Crab",
 		ai = "slam",
 		attackRange = 6,
 		radius = 8,
@@ -188,7 +188,7 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	lantern = archetype("ranged", {
-		name = "Fledermaus-Lampion",
+		name = "Bat Lantern",
 		ai = "ranged",
 		attackRange = 26,
 		keepAway = 12,
@@ -202,8 +202,8 @@ local KINDS: { [string]: Kind } = {
 			return Creatures.lantern(s)
 		end,
 	}),
-	splitterwurm = boss({
-		name = "Splitterwurm",
+	shard_worm = boss({
+		name = "Shard Worm",
 		ai = "charge",
 		health = 1.08,
 		damage = 1.7,
@@ -220,9 +220,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 
-	-- Pilzsumpf
+	-- Mushroom Swamp
 	frog = archetype("charger", {
-		name = "Sporenfrosch",
+		name = "Spore Frog",
 		ai = "charge",
 		attackRange = 12,
 		radius = 2.5,
@@ -235,7 +235,7 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	snail = archetype("summoner", {
-		name = "Giftschnecke",
+		name = "Poison Snail",
 		ai = "summon",
 		attackRange = 22,
 		keepAway = 12,
@@ -251,9 +251,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	sporeling = archetype("swarm", {
-		name = "Sporling",
+		name = "Sporeling",
 		ai = "slam",
-		xp = 0.15, -- gerufene Minis: kaum XP/Gold, sonst lohnt Farmen am Beschwörer
+		xp = 0.15, -- summoned minis: barely any XP/gold, otherwise farming the summoner pays off
 		gold = 0.15,
 		attackRange = 4,
 		radius = 5,
@@ -265,8 +265,8 @@ local KINDS: { [string]: Kind } = {
 			return Creatures.slime(s, hex("#E85AA8"), hex("#FFE27A"))
 		end,
 	}),
-	sporenmutter = boss({
-		name = "Sporenmutter",
+	spore_mother = boss({
+		name = "Spore Mother",
 		ai = "slam",
 		health = 1.17,
 		damage = 1.2,
@@ -284,9 +284,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 
-	-- Feuerwüste
+	-- Fire Desert
 	golem = archetype("tank", {
-		name = "Toast-Golem",
+		name = "Toast Golem",
 		ai = "slam",
 		attackRange = 6,
 		radius = 8,
@@ -299,7 +299,7 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	imp = archetype("ranged", {
-		name = "Funkenwicht",
+		name = "Spark Imp",
 		ai = "ranged",
 		attackRange = 22,
 		keepAway = 10,
@@ -313,8 +313,8 @@ local KINDS: { [string]: Kind } = {
 			return Creatures.imp(s)
 		end,
 	}),
-	ofenfuerst = boss({
-		name = "Ofenfürst Krust",
+	furnace_lord = boss({
+		name = "Furnace Lord Krust",
 		ai = "slam",
 		health = 1.29,
 		damage = 1.5,
@@ -331,9 +331,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 
-	-- Himmelsinseln
+	-- Sky Islands
 	wisp = archetype("ranged", {
-		name = "Windgeist",
+		name = "Wind Spirit",
 		ai = "ranged",
 		attackRange = 28,
 		keepAway = 14,
@@ -348,7 +348,7 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 	statue = archetype("tank", {
-		name = "Wächterstatue",
+		name = "Guardian Statue",
 		ai = "slam",
 		attackRange = 6,
 		radius = 9,
@@ -360,8 +360,8 @@ local KINDS: { [string]: Kind } = {
 			return Creatures.statue(s)
 		end,
 	}),
-	wolkenkoenigin = boss({
-		name = "Wolkenkönigin",
+	cloud_queen = boss({
+		name = "Cloud Queen",
 		ai = "ranged",
 		health = 1.08,
 		damage = 1.3,
@@ -381,9 +381,9 @@ local KINDS: { [string]: Kind } = {
 		end,
 	}),
 
-	-- Veränderte Welt (Gegner der anderen Gebiete gemischt, siehe Atlas)
-	riss = boss({
-		name = "Der Riss",
+	-- Altered World (enemies of the other regions mixed, see Atlas)
+	the_rift = boss({
+		name = "The Rift",
 		ai = "slam",
 		health = 1.43,
 		damage = 1.6,
@@ -449,7 +449,7 @@ local function bodyY(kind: Kind): number
 	return BASE_BODY_Y * kind.scale + kind.hover
 end
 
--- Hält einen Punkt in der Arena des Gegners (jedes Rift hat seinen eigenen Platz, e.center)
+-- Keeps a point inside the enemy's arena (every Rift has its own slot, e.center)
 local function clampArena(e: Enemy, p: Vector3): Vector3
 	local c = e.center
 	return Vector3.new(
@@ -459,34 +459,34 @@ local function clampArena(e: Enemy, p: Vector3): Vector3
 	)
 end
 
--- Werte eines Gegnertyps auf dieser Tiefe (ohne Gebiets-Boni); auch für tests/Balancing.
--- wallShift verschiebt die weiche Wand (Wiedergeburten des Rift-Besitzers, Shared/Rebirth).
+-- Values of an enemy type at this depth (without region bonuses); also for tests/Balancing.
+-- wallShift moves the soft wall (Rebirths of the Rift owner, Shared/Rebirth).
 function Enemies.stats(kindName: string, depth: number, wallShift: number?)
 	local kind = KINDS[kindName]
-	assert(kind, "unbekannter Gegnertyp")
+	assert(kind, "unknown enemy type")
 	return {
 		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth, wallShift))),
 		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) + 0.5)),
 		xp = math.floor(kind.xp * Balance.xp(depth) + 0.5),
-		gold = kind.gold * Balance.gold(depth), -- ungerundet: Loot rundet erst nach dem Gebiets-Bonus
+		gold = kind.gold * Balance.gold(depth), -- unrounded: Loot rounds only after the region bonus
 		boss = kind.boss,
 		cooldown = kind.cooldown,
 	}
 end
 
 export type SpawnOpts = {
-	wallShift: number?, -- weiche Wand verschoben (Wiedergeburten des Rift-Besitzers)
-	center: Vector3?, -- Mitte der Arena (Standard: Ursprung)
-	run: number?, -- Lauf-Nummer (Systems/Rift zählt damit seine Gegner)
+	wallShift: number?, -- soft wall shifted (Rebirths of the Rift owner)
+	center: Vector3?, -- center of the arena (default: origin)
+	run: number?, -- run number (Systems/Rift counts its enemies with it)
 }
 
--- Erzeugt einen Gegner. depth skaliert Leben, Schaden, XP und Gold (Shared/Balance).
+-- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
 function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: SpawnOpts?): Model?
 	local o: SpawnOpts = opts or {}
 	local wallShift = o.wallShift
 	local kind = KINDS[kindName]
 	if not kind then
-		warn("[Enemies] unbekannter Gegnertyp " .. tostring(kindName))
+		warn("[Enemies] unknown enemy type " .. tostring(kindName))
 		return nil
 	end
 	local st = Enemies.stats(kindName, depth, wallShift)
@@ -531,7 +531,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	return model
 end
 
--- Gebiet am Gegner vermerken (Beute-Boni in Systems/Loot) und den Erfahrungs-Bonus anwenden
+-- Note the region on the enemy (loot bonuses in Systems/Loot) and apply the XP bonus
 function Enemies.setRegion(model: Model, regionId: string)
 	model:SetAttribute("Region", regionId)
 	local region = Atlas.ById[regionId]
@@ -541,16 +541,16 @@ function Enemies.setRegion(model: Model, regionId: string)
 	end
 end
 
--- Entfernt alle Gegner eines Laufs (run = nil: alle)
+-- Removes all enemies of a run (run = nil: all)
 function Enemies.clear(run: number?)
 	for _, e in list do
 		if run == nil or e.run == run then
-			e.model:Destroy() -- step() räumt Liste und Telegraphen beim nächsten Frame auf
+			e.model:Destroy() -- step() cleans up the list and telegraphs on the next frame
 		end
 	end
 end
 
--- Lebende Gegner eines Laufs
+-- Living enemies of a run
 function Enemies.count(run: number): number
 	local n = 0
 	for _, e in list do
@@ -581,7 +581,7 @@ local function nearestPlayer(from: Vector3): (Player?, Vector3?, number)
 	return best, bestPos, bestD
 end
 
--- Ruft fn(player, flacher Abstand zum Punkt, Position) für jeden lebenden Spieler-Körper
+-- Calls fn(player, flat distance to the point, position) for every living player body
 local function eachPlayer(fn: (Player, Vector3) -> ())
 	for _, player in Players:GetPlayers() do
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -704,7 +704,7 @@ local function resolveAttack(e: Enemy, now: number)
 	end
 end
 
--- Ruft `count` Helfer im Kreis um `around`
+-- Calls `count` helpers in a circle around `around`
 local function summon(e: Enemy, around: Vector3, count: number)
 	local addKind = e.kind.adds
 	if not addKind then
@@ -722,7 +722,7 @@ local function summon(e: Enemy, around: Vector3, count: number)
 		if m then
 			local region = e.model:GetAttribute("Region")
 			if typeof(region) == "string" then
-				Enemies.setRegion(m, region) -- Gebiets-Boni gelten auch für Helfer
+				Enemies.setRegion(m, region) -- region bonuses also apply to helpers
 			end
 			table.insert(e.minions, m)
 		end
@@ -778,7 +778,7 @@ local function step(dt: number)
 		end
 
 		if e.dashEnd > 0 then
-			-- Ansturm entlang der Telegraph-Linie
+			-- Charge along the telegraph line
 			local t = 1 - math.max(e.dashEnd - now, 0) / CHARGE_TIME
 			local p = e.dashFrom:Lerp(e.dashTo, t)
 			pos = Vector3.new(p.X, pos.Y, p.Z)
@@ -787,7 +787,7 @@ local function step(dt: number)
 				e.dashEnd = 0
 			end
 		elseif e.windupEnd > 0 then
-			-- Vorbereitung: stehen bleiben, zusammendrücken
+			-- Windup: stand still, squash
 			y = baseY
 				- 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / kind.windup) * math.pi)
 			if kind.ai == "charge" then
@@ -831,7 +831,7 @@ end
 
 function Enemies.init()
 	folder = Instance.new("Folder")
-	folder.Name = "Gegner"
+	folder.Name = "Enemies"
 	folder.Parent = workspace
 end
 

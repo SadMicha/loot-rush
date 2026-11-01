@@ -1,8 +1,8 @@
 --!strict
--- Fähigkeiten-Fenster nach Mockup „Fähigkeiten“ (Taste K oder Menü-Button):
---   links Skillleiste Q/E/R/F und Skill-Liste, Mitte Skill-Blüte, rechts Details.
--- Werte kommen aus Shared.Skills, verrechnet mit Stufe, Blüte und Sternen (Progression.effectiveSkill).
--- Stufen und Blüten-Punkte führt der Server (Systems/Progress); das Fenster schickt nur Wünsche (Net.Bloom).
+-- Abilities window after the "Abilities" mockup (key K or menu button):
+--   left: skill bar Q/E/R/F and skill list, center: skill bloom, right: details.
+-- Values come from Shared.Skills, combined with level, bloom and stars (Progression.effectiveSkill).
+-- Levels and bloom points are kept by the server (Systems/Progress); the window only sends requests (Net.Bloom).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,9 +21,8 @@ local KEYS = { "Q", "E", "R", "F" }
 local PAD = 28
 local LEFT_W, SIDE_W = 440, 420
 local TREE_W, TREE_H = 620, 700
--- Icons der Knoten je Ast
-local BRANCH_ICON: { [string]: string } =
-	{ trunk = "verbessern", left = "kristall", right = "timer" }
+-- Node icons per branch
+local BRANCH_ICON: { [string]: string } = { trunk = "upgrade", left = "crystal", right = "timer" }
 
 local win: Window.Window
 local listPanel: Frame
@@ -31,8 +30,8 @@ local tree: Frame
 local detail: Frame
 local hint: TextLabel
 
-local selected = 1 -- Index in Skills.bar
-local selectedNode: string? = nil -- Blüten-Knoten, z. B. "trunk2"
+local selected = 1 -- index in Skills.bar
+local selectedNode: string? = nil -- bloom node, e.g. "trunk2"
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -51,11 +50,10 @@ local function effectiveOf(skill: Skills.Skill): Skills.Skill
 end
 
 local function fmt(v: number): string
-	local s = if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
-	return (s:gsub("%.", ","))
+	return if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
 end
 
--- ------------------------------------------------------------------ Links: Leiste und Liste
+-- ------------------------------------------------------------------ Left: bar and list
 local function renderList()
 	clear(listPanel)
 
@@ -113,7 +111,7 @@ local function renderList()
 		local eff = effectiveOf(skill)
 		local sub = Kit.label(
 			string.format(
-				"Stufe %d · %s Schaden · %s s",
+				"Level %d · %s Damage · %s s",
 				progressOf(skill).level,
 				fmt(math.floor(eff.damage + 0.5)),
 				fmt(eff.cooldown)
@@ -122,7 +120,7 @@ local function renderList()
 			C.Muted,
 			Theme.Font.Body
 		)
-		-- Endet vor dem Tasten-Kürzel rechts; bricht auf kleinen Bildschirmen in zwei Zeilen um
+		-- Ends before the key hint on the right; wraps to two lines on small screens
 		sub.AutomaticSize = Enum.AutomaticSize.None
 		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 88 - 44, 42)
 		sub.TextWrapped = true
@@ -146,7 +144,7 @@ local function renderList()
 	list.Parent = listPanel
 end
 
--- ------------------------------------------------------------------ Mitte: Skill-Blüte
+-- ------------------------------------------------------------------ Center: skill bloom
 local function renderTree()
 	clear(tree)
 	local skill = Skills.bar[selected]
@@ -159,7 +157,7 @@ local function renderTree()
 	local right = { Vector2.new(cx + 120, 540), Vector2.new(cx + 240, 500) }
 	local lineColor = C.Gold
 
-	-- Verbindungen zuerst, damit die Knoten darüber liegen
+	-- Connections first so the nodes sit on top
 	Window.line(tree, root, trunk[1], lineColor, 3)
 	Window.line(tree, trunk[1], trunk[2], lineColor, 3)
 	Window.line(tree, trunk[2], trunk[3], lineColor, 3)
@@ -176,7 +174,7 @@ local function renderTree()
 	Window.caption(tree, skill.name, root + Vector2.new(0, 66), 18, C.GoldHi)
 
 	if not bloom then
-		hint.Text = "Für diesen Skill gibt es noch keine Blüte."
+		hint.Text = "This skill has no bloom yet."
 		return
 	end
 
@@ -201,11 +199,11 @@ local function renderTree()
 				AbilitiesController.render()
 			end)
 			b.Parent = tree
-			-- Am Stamm stehen die Texte rechts, damit die Verbindungslinie frei bleibt
+			-- On the trunk the texts sit to the right so the connecting line stays clear
 			local side = key == "trunk"
 			local ptsLabel = Window.caption(
 				tree,
-				if n.effect then string.format("%d/%d", pts, Skills.BloomMax) else "bald",
+				if n.effect then string.format("%d/%d", pts, Skills.BloomMax) else "soon",
 				p + (if side then Vector2.new(52, -24) else Vector2.new(0, 46)),
 				15,
 				if pts > 0 then C.GoldHi else C.Muted
@@ -227,7 +225,7 @@ local function renderTree()
 	branch(bloom.left, left, "left")
 	branch(bloom.right, right, "right")
 
-	-- Ast-Namen
+	-- Branch names
 	local trunkName = Window.heading(bloom.trunk.name, 22, C.Cyan)
 	trunkName.AnchorPoint = Vector2.new(0.5, 0)
 	trunkName.Position = UDim2.fromOffset(cx, 130)
@@ -244,18 +242,19 @@ local function renderTree()
 	local node = if selectedNode then Skills.bloomNode(skill.id, selectedNode) else nil
 	if node and selectedNode then
 		local _, why = Progression.canBloom(sp, skill.id, selectedNode)
+		local maxed = (sp.bloom[selectedNode] or 0) >= Skills.BloomMax -- no reason text needed when fully upgraded
 		hint.Text = string.format(
 			"%s: %s%s",
 			node.name,
 			node.text,
-			if why and why ~= "Voll ausgebaut" then " · " .. why else ""
+			if why and not maxed then " · " .. why else ""
 		)
 	else
-		hint.Text = "Tippe einen Knoten an. Jede Skill-Stufe gibt einen Blüten-Punkt."
+		hint.Text = "Tap a node. Each skill level grants a bloom point."
 	end
 end
 
--- ------------------------------------------------------------------ Rechts: Details
+-- ------------------------------------------------------------------ Right: details
 local function statTile(iconName: string, value: string, label: string, order: number): Frame
 	local f = Window.frame(UDim2.fromOffset(112, 96))
 	f.LayoutOrder = order
@@ -293,7 +292,7 @@ local function renderDetail()
 	name.Position = UDim2.fromOffset(PAD + 128, PAD + 18)
 	name.Parent = detail
 	local key = Kit.label(
-		string.format("Taste %s · Stufe %d", KEYS[selected], sp.level),
+		string.format("Key %s · Level %d", KEYS[selected], sp.level),
 		16,
 		C.Muted,
 		Theme.Font.Body
@@ -311,11 +310,10 @@ local function renderDetail()
 
 	local tiles = Window.frame(UDim2.fromOffset(w, 96), UDim2.fromOffset(PAD, PAD + 210))
 	Kit.list(tiles, Enum.FillDirection.Horizontal, 10)
-	statTile("schwert", fmt(math.floor(eff.damage + 0.5)), "Schaden", 1).Parent = tiles
-	statTile("timer", fmt(eff.cooldown) .. " s", "Abklingzeit", 2).Parent = tiles
+	statTile("sword", fmt(math.floor(eff.damage + 0.5)), "Damage", 1).Parent = tiles
+	statTile("timer", fmt(eff.cooldown) .. " s", "Cooldown", 2).Parent = tiles
 	local reach = if skill.range > 0 then skill.range else eff.radius
-	statTile("ziel", fmt(reach), if skill.range > 0 then "Reichweite" else "Radius", 3).Parent =
-		tiles
+	statTile("target", fmt(reach), if skill.range > 0 then "Range" else "Radius", 3).Parent = tiles
 	tiles.Parent = detail
 
 	local divider = Kit.divider(w)
@@ -324,13 +322,13 @@ local function renderDetail()
 
 	local free = Progression.bloomPoints(sp)
 	local pts = Kit.label(
-		string.format("%d Blüten-Punkt%s", free, if free == 1 then "" else "e"),
+		string.format("%d Bloom Point%s", free, if free == 1 then "" else "s"),
 		22,
 		if free > 0 then C.GoldHi else C.Muted
 	)
 	pts.Position = UDim2.fromOffset(PAD + 40, PAD + 350)
 	pts.Parent = detail
-	-- XP bis zur nächsten Skill-Stufe
+	-- XP to the next skill level
 	local maxed = sp.level >= Skills.MaxLevel
 	local need = Progression.skillXpFor(sp.level)
 	local back, fill = Kit.bar(Vector2.new(w, 8), C.Cyan)
@@ -338,18 +336,18 @@ local function renderDetail()
 	fill.Size = UDim2.fromScale(if maxed then 1 else math.clamp(sp.xp / need, 0, 1), 1)
 	back.Parent = detail
 	local xp = Kit.label(
-		if maxed then "Höchste Stufe" else string.format("%d / %d Skill-XP", sp.xp, need),
+		if maxed then "Max level" else string.format("%d / %d Skill-XP", sp.xp, need),
 		14,
 		C.Muted,
 		Theme.Font.Body
 	)
 	xp.Position = UDim2.fromOffset(PAD, PAD + 514)
 	xp.Parent = detail
-	local ptsIcon = Kit.icon("sternennetz", 30)
+	local ptsIcon = Kit.icon("star_net", 30)
 	ptsIcon.Position = UDim2.fromOffset(PAD, PAD + 350)
 	ptsIcon.Parent = detail
 	local info = Kit.label(
-		"Skills steigen auf, wenn sie Gegner besiegen. Jede Stufe: +5 % Schaden und ein Blüten-Punkt.",
+		"Skills level up when they defeat enemies. Each level: +5% damage and a bloom point.",
 		15,
 		C.Muted,
 		Theme.Font.Body
@@ -361,8 +359,8 @@ local function renderDetail()
 	info.Position = UDim2.fromOffset(PAD, PAD + 404)
 	info.Parent = detail
 
-	-- Blüte zurücksetzen (kostenlos)
-	local reset = Kit.button("Blüte zurücksetzen", C.Danger, Vector2.new(w, 50), "neu_wuerfeln")
+	-- Reset bloom (free)
+	local reset = Kit.button("Reset Bloom", C.Danger, Vector2.new(w, 50), "reroll")
 	reset.AnchorPoint = Vector2.new(0, 1)
 	reset.Position = UDim2.new(0, PAD, 1, -PAD - 72)
 	Kit.setEnabled(reset, Progression.bloomSpent(sp) > 0)
@@ -373,11 +371,11 @@ local function renderDetail()
 	end)
 	reset.Parent = detail
 
-	-- Gewählter Knoten: Punkt setzen. Sonst: alle vier Skills liegen fest auf der Leiste.
+	-- Selected node: spend a point. Otherwise: all four skills are fixed on the bar.
 	local nodeKey = selectedNode
 	local b
 	if nodeKey then
-		b = Kit.button("Punkt setzen", C.Gold, Vector2.new(w, 60), "verbessern")
+		b = Kit.button("Spend Point", C.Gold, Vector2.new(w, 60), "upgrade")
 		Kit.setEnabled(b, (Progression.canBloom(sp, skill.id, nodeKey)))
 		b.Activated:Connect(function()
 			if b.Active then
@@ -385,7 +383,7 @@ local function renderDetail()
 			end
 		end)
 	else
-		b = Kit.button("Ausgerüstet", C.Gold, Vector2.new(w, 60), "verbessern")
+		b = Kit.button("Equipped", C.Gold, Vector2.new(w, 60), "upgrade")
 		Kit.setEnabled(b, false)
 	end
 	Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
@@ -394,7 +392,7 @@ local function renderDetail()
 	b.Parent = detail
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function AbilitiesController.render()
 	renderList()
 	renderTree()
@@ -408,7 +406,7 @@ end
 function AbilitiesController.init()
 	win = Window.new({
 		name = "Abilities",
-		title = "Fähigkeiten",
+		title = "Abilities",
 		icon = "skills",
 		key = Enum.KeyCode.K,
 		background = "bg_skills",
@@ -418,12 +416,12 @@ function AbilitiesController.init()
 	listPanel = Kit.panel(Vector2.new(LEFT_W, body.Y))
 	listPanel.Parent = win.body
 
-	-- Baum mittig zwischen den beiden Panels
+	-- Tree centered between the two panels
 	local center = Window.frame(UDim2.fromOffset(TREE_W, body.Y))
 	center.AnchorPoint = Vector2.new(0.5, 0)
 	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
 	center.Parent = win.body
-	local treeTitle = Window.heading("Skill-Blüte", 26, C.Text)
+	local treeTitle = Window.heading("Skill Bloom", 26, C.Text)
 	treeTitle.AnchorPoint = Vector2.new(0.5, 0)
 	treeTitle.Position = UDim2.new(0.5, 0, 0, 0)
 	treeTitle.Parent = center

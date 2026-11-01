@@ -1,9 +1,9 @@
 --!strict
--- Part-Modelle, per Code gebaut (Rojo-freundlich, versionierbar, keine .rbxm nötig).
--- Vorschau in Studio (Edit-Modus, Rojo verbunden) über die Command Bar:
+-- Part models built in code (Rojo-friendly, versionable, no .rbxm needed).
+-- Preview in Studio (edit mode, Rojo connected) via the command bar:
 --   require(game.ReplicatedStorage.Shared.Models).showcase()
--- legt alle Modelle in einer Reihe in workspace.ModellVorschau ab. Gefällt ein Modell,
--- kann man es dort von Hand nachbessern und als Package/.rbxm speichern.
+-- puts all models in a row into workspace.ModelPreview. If you like a model,
+-- you can touch it up there by hand and save it as a package/.rbxm.
 
 local Buildings = require(script.Buildings)
 local Creatures = require(script.Creatures)
@@ -20,12 +20,12 @@ local Models = {
 }
 
 function Models.showcase(origin: Vector3?): Model
-	local old = workspace:FindFirstChild("ModellVorschau")
+	local old = workspace:FindFirstChild("ModelPreview")
 	if old then
 		old:Destroy()
 	end
 	local row = Instance.new("Model")
-	row.Name = "ModellVorschau"
+	row.Name = "ModelPreview"
 	local list: { Model } = {
 		Props.tree(1.3),
 		Props.pillar(1.4),
@@ -68,11 +68,11 @@ function Models.showcase(origin: Vector3?): Model
 	for _, m in list do
 		local size = m:GetExtentsSize()
 		x += size.X / 2
-		-- Insel hat ihren Pivot oben auf dem Gras: anheben, damit sie sichtbar über dem Boden hängt.
-		-- Gegner haben ihren Pivot in der Körpermitte.
-		local lift = if m.Name == "Schwebeinsel"
+		-- The island has its pivot on top of the grass: lift it so it visibly floats above the ground.
+		-- Enemies have their pivot in the body center.
+		local lift = if m.Name == "FloatingIsland"
 			then size.Y
-			elseif m.PrimaryPart and m.PrimaryPart.Name == "Koerper" then Creatures.BODY_Y
+			elseif m.PrimaryPart and m.PrimaryPart.Name == "Body" then Creatures.BODY_Y
 			else 0
 		m:PivotTo(CFrame.new(base + Vector3.new(x, lift, 0)))
 		m.Parent = row

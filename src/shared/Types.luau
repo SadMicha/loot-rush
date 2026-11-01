@@ -1,33 +1,33 @@
 --!strict
--- Gemeinsame Typen für Client und Server.
--- Alles, was über die Netzwerkgrenze geht (Remote-Payloads, Spielstand), wird hier definiert.
+-- Shared types for client and server.
+-- Everything that crosses the network boundary (remote payloads, save data) is defined here.
 
 export type PlayerProfile = {
 	version: number,
 	gold: number,
 }
 
--- Player-Attribute, die der Server setzt und die der Client nur liest
+-- Player attributes the server sets and the client only reads
 export type PlayerAttributes = {
-	InCombat: boolean, -- true, solange Gegner nah sind oder kürzlich Schaden kam
+	InCombat: boolean, -- true while enemies are near or damage was taken recently
 	Level: number,
 	XP: number,
-	XPNext: number, -- XP bis zum nächsten Level
+	XPNext: number, -- XP to the next level
 }
 
--- Rift-Zustand als Player-Attribute des Rift-Besitzers (Systems/Rift)
---   RiftPhase: "" (kein Rift) | "wave" | "boss" | "clear" (Boss tot, Wahl: tiefer/zurück) | "failed"
---   RiftDepth, RiftWave, RiftWaves: number · RiftLeft: Gegner, die noch leben
+-- Rift state as player attributes of the Rift owner (Systems/Rift)
+--   RiftPhase: "" (no Rift) | "wave" | "boss" | "clear" (boss dead, choice: deeper/back) | "failed"
+--   RiftDepth, RiftWave, RiftWaves: number · RiftLeft: enemies still alive
 
--- Gegner-Attribute (auf dem Model, Tag "Enemy")
+-- Enemy attributes (on the model, tag "Enemy")
 export type EnemyAttributes = {
 	Health: number,
 	MaxHealth: number,
 	Boss: boolean?,
 }
 
--- Net.Fx-Ereignisse (Server → alle Clients): Art → Daten
---   dmg     { pos, amount?, text?, crit?, hurt?, heal? }
+-- Net.Fx events (server → all clients): kind → data
+--   dmg     { pos, amount?, text?, crit?, hurt? }
 --   proj    { from, to, time, color, size }
 --   nova    { pos, radius, color }
 --   chain   { points: {Vector3}, color }

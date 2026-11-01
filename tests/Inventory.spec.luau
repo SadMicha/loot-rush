@@ -1,4 +1,4 @@
--- Detail-Ansicht im Inventar: Vergleichs-Chips nur, wenn am selben Platz etwas angelegt ist.
+-- Detail view in the inventory: comparison chips only if something is equipped in the same slot.
 local function texts(root)
 	local out = {}
 	for _, d in root:GetDescendants() do
@@ -38,11 +38,11 @@ local function buttonWithText(inv, text)
 	return nil
 end
 
-describe("Inventar", function()
+describe("Inventory", function()
 	local Items = require("ReplicatedStorage.Shared.Items")
 	local first, second
 
-	it("zeigt die Werte eines Gegenstands nur einmal, wenn nichts angelegt ist", function()
+	it("shows an item's stats only once when nothing is equipped", function()
 		sim:boot({ seconds = 1 })
 		local rng = Random.new(7)
 		first = Items.roll(5, rng)
@@ -71,9 +71,9 @@ describe("Inventar", function()
 		expect(chips(inv)).toBe(0)
 	end)
 
-	it("vergleicht mit dem angelegten Teil", function()
+	it("compares with the equipped item", function()
 		local inv = sim.player.PlayerGui.LootRushInventory
-		local equip = buttonWithText(inv, "Ausrüsten")
+		local equip = buttonWithText(inv, "Equip")
 		expect(equip).never.toBeNil()
 		sim:click(equip)
 		sim:run(0.5)
@@ -90,7 +90,7 @@ describe("Inventar", function()
 	end)
 end)
 
-describe("Vollbild-Fenster", function()
+describe("Fullscreen windows", function()
 	local function menuButton(name)
 		for _, d in sim.player.PlayerGui.LootRushHUD:GetDescendants() do
 			if d:IsA("GuiButton") and d.Name == name then
@@ -100,14 +100,14 @@ describe("Vollbild-Fenster", function()
 		return nil
 	end
 
-	it("Inventar und Sternennetz sind nie gleichzeitig offen", function()
+	it("inventory and Star Net are never open at the same time", function()
 		local pg = sim.player.PlayerGui
 		pg.LootRushInventory.Enabled = false
-		sim:click(menuButton("inventar"))
+		sim:click(menuButton("inventory"))
 		sim:run(0.2)
 		expect(pg.LootRushInventory.Enabled).toBe(true)
 
-		sim:click(menuButton("sternennetz"))
+		sim:click(menuButton("star_net"))
 		sim:run(0.2)
 		expect(pg.LootRushStarNet.Enabled).toBe(true)
 		expect(pg.LootRushInventory.Enabled).toBe(false)

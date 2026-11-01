@@ -1,7 +1,7 @@
 local Profile = require("ReplicatedStorage.Shared.Profile")
 
 describe("Profile.migrate", function()
-	it("legt für neue Spieler einen frischen Stand an", function()
+	it("creates a fresh save for new players", function()
 		local r = Profile.migrate(nil)
 		expect(r.v).toBe(Profile.VERSION)
 		expect(r.data.gold).toBe(0)
@@ -9,15 +9,15 @@ describe("Profile.migrate", function()
 		expect(#r.data.inventory).toBe(0)
 	end)
 
-	it("frische Stände teilen keine Tabellen", function()
+	it("fresh saves share no tables", function()
 		local a, b = Profile.fresh(), Profile.fresh()
 		table.insert(a.inventory, { id = "x" })
 		expect(#b.inventory).toBe(0)
 	end)
 
-	it("hebt v1-Stände auf die aktuelle Version", function()
+	it("lifts v1 saves to the current version", function()
 		local item =
-			{ id = "a-1", slot = "helm", rarity = "magic", name = "Helm", ilvl = 3, affixes = {} }
+			{ id = "a-1", slot = "helmet", rarity = "magic", name = "Helm", ilvl = 3, affixes = {} }
 		local r = Profile.migrate({
 			version = 1,
 			gold = 50,
@@ -33,12 +33,12 @@ describe("Profile.migrate", function()
 	end)
 
 	it(
-		"v2 → v3: zieht Item-Stufen auf die neue Beute-Stufe (Tiefe statt Tiefe × 2 − 1)",
+		"v2 → v3: pulls item levels to the new loot level (depth instead of depth × 2 − 1)",
 		function()
 			local function item(ilvl)
 				return {
 					id = "i" .. ilvl,
-					slot = "waffe",
+					slot = "weapon",
 					rarity = "rare",
 					name = "W",
 					ilvl = ilvl,
@@ -47,25 +47,25 @@ describe("Profile.migrate", function()
 			end
 			local r = Profile.migrate({
 				v = 2,
-				data = { inventory = { item(1), item(19) }, equipped = { waffe = item(59) } },
+				data = { inventory = { item(1), item(19) }, equipped = { weapon = item(59) } },
 				lock = { job = "A", t = 1 },
 			})
 			expect(r.v).toBe(Profile.VERSION)
 			expect(r.data.inventory[1].ilvl).toBe(1)
 			expect(r.data.inventory[2].ilvl).toBe(10)
-			expect(r.data.equipped.waffe.ilvl).toBe(30)
+			expect(r.data.equipped.weapon.ilvl).toBe(30)
 			expect(r.lock.job).toBe("A")
 		end
 	)
 
-	it("ergänzt fehlende und falsche Felder, behält unbekannte", function()
-		local r = Profile.migrate({ v = Profile.VERSION, data = { gold = "kaputt", extra = 7 } })
+	it("fills missing and wrong fields, keeps unknown ones", function()
+		local r = Profile.migrate({ v = Profile.VERSION, data = { gold = "broken", extra = 7 } })
 		expect(r.data.gold).toBe(0)
 		expect(r.data.xp).toBe(0)
 		expect((r.data :: any).extra).toBe(7)
 	end)
 
-	it("lehnt Stände einer neueren Spielversion ab", function()
+	it("rejects saves from a newer game version", function()
 		local ok, err = pcall(Profile.migrate, { v = Profile.VERSION + 1, data = {} })
 		expect(ok).toBe(false)
 		expect(tostring(err)).toMatch("NEWER")
@@ -73,7 +73,7 @@ describe("Profile.migrate", function()
 end)
 
 describe("Profile.lockedByOther", function()
-	it("erkennt fremde, eigene und verwaiste Locks", function()
+	it("detects foreign, own and orphaned locks", function()
 		local rec = { v = 2, data = {}, lock = { job = "A", t = 1000 } }
 		expect(Profile.lockedByOther(rec, "B", 1010, 150)).toBe(true)
 		expect(Profile.lockedByOther(rec, "A", 1010, 150)).toBe(false)

@@ -1,4 +1,4 @@
--- Gebiete im Atlas: Freischalt-Regel, Gegner-Mix je Gebiet und Rift-Start über das Remote.
+-- Regions in the Atlas: unlock rule, enemy mix per region and Rift start via the remote.
 local Atlas = require("ReplicatedStorage.Shared.Atlas")
 
 local function bests(t: { [string]: number }): (string) -> number
@@ -35,22 +35,22 @@ local function leave()
 	sim:run(0.5)
 end
 
-describe("Atlas-Regeln", function()
-	it("öffnet Gebiete erst nach der Tiefe davor im Vorgänger", function()
-		expect(Atlas.isOpen("gruene_ebenen", bests({}))).toBe(true)
-		expect(Atlas.isOpen("kristallhoehlen", bests({}))).toBe(false)
-		expect(Atlas.isOpen("kristallhoehlen", bests({ gruene_ebenen = 4 }))).toBe(false)
-		expect(Atlas.isOpen("kristallhoehlen", bests({ gruene_ebenen = 5 }))).toBe(true)
-		expect(Atlas.isOpen("pilzsumpf", bests({ gruene_ebenen = 5 }))).toBe(false)
-		expect(Atlas.isOpen("pilzsumpf", bests({ gruene_ebenen = 10 }))).toBe(true)
-		-- Feuerwüste hat zwei Wege
-		expect(Atlas.isOpen("feuerwueste", bests({ pilzsumpf = 15 }))).toBe(true)
-		expect(Atlas.isOpen("feuerwueste", bests({ kristallhoehlen = 15 }))).toBe(true)
-		expect(Atlas.isOpen("feuerwueste", bests({ gruene_ebenen = 99 }))).toBe(false)
-		expect(Atlas.isOpen("gibtsnicht", bests({}))).toBe(false)
+describe("Atlas rules", function()
+	it("opens regions only after the depth before in the predecessor", function()
+		expect(Atlas.isOpen("green_plains", bests({}))).toBe(true)
+		expect(Atlas.isOpen("crystal_caves", bests({}))).toBe(false)
+		expect(Atlas.isOpen("crystal_caves", bests({ green_plains = 4 }))).toBe(false)
+		expect(Atlas.isOpen("crystal_caves", bests({ green_plains = 5 }))).toBe(true)
+		expect(Atlas.isOpen("mushroom_swamp", bests({ green_plains = 5 }))).toBe(false)
+		expect(Atlas.isOpen("mushroom_swamp", bests({ green_plains = 10 }))).toBe(true)
+		-- Fire Desert has two paths
+		expect(Atlas.isOpen("fire_desert", bests({ mushroom_swamp = 15 }))).toBe(true)
+		expect(Atlas.isOpen("fire_desert", bests({ crystal_caves = 15 }))).toBe(true)
+		expect(Atlas.isOpen("fire_desert", bests({ green_plains = 99 }))).toBe(false)
+		expect(Atlas.isOpen("does_not_exist", bests({}))).toBe(false)
 	end)
 
-	it("hat lückenlose Start-Tiefen entlang der Pfade", function()
+	it("has gapless starting depths along the paths", function()
 		for _, r in Atlas.Regions do
 			for _, id in r.next do
 				expect(Atlas.ById[id]).never.toBeNil()
@@ -60,8 +60,8 @@ describe("Atlas-Regeln", function()
 	end)
 end)
 
-describe("Gebiete im Spiel", function()
-	it("kennt alle Gegner und Bosse der Gebiete", function()
+describe("Regions in game", function()
+	it("knows all enemies and bosses of the regions", function()
 		sim:boot({ seconds = 2 })
 		local missing = server(function(req)
 			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
@@ -81,22 +81,22 @@ describe("Gebiete im Spiel", function()
 		expect(#missing).toBe(0)
 	end)
 
-	it("lehnt gesperrte Gebiete ab", function()
-		enter("kristallhoehlen")
+	it("rejects locked regions", function()
+		enter("crystal_caves")
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
-		enter("quatsch")
+		enter("bogus")
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
 	end)
 
-	it("startet ein freigeschaltetes Gebiet auf seiner Tiefe mit seinem Gegner-Mix", function()
+	it("starts an unlocked region at its depth with its enemy mix", function()
 		server(function(req, player)
-			req("ServerScriptService.Server.Systems.Data").get(player).atlas.gruene_ebenen = 5
+			req("ServerScriptService.Server.Systems.Data").get(player).atlas.green_plains = 5
 		end)
-		enter("kristallhoehlen")
-		expect(sim.player:GetAttribute("RiftRegion")).toBe("kristallhoehlen")
+		enter("crystal_caves")
+		expect(sim.player:GetAttribute("RiftRegion")).toBe("crystal_caves")
 		expect(sim.player:GetAttribute("RiftDepth")).toBe(6)
-		expect(arenaHas("Gebiet_kristallhoehlen")).toBe(true)
-		expect(arenaHas("Gebiet_gruene_ebenen")).toBe(false)
+		expect(arenaHas("Region_crystal_caves")).toBe(true)
+		expect(arenaHas("Region_green_plains")).toBe(false)
 		local tagged = server(function()
 			local out = {}
 			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
@@ -106,7 +106,7 @@ describe("Gebiete im Spiel", function()
 		end)
 		for _, t in tagged do
 			expect(t[1]).toBe(6)
-			expect(t[2]).toBe("kristallhoehlen")
+			expect(t[2]).toBe("crystal_caves")
 		end
 		local names = server(function()
 			local out = {}
@@ -116,51 +116,51 @@ describe("Gebiete im Spiel", function()
 			return out
 		end)
 		local allowed =
-			{ Kristallschleim = true, Kristallkrabbe = true, ["Fledermaus-Lampion"] = true }
+			{ ["Crystal Slime"] = true, ["Crystal Crab"] = true, ["Bat Lantern"] = true }
 		local count = 0
 		for name in names do
 			count += 1
 			expect(allowed[name]).toBe(true)
 		end
 		expect(count).toBeGreaterThan(0)
-		sim:run(4) -- KI greift an (Telegraph, Geschosse)
+		sim:run(4) -- AI attacks (telegraph, projectiles)
 		leave()
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
-		expect(arenaHas("Gebiet_gruene_ebenen")).toBe(true)
-		expect(arenaHas("Gebiet_kristallhoehlen")).toBe(false)
+		expect(arenaHas("Region_green_plains")).toBe(true)
+		expect(arenaHas("Region_crystal_caves")).toBe(false)
 	end)
 
-	it("baut jedes Gebiet als eigene Arena ohne Fehler", function()
+	it("builds every region as its own arena without errors", function()
 		local built = server(function(req)
 			local World = req("ServerScriptService.Server.Systems.World")
 			local out = {}
 			for _, r in Atlas.Regions do
 				World.build(r)
-				local folder = workspace.Arena:FindFirstChild("Gebiet_" .. r.id)
+				local folder = workspace.Arena:FindFirstChild("Region_" .. r.id)
 				out[r.id] = if folder then #folder:GetDescendants() else 0
 			end
 			World.build(nil)
 			return out
 		end)
 		for _, r in Atlas.Regions do
-			expect(built[r.id]).toBeGreaterThan(1000) -- Boden 17×15 Kacheln, Umgebung + Deko
-			expect(built[r.id]).toBeLessThan(4500) -- Teile-Budget fürs Handy
+			expect(built[r.id]).toBeGreaterThan(1000) -- floor 17×15 tiles, surroundings + deco
+			expect(built[r.id]).toBeLessThan(4500) -- part budget for phones
 		end
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")
 		end
 	end)
 
-	it("lässt Beute mit der Tiefe und den Gebiets-Boni wachsen", function()
+	it("grows loot with depth and region bonuses", function()
 		local a, b, boss, gold = server(function(req)
 			local Loot = req("ServerScriptService.Server.Systems.Loot")
 			return Loot.forDepth(1, nil, false),
 				Loot.forDepth(10, nil, false),
 				Loot.forDepth(10, nil, true),
-				Loot.forDepth(10, "veraenderte_welt", false)
+				Loot.forDepth(10, "altered_world", false)
 		end)
 		expect(a.ilvl).toBe(1)
-		expect(b.ilvl).toBe(10) -- Item-Power = Tiefe × 10 (Balancing-Tabelle)
+		expect(b.ilvl).toBe(10) -- item power = depth × 10 (balancing table)
 		expect(boss.ilvl).toBeGreaterThan(b.ilvl)
 		expect(b.shift).toBeGreaterThan(a.shift)
 		expect(boss.bossItems).toBe(3)
@@ -168,7 +168,7 @@ describe("Gebiete im Spiel", function()
 		expect(gold.itemChance).toBeGreaterThan(b.itemChance)
 	end)
 
-	it("lässt jeden Gegnertyp ohne Fehler kämpfen", function()
+	it("lets every enemy type fight without errors", function()
 		server(function(req, player)
 			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -189,17 +189,17 @@ describe("Gebiete im Spiel", function()
 	end)
 end)
 
-describe("Hub Lumenhafen", function()
-	it("steht als eigene Map mit Spawn und Stationen", function()
+describe("Hub Lumenhaven", function()
+	it("stands as its own map with spawn and stations", function()
 		sim:boot({ seconds = 1 })
 		local info = server(function(req)
 			local Config = req("ReplicatedStorage.Shared.Config")
-			local hub = workspace:FindFirstChild("Lumenhafen")
+			local hub = workspace:FindFirstChild("Lumenhaven")
 			local out = { hub = hub ~= nil, windows = {}, spawnDist = math.huge }
 			if hub then
 				for _, d in hub:GetDescendants() do
 					if d:IsA("ProximityPrompt") then
-						out.windows[d:GetAttribute("Fenster")] = true
+						out.windows[d:GetAttribute("Window")] = true
 					elseif d:IsA("SpawnLocation") then
 						local p = d.CFrame.Position
 						out.spawnDist = (Vector3.new(p.X, 0, p.Z) - Vector3.new(

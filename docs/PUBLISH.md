@@ -1,74 +1,74 @@
-# Automatisch auf Roblox veröffentlichen
+# Publishing to Roblox automatically
 
-Bei jedem Push auf `main` (oder per Knopf in GitHub) prüft GitHub Actions das Spiel, baut es mit Rojo zu einer `.rbxl` und lädt sie über die Roblox Open Cloud auf einen bestehenden Place hoch. Danach ist es in der Roblox-App auf Handy und iPad spielbar.
+On every push to `main` (or via a button in GitHub), GitHub Actions checks the game, builds it with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud to an existing place. After that it's playable in the Roblox app on phone and iPad.
 
-> **Wichtig:** Der Upload ersetzt den **ganzen** Place. Alles, was nur in Studio gebaut wurde und nicht über Rojo kommt, ist danach dort weg. Loot Rush baut Arena und Spawn per Code, das passt. Nimm trotzdem ein **eigenes Test-Spiel** statt des späteren Live-Spiels.
+> **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. Still, use a **separate test game** instead of the later live game.
 
-## 1. Test-Spiel anlegen (einmalig)
+## 1. Create the test game (once)
 
-1. Roblox Studio → **Neu → Baseplate** → **Datei → In Roblox veröffentlichen als …** → neues Spiel, z. B. „Loot Rush Test“.
-2. [Creator Hub](https://create.roblox.com/dashboard/creations) → das Spiel → **⋯ → Copy Universe ID** → merken als `ROBLOX_UNIVERSE_ID`.
-3. Spiel öffnen → **Places** → Start-Place anklicken. Die Zahl in der Adresse `…/places/<ZAHL>/configure` ist `ROBLOX_PLACE_ID`.
+1. Roblox Studio → **New → Baseplate** → **File → Publish to Roblox As …** → new game, e.g. "Loot Rush Test".
+2. [Creator Hub](https://create.roblox.com/dashboard/creations) → the game → **⋯ → Copy Universe ID** → remember as `ROBLOX_UNIVERSE_ID`.
+3. Open the game → **Places** → click the start place. The number in the address `…/places/<NUMBER>/configure` is `ROBLOX_PLACE_ID`.
 
-## 2. Spiel für Handy/iPad einstellen
+## 2. Set up the game for phone/iPad
 
-Im Creator Hub beim Test-Spiel:
+In Creator Hub for the test game:
 
-- **Konfigurieren → Zugriff/Access:** **Privat** lassen. Du selbst kannst es mit deinem Konto trotzdem spielen, Fremde nicht.
-- **Geräte/Devices:** **Phone** und **Tablet** anhaken (dazu Computer).
-- Falls Roblox nach dem Fragebogen zur Altersfreigabe fragt: einmal ausfüllen.
+- **Configure → Access:** leave it **Private**. You can still play it with your own account, strangers can't.
+- **Devices:** tick **Phone** and **Tablet** (plus Computer).
+- If Roblox asks for the maturity questionnaire: fill it in once.
 
-## 3. API-Key erstellen
+## 3. Create an API key
 
 [Creator Hub → Open Cloud → API Keys](https://create.roblox.com/dashboard/credentials) → **Create API Key**
 
-- **Name:** z. B. `loot-rush-github`
-- **Access Permissions:** API-System **universe-places** hinzufügen → dein **Test-Spiel** auswählen → Operation **write**.
-- **Security → Accepted IP Addresses:** `0.0.0.0/0` eintragen. GitHub-Server haben wechselnde IPs; ohne diesen Eintrag kommt `401`. Der Key darf dafür nur dieses eine Test-Spiel hochladen, mehr nicht.
-- **Expiration:** optional (z. B. 90 Tage); danach neuen Key erzeugen und Secret ersetzen.
-- **Save & Generate Key** → Key **sofort kopieren**, er wird nur einmal angezeigt. Nirgends ins Repo, in Chats oder in `.env`-Dateien schreiben, die mitcommittet werden.
+- **Name:** e.g. `loot-rush-github`
+- **Access Permissions:** add API system **universe-places** → select your **test game** → operation **write**.
+- **Security → Accepted IP Addresses:** enter `0.0.0.0/0`. GitHub servers have changing IPs; without this entry you get `401`. In return the key may only upload this one test game, nothing more.
+- **Expiration:** optional (e.g. 90 days); afterwards create a new key and replace the secret.
+- **Save & Generate Key** → **copy the key immediately**, it's only shown once. Never write it into the repo, chats or `.env` files that get committed.
 
-## 4. Secrets in GitHub anlegen
+## 4. Create secrets in GitHub
 
-GitHub → `SadMicha/loot-rush` → **Settings → Environments → New environment** mit dem Namen **`Roblox`** → **Add environment secret**, drei Stück:
+GitHub → `SadMicha/loot-rush` → **Settings → Environments → New environment** named **`Roblox`** → **Add environment secret**, three of them:
 
-| Name | Wert |
+| Name | Value |
 |---|---|
-| `ROBLOX_API_KEY` | der Key aus Schritt 3 |
-| `ROBLOX_UNIVERSE_ID` | Zahl aus Schritt 1.2 |
-| `ROBLOX_PLACE_ID` | Zahl aus Schritt 1.3 |
+| `ROBLOX_API_KEY` | the key from step 3 |
+| `ROBLOX_UNIVERSE_ID` | number from step 1.2 |
+| `ROBLOX_PLACE_ID` | number from step 1.3 |
 
-Ohne diese Secrets überspringt der Workflow das Hochladen nur mit einer Warnung.
+Without these secrets the workflow just skips the upload with a warning.
 
-## 5. Ausprobieren
+## 5. Try it
 
-GitHub → **Actions → Veröffentlichen → Run workflow** (Published). Läuft er grün, steht am Ende `Fertig: {"versionNumber": …}`.
+GitHub → **Actions → Publish → Run workflow** (Published). If it runs green, the end shows `Done: {"versionNumber": …}`.
 
-Auf dem Handy/iPad: Roblox-App mit **deinem** Konto, dann den Link `https://www.roblox.com/games/<PLACE_ID>` öffnen (z. B. als Notiz an dich selbst schicken) → **Spielen**. Tipp: im Browser des Handys als Favorit speichern.
+On the phone/iPad: Roblox app with **your** account, then open the link `https://www.roblox.com/games/<PLACE_ID>` (e.g. send it to yourself as a note) → **Play**. Tip: save it as a favorite in the phone's browser.
 
-Laufende Server behalten die alte Version. Wenn du schon drin bist: Spiel verlassen und neu beitreten, sonst im Creator Hub beim Place **⋯ → Shut down all servers**.
+Running servers keep the old version. If you're already in: leave the game and rejoin, otherwise in Creator Hub at the place **⋯ → Shut down all servers**.
 
-Ab jetzt veröffentlicht jeder Merge auf `main` automatisch. `Saved` im Run-Workflow-Menü speichert nur eine Version, ohne sie spielbar zu machen.
+From now on every merge to `main` publishes automatically. `Saved` in the Run workflow menu only saves a version without making it playable.
 
-## Lokal hochladen (ohne GitHub)
+## Uploading locally (without GitHub)
 
-In Git Bash (Windows) oder einem Terminal:
+In Git Bash (Windows) or a terminal:
 
 ```bash
 export ROBLOX_API_KEY='…' ROBLOX_UNIVERSE_ID='…' ROBLOX_PLACE_ID='…'
 bash tools/publish.sh            # Published
-bash tools/publish.sh Saved      # nur speichern
+bash tools/publish.sh Saved      # save only
 ```
 
-Lokal gilt dieselbe IP-Regel wie in Schritt 3.
+The same IP rule as in step 3 applies locally.
 
-## Fehler
+## Errors
 
-| HTTP | Bedeutung |
+| HTTP | Meaning |
 |---|---|
-| 401 | Key falsch/abgelaufen oder IP nicht erlaubt |
-| 403 | Key hat kein `universe-places` → write für dieses Spiel |
-| 404 | Universe- oder Place-ID falsch |
-| 409 | Place wird gerade anders gespeichert (z. B. Studio/Team Create offen) |
+| 401 | key wrong/expired or IP not allowed |
+| 403 | key has no `universe-places` → write for this game |
+| 404 | universe or place ID wrong |
+| 409 | place is currently being saved elsewhere (e.g. Studio/Team Create open) |
 
-Technik: `POST https://apis.roblox.com/universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`, Header `x-api-key`, Body = `.rbxl` (`application/octet-stream`). Doku: [Place publishing](https://create.roblox.com/docs/cloud/guides/usage-place-publishing).
+Tech: `POST https://apis.roblox.com/universes/v1/{universeId}/places/{placeId}/versions?versionType=Published`, header `x-api-key`, body = `.rbxl` (`application/octet-stream`). Docs: [Place publishing](https://create.roblox.com/docs/cloud/guides/usage-place-publishing).

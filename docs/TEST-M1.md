@@ -1,29 +1,29 @@
-# Testliste M0 + M1
+# Checklist M0 + M1
 
-Bitte nach `rojo serve` + Connect in einer leeren Baseplate testen. Fehler aus dem Output-Fenster einfach kopieren.
+Please test after `rojo serve` + Connect in an empty Baseplate. Just copy errors from the Output window.
 
 ## Setup
-- [ ] Output zeigt „[LootRush] Server gestartet“, „Testarena gebaut“ und „Client gestartet“, keine roten Fehler
-- [ ] Baseplate ist weg, Arena aus Grasblöcken ist da, Lighting ist warm (Abendlicht), Kristalle leuchten
+- [ ] Output shows "[LootRush] Server started", "Test arena built" and "Client started", no red errors
+- [ ] Baseplate is gone, arena made of grass blocks is there, lighting is warm (evening light), crystals glow
 
-## Kamera & Bewegung
-- [ ] Kamera schaut schräg von oben und folgt weich
-- [ ] Mausrad zoomt (nicht zu nah, nicht zu weit)
-- [ ] Rechte Maustaste halten + ziehen dreht die Kamera
-- [ ] WASD läuft relativ zur Kamera
-- [ ] Leertaste/Shift = Dash, kein Springen; 2 Ladungen, laden nach ca. 2,5 s nach
-- [ ] Mobile-Emulator: Dash-Button erscheint, Pinch zoomt
+## Camera & movement
+- [ ] Camera looks down at an angle and follows smoothly
+- [ ] Mouse wheel zooms (not too close, not too far)
+- [ ] Holding right mouse button + dragging rotates the camera
+- [ ] WASD moves relative to the camera
+- [ ] Space/Shift = dash, no jumping; 2 charges, recharge after about 2.5 s
+- [ ] Mobile emulator: dash button appears, pinch zooms
 
 ## HUD
-- [ ] Oben links: Level-Raute + Lebensleiste + Zahl
-- [ ] Oben rechts: runde Minimap, rote Punkte für Kristallschleime
-- [ ] Unten: 2 Tränke, 4 Skill-Slots (Platzhalter), Dash mit Ladungszahl
-- [ ] Am Spawn (Ruhe): Ressourcen oben, Menü links, Quests rechts, „Rift betreten“ unten sichtbar
-- [ ] Zu den Schleimen laufen (< 40 Studs): Panels fliegen raus
-- [ ] Wieder weglaufen: nach ~3 s fliegen sie gestaffelt wieder ein
-- [ ] Verschiedene Auflösungen (Device-Emulator): HUD skaliert, nichts überlappt
+- [ ] Top left: level diamond + health bar + number
+- [ ] Top right: round minimap, red dots for crystal slimes
+- [ ] Bottom: 4 skill slots (placeholders), dash with charge count (no potion button)
+- [ ] At spawn (idle): resources at top, menu left, quests right, "Enter Rift" at bottom visible
+- [ ] Walk to the slimes (< 40 studs): panels slide out
+- [ ] Walk away again: after ~3 s they slide back in, staggered
+- [ ] Different resolutions (device emulator): HUD scales, nothing overlaps
 
-## Gefühl (deine Meinung)
-- Kamerawinkel/-abstand angenehm?
-- Dash zu weit/zu kurz?
-- Ein-/Ausflug zu schnell/zu langsam?
+## Feel (your opinion)
+- Camera angle/distance comfortable?
+- Dash too far/too short?
+- Slide-in/out too fast/too slow?

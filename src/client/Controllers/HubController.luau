@@ -1,8 +1,8 @@
 --!strict
--- Stationen im Hub „Lumenhafen“: Der Server setzt ProximityPrompts mit dem Attribut „Fenster“
--- (Rift-Tor → Atlas, Schmiede, Markt → Shop, Stash → Inventar, Haustier-Stall → Pets).
--- Hier wird das Fenster geöffnet. Stationen ohne eigenes Fenster in OPEN (z. B. „Pets“, „Rebirth“)
--- feuern HubController.Requested(name) – daran hängt sich ein neues Fenster an.
+-- Stations in the "Lumen Harbor" Hub: the server sets ProximityPrompts with the attribute "Window"
+-- (Rift Gate -> Atlas, Forge, Market -> Shop, Stash -> Inventory, Pet Stable -> Pets).
+-- The window is opened here. Stations without their own window in OPEN (e.g. "Pets", "Rebirth")
+-- fire HubController.Requested(name) - a new window hooks in there.
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
@@ -12,7 +12,7 @@ local InventoryController = require(script.Parent.InventoryController)
 local ShopController = require(script.Parent.ShopController)
 
 local HubController = {
-	-- (window: string) für Stationen, die (noch) kein Fenster in OPEN haben
+	-- (window: string) for stations that have no window in OPEN (yet)
 	Requested = Instance.new("BindableEvent"),
 }
 
@@ -27,7 +27,7 @@ local OPEN: { [string]: () -> () } = {
 
 function HubController.init()
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
-		local window = prompt:GetAttribute("Fenster")
+		local window = prompt:GetAttribute("Window")
 		local fn = if typeof(window) == "string" then OPEN[window] else nil
 		if fn then
 			fn()

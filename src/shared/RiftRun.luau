@@ -1,15 +1,15 @@
 --!strict
--- Lauf-Zusammenfassung eines Rifts (Daten für den Belohnungsbildschirm). Der Server zählt mit
--- (Systems/Rift) und schickt den Stand über Net.RiftResult; die UI liest nur.
+-- Run summary of a Rift (data for the reward screen). The server keeps count
+-- (Systems/Rift) and sends the state via Net.RiftResult; the UI only reads.
 --
---   kind = "clear": Boss einer Tiefe besiegt, Lauf geht weiter (Wahl tiefer/zurück) – Zwischenstand
---   kind = "end":   Lauf vorbei, Spieler ist (bzw. kommt per Respawn) im Hub
---   reason (nur bei "end"):
---     "left"      nach einem geschafften Boss zurück ins Dorf
---     "abandoned" mitten in einer Tiefe verlassen
---     "failed"    gestorben
--- Alle Werte zählen ab Rift-Start über alle Tiefen. Beute, die noch am Boden lag, sammelt der
--- Server beim Ende ein und zählt sie mit (Inventar voll → Item bleibt verloren, zählt nicht).
+--   kind = "clear": boss of a depth defeated, run continues (choice deeper/back) - interim state
+--   kind = "end":   run over, player is (or arrives via respawn) in the Hub
+--   reason (only for "end"):
+--     "left"      back to the Hub after a cleared boss
+--     "abandoned" left in the middle of a depth
+--     "failed"    died
+-- All values count from Rift start across all depths. Loot still lying on the ground is collected
+-- by the server at the end and counted (inventory full → item is lost, not counted).
 
 local Atlas = require(script.Parent.Atlas)
 local Items = require(script.Parent.Items)
@@ -19,14 +19,14 @@ export type Materials = { candy: number, shards: number, dust: number }
 export type Summary = {
 	kind: "clear" | "end",
 	reason: ("left" | "abandoned" | "failed")?,
-	region: string, -- Atlas-Gebiet (Atlas.ById)
-	startDepth: number, -- Tiefe beim Betreten
-	depth: number, -- Tiefe, in der der Lauf gerade steht bzw. endete
-	cleared: number, -- geschaffte Tiefen in diesem Lauf
-	bestBefore: number, -- Bestwert im Gebiet vor dem Lauf (0 = nie)
-	best: number, -- Bestwert jetzt
+	region: string, -- Atlas region (Atlas.ById)
+	startDepth: number, -- depth on entering
+	depth: number, -- depth the run is currently at or ended in
+	cleared: number, -- depths cleared in this run
+	bestBefore: number, -- best value in the region before the run (0 = never)
+	best: number, -- best value now
 	newBest: boolean,
-	unlocked: { string }, -- in diesem Lauf neu freigeschaltete Gebiete (ids)
+	unlocked: { string }, -- regions newly unlocked in this run (ids)
 	seconds: number,
 	kills: number,
 	bosses: number,
@@ -56,7 +56,7 @@ export type Tally = {
 
 local RiftRun = {}
 
--- Welche Gebiete bei diesen Bestwerten offen sind
+-- Which regions are open at these best values
 function RiftRun.openSet(best: (string) -> number): { [string]: boolean }
 	local out = {}
 	for _, r in Atlas.Regions do
@@ -100,7 +100,7 @@ function RiftRun.addMaterials(t: Tally, delta: { [string]: number })
 	end
 end
 
--- Momentaufnahme für den Client (Kopien, damit spätere Zählungen nichts ändern)
+-- Snapshot for the client (copies, so later counting changes nothing)
 function RiftRun.summary(
 	t: Tally,
 	kind: "clear" | "end",

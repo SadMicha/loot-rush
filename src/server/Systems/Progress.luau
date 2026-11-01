@@ -1,10 +1,10 @@
 --!strict
--- Skill-Stufen, Skill-Blüten, Sternennetz und Schmiede-Material (Regeln in Shared.Progression).
---   • Skills sammeln XP, wenn sie den tödlichen Treffer landen (XP des Gegners)
---   • Blüten-Punkte (1 je Skill-Stufe) und Sternpunkte (1 je Level) verteilt nur der Server
---   • Material: Verwerten (Inventory → Progress.salvage) und Boss-Kills
--- Der Client bekommt Schnappschüsse über Net.Progress (gedrosselt, höchstens 1× pro Sekunde
--- bei XP-Zuwachs, sofort nach eigenen Aktionen).
+-- Skill levels, Skill Blooms, Star Net and Forge materials (rules in Shared.Progression).
+--   • Skills gain XP when they land the killing blow (the enemy's XP)
+--   • Bloom Points (1 per skill level) and star points (1 per level) are only allocated by the server
+--   • Materials: salvage (Inventory → Progress.salvage) and boss kills
+-- The client gets snapshots via Net.Progress (throttled, at most once per second
+-- on XP gain, immediately after its own actions).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,12 +20,12 @@ local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
 
 local Progress = {
-	-- (player, delta: { [string]: number }) Material aus Kämpfen (nicht Verwerten), für Systems/Rift
+	-- (player, delta: { [string]: number }) materials from fights (not salvage), for Systems/Rift
 	Looted = Instance.new("BindableEvent"),
 }
 
-local FLUSH = 1 -- Sekunden zwischen gesammelten Schnappschüssen
-local BOSS_CANDY = 1 -- Runen-Bonbons je Boss (bis es Bonbon-Drops gibt)
+local FLUSH = 1 -- seconds between batched snapshots
+local BOSS_CANDY = 1 -- Rune Candy per boss (until there are candy drops)
 local BOSS_DUST_CHANCE = 0.25
 
 local rng = Random.new()
@@ -61,7 +61,7 @@ function Progress.addMaterials(player: Player, delta: { [string]: number })
 	dirty[player] = true
 end
 
--- Verwerten: Splitter fest, Bonbons nach Erwartungswert, Glitzerstaub per Chance
+-- Salvage: shards fixed, candy by expected value, Glitter Dust by chance
 function Progress.salvage(player: Player, item: Items.Item)
 	local profile = Data.get(player)
 	local s = Items.Salvage[item.rarity]
@@ -79,7 +79,7 @@ function Progress.salvage(player: Player, item: Items.Item)
 	send(player)
 end
 
--- ------------------------------------------------------------------ Skill-XP
+-- ------------------------------------------------------------------ Skill XP
 local function onKilled(player: any, _pos: any, _level: any, boss: any, skillId: any, xp: any)
 	if typeof(player) ~= "Instance" or not player:IsA("Player") then
 		return
@@ -96,7 +96,7 @@ local function onKilled(player: any, _pos: any, _level: any, boss: any, skillId:
 				Net.Fx:FireClient(player, "dmg", {
 					pos = root.Position + Vector3.new(0, 5, 0),
 					text = string.format(
-						"%s Stufe %d",
+						"%s level %d",
 						Skills.bar[Skills.BarIndex[skillId]].name,
 						sp.level
 					),
@@ -177,7 +177,7 @@ local function onStar(player: Player, action: any, starId: any)
 	send(player)
 end
 
--- ------------------------------------------------------------------ Lebenszyklus
+-- ------------------------------------------------------------------ Lifecycle
 local function onPlayer(player: Player)
 	if Data.waitFor(player) then
 		send(player)

@@ -1,12 +1,12 @@
 --!nocheck
--- Headless-Roblox: lädt das per Rojo gebaute Spiel (.rbxl) in Lune und führt Server- und
--- Client-Skripte aus, ohne Roblox Studio. Instanzen sind Proxys um Lunes Instanzen; was Lune
--- nicht kann (Events, Services, AbsoluteSize, Tweens, Remotes …), ergänzt diese Datei.
+-- Headless Roblox: loads the game built by Rojo (.rbxl) into Lune and runs server and
+-- client scripts without Roblox Studio. Instances are proxies around Lune's instances; what Lune
+-- cannot do (events, services, AbsoluteSize, tweens, remotes …) is added by this file.
 --
--- Alles, was schiefgeht, landet in sandbox.issues:
---   error  – Laufzeitfehler im Spielcode (mit Stacktrace), ungültige Properties, Kick …
---   warn   – warn()-Ausgaben, hängende WaitForChild-Aufrufe
---   info   – Roblox-Funktionen, die die Sandbox nur als leeren Platzhalter kennt
+-- Everything that goes wrong ends up in sandbox.issues:
+--   error  - runtime errors in game code (with stack trace), invalid properties, kick …
+--   warn   - warn() output, hanging WaitForChild calls
+--   info   - Roblox functions the sandbox only knows as an empty stub
 
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -29,7 +29,7 @@ Sandbox.__index = Sandbox
 local realTypeof = typeof
 
 -------------------------------------------------------------------------------
--- Hilfen
+-- Helpers
 
 local function isNative(v)
 	return realTypeof(v) == "Instance"
@@ -55,7 +55,7 @@ local function shortTrace(trace: string): string
 	return table.concat(out, "\n")
 end
 
--- Fehlermeldung ohne mitgeschleppten Stacktrace
+-- Error message without the stack trace dragged along
 local function errorText(err: any): string
 	local text = tostring(err)
 	text = text:gsub("^runtime error: ", "")
@@ -63,14 +63,14 @@ local function errorText(err: any): string
 	return tidy(text)
 end
 
--- Mini-PRNG (Park–Miller), damit Random reproduzierbar und ohne Roblox läuft
+-- Mini PRNG (Park–Miller) so Random is reproducible and runs without Roblox
 local RandomClass = {}
 RandomClass.__index = RandomClass
 RandomClass.__type = "Random"
 local function newRandom(seed: number?)
 	local s = math.floor(math.abs(seed or 1234567)) % 2147483646 + 1
 	local r = setmetatable({ _s = s }, RandomClass)
-	-- Aufwärmen: sonst liefern kleine Nachbar-Seeds (1, 2, 3 …) fast gleiche erste Zahlen
+	-- Warm-up: otherwise small neighboring seeds (1, 2, 3 …) give almost the same first numbers
 	for _ = 1, 4 do
 		r:_next()
 	end
@@ -132,7 +132,7 @@ local function paramsObject(typeName: string)
 	end
 end
 
--- Werte, die Lune-Instanzen nicht von selbst haben ("missing default value")
+-- Values Lune instances do not have by themselves ("missing default value")
 local DEFAULTS = {
 	Humanoid = {
 		Health = 100,
@@ -182,7 +182,7 @@ local VALUE_DEFAULTS = {
 }
 
 -------------------------------------------------------------------------------
--- Aufbau
+-- Setup
 
 export type Options = {
 	placePath: string,
@@ -209,9 +209,9 @@ function Sandbox.new(opts: Options)
 
 	self.native = setmetatable({}, { __mode = "k" }) -- proxy -> native
 	self.proxies = {} -- debugId -> proxy
-	self.side = {} -- proxy -> { [key]: value } (Werte, die Lune nicht speichern kann)
+	self.side = {} -- proxy -> { [key]: value } (values Lune cannot store)
 	self.signals = {} -- proxy -> { [name]: Signal }
-	self.watchers = {} -- Poller für Property-/Attribut-/Kind-Änderungen
+	self.watchers = {} -- pollers for property/attribute/child changes
 	self.tagSignals = { added = {}, removed = {} }
 	self.modules = { server = {}, client = {} }
 	self.loading = {}
@@ -273,18 +273,15 @@ function Sandbox:issue(level: string, kind: string, message: string, trace: stri
 			return
 		end
 	end
-	table.insert(
-		self.issues,
-		{
-			level = level,
-			kind = kind,
-			message = message,
-			trace = trace,
-			side = side,
-			count = 1,
-			time = self.sched.now,
-		}
-	)
+	table.insert(self.issues, {
+		level = level,
+		kind = kind,
+		message = message,
+		trace = trace,
+		side = side,
+		count = 1,
+		time = self.sched.now,
+	})
 end
 
 function Sandbox:loadApiDump(path: string?)
@@ -304,7 +301,7 @@ function Sandbox:loadApiDump(path: string?)
 	self.api = classes
 end
 
--- Mitglied im API-Dump suchen (inkl. Oberklassen)
+-- Look up a member in the API dump (including superclasses)
 function Sandbox:apiMember(className: string, key: string)
 	local api = self.api
 	if not api then
@@ -322,7 +319,7 @@ function Sandbox:apiMember(className: string, key: string)
 end
 
 -------------------------------------------------------------------------------
--- Proxys
+-- Proxies
 
 local ProxyMT = {}
 
@@ -416,7 +413,7 @@ function Sandbox:sideSet(p, key, value)
 	t[key] = value
 end
 
--- Eigene Mitglieder pro Klasse: { get = fn(p) } für Properties, { set = fn(p, v) }, { method = fn(p, ...) }
+-- Own members per class: { get = fn(p) } for properties, { set = fn(p, v) }, { method = fn(p, ...) }
 function Sandbox:custom(className: string, key: string, def)
 	self.customs[className] = self.customs[className] or {}
 	self.customs[className][key] = def
@@ -526,7 +523,7 @@ function Sandbox:index(p, key)
 				local where = className .. ":" .. key .. "()"
 				if not self.stubbed[where] then
 					self.stubbed[where] = true
-					self:issue("info", "stub", where .. " ist in der Sandbox nur ein Platzhalter")
+					self:issue("info", "stub", where .. " is only a stub in the sandbox")
 				end
 				return stubReturn(member)
 			end
@@ -571,14 +568,14 @@ function Sandbox:newindex(p, key, value)
 	end
 	err = tostring(err)
 	if err:find("has been destroyed") then
-		-- Roblox erlaubt Properties auf zerstörten Instanzen (z. B. auslaufende Tweens)
+		-- Roblox allows properties on destroyed instances (e.g. expiring tweens)
 		self:sideSet(p, key, value)
 		return
 	end
 	local className = native.ClassName
 	local member = self:apiMember(className, key)
 	if member and (member.MemberType == "Property" or member.MemberType == "Callback") then
-		-- Lune kennt die Property nicht (neuer als die eingebaute Datenbank) – trotzdem merken
+		-- Lune does not know the property (newer than the built-in database) - remember it anyway
 		if err:find("not a valid member") or err:find("missing default") or err:find("unknown") then
 			self:sideSet(p, key, value)
 			return
@@ -597,7 +594,7 @@ function Sandbox:newindex(p, key, value)
 	end
 	error(
 		string.format(
-			"Setzen von %s.%s fehlgeschlagen: %s",
+			"setting %s.%s failed: %s",
 			className,
 			tostring(key),
 			err:match("^[^\n]+") or err
@@ -619,7 +616,7 @@ end
 ProxyMT.__metatable = "The metatable is locked"
 
 -------------------------------------------------------------------------------
--- Änderungen beobachten (Lune feuert keine Events, darum wird jeden Frame verglichen)
+-- Watch for changes (Lune fires no events, so everything is compared every frame)
 
 function Sandbox:watch(kind: string, p, name: string?, fire: (any) -> ())
 	for _, w in self.watchers do
@@ -690,7 +687,7 @@ function Sandbox:poll()
 end
 
 -------------------------------------------------------------------------------
--- Ereignisse, Services und Methoden, die Lune fehlen
+-- Events, services and methods Lune lacks
 
 function Sandbox:installCustom()
 	self.customs = {}
@@ -958,7 +955,7 @@ function Sandbox:installCustom()
 	})
 	self:custom("RunService", "IsStudio", {
 		method = function()
-			return self.studio ~= false -- Tests setzen sim.studio = false für „veröffentlichtes Spiel“
+			return self.studio ~= false -- tests set sim.studio = false for "published game"
 		end,
 	})
 	self:custom("RunService", "IsRunning", {
@@ -1023,7 +1020,7 @@ function Sandbox:installCustom()
 			self:issue(
 				"error",
 				"kick",
-				"Spieler gekickt: " .. tostring(msg or ""),
+				"player kicked: " .. tostring(msg or ""),
 				shortTrace(debug.traceback()),
 				sched.side
 			)
@@ -1123,8 +1120,8 @@ function Sandbox:installCustom()
 		})
 	end
 
-	-- Roblox-Leiste oben: links Logo + Menü/Chat-Kapsel (~176 px breit), 58 px hoch.
-	-- TopbarInset = freier Rest der Leiste rechts davon (wie im echten Client).
+	-- Roblox bar at the top: logo + menu/chat capsule on the left (~176 px wide), 58 px high.
+	-- TopbarInset = free rest of the bar to the right of it (as in the real client).
 	self:custom("GuiService", "TopbarInset", {
 		get = function()
 			local bar = self:topbarButtons()
@@ -1208,7 +1205,7 @@ function Sandbox:installCustom()
 	self:custom("TweenService", "Create", {
 		method = function(_, target, info, goals)
 			if not self:isProxy(target) then
-				error("TweenService:Create: Argument 1 muss eine Instance sein", 2)
+				error("TweenService:Create: argument 1 must be an Instance", 2)
 			end
 			for prop, goal in goals do
 				local ok, current = pcall(function()
@@ -1379,7 +1376,7 @@ function Sandbox:installCustom()
 		end,
 	})
 
-	-- Figuren ----------------------------------------------------------------
+	-- Characters -------------------------------------------------------------
 	local function animTrack()
 		return {
 			IsPlaying = false,
@@ -1511,7 +1508,7 @@ function Sandbox:installCustom()
 		end,
 	})
 	self:custom("Model", "ScaleTo", { method = function() end })
-	-- Lune speichert Position getrennt von CFrame; in Roblox ist sie ein Teil davon
+	-- Lune stores Position separately from CFrame; in Roblox it is part of it
 	self:custom("BasePart", "Position", {
 		get = function(p)
 			return self.native[p].CFrame.Position
@@ -1548,18 +1545,18 @@ function Sandbox:installCustom()
 		end,
 	})
 
-	-- Netzwerk -------------------------------------------------------------
+	-- Network --------------------------------------------------------------
 	local function copyArgs(where, ...)
 		local n = select("#", ...)
 		local out = table.pack(...)
 		local function copy(v, depth)
 			local t = realTypeof(v)
 			if t == "function" or t == "thread" then
-				error(where .. ": Funktionen können nicht über das Netz geschickt werden", 4)
+				error(where .. ": functions cannot be sent over the network", 4)
 			end
 			if t == "table" and not self:isProxy(v) and getmetatable(v) == nil then
 				if depth > 30 then
-					error(where .. ": Tabelle zu tief verschachtelt", 4)
+					error(where .. ": table nested too deeply", 4)
 				end
 				local c = {}
 				for k, x in v do
@@ -1756,7 +1753,7 @@ function Sandbox:dataStore(key: string)
 end
 
 -------------------------------------------------------------------------------
--- Skripte ausführen
+-- Run scripts
 
 function Sandbox:typeof(v): string
 	if self:isProxy(v) then
@@ -1956,7 +1953,7 @@ function Sandbox:runSource(p, side: string, isModule: boolean)
 	local ok, fn =
 		pcall(luau.load, source, { debugName = chunkName, environment = self:makeEnv(p, side) })
 	if not ok then
-		error(string.format("Syntaxfehler in %s: %s", chunkName, tostring(fn)), 0)
+		error(string.format("syntax error in %s: %s", chunkName, tostring(fn)), 0)
 	end
 	if isModule then
 		return fn
@@ -1964,8 +1961,8 @@ function Sandbox:runSource(p, side: string, isModule: boolean)
 	return fn
 end
 
--- Instanz → Quelldatei (aus `rojo sourcemap`), damit Fehler auf src/…luau:Zeile zeigen.
--- Kopien in PlayerScripts/PlayerGui werden auf ihr Original in StarterPlayer/StarterGui abgebildet.
+-- Instance → source file (from `rojo sourcemap`), so errors point to src/…luau:line.
+-- Copies in PlayerScripts/PlayerGui are mapped to their original in StarterPlayer/StarterGui.
 function Sandbox:sourceFile(native): string
 	local full = native:GetFullName()
 	local mapped = full
@@ -1977,7 +1974,7 @@ end
 function Sandbox:require(m, side: string)
 	if not self:isProxy(m) then
 		if type(m) == "number" then
-			error("require(assetId) wird in der Sandbox nicht unterstützt", 2)
+			error("require(assetId) is not supported in the sandbox", 2)
 		end
 		error("Attempted to call require with invalid argument(s).", 2)
 	end
@@ -2016,7 +2013,7 @@ function Sandbox:require(m, side: string)
 	return results[2]
 end
 
--- Skript als eigenen Thread starten (wie Roblox es tut)
+-- Start a script as its own thread (like Roblox does)
 function Sandbox:startScript(p, side: string)
 	local ok, fn = pcall(function()
 		return self:runSource(p, side, false)
@@ -2071,7 +2068,7 @@ function Sandbox:serverScripts()
 end
 
 -------------------------------------------------------------------------------
--- Spielablauf
+-- Game flow
 
 function Sandbox:startServer()
 	for _, s in self:serverScripts() do
@@ -2193,7 +2190,7 @@ function Sandbox:run(seconds: number)
 	self.sched:run(seconds)
 end
 
--- Fläche der Roblox-Knöpfe oben links (Breite, Höhe) in Bildschirmpixeln
+-- Area of the Roblox buttons top left (width, height) in screen pixels
 function Sandbox:topbarButtons(): Vector2
 	return Vector2.new(176, 58)
 end
@@ -2207,7 +2204,7 @@ function Sandbox:setViewport(v: Vector2, touch: boolean?)
 	self.sched:step(1 / 30)
 end
 
--- Knopf „drücken“: alle passenden Ereignisse in Roblox-Reihenfolge feuern
+-- Press a button: fire all matching events in Roblox order
 function Sandbox:click(p)
 	local sched = self.sched
 	local input = {
@@ -2280,7 +2277,7 @@ function Sandbox:pressKey(keyCode, processed: boolean?)
 	self.sched:flushDeferred()
 end
 
--- Instanz per Pfad ("ServerScriptService.Server.Systems.Inventory")
+-- Instance by path ("ServerScriptService.Server.Systems.Inventory")
 function Sandbox:find(path: string)
 	local node = self.native[self.game]
 	for part in path:gmatch("[^%.]+") do
@@ -2289,12 +2286,12 @@ function Sandbox:find(path: string)
 	return node and self:wrap(node)
 end
 
--- Code auf der Server- oder Client-Seite ausführen (dieselben Modul-Instanzen wie das laufende Spiel)
+-- Run code on the server or client side (the same module instances as the running game)
 function Sandbox:runAs(side: string, fn: (require: (string) -> any) -> ())
 	self.sched:spawnAs(side, function()
 		fn(function(path)
 			local m = self:find(path)
-			assert(m, "Modul nicht gefunden: " .. path)
+			assert(m, "module not found: " .. path)
 			return self:require(m, side)
 		end)
 	end)

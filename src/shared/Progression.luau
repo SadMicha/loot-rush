@@ -1,8 +1,8 @@
 --!strict
--- Fortschritt neben der Ausrüstung: Skill-Stufen, Skill-Blüten, Sternennetz und Schmiede-Material.
--- Reine Daten und Regeln (speicherbar, ohne Instanzen) für Server und Client.
--- Der Server (Systems/Progress, Systems/Forge) ändert die Daten, der Client zeigt sie nur an.
--- Spielstand-Felder: profile.progress (Data) und profile.materials (Materials).
+-- Progress besides gear: skill levels, Skill Blooms, Star Net and Forge materials.
+-- Pure data and rules (saveable, no instances) for server and client.
+-- The server (Systems/Progress, Systems/Forge) changes the data, the client only displays it.
+-- Save fields: profile.progress (Data) and profile.materials (Materials).
 
 local Balance = require(script.Parent.Balance)
 local Skills = require(script.Parent.Skills)
@@ -11,46 +11,46 @@ local StarNet = require(script.Parent.StarNet)
 export type SkillProgress = {
 	level: number,
 	xp: number,
-	bloom: { [string]: number }, -- Knoten-Schlüssel ("trunk1" …) → Punkte
+	bloom: { [string]: number }, -- node key ("trunk1" …) → points
 }
 export type Data = {
 	skills: { [string]: SkillProgress },
-	stars: { [string]: boolean }, -- zugewiesene Sterne (ohne Herz)
+	stars: { [string]: boolean }, -- allocated stars (without the heart)
 }
 export type Materials = { candy: number, shards: number, dust: number }
 
 local Progression = {}
 
--- Spieler-Werte, die Sterne geben können (StarNet.Star.mods); Prozent außer life und dash.
--- "<skillId>.<stat>" wirkt nur auf einen Skill (stat wie bei Skill-Blüten).
+-- Player stats stars can give (StarNet.Star.mods); percent except life and dash.
+-- "<skillId>.<stat>" only affects one skill (stat as with Skill Blooms).
 Progression.StarStats = table.freeze({
-	damage = "Schaden %",
-	life = "Leben",
-	lifePct = "maximales Leben %",
-	crit = "Krit-Chance %",
-	critDamage = "Krit-Schaden %",
-	speed = "Lauftempo %",
-	attackSpeed = "Angriffstempo %",
-	skillDamage = "Skill-Schaden %",
-	cdr = "Abklingzeit −%",
-	dash = "Dash-Ladungen",
-	double = "Doppeltreffer-Chance %",
-	lowLifeDamage = "Schaden unter 30 % Leben %",
-	shardFind = "Splitter beim Verwerten %",
-	armor = "Rüstung % (weniger erlittener Schaden)",
-	block = "Blockchance %",
-	critShard = "Krit-Splitter: Schaden % des Krits",
-	arcaneShield = "Schild nach Skill: % maximales Leben",
+	damage = "Damage %",
+	life = "Life",
+	lifePct = "Max Life %",
+	crit = "Crit Chance %",
+	critDamage = "Crit Damage %",
+	speed = "Move Speed %",
+	attackSpeed = "Attack Speed %",
+	skillDamage = "Skill Damage %",
+	cdr = "Cooldown −%",
+	dash = "Dash Charges",
+	double = "Double Hit Chance %",
+	lowLifeDamage = "Damage below 30 % Life %",
+	shardFind = "Shards from Salvage %",
+	armor = "Armor % (less damage taken)",
+	block = "Block Chance %",
+	critShard = "Crit Shards: Damage % of Crit",
+	arcaneShield = "Shield after Skill: % Max Life",
 } :: { [string]: string })
 
 Progression.MIN_COOLDOWN = 0.3
 
--- Sonderwirkungen der Skill-Blüten, die 1:1 in den Skill wandern (Skills.Skill, Systems/Combat)
+-- Special effects of Skill Blooms that carry over 1:1 into the skill (Skills.Skill, Systems/Combat)
 Progression.SpecialStats = table.freeze({
 	"echo",
 	"lastHit",
 	"pull",
-	"blades",
+	"bolts",
 	"haste",
 	"burn",
 	"sparks",
@@ -63,7 +63,7 @@ Progression.SpecialStats = table.freeze({
 	"armorBuff",
 })
 
--- ------------------------------------------------------------------ Spielstand
+-- ------------------------------------------------------------------ Save data
 function Progression.fresh(): Data
 	return { skills = {}, stars = {} }
 end
@@ -79,7 +79,7 @@ local function count(v: any): number
 	return math.floor(v)
 end
 
--- Gespeicherte Rohdaten säubern: Unbekanntes fliegt raus, Zahlen werden begrenzt
+-- Clean up saved raw data: unknown entries are dropped, numbers are clamped
 function Progression.reconcile(raw: any): Data
 	local data = Progression.fresh()
 	if typeof(raw) ~= "table" then
@@ -128,21 +128,21 @@ function Progression.reconcileMaterials(raw: any): Materials
 	return m
 end
 
--- ------------------------------------------------------------------ Skill-Stufen
--- XP von Stufe L auf L+1 (eigene Annahme: gleiche Kurve wie das Spieler-Level, Balance.xpForLevel;
--- jeder Skill bekommt nur die XP seiner tödlichen Treffer)
+-- ------------------------------------------------------------------ Skill levels
+-- XP from level L to L+1 (own assumption: same curve as the player level, Balance.xpForLevel;
+-- each skill only gets the XP of its killing blows)
 function Progression.skillXpFor(level: number): number
 	return Balance.xpForLevel(level)
 end
 
 local EMPTY: SkillProgress = table.freeze({ level = 1, xp = 0, bloom = table.freeze({}) })
 
--- Lesen ohne anzulegen
+-- Read without creating
 function Progression.skill(data: Data, id: string): SkillProgress
 	return data.skills[id] or EMPTY
 end
 
--- Schreibend: legt den Eintrag an
+-- Writing: creates the entry
 function Progression.skillMut(data: Data, id: string): SkillProgress
 	local sp = data.skills[id]
 	if not sp then
@@ -152,7 +152,7 @@ function Progression.skillMut(data: Data, id: string): SkillProgress
 	return sp
 end
 
--- Gibt die Zahl gewonnener Stufen zurück
+-- Returns the number of levels gained
 function Progression.addSkillXp(sp: SkillProgress, amount: number): number
 	if sp.level >= Skills.MaxLevel then
 		return 0
@@ -170,7 +170,7 @@ function Progression.addSkillXp(sp: SkillProgress, amount: number): number
 	return gained
 end
 
--- ------------------------------------------------------------------ Skill-Blüten
+-- ------------------------------------------------------------------ Skill Blooms
 function Progression.bloomSpent(sp: SkillProgress): number
 	local n = 0
 	for _, pts in sp.bloom do
@@ -179,7 +179,7 @@ function Progression.bloomSpent(sp: SkillProgress): number
 	return n
 end
 
--- Jede Skill-Stufe über 1 gibt einen Blüten-Punkt
+-- Every skill level above 1 gives a Bloom Point
 function Progression.bloomPoints(sp: SkillProgress): number
 	return sp.level - 1 - Progression.bloomSpent(sp)
 end
@@ -187,26 +187,26 @@ end
 function Progression.canBloom(sp: SkillProgress, skillId: string, key: string): (boolean, string?)
 	local node, branch, index = Skills.bloomNode(skillId, key)
 	if not node or not branch or not index then
-		return false, "Unbekannter Knoten"
+		return false, "Unknown node"
 	end
 	if not node.effect then
-		return false, "Kommt bald"
+		return false, "Coming soon"
 	end
 	if (sp.bloom[key] or 0) >= Skills.BloomMax then
-		return false, "Voll ausgebaut"
+		return false, "Maxed out"
 	end
 	if index > 1 and (sp.bloom[branch .. tostring(index - 1)] or 0) <= 0 then
-		return false, "Erst den Knoten davor ausbauen"
+		return false, "Upgrade the previous node first"
 	end
 	if Progression.bloomPoints(sp) <= 0 then
-		return false, "Keine Blüten-Punkte"
+		return false, "No Bloom Points"
 	end
 	return true, nil
 end
 
--- ------------------------------------------------------------------ Sternennetz
+-- ------------------------------------------------------------------ Star Net
 function Progression.isAllocated(data: Data, id: string): boolean
-	return id == "herz" or data.stars[id] == true
+	return id == "heart" or data.stars[id] == true
 end
 
 function Progression.starSpent(data: Data): number
@@ -220,7 +220,7 @@ function Progression.starSpent(data: Data): number
 	return n
 end
 
--- 1 Punkt je Level ab Level 2
+-- 1 point per level from level 2
 function Progression.starPoints(data: Data, level: number): number
 	return math.max(0, level - 1) - Progression.starSpent(data)
 end
@@ -228,34 +228,34 @@ end
 function Progression.canAllocate(data: Data, id: string, level: number): (boolean, string?)
 	local s = StarNet.ById[id]
 	if not s or s.kind == "core" then
-		return false, "Unbekannter Stern"
+		return false, "Unknown star"
 	end
 	if data.stars[id] then
-		return false, "Schon zugewiesen"
+		return false, "Already allocated"
 	end
 	if not s.from or not Progression.isAllocated(data, s.from) then
-		return false, "Nicht verbunden"
+		return false, "Not connected"
 	end
 	if Progression.starPoints(data, level) < StarNet.Cost[s.kind] then
-		return false, "Zu wenig Punkte"
+		return false, "Not enough points"
 	end
 	return true, nil
 end
 
--- Entfernen nur am Ende eines Astes, damit nichts in der Luft hängt
+-- Remove only at the end of a branch, so nothing is left dangling
 function Progression.canRemove(data: Data, id: string): (boolean, string?)
 	if not data.stars[id] then
-		return false, "Nicht zugewiesen"
+		return false, "Not allocated"
 	end
 	for _, other in StarNet.Stars do
 		if other.from == id and data.stars[other.id] then
-			return false, "Erst die Sterne dahinter entfernen"
+			return false, "Remove the stars behind it first"
 		end
 	end
 	return true, nil
 end
 
--- Summe aller Stern-Wirkungen
+-- Sum of all star effects
 function Progression.starMods(data: Data): { [string]: number }
 	local sum: { [string]: number } = {}
 	for id in data.stars do
@@ -269,8 +269,8 @@ function Progression.starMods(data: Data): { [string]: number }
 	return sum
 end
 
--- ------------------------------------------------------------------ Wirkung auf Skills
--- Skill mit Stufe, Blüte und Sternen verrechnet. `mods` = Progression.starMods(data) (optional vorab).
+-- ------------------------------------------------------------------ Effect on skills
+-- Skill with level, bloom and stars applied. `mods` = Progression.starMods(data) (optional, precomputed).
 function Progression.effectiveSkill(
 	skill: Skills.Skill,
 	data: Data,
@@ -293,7 +293,7 @@ function Progression.effectiveSkill(
 		end
 	end
 	for k, v in m do
-		local id, stat = string.match(k, "^(%w+)%.(%w+)$")
+		local id, stat = string.match(k, "^([%w_]+)%.(%w+)$")
 		if id == skill.id and stat then
 			add[stat] = (add[stat] or 0) + (if stat == "damage" then v / 100 else v)
 		end
@@ -306,7 +306,7 @@ function Progression.effectiveSkill(
 	if onBar then
 		out.cooldown = math.max(Progression.MIN_COOLDOWN, cd)
 	else
-		-- Grundangriff: Angriffstempo statt Abklingzeit
+		-- Basic attack: attack speed instead of cooldown
 		out.cooldown = math.max(0.15, skill.cooldown / (1 + (m.attackSpeed or 0) / 100))
 	end
 	if skill.speed then

@@ -1,5 +1,5 @@
 --!strict
--- Setzt Grundwerte für jeden Charakter: Lauftempo, kein Springen (Leertaste = Dash).
+-- Sets base values for every character: walk speed, no jumping (space = dash).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

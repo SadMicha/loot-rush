@@ -1,7 +1,7 @@
 --!strict
--- Glitzer-Schmiede auf dem Server: prüft die Anfrage, würfelt (Shared.Forge.apply), bucht Material ab
--- und ersetzt den Gegenstand im Inventar oder in der Ausrüstung. Der Client schickt nur
--- Aktion + Item-ID + Affix-Nummer und bekommt Inventar, Material und eine Rückmeldung zurück.
+-- Glitter Forge on the server: checks the request, rolls (Shared.Forge.apply), deducts materials
+-- and replaces the item in the inventory or in the gear. The client only sends
+-- action + item ID + affix number and gets inventory, materials and feedback back.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -20,10 +20,10 @@ local rng = Random.new()
 local allow = RateLimit.new(4, 6)
 
 local DONE: { [string]: string } = {
-	add = "Neues Affix",
-	tier = "Tier verbessert",
-	reroll = "Neu gewürfelt",
-	seal = "Versiegelt",
+	add = "New affix",
+	tier = "Tier upgraded",
+	reroll = "Rerolled",
+	seal = "Sealed",
 }
 
 local function reply(player: Player, ok: boolean, text: string, itemId: string?, used: number?)
@@ -47,7 +47,7 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 		return
 	end
 
-	-- Gegenstand suchen: erst Tasche, dann Ausrüstung
+	-- Find the item: bag first, then gear
 	local bagIndex: number? = nil
 	local slot: string? = nil
 	local item: Items.Item? = nil
@@ -71,7 +71,7 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 
 	local result = Rules.apply(actionId, item, affix :: number?, profile.materials, rng)
 	if not result.ok or not result.item or not result.material or not result.cost then
-		reply(player, false, result.reason or "Geht nicht", itemId)
+		reply(player, false, result.reason or "Not possible", itemId)
 		return
 	end
 	Progress.addMaterials(player, { [result.material] = -result.cost })
@@ -84,11 +84,11 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 	Inventory.sync(player)
 	Progress.sync(player)
 	local used = result.used or 0
-	local text = DONE[actionId] or "Fertig"
+	local text = DONE[actionId] or "Done"
 	if Rules.ById[actionId].usesCharges then
 		text ..= if used == 0
-			then " · keine Ladung verbraucht!"
-			else string.format(" · −%d Ladung%s", used, if used == 1 then "" else "en")
+			then " · no charge used!"
+			else string.format(" · −%d charge%s", used, if used == 1 then "" else "s")
 	end
 	reply(player, true, text, itemId, used)
 end

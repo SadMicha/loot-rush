@@ -1,6 +1,6 @@
 --!strict
--- Schnappschuss von Skill-Stufen, Skill-Blüten, Sternennetz und Material (Net.Progress).
--- Die Fenster lesen nur hier und schicken Wünsche an den Server; geprüft wird dort (Systems/Progress).
+-- Snapshot of skill levels, skill blooms, Star Net and materials (Net.Progress).
+-- The windows only read from here and send requests to the server; validation happens there (Systems/Progress).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,7 +28,7 @@ function ProgressController.start()
 		if typeof(payload) ~= "table" then
 			return
 		end
-		-- Gleiche Säuberung wie beim Laden: das UI verlässt sich auf gültige Felder
+		-- Same sanitizing as on load: the UI relies on valid fields
 		data = Progression.reconcile(payload.progress)
 		materials = Progression.reconcileMaterials(payload.materials)
 		changed:Fire()

@@ -1,7 +1,7 @@
 --!strict
--- Dash: Leertaste / Shift / Gamepad B / Tipp auf den Dash-Slot der Skillleiste (HUD). 2 Ladungen (+ Sternennetz „StatDash“), laden nach.
--- Ladungen werden als lokale Player-Attribute veröffentlicht, das HUD liest sie.
--- Die Unverwundbarkeit vergibt der Server (Systems/Combat), nicht dieser Controller.
+-- Dash: Space / Shift / Gamepad B / tap on the dash slot of the skill bar (HUD). 2 charges (+ Star Net "StatDash"), recharge over time.
+-- Charges are published as local player attributes, the HUD reads them.
+-- Invulnerability is granted by the server (Systems/Combat), not by this controller.
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -63,7 +63,7 @@ function DashController.dash()
 	dashUntil = os.clock() + Config.DASH_DURATION
 	charges -= 1
 	publish()
-	Net.Dash:FireServer() -- Server zählt eigene Ladungen und vergibt die Unverwundbarkeit
+	Net.Dash:FireServer() -- Server counts its own charges and grants invulnerability
 end
 
 local function onAction(
@@ -85,7 +85,7 @@ function DashController.start()
 	ContextActionService:BindActionAtPriority(
 		"LootRushDash",
 		onAction,
-		false, -- kein runder Roblox-Knopf: auf Touch dient der Dash-Slot im HUD als Knopf
+		false, -- no round Roblox button: on touch the dash slot in the HUD serves as the button
 		Enum.ContextActionPriority.High.Value,
 		Enum.KeyCode.Space,
 		Enum.KeyCode.LeftShift,
@@ -100,7 +100,7 @@ function DashController.start()
 				charges += 1
 			end
 			publish()
-		elseif charges > maxCharges() then -- Stern entfernt
+		elseif charges > maxCharges() then -- star removed
 			charges = maxCharges()
 			publish()
 		end

@@ -1,5 +1,5 @@
 --!strict
--- Pfade der Werkzeugkette und Rojo-Build für die Lune-Skripte.
+-- Toolchain paths and Rojo build for the Lune scripts.
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -11,30 +11,30 @@ Place.OUT = ".tools/out"
 Place.PLACE = ".tools/out/LootRush.rbxl"
 Place.DUMP = ".tools/roblox/API-Dump.json"
 
--- Spiel frisch mit Rojo bauen (immer, damit nie ein veralteter Stand geprüft wird)
+-- Build the game fresh with Rojo (always, so an outdated state is never checked)
 function Place.build(): string
 	fs.writeDir(Place.OUT)
 	local result = process.exec("rojo", { "build", "default.project.json", "-o", Place.PLACE })
 	if not result.ok then
-		error("rojo build fehlgeschlagen:\n" .. result.stderr .. result.stdout)
+		error("rojo build failed:\n" .. result.stderr .. result.stdout)
 	end
 	return Place.PLACE
 end
 
--- Roblox-API-Dump (Events/Methoden aller Klassen); ohne ihn kennt die Sandbox weniger Events
+-- Roblox API dump (events/methods of all classes); without it the sandbox knows fewer events
 function Place.apiDump(): string?
 	if fs.isFile(Place.DUMP) then
 		return Place.DUMP
 	end
 	print(
-		"Hinweis: "
+		"Hint: "
 			.. Place.DUMP
-			.. " fehlt – tools/setup.sh ausführen. Sandbox läuft mit weniger API-Wissen."
+			.. " missing - run tools/setup.sh. The sandbox runs with less API knowledge."
 	)
 	return nil
 end
 
--- Instanzpfad ("ServerScriptService.Server.Systems.Combat") → Quelldatei, aus `rojo sourcemap`
+-- Instance path ("ServerScriptService.Server.Systems.Combat") → source file, from `rojo sourcemap`
 function Place.sourceFiles(): { [string]: string }
 	local result = process.exec("rojo", { "sourcemap", "default.project.json" })
 	if not result.ok then

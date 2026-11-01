@@ -1,6 +1,6 @@
--- 3D-Modelle aus Code: jedes Modell der Vorschau baut ohne Fehler, hat Teile und bleibt im Budget.
-describe("Modelle", function()
-	it("showcase baut alle Modelle", function()
+-- 3D models from code: every showcase model builds without errors, has parts and stays within budget.
+describe("Models", function()
+	it("showcase builds all models", function()
 		local Models = require("ReplicatedStorage.Shared.Models")
 		local row = Models.showcase()
 		local models = row:GetChildren()
@@ -14,17 +14,17 @@ describe("Modelle", function()
 				end
 			end
 			expect(parts).toBeGreaterThan(0)
-			expect(parts).toBeLessThanOrEqual(250) -- Teile-Budget je Modell
+			expect(parts).toBeLessThanOrEqual(250) -- part budget per model
 		end
 	end)
 
-	it("ersetzt die alte Vorschau statt sie zu stapeln", function()
+	it("replaces the old showcase instead of stacking it", function()
 		local Models = require("ReplicatedStorage.Shared.Models")
 		Models.showcase()
 		Models.showcase()
 		local n = 0
 		for _, c in workspace:GetChildren() do
-			if c.Name == "ModellVorschau" then
+			if c.Name == "ModelPreview" then
 				n += 1
 			end
 		end

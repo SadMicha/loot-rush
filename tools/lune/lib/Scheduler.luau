@@ -1,7 +1,7 @@
 --!strict
--- Virtuelle Zeit statt echter: task.wait(5) dauert hier keine 5 Sekunden, sondern endet,
--- sobald step() die Uhr weit genug vorgestellt hat. So laufen Endlosschleifen nicht ewig.
--- Jeder Thread merkt sich seine Seite ("server" / "client"), damit RunService:IsServer() stimmt.
+-- Virtual time instead of real time: task.wait(5) does not take 5 seconds here but ends
+-- as soon as step() has advanced the clock far enough. That way endless loops do not run forever.
+-- Every thread remembers its side ("server" / "client") so RunService:IsServer() is right.
 
 export type Side = "server" | "client" | "none"
 
@@ -82,23 +82,20 @@ end
 
 function Scheduler.delay(self: Scheduler, t: number?, f: any, ...: any): thread
 	local co = toThread(self, f)
-	table.insert(
-		self.sleeping,
-		{
-			co = co,
-			at = self.now + (t or 0),
-			start = self.now,
-			isWait = false,
-			args = table.pack(...),
-		}
-	)
+	table.insert(self.sleeping, {
+		co = co,
+		at = self.now + (t or 0),
+		start = self.now,
+		isWait = false,
+		args = table.pack(...),
+	})
 	return co
 end
 
 function Scheduler.wait(self: Scheduler, t: number?): number
 	local co = coroutine.running()
 	if not coroutine.isyieldable() then
-		error("task.wait außerhalb eines Threads der Sandbox", 2)
+		error("task.wait outside of a sandbox thread", 2)
 	end
 	local dt = math.max(t or 0, 1 / 60)
 	table.insert(self.sleeping, { co = co, at = self.now + dt, start = self.now, isWait = true })
@@ -127,7 +124,7 @@ function Scheduler.flushDeferred(self: Scheduler)
 		guard += 1
 		if guard > 100000 then
 			self.onError(
-				"task.defer-Schleife: über 100000 aufgeschobene Threads in einem Frame",
+				"task.defer loop: over 100000 deferred threads in one frame",
 				"",
 				self.side
 			)

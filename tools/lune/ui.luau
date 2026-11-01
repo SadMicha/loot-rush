@@ -1,13 +1,13 @@
 --!nocheck
--- UI-Check ohne Roblox Studio:
---   1. baut das Spiel (rojo), startet Server + Client headless in der Sandbox
---   2. prüft das UI in mehreren Bildschirmgrößen (Überlauf, abgeschnittener Text, Bild-IDs, Touch-Ziele,
---      Roblox-Topbar, Text hinter Icons/auf Text/über dem Panelrand, leere Zeilen/Kapseln, Schließen-Knöpfe)
---   3. klickt jeden Knopf mit Handler einmal an (frische Sandbox je Knopf) und drückt typische Tasten
---   4. schreibt HTML-Abbilder + Bericht nach .tools/out/ui (PNG-Screenshots: tools/screenshot.mjs)
+-- UI check without Roblox Studio:
+--   1. builds the game (rojo), starts server + client headless in the sandbox
+--   2. checks the UI at several screen sizes (overflow, clipped text, image IDs, touch targets,
+--      Roblox topbar, text behind icons/on text/past the panel edge, empty rows/capsules, close buttons)
+--   3. clicks every button with a handler once (fresh sandbox per button) and presses typical keys
+--   4. writes HTML snapshots + report to .tools/out/ui (PNG screenshots: tools/screenshot.mjs)
 --
 --   lune run tools/lune/ui [--images DIR]... [--out DIR] [--no-clicks] [--seconds N]
--- Exit-Code 1, wenn Laufzeitfehler oder Fehler der Stufe "error" gefunden wurden.
+-- Exit code 1 if runtime errors or findings of level "error" were found.
 
 local fs = require("@lune/fs")
 local process = require("@lune/process")
@@ -23,7 +23,7 @@ local Enum = roblox.Enum
 local Vector2 = roblox.Vector2
 
 -------------------------------------------------------------------------------
--- Argumente
+-- Arguments
 
 local args = { images = {}, out = ".tools/out/ui", clicks = true, seconds = 3 }
 do
@@ -46,7 +46,7 @@ do
 			args.place = a[i + 1]
 			i += 1
 		else
-			error("Unbekanntes Argument: " .. tostring(v))
+			error("unknown argument: " .. tostring(v))
 		end
 		i += 1
 	end
@@ -62,7 +62,7 @@ local PROFILES = {
 	{ name = "desktop", size = Vector2.new(1920, 1080), touch = false, render = true },
 	{ name = "laptop", size = Vector2.new(1366, 768), touch = false, render = true },
 	{ name = "tablet", size = Vector2.new(1024, 768), touch = true, render = true },
-	{ name = "handy", size = Vector2.new(844, 390), touch = true, render = true },
+	{ name = "phone", size = Vector2.new(844, 390), touch = true, render = true },
 }
 
 local placePath = args.place or Place.build()
@@ -90,7 +90,7 @@ local function newSandbox()
 end
 
 -------------------------------------------------------------------------------
--- Bericht
+-- Report
 
 local runtime = {} -- { context, level, kind, message, trace, side }
 local layout = {} -- [profile] = { findings }
@@ -101,7 +101,7 @@ local function issueKey(i)
 	return i.level .. "|" .. i.kind .. "|" .. i.message
 end
 
-local net = {} -- "C→S Equip" → Anzahl
+local net = {} -- "C→S Equip" → count
 
 local function collect(sb, context: string, baseline: { [string]: boolean }?)
 	for _, n in sb.netLog do
@@ -145,7 +145,7 @@ local function slug(s: string): string
 	return (s:gsub("[^%w]+", "_"):gsub("^_+", ""):gsub("_+$", ""):sub(1, 60))
 end
 
-local closeButtons = {} -- [profile] = { { path, look } } über alle Zustände
+local closeButtons = {} -- [profile] = { { path, look } } across all states
 
 local function snapshot(sb, profile, state: string, title: string)
 	sb:setViewport(profile.size, profile.touch)
@@ -169,7 +169,7 @@ end
 -------------------------------------------------------------------------------
 -- 1. Start
 
-print("▶ Starte Server + Client headless …")
+print("▶ starting server + client headless …")
 local base = newSandbox()
 base:boot({ seconds = args.seconds })
 collect(base, "Start")
@@ -193,7 +193,7 @@ local function guiCount(sb): number
 	return n
 end
 
--- Knöpfe mit Handler; Schlüssel = Kind-Indizes ("3.1.7"), weil Namen oft doppelt sind
+-- Buttons with a handler; key = child indices ("3.1.7"), because names are often duplicated
 local function clickable(sb): { { key: string, path: string } }
 	local out = {}
 	local pg = sb:nativeOf(sb:playerGui())
@@ -220,12 +220,12 @@ local function find(sb, key: string)
 end
 
 -------------------------------------------------------------------------------
--- 2. Jeden Knopf einmal drücken (je Knopf frische Sandbox, damit die Zustände sauber bleiben)
+-- 2. Press every button once (fresh sandbox per button so the states stay clean)
 
 local clicked = 0
 if args.clicks then
 	local buttons = clickable(base)
-	print(string.format("▶ Drücke %d Knöpfe …", #buttons))
+	print(string.format("▶ pressing %d buttons …", #buttons))
 	for _, entry in buttons do
 		local path = entry.path
 		local sb = newSandbox()
@@ -243,14 +243,14 @@ if args.clicks then
 			clicked += 1
 			local after = guiCount(sb)
 			if process.env.UI_DEBUG then
-				print("  Klick", path, before, "→", after)
+				print("  click", path, before, "→", after)
 			end
 			if math.abs(after - before) >= 5 then
 				for _, profile in PROFILES do
-					snapshot(sb, profile, "klick " .. path, "Nach Klick auf " .. path)
+					snapshot(sb, profile, "click " .. path, "After clicking " .. path)
 				end
 				sb:setViewport(PROFILES[1].size, false)
-				-- Zweite Ebene: neu sichtbare Knöpfe nur auf Fehler testen
+				-- Second level: only test newly visible buttons for errors
 				for _, inner in clickable(sb) do
 					if not beforeButtons[inner.key] then
 						local b = find(sb, inner.key)
@@ -261,11 +261,11 @@ if args.clicks then
 					end
 				end
 			end
-			collect(sb, "Klick auf " .. path, baseline)
+			collect(sb, "Click on " .. path, baseline)
 		end
 	end
 
-	-- Szenario: volles Inventar öffnen und Gegenstände anklicken (Server legt echte Items an)
+	-- Scenario: open a full inventory and click items (the server adds real items)
 	do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
@@ -284,7 +284,7 @@ if args.clicks then
 		end
 		local open = nil
 		for _, b in clickable(sb) do
-			if b.path:match("%.inventar$") then
+			if b.path:match("%.inventory$") then
 				open = find(sb, b.key)
 			end
 		end
@@ -292,10 +292,10 @@ if args.clicks then
 			sb:click(open)
 			sb:run(1)
 			for _, profile in PROFILES do
-				snapshot(sb, profile, "inventar voll", "Inventar mit 24 Gegenständen")
+				snapshot(sb, profile, "inventory full", "Inventory with 24 items")
 			end
 			sb:setViewport(PROFILES[1].size, false)
-			-- erster Gegenstand im Raster (Knopf in einem ScrollingFrame)
+			-- first item in the grid (button in a ScrollingFrame)
 			local first = nil
 			for _, b in clickable(sb) do
 				local node = sb:nativeOf(find(sb, b.key))
@@ -314,9 +314,9 @@ if args.clicks then
 				end
 				sb:click(find(sb, first.key))
 				sb:run(0.5)
-				snapshot(sb, PROFILES[1], "inventar auswahl", "Inventar: Gegenstand gewählt")
+				snapshot(sb, PROFILES[1], "inventory selection", "Inventory: item selected")
 				sb:setViewport(PROFILES[1].size, false)
-				-- neue Knöpfe der Detailansicht (Ausrüsten, Verkaufen …) auf Fehler testen
+				-- new buttons of the detail view (Equip, Sell …) tested for errors
 				for _, b in clickable(sb) do
 					if not beforeSelect[b.key] then
 						local node = find(sb, b.key)
@@ -328,11 +328,11 @@ if args.clicks then
 				end
 			end
 		end
-		collect(sb, "Szenario Inventar", baseline)
+		collect(sb, "Scenario inventory", baseline)
 	end
 
-	-- Szenario: Fenster mit vollem Inventar und Material (Schmiede braucht Gegenstände) und Debug-Menü
-	for _, name in { "schmiede", "skills", "sternennetz", "atlas", "Shop_gold", "Dbg" } do
+	-- Scenario: windows with a full inventory and materials (the Forge needs items) and the debug menu
+	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "Dbg" } do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
 		sb:runAs("server", function(req)
@@ -342,10 +342,10 @@ if args.clicks then
 			for i = 1, 12 do
 				Inventory.add(sb.player, Items.roll(1 + i % 12, Sandbox.Random.new(100 + i)))
 			end
-			-- Bonbons und Staub fehlen absichtlich: zeigt die langen „Zu wenig …“-Texte der Schmiede
+			-- Candy and dust are missing on purpose: shows the long "Not enough …" texts of the Forge
 			Progress.addMaterials(sb.player, { shards = 120 })
 			Progress.sync(sb.player)
-			Inventory.addGold(sb.player, 300) -- Shop: manches kaufbar, manches zu teuer
+			Inventory.addGold(sb.player, 300) -- Shop: some things affordable, some too expensive
 		end)
 		sb:run(0.5)
 		local open = nil
@@ -358,14 +358,14 @@ if args.clicks then
 			sb:click(open)
 			sb:run(1)
 			for _, profile in PROFILES do
-				snapshot(sb, profile, "voll " .. name, "Mit Gegenständen: " .. name)
+				snapshot(sb, profile, "full " .. name, "With items: " .. name)
 			end
 			sb:setViewport(PROFILES[1].size, false)
 		end
-		collect(sb, "Szenario " .. name, baseline)
+		collect(sb, "Scenario " .. name, baseline)
 	end
 
-	-- Tasten
+	-- Keys
 	local sb = newSandbox()
 	sb:boot({ seconds = args.seconds })
 	local keys = {
@@ -391,17 +391,17 @@ if args.clicks then
 		sb:pressKey(Enum.KeyCode[k])
 		sb:run(0.3)
 	end
-	collect(sb, "Tasten " .. table.concat(keys, " "), baseline)
+	collect(sb, "Keys " .. table.concat(keys, " "), baseline)
 end
 
 -------------------------------------------------------------------------------
--- 3. Ausgabe
+-- 3. Output
 
--- Schließen-Knöpfe aller Zustände vergleichen (gleiches Aussehen in jedem Fenster)
+-- Compare the close buttons of all states (same look in every window)
 for _, profile in PROFILES do
 	addFindings(
 		profile.name,
-		"Schließen-Knöpfe",
+		"close buttons",
 		Checks.compareClose(closeButtons[profile.name] or {})
 	)
 end
@@ -421,7 +421,7 @@ local md = { "# UI-Check", "" }
 table.insert(
 	md,
 	string.format(
-		"Knöpfe gedrückt: %d · Laufzeit: %d Fehler, %d Warnungen · Layout: %d Fehler, %d Warnungen",
+		"Buttons pressed: %d · runtime: %d errors, %d warnings · layout: %d errors, %d warnings",
 		clicked,
 		counts.error,
 		counts.warn,
@@ -430,9 +430,9 @@ table.insert(
 	)
 )
 table.insert(md, "")
-table.insert(md, "## Laufzeit")
+table.insert(md, "## Runtime")
 if #runtime == 0 then
-	table.insert(md, "Keine Fehler.")
+	table.insert(md, "No errors.")
 end
 for _, r in runtime do
 	table.insert(
@@ -465,7 +465,7 @@ for _, profile in PROFILES do
 		)
 	)
 	if #list == 0 then
-		table.insert(md, "Keine Auffälligkeiten.")
+		table.insert(md, "No findings.")
 	end
 	table.sort(list, function(a, b)
 		if a.level ~= b.level then
@@ -486,8 +486,8 @@ for k, n in net do
 end
 table.sort(netList)
 table.insert(md, "")
-table.insert(md, "## Netzwerk (Remotes, alle Läufe)")
-table.insert(md, if #netList > 0 then table.concat(netList, " · ") else "keine")
+table.insert(md, "## Network (remotes, all runs)")
+table.insert(md, if #netList > 0 then table.concat(netList, " · ") else "none")
 local stubList = {}
 for s in stubs do
 	table.insert(stubList, s)
@@ -495,7 +495,7 @@ end
 table.sort(stubList)
 if #stubList > 0 then
 	table.insert(md, "")
-	table.insert(md, "## Sandbox-Platzhalter (nicht echt simuliert)")
+	table.insert(md, "## Sandbox stubs (not really simulated)")
 	for _, s in stubList do
 		table.insert(md, "- " .. s)
 	end
@@ -522,10 +522,10 @@ end
 table.insert(index, '</ul><p><a href="report.md">report.md</a></p>')
 fs.writeFile(args.out .. "/index.html", table.concat(index))
 
-print(string.format("✔ %d Seiten, Bericht: %s/report.md", #pages, args.out))
+print(string.format("✔ %d pages, report: %s/report.md", #pages, args.out))
 print(
 	string.format(
-		"  Laufzeit: %d Fehler, %d Warnungen · Layout: %d Fehler, %d Warnungen, %d Hinweise",
+		"  runtime: %d errors, %d warnings · layout: %d errors, %d warnings, %d notes",
 		counts.error,
 		counts.warn,
 		layoutCounts.error,

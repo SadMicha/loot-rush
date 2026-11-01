@@ -1,20 +1,19 @@
 --!strict
--- Shop-Katalog und Kaufregeln (reine Logik, testbar). Kaufen tut nur der Server (Systems/Shop),
--- das Fenster (ShopController) zeigt dieselben Angebote und dieselben Gründe für gesperrte Knöpfe.
---   • Ingame: Tränke und Material gegen Gold, Gold gegen Seelensterne
---   • Robux: Seelensterne als Developer Products – IDs sind noch Platzhalter (0 = nicht verkäuflich)
--- Preise sind eigene Annahmen (nicht im Balancing-Blatt). Goldpreise und Goldpakete wachsen mit der
--- besten geschafften Tiefe (Balance.shopFactor, wie das Kill-Gold ×1,13 je Tiefe); die Zahlen im
--- Katalog gelten für Tiefe 1. Anzeigen immer über Shop.price/Shop.amount.
+-- Shop catalog and purchase rules (pure logic, testable). Only the server buys (Systems/Shop),
+-- the window (ShopController) shows the same offers and the same reasons for locked buttons.
+--   • In-game: materials for gold, gold for Soulstars
+--   • Robux: Soulstars as Developer Products - IDs are still placeholders (0 = not for sale)
+-- Prices are own assumptions (not in the balancing sheet). Gold prices and gold packs grow with the
+-- best depth reached (Balance.shopFactor, like kill gold ×1.13 per depth); the numbers in the
+-- catalog apply to depth 1. Always display via Shop.price/Shop.amount.
 
 local Balance = require(script.Parent.Balance)
-local Config = require(script.Parent.Config)
 local Monetization = require(script.Parent.Monetization)
 
 local Shop = {}
 
--- Was ein Kauf geben oder kosten kann (Spielstand-Felder; Material liegt in profile.materials)
-export type Kind = "gold" | "soulstars" | "potions" | "candy" | "shards" | "dust"
+-- What a purchase can give or cost (save fields; materials live in profile.materials)
+export type Kind = "gold" | "soulstars" | "candy" | "shards" | "dust"
 export type Wallet = { [Kind]: number }
 
 export type Offer = {
@@ -23,53 +22,45 @@ export type Offer = {
 	name: string,
 	text: string,
 	icon: string, -- Assets.Icon
-	art: string?, -- größeres Bild aus Assets.Art (fehlt es, zeigt der Slot das Icon)
-	rarity: string, -- Rahmenfarbe des Slots
+	art: string?, -- larger image from Assets.Art (if missing, the slot shows the icon)
+	rarity: string, -- frame color of the slot
 	give: Kind,
 	amount: number,
-	price: { kind: Kind, amount: number }?, -- Ingame-Preis
-	product: string?, -- Schlüssel in Shop.Products (Robux)
+	price: { kind: Kind, amount: number }?, -- in-game price
+	product: string?, -- key in Shop.Products (Robux)
 }
 
 export type Product = {
-	id: number, -- Developer-Product-ID aus dem Creator Hub; 0 = noch nicht angelegt
-	robux: number, -- Anzeigepreis (muss zum Creator Hub passen)
+	id: number, -- Developer Product ID from the Creator Hub; 0 = not created yet
+	robux: number, -- display price (must match the Creator Hub)
 	give: Kind,
 	amount: number,
 }
 
 Shop.KindName = table.freeze({
 	gold = "Gold",
-	soulstars = "Seelensterne",
-	potions = "Heiltränke",
-	candy = "Runen-Bonbons",
-	shards = "Kristallsplitter",
-	dust = "Glitzerstaub",
+	soulstars = "Soulstars",
+	candy = "Rune Candy",
+	shards = "Crystal Shards",
+	dust = "Glitter Dust",
 } :: { [string]: string })
 
 Shop.KindIcon = table.freeze({
 	gold = "gold",
-	soulstars = "seelenstern",
-	potions = "trank_leben",
-	candy = "bonbon",
-	shards = "kristall",
-	dust = "glitzerstaub",
+	soulstars = "soulstar",
+	candy = "candy",
+	shards = "crystal",
+	dust = "glitter_dust",
 } :: { [string]: string })
 
--- Obergrenzen je Bestand (Tränke trägt man nur begrenzt)
-Shop.Max = table.freeze({
-	potions = Config.POTION_MAX,
-} :: { [string]: number })
-
 Shop.Tabs = table.freeze({
-	{ id = "vorraete", name = "Vorräte", icon = "trank_leben" },
-	{ id = "material", name = "Material", icon = "kristall" },
+	{ id = "material", name = "Materials", icon = "crystal" },
 	{ id = "gold", name = "Gold", icon = "gold" },
-	{ id = "seelensterne", name = "Seelensterne", icon = "seelenstern" },
+	{ id = "soulstars", name = "Soulstars", icon = "soulstar" },
 })
 
--- Developer Products. Die IDs stehen in Shared/Monetization (eine Stelle für alle Robux-IDs);
--- erst mit echter ID werden die Robux-Knöpfe aktiv und der Server nimmt Käufe an.
+-- Developer Products. The IDs live in Shared/Monetization (one place for all Robux IDs);
+-- only with a real ID do the Robux buttons activate and the server accept purchases.
 local ids = Monetization.ProductIds
 local PRODUCTS: { [string]: Product } = {
 	soulstars_s = { id = ids.soulstars_s or 0, robux = 49, give = "soulstars", amount = 100 },
@@ -82,50 +73,13 @@ end
 Shop.Products = table.freeze(PRODUCTS)
 
 local OFFERS: { Offer } = {
-	-- Vorräte
-	{
-		id = "potion_1",
-		tab = "vorraete",
-		name = "Heiltrank",
-		text = "Heilt 35 % Leben. Taste 1.",
-		icon = "trank_leben",
-		art = "shop_potion_1",
-		rarity = "normal",
-		give = "potions",
-		amount = 1,
-		price = { kind = "gold", amount = 40 },
-	},
-	{
-		id = "potion_5",
-		tab = "vorraete",
-		name = "Trank-Bündel",
-		text = "Fünf Heiltränke zum kleineren Preis.",
-		icon = "trank_leben",
-		art = "shop_potion_5",
-		rarity = "magic",
-		give = "potions",
-		amount = 5,
-		price = { kind = "gold", amount = 180 },
-	},
-	{
-		id = "potion_10",
-		tab = "vorraete",
-		name = "Trank-Kiste",
-		text = "Zehn Heiltränke für lange Rifts.",
-		icon = "trank_leben",
-		art = "shop_potion_10",
-		rarity = "rare",
-		give = "potions",
-		amount = 10,
-		price = { kind = "gold", amount = 340 },
-	},
-	-- Material
+	-- Materials
 	{
 		id = "shards_50",
 		tab = "material",
-		name = "Splitter-Beutel",
-		text = "Für Neu-Würfeln und Tier-Verbesserungen in der Schmiede.",
-		icon = "kristall",
+		name = "Shard Pouch",
+		text = "For rerolls and tier upgrades in the Forge.",
+		icon = "crystal",
 		art = "shop_shards",
 		rarity = "magic",
 		give = "shards",
@@ -135,9 +89,9 @@ local OFFERS: { Offer } = {
 	{
 		id = "candy_1",
 		tab = "material",
-		name = "Runen-Bonbon",
-		text = "Fügt in der Schmiede ein neues Affix hinzu.",
-		icon = "bonbon",
+		name = "Rune Candy",
+		text = "Adds a new affix in the Forge.",
+		icon = "candy",
 		art = "shop_candy",
 		rarity = "rare",
 		give = "candy",
@@ -147,21 +101,21 @@ local OFFERS: { Offer } = {
 	{
 		id = "dust_1",
 		tab = "material",
-		name = "Glitzerstaub",
-		text = "Versiegelt ein Affix gegen Neu-Würfeln.",
-		icon = "glitzerstaub",
+		name = "Glitter Dust",
+		text = "Seals an affix against rerolls.",
+		icon = "glitter_dust",
 		art = "shop_dust",
 		rarity = "epic",
 		give = "dust",
 		amount = 1,
 		price = { kind = "gold", amount = 600 },
 	},
-	-- Gold gegen Seelensterne
+	-- Gold for Soulstars
 	{
 		id = "gold_s",
 		tab = "gold",
-		name = "Goldbeutel",
-		text = "Für den schnellen Einkauf.",
+		name = "Gold Pouch",
+		text = "For a quick shopping trip.",
 		icon = "gold",
 		art = "shop_gold_s",
 		rarity = "magic",
@@ -172,9 +126,9 @@ local OFFERS: { Offer } = {
 	{
 		id = "gold_m",
 		tab = "gold",
-		name = "Goldtruhe",
-		text = "10 % mehr als der Beutel.",
-		icon = "truhe",
+		name = "Gold Chest",
+		text = "10 % more than the pouch.",
+		icon = "chest",
 		art = "shop_gold_m",
 		rarity = "rare",
 		give = "gold",
@@ -184,22 +138,22 @@ local OFFERS: { Offer } = {
 	{
 		id = "gold_l",
 		tab = "gold",
-		name = "Goldschatz",
-		text = "20 % mehr als der Beutel.",
-		icon = "krone",
+		name = "Gold Hoard",
+		text = "20 % more than the pouch.",
+		icon = "crown",
 		art = "shop_gold_l",
 		rarity = "epic",
 		give = "gold",
 		amount = 12000,
 		price = { kind = "soulstars", amount = 200 },
 	},
-	-- Seelensterne gegen Robux
+	-- Soulstars for Robux
 	{
 		id = "soulstars_s",
-		tab = "seelensterne",
-		name = "Sternenhand",
-		text = "Für den Anfang.",
-		icon = "seelenstern",
+		tab = "soulstars",
+		name = "Handful of Stars",
+		text = "To get you started.",
+		icon = "soulstar",
 		art = "shop_stars_s",
 		rarity = "rare",
 		give = "soulstars",
@@ -208,10 +162,10 @@ local OFFERS: { Offer } = {
 	},
 	{
 		id = "soulstars_m",
-		tab = "seelensterne",
-		name = "Sternenbeutel",
-		text = "10 % mehr als die Hand.",
-		icon = "seelenstern",
+		tab = "soulstars",
+		name = "Pouch of Stars",
+		text = "10 % more than the handful.",
+		icon = "soulstar",
 		art = "shop_stars_m",
 		rarity = "epic",
 		give = "soulstars",
@@ -220,10 +174,10 @@ local OFFERS: { Offer } = {
 	},
 	{
 		id = "soulstars_l",
-		tab = "seelensterne",
-		name = "Sternenschatz",
-		text = "20 % mehr als die Hand.",
-		icon = "seelenstern",
+		tab = "soulstars",
+		name = "Hoard of Stars",
+		text = "20 % more than the handful.",
+		icon = "soulstar",
 		art = "shop_stars_l",
 		rarity = "legend",
 		give = "soulstars",
@@ -239,7 +193,7 @@ end
 Shop.Offers = table.freeze(OFFERS)
 Shop.ById = table.freeze(byId)
 
--- Angebote eines Reiters in Katalog-Reihenfolge
+-- Offers of a tab in catalog order
 function Shop.inTab(tab: string): { Offer }
 	local out = {}
 	for _, offer in OFFERS do
@@ -250,7 +204,7 @@ function Shop.inTab(tab: string): { Offer }
 	return out
 end
 
--- Robux-Angebot mit echter Product-ID? (nil, solange nur Platzhalter)
+-- Robux offer with a real product ID? (nil while it is only a placeholder)
 function Shop.productOf(offer: Offer): Product?
 	local p = if offer.product then Shop.Products[offer.product] else nil
 	if p and p.id > 0 then
@@ -259,7 +213,7 @@ function Shop.productOf(offer: Offer): Product?
 	return nil
 end
 
--- Product-ID → Produkt (für ProcessReceipt)
+-- Product ID → product (for ProcessReceipt)
 function Shop.productById(productId: number): Product?
 	if productId <= 0 then
 		return nil
@@ -281,7 +235,7 @@ function Shop.hasLiveProducts(): boolean
 	return false
 end
 
--- Glatte Zahl: unter 100 ganz, darüber auf zwei gültige Stellen (1.234 → 1.200)
+-- Round number: whole below 100, above that two significant digits (1,234 → 1,200)
 local function nice(n: number): number
 	if n < 100 then
 		return math.max(1, math.floor(n + 0.5))
@@ -290,7 +244,7 @@ local function nice(n: number): number
 	return math.floor(n / step + 0.5) * step
 end
 
--- Ingame-Preis bei dieser besten Tiefe (nil = nur Robux). Nur Gold-Preise wachsen.
+-- In-game price at this best depth (nil = Robux only). Only gold prices grow.
 function Shop.price(offer: Offer, bestDepth: number?): { kind: Kind, amount: number }?
 	local price = offer.price
 	if not price then
@@ -302,7 +256,7 @@ function Shop.price(offer: Offer, bestDepth: number?): { kind: Kind, amount: num
 	return { kind = price.kind, amount = nice(price.amount * Balance.shopFactor(bestDepth or 1)) }
 end
 
--- Menge, die der Kauf gibt (Goldpakete wachsen mit, damit Seelensterne ihren Wert behalten)
+-- Amount the purchase gives (gold packs grow too, so Soulstars keep their value)
 function Shop.amount(offer: Offer, bestDepth: number?): number
 	if offer.give ~= "gold" then
 		return offer.amount
@@ -310,23 +264,19 @@ function Shop.amount(offer: Offer, bestDepth: number?): number
 	return nice(offer.amount * Balance.shopFactor(bestDepth or 1))
 end
 
--- Darf der Spieler das Ingame-Angebot kaufen? Robux-Angebote laufen nicht hierüber.
+-- May the player buy the in-game offer? Robux offers do not go through here.
 function Shop.check(offer: Offer, wallet: Wallet, bestDepth: number?): (boolean, string?)
 	local price = Shop.price(offer, bestDepth)
 	if not price then
-		return false, "Nur mit Robux"
+		return false, "Robux only"
 	end
 	if (wallet[price.kind] or 0) < price.amount then
-		return false, "Zu wenig " .. Shop.KindName[price.kind]
-	end
-	local max = Shop.Max[offer.give]
-	if max and (wallet[offer.give] or 0) + offer.amount > max then
-		return false, string.format("Höchstens %d %s", max, Shop.KindName[offer.give])
+		return false, "Not enough " .. Shop.KindName[price.kind]
 	end
 	return true, nil
 end
 
--- Bestand nach dem Kauf (neue Tabelle; prüft nicht, dafür Shop.check)
+-- Stock after the purchase (new table; does not check, use Shop.check for that)
 function Shop.apply(offer: Offer, wallet: Wallet, bestDepth: number?): Wallet
 	local out = table.clone(wallet)
 	local price = Shop.price(offer, bestDepth)

@@ -1,10 +1,10 @@
 --!strict
--- Beute: Gegner lassen Gold und manchmal Items fallen. Drops liegen mit Boden-Label (Name in Seltenheitsfarbe)
--- und gehören dem Töter; wer nah genug herangeht, hebt sie automatisch auf.
--- Optik: Items als Geschenkbox in Seltenheitsfarbe, Gold als Münze (Shared/Models/Loot).
--- Menge und Güte richten sich nach der Rift-Tiefe des Gegners (Shared/Balance, Tabelle) und den Boni
--- des Gebiets (Atlas.bonus): tiefer = höhere Item-Power, mehr Gold, öfter seltene Items.
--- Gold je Kill trägt der Gegner selbst (Attribut Gold, Systems/Enemies).
+-- Loot: enemies drop gold and sometimes items. Drops lie with a ground label (name in rarity color)
+-- and belong to the killer; whoever gets close enough picks them up automatically.
+-- Look: items as a poison box in rarity color, gold as a coin (Shared/Models/Loot).
+-- Amount and quality depend on the enemy's Rift depth (Shared/Balance, table) and the bonuses
+-- of the region (Atlas.bonus): deeper = higher item power, more gold, rare items more often.
+-- Gold per kill is carried by the enemy itself (attribute Gold, Systems/Enemies).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -21,7 +21,7 @@ local Inventory = require(script.Parent.Inventory)
 
 type Drop = {
 	model: Model,
-	part: BasePart, -- verankerter Kern der Box/Münze
+	part: BasePart, -- anchored core of the box/coin
 	owner: Player,
 	gold: number,
 	item: Items.Item?,
@@ -29,7 +29,7 @@ type Drop = {
 }
 
 local Loot = {
-	-- (player, gold: number, item: Items.Item?) nach jedem Aufheben, für Systems/Rift
+	-- (player, gold: number, item: Items.Item?) after every pickup, for Systems/Rift
 	Picked = Instance.new("BindableEvent"),
 }
 
@@ -105,7 +105,7 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	})
 end
 
--- Was ein Gegner auf dieser Tiefe in diesem Gebiet fallen lässt (rein, für Tests)
+-- What an enemy drops at this depth in this region (pure, for tests)
 function Loot.forDepth(depth: number, regionId: string?, boss: boolean)
 	local region = if regionId then Atlas.ById[regionId] else nil
 	local bonus: Atlas.Bonus = if region then region.bonus else {}
@@ -140,7 +140,7 @@ local function onKilled(
 		if typeof(region) == "string" then region else nil,
 		boss == true
 	)
-	-- Zufällig runden: kleine Beträge (1,1 Gold) zahlen den Gebiets-Bonus im Mittel trotzdem aus
+	-- Random rounding: small amounts (1.1 gold) still pay out the region bonus on average
 	local function coin(amount: number): number
 		return math.max(1, math.floor(amount + rng:NextNumber()))
 	end
@@ -150,14 +150,14 @@ local function onKilled(
 	end
 	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0)
 		* t.goldMult
-		* bonus("BonusGold") -- Wiedergeburt, Haustier … (Systems/Boosts)
+		* bonus("BonusGold") -- Rebirth, pet … (Systems/Boosts)
 	local itemChance = math.min(1, t.itemChance * bonus("BonusItems"))
 	if boss == true then
 		local coins = Config.LOOT_BOSS_GOLD_DROPS
 		for _ = 1, coins do
 			makeDrop(pos, owner, coin(total / coins), nil)
 		end
-		-- Tabelle: Boss-Beute mindestens 1× Selten+
+		-- Table: boss loot at least 1× Rare+
 		for i = 1, t.bossItems do
 			local opts = { shift = t.shift, min = if i == 1 then "rare" else nil }
 			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, opts))
@@ -172,8 +172,8 @@ local function onKilled(
 	end
 end
 
--- Hebt einen Drop für seinen Besitzer auf. false = Inventar voll, Item bleibt liegen.
--- at = Position für die Text-Einblendung; ohne at still und ohne Picked-Signal (Loot.collect).
+-- Picks up a drop for its owner. false = inventory full, the item stays on the ground.
+-- at = position for the text popup; without at silent and without the Picked signal (Loot.collect).
 local function pickup(d: Drop, at: Vector3?): boolean
 	local item = d.item
 	local text: string
@@ -200,8 +200,8 @@ local function pickup(d: Drop, at: Vector3?): boolean
 	return true
 end
 
--- Rift-Ende: alles, was dem Spieler noch am Boden gehört, sofort einsammeln.
--- Gibt zurück, was wirklich ankam (Inventar voll: Item verfällt mit der Arena).
+-- Rift end: collect everything on the ground that still belongs to the player, right away.
+-- Returns what actually arrived (inventory full: the item expires with the arena).
 function Loot.collect(player: Player): (number, { Items.Item })
 	local gold, items = 0, {}
 	for i = #drops, 1, -1 do
@@ -235,7 +235,7 @@ local function sweep()
 			continue
 		end
 		local delta = root.Position - d.part.Position
-		local magnet = d.owner:GetAttribute("BonusMagnet") -- Haustier (Systems/Boosts)
+		local magnet = d.owner:GetAttribute("BonusMagnet") -- pet (Systems/Boosts)
 		local radius = PICKUP_RADIUS + (if typeof(magnet) == "number" then magnet else 0)
 		if Vector3.new(delta.X, 0, delta.Z).Magnitude > radius then
 			continue
@@ -249,7 +249,7 @@ end
 
 function Loot.init()
 	folder = Instance.new("Folder")
-	folder.Name = "Beute"
+	folder.Name = "Loot"
 	folder.Parent = workspace
 	Combat.EnemyKilled.Event:Connect(onKilled)
 end

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Prüft alle Bild-IDs aus src/shared/UI/Assets.luau gegen öffentliche Roblox-Endpunkte.
+"""Checks all image IDs from src/shared/UI/Assets.luau against public Roblox endpoints.
 
-Läuft in GitHub Actions (Roblox ist aus der Claude-Cloud gesperrt):
+Runs in GitHub Actions (Roblox is blocked from the Claude cloud):
   python3 tools/check-assets.py [--fix] [--report report.md]
 
-Je ID: Asset-Typ (1 = Image, 13 = Decal), Name, Ersteller und Vorschau-Status
-(Completed = freigegeben, Pending = in Moderation, Blocked = abgelehnt).
-Bei Decal-IDs wird die zugehörige Image-ID gesucht (Decal-XML über assetdelivery, sonst
-die IDs direkt davor mit gleichem Ersteller). --fix ersetzt gefundene IDs in Assets.luau.
+Per ID: asset type (1 = Image, 13 = Decal), name, creator and thumbnail state
+(Completed = approved, Pending = in moderation, Blocked = rejected).
+For decal IDs the matching image ID is looked up (decal XML via assetdelivery, otherwise
+the IDs right before it with the same creator). --fix replaces found IDs in Assets.luau.
 """
 
 import gzip
@@ -39,7 +39,7 @@ def get(url: str, retries: int = 4):
                 time.sleep(2 * (attempt + 1))
                 continue
             return e.code, e.read()
-        except Exception as e:  # Netzwerkfehler
+        except Exception as e:  # network error
             if attempt < retries - 1:
                 time.sleep(1)
                 continue
@@ -74,14 +74,14 @@ def thumbnails(ids):
 
 
 def image_of_decal(decal_id: int, info) -> tuple:
-    # 1. Decal-XML: enthält <url>…id=IMAGE</url>
+    # 1. Decal XML: contains <url>…id=IMAGE</url>
     for url in (
         f"https://assetdelivery.roblox.com/v1/asset/?id={decal_id}",
         f"https://apis.roblox.com/asset-delivery-api/v1/assetId/{decal_id}",
     ):
         status, body = get(url)
         if decal_id not in LOGGED:
-            # Einmal je Decal: warum die Auflösung scheitert (401/403 = Key fehlt/Recht fehlt)
+            # Once per decal: why resolving fails (401/403 = key missing/permission missing)
             print(f"  {url.split('/')[2]} → HTTP {status}: {body[:160]!r}")
         if status == 200:
             text = body.decode("utf-8", "replace")
@@ -90,23 +90,23 @@ def image_of_decal(decal_id: int, info) -> tuple:
                 s2, b2 = get(loc.group(1))
                 if s2 == 200 and b2[:2] == b"\x1f\x8b":
                     b2 = gzip.decompress(b2)
-                # XML- oder Binär-Modell (.rbxm): die Texture-URL steht in beiden als Klartext
+                # XML or binary model (.rbxm): the texture URL is plain text in both
                 text = b2.decode("latin-1") if s2 == 200 else ""
                 if s2 != 200:
-                    print(f"  Inhalt {decal_id} → HTTP {s2}")
+                    print(f"  content {decal_id} → HTTP {s2}")
             m = re.search(r"(?:asset/?\?id=|rbxassetid://)(\d+)", text)
             if m and int(m.group(1)) != decal_id:
-                return int(m.group(1)), "Decal-Inhalt"
+                return int(m.group(1)), "decal content"
             if text and decal_id not in LOGGED:
-                print(f"  Inhalt {decal_id}: keine Texture-ID gefunden, Anfang {text[:60]!r}")
-    # 2. Beim Hochladen entsteht das Image meist mit einer ID kurz vor dem Decal
+                print(f"  content {decal_id}: no texture ID found, start {text[:60]!r}")
+    # 2. On upload the image usually gets an ID shortly before the decal
     creator = (info or {}).get("Creator", {}).get("Id")
     for cand in range(decal_id - 1, decal_id - 16, -1):
         d = details(cand)
         if d and d.get("AssetTypeId") == 1 and d.get("Creator", {}).get("Id") == creator:
-            return cand, f"Nachbar-ID ({decal_id - cand} davor, gleicher Ersteller)"
+            return cand, f"neighbor ID ({decal_id - cand} before, same creator)"
     LOGGED.add(decal_id)
-    return None, "nicht gefunden"
+    return None, "not found"
 
 
 def main():
@@ -121,7 +121,7 @@ def main():
     for m in re.finditer(pattern, src):
         entries.append((m.group(1), int(m.group(2))))
     ids = sorted({i for _, i in entries})
-    print(f"{len(entries)} Einträge, {len(ids)} verschiedene IDs")
+    print(f"{len(entries)} entries, {len(ids)} distinct IDs")
 
     thumbs = thumbnails(ids)
     infos = {i: details(i) for i in ids}
@@ -131,7 +131,7 @@ def main():
     for name, asset_id in entries:
         info = infos.get(asset_id)
         type_id = info.get("AssetTypeId") if info else None
-        type_name = TYPE_NAME.get(type_id, str(type_id)) if info else "unbekannt"
+        type_name = TYPE_NAME.get(type_id, str(type_id)) if info else "unknown"
         state = thumbs.get(asset_id, "?")
         note = ""
         if type_id == 13:
@@ -140,24 +140,24 @@ def main():
             img, how = mapping[asset_id]
             note = f"Image-ID {img} ({how})" if img else f"Image-ID {how}"
         elif info is None:
-            note = "Details nicht abrufbar"
+            note = "details not available"
         elif state == "Pending":
-            note = "in Moderation"
+            note = "in moderation"
         elif state == "Blocked":
-            note = "abgelehnt"
+            note = "rejected"
         rows.append((name, asset_id, type_name, state, (info or {}).get("Name", ""), note))
 
     lines = [
-        "# Asset-ID-Prüfung",
+        "# Asset ID check",
         "",
-        "| Name | ID | Typ | Vorschau | Roblox-Name | Hinweis |",
+        "| Name | ID | Type | Thumbnail | Roblox name | Note |",
         "|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append("| " + " | ".join(str(x) for x in r) + " |")
     decals = [r for r in rows if r[2] == "Decal"]
     problems = [r for r in rows if r[2] != "Image" or r[3] not in ("Completed", "?")]
-    lines += ["", f"Decal-IDs: {len(decals)} · Auffällig gesamt: {len(problems)} von {len(rows)}"]
+    lines += ["", f"Decal IDs: {len(decals)} · flagged in total: {len(problems)} of {len(rows)}"]
     report = "\n".join(lines) + "\n"
     print(report)
     if report_path:
@@ -175,7 +175,7 @@ def main():
         if changed:
             with open(ASSETS, "w", encoding="utf-8") as f:
                 f.write(src)
-        print(f"--fix: {changed} Stellen ersetzt")
+        print(f"--fix: {changed} occurrences replaced")
 
 
 if __name__ == "__main__":

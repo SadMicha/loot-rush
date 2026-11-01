@@ -1,8 +1,8 @@
 --!strict
--- Loot-Objekte aus Parts (Konzept: Geschenkbox in Seltenheitsfarbe, Münze, Splitter,
--- Runen-Bonbon). Alle klein (≈ 1,5 Studs), ohne Kollision und per Kit.rig beweglich:
--- verankert ist nur das Teil „Kern“ (= PrimaryPart), Pivot unten mittig.
--- Bewegen: model:PivotTo(cf) oder Tween auf Kern.CFrame (= Ziel * Kern.PivotOffset:Inverse()).
+-- Loot objects from parts (concept: poison box in rarity color, coin, shard,
+-- Rune Candy). All small (≈ 1.5 studs), no collision and movable via Kit.rig:
+-- only the part "Core" (= PrimaryPart) is anchored, pivot bottom center.
+-- Moving: model:PivotTo(cf) or a tween on Core.CFrame (= target * Core.PivotOffset:Inverse()).
 
 local Kit = require(script.Parent.Kit)
 
@@ -16,16 +16,16 @@ local function v(x: number, y: number, z: number): Vector3
 end
 
 local function done(m: Model, root: BasePart): Model
-	root.Name = "Kern"
-	Kit.finish(m, true, 99) -- winzig: keine Schatten
+	root.Name = "Core"
+	Kit.finish(m, true, 99) -- tiny: no shadows
 	return Kit.rig(m, root)
 end
 
--- Geschenkbox: Körper in `color`, Band und Schleife in Gold (bei goldener Box in Creme).
--- `glow` = Neon-Körper für magisch und besser; normale Items bleiben matt.
+-- Gift box: body in `color`, ribbon and bow in gold (cream for a golden box).
+-- `glow` = neon body for magic and better; normal items stay matte.
 function Loot.giftBox(color: Color3, glow: boolean): Model
 	local m = Instance.new("Model")
-	m.Name = "Geschenkbox"
+	m.Name = "GiftBox"
 	local body = block(
 		m,
 		v(1.3, 1.1, 1.3),
@@ -41,7 +41,7 @@ function Loot.giftBox(color: Color3, glow: boolean): Model
 	block(m, v(0.26, 1.14, 1.34), CFrame.new(0, 0.55, 0), band)
 	block(m, v(1.49, 0.34, 0.28), CFrame.new(0, 1.2, 0), band)
 	block(m, v(0.28, 0.34, 1.49), CFrame.new(0, 1.2, 0), band)
-	-- Schleife: zwei schräge Schlaufen und ein Knoten
+	-- Bow: two slanted loops and a knot
 	for _, sx in { -1, 1 } do
 		block(
 			m,
@@ -54,23 +54,23 @@ function Loot.giftBox(color: Color3, glow: boolean): Model
 	return done(m, body)
 end
 
--- Goldmünze, hochkant (Fläche zeigt entlang Z), mit dunklerem Prägefeld.
+-- Gold coin, upright (face points along Z), with a darker embossed field.
 function Loot.coin(): Model
 	local m = Instance.new("Model")
-	m.Name = "Muenze"
-	local rot = CFrame.Angles(0, math.rad(90), 0) -- Zylinderachse X → Z
+	m.Name = "Coin"
+	local rot = CFrame.Angles(0, math.rad(90), 0) -- cylinder axis X → Z
 	local disc = block(m, v(0.22, 1.2, 1.2), CFrame.new(0, 0.6, 0) * rot, C.gold)
 	disc.Shape = Enum.PartType.Cylinder
 	local face = block(m, v(0.26, 0.8, 0.8), CFrame.new(0, 0.6, 0) * rot, Kit.shade(C.gold, -0.12))
 	face.Shape = Enum.PartType.Cylinder
-	block(m, v(0.18, 0.46, 0.3), CFrame.new(0, 0.6, 0), C.cream) -- Prägung
+	block(m, v(0.18, 0.46, 0.3), CFrame.new(0, 0.6, 0), C.cream) -- embossing
 	return done(m, disc)
 end
 
--- Kristallsplitter: eine große und zwei kleine Neon-Spitzen.
+-- Crystal shard: one large and two small neon spikes.
 function Loot.shard(color: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Splitter"
+	m.Name = "Shard"
 	local tint = color or C.crystal
 	local main = block(
 		m,
@@ -92,10 +92,10 @@ function Loot.shard(color: Color3?): Model
 	return done(m, main)
 end
 
--- Runen-Bonbon (Craft-Material): runde Kugel, zwei gedrehte Papierenden, goldene Rune vorn.
+-- Rune Candy (crafting material): round ball, two twisted paper ends, golden rune in front.
 function Loot.runeCandy(color: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "RunenBonbon"
+	m.Name = "RuneCandy"
 	local tint = color or C.magic
 	local body = ball(m, 1, v(0, 0.55, 0), tint, Enum.Material.Glass)
 	body.Transparency = 0.1

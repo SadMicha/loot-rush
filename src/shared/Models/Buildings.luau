@@ -1,8 +1,8 @@
 --!strict
--- Hub-Gebäude aus Parts mit Ausbaustufen 1–3 (Konzept: Schmiede, Dorf-Gebäude × 3 Stufen).
--- Höhere Stufen bauen auf der niedrigeren auf (gleicher Grundriss, mehr Teile), damit ein
--- Ausbau im Spiel einfach „altes Model weg, neues hin“ ist. Pivot unten mittig,
--- Vorderseite zeigt nach +Z. Feuer/Fenster heißen „Glut“ bzw. „Fenster“ (für spätere FX).
+-- Hub buildings from parts with upgrade levels 1–3 (concept: Forge, village buildings × 3 levels).
+-- Higher levels build on the lower one (same footprint, more parts), so an upgrade
+-- in game is simply "old model out, new one in". Pivot bottom center,
+-- front faces +Z. Fire/windows are named "Ember" and "Window" (for later FX).
 
 local Kit = require(script.Parent.Kit)
 
@@ -19,8 +19,8 @@ local function clampStage(stage: number?): number
 	return math.clamp(math.floor(stage or 1), 1, 3)
 end
 
--- Satteldach über einer Fläche w (X) × d (Z), Traufe auf Höhe y, Neigung 30°.
--- Die Giebeldreiecke vorn/hinten sind gestuft (passt zum Klötzchen-Look).
+-- Gable roof over an area w (X) × d (Z), eaves at height y, 30° pitch.
+-- The gable triangles front/back are stepped (fits the blocky look).
 local function gable(m: Instance, w: number, d: number, y: number, color: Color3, wall: Color3)
 	local a = math.rad(30)
 	local o = 0.8
@@ -51,7 +51,7 @@ end
 
 local function glowWindow(m: Instance, size: Vector3, cf: CFrame)
 	local w = block(m, size, cf, C.cream, Enum.Material.Neon)
-	w.Name = "Fenster"
+	w.Name = "Window"
 	w.Transparency = 0.15
 	block(m, size + v(0.3, 0.3, -0.05), cf * CFrame.new(0, 0, -0.06), C.woodDark)
 	return w
@@ -62,32 +62,32 @@ local function chimney(m: Instance, pos: Vector3, h: number)
 	block(m, v(1.9, 0.4, 1.9), CFrame.new(pos + v(0, h + 0.2, 0)), C.stone)
 	local glow =
 		block(m, v(1, 0.2, 1), CFrame.new(pos + v(0, h + 0.45, 0)), C.ember, Enum.Material.Neon)
-	glow.Name = "Glut"
+	glow.Name = "Ember"
 end
 
--- Schmiede, Grundfläche ca. 16 × 12.
--- 1: Steinboden, Esse, Amboss, Vordach auf zwei Pfosten.
--- 2: + Rückwand und Seitenwände, Satteldach, Schornstein, Wasserfass, Waffenständer.
--- 3: + Goldkanten, großer Blasebalg, Kristall auf dem First, Banner.
+-- Forge, footprint approx. 16 × 12.
+-- 1: stone floor, hearth, anvil, canopy on two posts.
+-- 2: + back and side walls, gable roof, chimney, water barrel, weapon rack.
+-- 3: + gold trim, large bellows, crystal on the ridge, banner.
 function Buildings.forge(stage: number?): Model
 	local s = clampStage(stage)
 	local m = Instance.new("Model")
-	m.Name = "Schmiede" .. s
+	m.Name = "Forge" .. s
 	m:SetAttribute("Stage", s)
 
 	block(m, v(16, 0.8, 12), CFrame.new(0, 0.4, 0), C.stoneDark)
 	block(m, v(15, 0.2, 11), CFrame.new(0, 0.9, 0), C.stone)
 	local floor = 1
 
-	-- Esse hinten links mit Glut und Licht
+	-- Hearth back left with embers and light
 	block(m, v(4.5, 2.6, 3.5), CFrame.new(-4.5, floor + 1.3, -3.2), C.stoneDark)
 	block(m, v(4.9, 0.4, 3.9), CFrame.new(-4.5, floor + 2.8, -3.2), C.stone)
 	local ember =
 		block(m, v(3, 0.4, 2), CFrame.new(-4.5, floor + 2.9, -3), C.fire, Enum.Material.Neon)
-	ember.Name = "Glut"
+	ember.Name = "Ember"
 	Kit.light(ember, C.fire, 18, 2)
 
-	-- Amboss auf Holzklotz
+	-- Anvil on a wooden block
 	block(m, v(1.6, 1.4, 1.6), CFrame.new(2, floor + 0.7, 1), C.woodDark)
 	block(m, v(1, 0.6, 0.8), CFrame.new(2, floor + 1.7, 1), C.metal)
 	block(m, v(2.4, 0.6, 1.1), CFrame.new(2, floor + 2.3, 1), C.metal)
@@ -112,7 +112,7 @@ function Buildings.forge(stage: number?): Model
 	)
 
 	if s == 1 then
-		-- Vordach: zwei Pfosten vorn, schräges Brett nach hinten auf die Esse
+		-- Canopy: two posts in front, slanted board back onto the hearth
 		for _, x in { -6.5, 6.5 } do
 			block(m, v(0.8, 6, 0.8), CFrame.new(x, floor + 3, 4.5), C.woodDark)
 			block(m, v(0.8, 4.5, 0.8), CFrame.new(x, floor + 2.25, -4.5), C.woodDark)
@@ -124,7 +124,7 @@ function Buildings.forge(stage: number?): Model
 			C.wood
 		)
 	else
-		-- Wände: hinten voll, Seiten halb offen nach vorn
+		-- Walls: full at the back, sides half open toward the front
 		block(m, v(15, 6, 0.8), CFrame.new(0, floor + 3, -5.1), C.stone)
 		for _, sx in { -1, 1 } do
 			block(m, v(0.8, 6, 6), CFrame.new(sx * 7.1, floor + 3, -2.5), C.stone)
@@ -135,7 +135,7 @@ function Buildings.forge(stage: number?): Model
 		gable(m, 15.4, 11, floor + 6.6, C.roof, C.wood)
 		chimney(m, v(-4.5, floor + 6.6, -3.2), 6)
 
-		-- Wasserfass rechts vorn
+		-- Water barrel front right
 		local barrel = block(
 			m,
 			v(1.8, 1.8, 1.8),
@@ -152,7 +152,7 @@ function Buildings.forge(stage: number?): Model
 		)
 		water.Shape = Enum.PartType.Cylinder
 
-		-- Waffenständer an der rechten Wand: drei Schwerter
+		-- Weapon rack on the right wall: three swords
 		block(m, v(0.4, 0.4, 4), CFrame.new(6.4, floor + 3.2, -2.5), C.woodDark)
 		for i = -1, 1 do
 			block(m, v(0.15, 2.6, 0.4), CFrame.new(6.2, floor + 2.3, -2.5 + i * 1.3), C.stoneLight)
@@ -161,12 +161,12 @@ function Buildings.forge(stage: number?): Model
 	end
 
 	if s == 3 then
-		-- Goldkanten an Traufe und Pfosten
+		-- Gold trim on eaves and posts
 		block(m, v(15.6, 0.25, 0.9), CFrame.new(0, floor + 5.7, 5), C.gold)
 		for _, sx in { -1, 1 } do
 			block(m, v(1.15, 0.3, 1.15), CFrame.new(sx * 7.1, floor + 0.15, 5), C.gold)
 		end
-		-- Blasebalg neben der Esse
+		-- Bellows next to the hearth
 		block(
 			m,
 			v(2.2, 0.9, 1.6),
@@ -180,7 +180,7 @@ function Buildings.forge(stage: number?): Model
 			C.dirt
 		)
 		block(m, v(0.8, 0.8, 1.2), CFrame.new(-1.4, floor + 0.6, -3.4), C.stoneDark)
-		-- Kristall auf dem First
+		-- Crystal on the ridge
 		local ridgeY = floor + 6.6 + (15.4 / 2) * math.tan(math.rad(30)) + 0.9
 		local gem = block(
 			m,
@@ -190,7 +190,7 @@ function Buildings.forge(stage: number?): Model
 			Enum.Material.Neon
 		)
 		Kit.light(gem, C.crystal, 14, 1)
-		-- Banner vorn am linken Pfosten
+		-- Banner in front on the left post
 		block(m, v(1.6, 2.6, 0.12), CFrame.new(-6.2, floor + 3.6, 5.56), C.roofDark)
 		block(
 			m,
@@ -203,14 +203,14 @@ function Buildings.forge(stage: number?): Model
 	return Kit.finish(m, false, 1.5)
 end
 
--- Dorfhaus, Grundfläche ca. 10 × 10.
--- 1: Holzhütte mit Satteldach, Tür, zwei leuchtenden Fenstern.
--- 2: + Steinsockel, Schornstein, Blumenkästen, Stufe vor der Tür.
--- 3: + Obergeschoss mit Balkon, Goldkanten, Fahne.
+-- Village house, footprint approx. 10 × 10.
+-- 1: wooden hut with gable roof, door, two glowing windows.
+-- 2: + stone base, chimney, flower boxes, step in front of the door.
+-- 3: + upper floor with balcony, gold trim, flag.
 function Buildings.house(stage: number?): Model
 	local s = clampStage(stage)
 	local m = Instance.new("Model")
-	m.Name = "Dorfhaus" .. s
+	m.Name = "House" .. s
 	m:SetAttribute("Stage", s)
 
 	local base = 0
@@ -222,7 +222,7 @@ function Buildings.house(stage: number?): Model
 
 	local wallH = 5
 	block(m, v(8.6, wallH, 8.6), CFrame.new(0, base + wallH / 2, 0), C.wood)
-	-- Eckbalken
+	-- Corner beams
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			block(
@@ -233,7 +233,7 @@ function Buildings.house(stage: number?): Model
 			)
 		end
 	end
-	-- Tür
+	-- Door
 	block(m, v(2, 3.4, 0.3), CFrame.new(0, base + 1.7, 4.4), C.woodDark)
 	block(m, v(0.3, 0.3, 0.2), CFrame.new(0.6, base + 1.7, 4.6), C.gold)
 	for _, sx in { -1, 1 } do
@@ -256,7 +256,7 @@ function Buildings.house(stage: number?): Model
 
 	local roofY = base + wallH
 	if s == 3 then
-		-- Obergeschoss etwas schmaler, Balkon über der Tür
+		-- Upper floor slightly narrower, balcony above the door
 		block(m, v(9.2, 0.6, 9.2), CFrame.new(0, roofY + 0.3, 0), C.woodDark)
 		local upper = 3.6
 		block(m, v(7.6, upper, 7.6), CFrame.new(0, roofY + 0.6 + upper / 2, 0), C.cream)

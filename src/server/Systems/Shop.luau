@@ -1,9 +1,9 @@
 --!strict
--- Shop auf dem Server: prüft Ingame-Käufe (Shared.Shop.check), bucht Preis ab und schreibt die Ware gut.
--- Der Client schickt nur die Angebots-ID (Net.Buy) und bekommt eine Rückmeldung (Net.ShopResult).
--- Bestände, die kein anderes System zeigt, stehen als Player-Attribute bereit: "Potions", "Soulstars".
+-- Shop on the server: checks in-game purchases (Shared.Shop.check), deducts the price and credits the goods.
+-- The client only sends the offer ID (Net.Buy) and gets feedback (Net.ShopResult).
+-- Stocks no other system shows are available as player attributes: "Soulstars".
 --
--- Robux-Käufe (ProcessReceipt, Gamepässe) verbucht Systems/Monetization über Shop.grant.
+-- Robux purchases (ProcessReceipt, game passes) are booked by Systems/Monetization via Shop.grant.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,12 +26,12 @@ local function reply(player: Player, ok: boolean, text: string, offerId: string?
 	Net.ShopResult:FireClient(player, { ok = ok, text = text, offerId = offerId })
 end
 
--- Anzeigename einer Bestandsart ("gold" → "Gold")
+-- Display name of a stock kind ("gold" → "Gold")
 function Shop.nameOf(kind: string): string
 	return Rules.KindName[kind] or kind
 end
 
--- Bestände für Shared.Shop.check
+-- Stocks for Shared.Shop.check
 function Shop.wallet(player: Player): Rules.Wallet?
 	local profile = Data.get(player)
 	if not profile then
@@ -40,14 +40,13 @@ function Shop.wallet(player: Player): Rules.Wallet?
 	return {
 		gold = profile.gold,
 		soulstars = profile.soulstars,
-		potions = profile.potions,
 		candy = profile.materials.candy,
 		shards = profile.materials.shards,
 		dust = profile.materials.dust,
 	}
 end
 
--- Bestand ändern (negativ = abbuchen, nie unter 0) und dem Client zeigen
+-- Change stock (negative = deduct, never below 0) and show it to the client
 function Shop.grant(player: Player, kind: string, amount: number)
 	local profile = Data.get(player)
 	if not profile then
@@ -58,10 +57,6 @@ function Shop.grant(player: Player, kind: string, amount: number)
 	elseif MATERIAL[kind] then
 		Progress.addMaterials(player, { [kind] = amount })
 		Progress.sync(player)
-	elseif kind == "potions" then
-		local max = Rules.Max.potions
-		profile.potions = math.clamp(profile.potions + math.floor(amount), 0, max)
-		player:SetAttribute("Potions", profile.potions)
 	elseif kind == "soulstars" then
 		profile.soulstars = math.max(0, profile.soulstars + math.floor(amount))
 		player:SetAttribute("Soulstars", profile.soulstars)
@@ -82,7 +77,7 @@ local function onBuy(player: Player, offerId: any)
 	local ok, why = Rules.check(offer, wallet, best)
 	local price = Rules.price(offer, best)
 	if not ok or not price then
-		reply(player, false, why or "Geht nicht", offerId)
+		reply(player, false, why or "Not possible", offerId)
 		return
 	end
 	local amount = Rules.amount(offer, best)
@@ -94,7 +89,6 @@ end
 local function onPlayer(player: Player)
 	local profile = Data.waitFor(player)
 	if profile then
-		player:SetAttribute("Potions", profile.potions)
 		player:SetAttribute("Soulstars", profile.soulstars)
 	end
 end

@@ -1,8 +1,8 @@
 --!strict
--- Messung für Balancing und Performance (M5).
---  • Lauf-Berichte: Dauer, Kills, erlittener Schaden, Level-Gewinn pro Rift-Abschnitt (Output + workspace "LastReport")
---  • Server-Gesundheit: einmal pro Sekunde als workspace-Attribute (ServerFrameMs, ServerSendKbps, ServerEnemies)
--- Rift ruft begin() / report(); der Rest kommt über Combat-Events und Heartbeat.
+-- Metrics for balancing and performance (M5).
+--  • Run reports: duration, kills, damage taken, levels gained per Rift section (Output + workspace "LastReport")
+--  • Server health: once per second as workspace attributes (ServerFrameMs, ServerSendKbps, ServerEnemies)
+-- Rift calls begin() / report(); the rest comes via combat events and Heartbeat.
 
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
@@ -22,14 +22,14 @@ type Window = {
 
 local Metrics = {}
 
-local SAMPLE = 1 -- Sekunden zwischen Server-Messungen
+local SAMPLE = 1 -- seconds between server samples
 
 local window: Window? = nil
 local frames = 0
 local frameSum = 0
 local frameMax = 0
 
--- Stats-Werte sind nicht überall verfügbar → defensiv lesen
+-- Stats values are not available everywhere → read defensively
 local function stat(name: string): number?
 	local ok, value = pcall(function()
 		return (Stats :: any)[name]
@@ -40,7 +40,7 @@ local function stat(name: string): number?
 	return nil
 end
 
--- Neuer Messabschnitt (Rift-Start, nächste Tiefe)
+-- New measurement section (Rift start, next depth)
 function Metrics.begin(player: Player)
 	window = {
 		player = player,
@@ -53,7 +53,7 @@ function Metrics.begin(player: Player)
 	}
 end
 
--- Schließt den Abschnitt ab: Zeile in den Output und ins workspace-Attribut "LastReport"
+-- Closes the section: a line in the Output and in the workspace attribute "LastReport"
 function Metrics.report(label: string)
 	local w = window
 	if not w then
@@ -62,7 +62,7 @@ function Metrics.report(label: string)
 	window = nil
 	local level = (w.player:GetAttribute("Level") or w.level) :: number
 	local line = string.format(
-		"%s · %d s · %d Kills · %d Schaden (%d Treffer) · Level %d→%d · Gegner max %d",
+		"%s · %d s · %d kills · %d damage (%d hits) · level %d→%d · enemies max %d",
 		label,
 		math.floor(os.clock() - w.startedAt + 0.5),
 		w.kills,
@@ -72,7 +72,7 @@ function Metrics.report(label: string)
 		level,
 		w.peak
 	)
-	print("[LootRush][Messung] " .. line)
+	print("[LootRush][Metrics] " .. line)
 	workspace:SetAttribute("LastReport", line)
 end
 

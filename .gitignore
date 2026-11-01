@@ -10,6 +10,6 @@ sourcemap.json
 .DS_Store
 Thumbs.db
 
-# Prüf-Werkzeuge (tools/setup.sh) und deren Ausgaben
+# Check tools (tools/setup.sh) and their output
 .tools/
 node_modules/

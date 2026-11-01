@@ -1,6 +1,6 @@
--- Rauchtest: Server und Client starten ohne Fehler, der Server schickt das Inventar.
-describe("Spielstart", function()
-	it("läuft 5 Sekunden ohne Laufzeitfehler", function()
+-- Smoke test: server and client start without errors, the server sends the inventory.
+describe("Game start", function()
+	it("runs 5 seconds without runtime errors", function()
 		sim:boot({ seconds = 5 })
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")
@@ -8,13 +8,13 @@ describe("Spielstart", function()
 		expect(sim.player:GetAttribute("Level")).toBe(1)
 	end)
 
-	it("baut HUD und Inventar im PlayerGui", function()
+	it("builds HUD and inventory in the PlayerGui", function()
 		local gui = sim.player:FindFirstChild("PlayerGui")
 		expect(gui:FindFirstChild("LootRushHUD")).never.toBeNil()
 		expect(gui:FindFirstChild("LootRushInventory")).never.toBeNil()
 	end)
 
-	it("Server schickt das Inventar an den Client", function()
+	it("server sends the inventory to the client", function()
 		local sent = false
 		for _, n in sim.netLog do
 			if n.name == "Inv" and n.dir == "S→C" then

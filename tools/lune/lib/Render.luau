@@ -1,7 +1,7 @@
 --!nocheck
--- Rendert den UI-Baum als HTML (absolut positionierte Divs mit den berechneten Layout-Rechtecken).
--- Bilder kommen aus lokalen PNG-Ordnern (Name aus Assets.luau → Datei <name>.png),
--- sonst steht ein beschrifteter Platzhalter da. 9-Slice wird per CSS border-image nachgebaut.
+-- Renders the UI tree as HTML (absolutely positioned divs with the computed layout rectangles).
+-- Images come from local PNG folders (name from Assets.luau → file <name>.png),
+-- otherwise a labeled placeholder is shown. 9-slice is rebuilt via CSS border-image.
 
 local fs = require("@lune/fs")
 local roblox = require("@lune/roblox")
@@ -31,9 +31,9 @@ local function px(n: number): string
 end
 
 -------------------------------------------------------------------------------
--- Bildquellen
+-- Image sources
 
--- Asset-ID → Name aus allen ModuleScripts (z. B. Assets.luau: `window_main = table.freeze({ id = "rbxassetid://…"`)
+-- Asset ID → name from all ModuleScripts (e.g. Assets.luau: `window_main = table.freeze({ id = "rbxassetid://…"`)
 function Render.assetNames(placeRoot): { [string]: string }
 	local names = {}
 	for _, d in placeRoot:GetDescendants() do
@@ -70,7 +70,7 @@ local function versionOf(path: string): number
 	return tonumber(path:match("_v(%d+)")) or 0
 end
 
--- Name → PNG-Pfad; bei Doppelten gewinnt der neueste Upload-Ordner (…_v7 vor …_v3)
+-- Name → PNG path; for duplicates the newest upload folder wins (…_v7 before …_v3)
 function Render.indexImages(dirs: { string }): { [string]: string }
 	local files = {}
 	for _, dir in dirs do
@@ -132,7 +132,7 @@ local function resolveImage(src: ImageSource, image: string)
 end
 
 -------------------------------------------------------------------------------
--- Elemente
+-- Elements
 
 local function fontCss(n): string
 	local family, weight = "Nunito", 400
@@ -554,7 +554,7 @@ function Render.page(sb, src: ImageSource, title: string, findings): string
 		)
 	end
 	return table.concat({
-		"<!doctype html><html lang=de><head><meta charset=utf-8><title>",
+		"<!doctype html><html lang=en><head><meta charset=utf-8><title>",
 		esc(title),
 		"</title>",
 		'<link rel="preconnect" href="https://fonts.googleapis.com">',
@@ -566,12 +566,9 @@ function Render.page(sb, src: ImageSource, title: string, findings): string
 		esc(title),
 		"</b>",
 		string.format("<span>%d×%d</span>", vw, vh),
-		'<label><input type=checkbox id="cb-outline"> Umrisse</label>',
-		'<label><input type=checkbox id="cb-issues" checked> Probleme markieren</label>',
-		string.format(
-			'<label><input type=checkbox id="cb-showlist"> Liste (%d)</label>',
-			#findings
-		),
+		'<label><input type=checkbox id="cb-outline"> Outlines</label>',
+		'<label><input type=checkbox id="cb-issues" checked> Mark issues</label>',
+		string.format('<label><input type=checkbox id="cb-showlist"> List (%d)</label>', #findings),
 		"</div>",
 		string.format('<div id="stage" style="width:%dpx;height:%dpx">', vw, vh),
 		table.concat(out),

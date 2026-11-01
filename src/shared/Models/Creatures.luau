@@ -1,9 +1,9 @@
 --!strict
--- Gegner aus Parts (Konzept: Archetypen, je Biom nur umgefärbt). Bosse sind dieselben Bauten,
--- größer skaliert und mit Krone (Creatures.crown). Anders als Requisiten liegt der
--- Pivot hier in der Körpermitte (PrimaryPart = „Koerper“, 1,5 × s über dem Boden), weil
--- Systems/Enemies die Modelle über :PivotTo hüpfen und drehen lässt. Blickrichtung ist −Z
--- (wie bei CFrame.lookAt). Alle Teile verankert und ohne Kollision.
+-- Enemies from parts (concept: archetypes, only recolored per biome). Bosses are the same builds,
+-- scaled up and with a crown (Creatures.crown). Unlike props, the
+-- pivot here sits in the body center (PrimaryPart = "Body", 1.5 × s above the ground), because
+-- Systems/Enemies hops and turns the models via :PivotTo. Facing direction is −Z
+-- (as with CFrame.lookAt). All parts anchored and without collision.
 
 local Kit = require(script.Parent.Kit)
 
@@ -19,7 +19,7 @@ local function v(x: number, y: number, z: number): Vector3
 end
 
 local function done(m: Model, body: BasePart): Model
-	body.Name = "Koerper"
+	body.Name = "Body"
 	for _, d in m:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.CanCollide = false
@@ -30,11 +30,11 @@ local function done(m: Model, body: BasePart): Model
 	return m
 end
 
--- Kristallschleim (Archetyp Schwarm): Glas-Kugel, Neon-Kern, Kristallspitze, zwei Augen.
--- Der Kristallkönig ist derselbe Bau mit s = 3 und anderen Farben.
+-- Crystal slime (archetype swarm): glass sphere, neon core, crystal spike, two eyes.
+-- The Crystal King is the same build with s = 3 and different colors.
 function Creatures.slime(s: number, color: Color3, core: Color3, ink: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Schleim"
+	m.Name = "Slime"
 	local eye = ink or C.ink
 	local o = v(0, Creatures.BODY_Y, 0) * s
 	local body = block(m, Vector3.one * 3.4 * s, CFrame.new(o), color, Enum.Material.Glass)
@@ -65,11 +65,11 @@ function Creatures.slime(s: number, color: Color3, core: Color3, ink: Color3?): 
 	return done(m, body)
 end
 
--- Stachelkäfer (Sonnenwiese, Archetyp Lader): flacher Panzer aus zwei Deckflügeln,
--- Neon-Stacheln auf dem Rücken, Kopf mit Zangen, sechs Beine.
+-- Spike beetle (sun meadow, archetype charger): flat shell of two wing cases,
+-- neon spikes on the back, head with pincers, six legs.
 function Creatures.beetle(s: number, color: Color3?, spikes: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Stachelkaefer"
+	m.Name = "SpikeBeetle"
 	local shell = color or Color3.fromHex("#E0A030")
 	local glow = spikes or C.ember
 	local o = v(0, Creatures.BODY_Y, 0) * s
@@ -78,7 +78,7 @@ function Creatures.beetle(s: number, color: Color3?, spikes: Color3?): Model
 	end
 
 	local body = block(m, v(2.6, 1.2, 3.4) * s, at(0, -0.2, 0.2), Kit.shade(shell, -0.35))
-	-- Deckflügel, leicht nach außen gekippt, mit Mittelnaht
+	-- Wing cases, tilted slightly outward, with a center seam
 	for _, sx in { -1, 1 } do
 		block(
 			m,
@@ -88,7 +88,7 @@ function Creatures.beetle(s: number, color: Color3?, spikes: Color3?): Model
 		)
 	end
 	block(m, v(0.2, 0.3, 3.5) * s, at(0, 0.95, 0.3), C.ink)
-	-- Stacheln: zwei Reihen nach oben/hinten
+	-- Spikes: two rows pointing up/back
 	for i = 0, 2 do
 		for _, sx in { -1, 1 } do
 			block(
@@ -102,7 +102,7 @@ function Creatures.beetle(s: number, color: Color3?, spikes: Color3?): Model
 			)
 		end
 	end
-	-- Kopf, Augen, Zangen
+	-- Head, eyes, pincers
 	block(m, v(1.8, 1, 1.2) * s, at(0, -0.1, -1.9), Kit.shade(shell, -0.45))
 	for _, sx in { -1, 1 } do
 		block(m, v(0.35, 0.35, 0.1) * s, at(0.45 * sx, 0.1, -2.52), C.cream, Enum.Material.Neon)
@@ -113,7 +113,7 @@ function Creatures.beetle(s: number, color: Color3?, spikes: Color3?): Model
 			C.ink
 		)
 	end
-	-- Beine: drei Paare, schräg zum Boden
+	-- Legs: three pairs, slanted to the ground
 	for i = -1, 1 do
 		for _, sx in { -1, 1 } do
 			block(
@@ -135,7 +135,7 @@ end
 
 local function cylinder(
 	m: Model,
-	size: Vector3, -- X = Länge entlang der Achse
+	size: Vector3, -- X = length along the axis
 	cf: CFrame,
 	color: Color3,
 	material: Enum.Material?
@@ -145,7 +145,7 @@ local function cylinder(
 	return p
 end
 
--- Lokales Koordinatensystem um die Körpermitte: at(x, y, z) in Einheiten von s
+-- Local coordinate system around the body center: at(x, y, z) in units of s
 local function frame(s: number): (number, number, number) -> CFrame
 	local o = v(0, Creatures.BODY_Y, 0) * s
 	return function(x: number, y: number, z: number): CFrame
@@ -167,11 +167,11 @@ local function eyes(
 	end
 end
 
--- Kristallkrabbe (Kristallhöhlen, Archetyp Tank): breiter flacher Panzer mit Kristallen,
--- zwei große Scheren vorne, Stielaugen, sechs Beine.
+-- Crystal crab (Crystal Caves, archetype tank): wide flat shell with crystals,
+-- two large claws in front, eye stalks, six legs.
 function Creatures.crab(s: number, color: Color3?, crystal: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Kristallkrabbe"
+	m.Name = "CrystalCrab"
 	local shell = color or Color3.fromHex("#5A6FD0")
 	local glow = crystal or C.crystal
 	local at = frame(s)
@@ -188,10 +188,10 @@ function Creatures.crab(s: number, color: Color3?, crystal: Color3?): Model
 		)
 	end
 	for _, sx in { -1, 1 } do
-		-- Stielaugen
+		-- Eye stalks
 		block(m, v(0.2, 0.8, 0.2) * s, at(0.5 * sx, 0.8, -1.2), C.ink)
 		ball(m, Vector3.one * 0.45 * s, at(0.5 * sx, 1.3, -1.2), C.cream, Enum.Material.Neon)
-		-- Scheren: Arm + zwei Backen
+		-- Claws: arm + two jaws
 		block(
 			m,
 			v(0.5, 0.5, 1.4) * s,
@@ -218,11 +218,11 @@ function Creatures.crab(s: number, color: Color3?, crystal: Color3?): Model
 	return done(m, body)
 end
 
--- Fledermaus-Lampion (Kristallhöhlen, Archetyp Fernkämpfer): schwebende Papierlaterne mit
--- Glutkern, Fledermausflügeln und -ohren.
+-- Bat lantern (Crystal Caves, archetype ranged): floating paper lantern with
+-- an ember core, bat wings and ears.
 function Creatures.lantern(s: number, color: Color3?, glow: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "FledermausLampion"
+	m.Name = "BatLantern"
 	local paper = color or Color3.fromHex("#C8553D")
 	local light = glow or Color3.fromHex("#FFC24A")
 	local at = frame(s)
@@ -256,10 +256,10 @@ function Creatures.lantern(s: number, color: Color3?, glow: Color3?): Model
 	return done(m, body)
 end
 
--- Splitterwurm (Boss Kristallhöhlen): Kopf mit Kiefern, dahinter Körperringe mit Kristallen.
+-- Shard Worm (boss Crystal Caves): head with jaws, body rings with crystals behind it.
 function Creatures.worm(s: number, color: Color3?, crystal: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Splitterwurm"
+	m.Name = "ShardWorm"
 	local skin = color or Color3.fromHex("#6B4FB0")
 	local glow = crystal or C.crystal
 	local at = frame(s)
@@ -295,10 +295,10 @@ function Creatures.worm(s: number, color: Color3?, crystal: Color3?): Model
 	return done(m, body)
 end
 
--- Sporenfrosch (Pilzsumpf, Archetyp Lader): gedrungen, Pilzhut auf dem Kopf, große Augen.
+-- Spore frog (Mushroom Swamp, archetype charger): stocky, mushroom cap on its head, big eyes.
 function Creatures.frog(s: number, color: Color3?, cap: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Sporenfrosch"
+	m.Name = "SporeFrog"
 	local skin = color or Color3.fromHex("#6FA83A")
 	local hat = cap or Color3.fromHex("#E85AA8")
 	local at = frame(s)
@@ -318,10 +318,10 @@ function Creatures.frog(s: number, color: Color3?, cap: Color3?): Model
 	return done(m, body)
 end
 
--- Giftschnecke (Pilzsumpf, Archetyp Beschwörer): langer Fuß, Haus mit Neon-Spirale, Fühler.
+-- Poison snail (Mushroom Swamp, archetype summoner): long foot, shell with neon spiral, feelers.
 function Creatures.snail(s: number, color: Color3?, shell: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Giftschnecke"
+	m.Name = "PoisonSnail"
 	local foot = color or Color3.fromHex("#9ED84A")
 	local house = shell or Color3.fromHex("#8A4FC8")
 	local at = frame(s)
@@ -342,10 +342,10 @@ function Creatures.snail(s: number, color: Color3?, shell: Color3?): Model
 	return done(m, body)
 end
 
--- Sporenmutter (Boss Pilzsumpf): Riesenpilz mit Gesicht am Stiel und leuchtenden Punkten.
+-- Spore Mother (boss Mushroom Swamp): giant mushroom with a face on the stem and glowing dots.
 function Creatures.mushroom(s: number, color: Color3?, cap: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Sporenmutter"
+	m.Name = "SporeMother"
 	local stem = color or C.cream
 	local hat = cap or Color3.fromHex("#E85AA8")
 	local at = frame(s)
@@ -375,7 +375,7 @@ function Creatures.mushroom(s: number, color: Color3?, cap: Color3?): Model
 	return done(m, body)
 end
 
--- Toast-Golem (Feuerwüste, Archetyp Tank): Toastscheibe mit Kruste, Arme, Glutaugen, Butterstück.
+-- Toast golem (Fire Desert, archetype tank): slice of toast with crust, arms, ember eyes, butter pat.
 function Creatures.golem(s: number, color: Color3?, glow: Color3?): Model
 	local m = Instance.new("Model")
 	m.Name = "ToastGolem"
@@ -402,11 +402,11 @@ function Creatures.golem(s: number, color: Color3?, glow: Color3?): Model
 	return done(m, body)
 end
 
--- Funkenwicht (Feuerwüste, Archetyp Fernkämpfer/Schwarm): schwebende Glutkugel mit Hörnern
--- und Flammenschopf.
+-- Spark imp (Fire Desert, archetype ranged/swarm): floating ember ball with horns
+-- and a flame tuft.
 function Creatures.imp(s: number, color: Color3?, flame: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Funkenwicht"
+	m.Name = "SparkImp"
 	local skin = color or Color3.fromHex("#C8402A")
 	local fire = flame or Color3.fromHex("#FFC24A")
 	local at = frame(s)
@@ -440,10 +440,10 @@ function Creatures.imp(s: number, color: Color3?, flame: Color3?): Model
 	return done(m, body)
 end
 
--- Windgeist (Himmelsinseln, Archetyp Fernkämpfer): Wolkenbausch mit Wirbelschweif.
+-- Wind spirit (Sky Islands, archetype ranged): cloud puff with a swirling tail.
 function Creatures.wisp(s: number, color: Color3?, glow: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Windgeist"
+	m.Name = "WindSpirit"
 	local cloud = color or Color3.fromHex("#F2F8FF")
 	local light = glow or Color3.fromHex("#9CE5FF")
 	local at = frame(s)
@@ -464,10 +464,10 @@ function Creatures.wisp(s: number, color: Color3?, glow: Color3?): Model
 	return done(m, body)
 end
 
--- Wächterstatue (Himmelsinseln, Archetyp Tank): Steinsockel, Rumpf, Kopf mit Neon-Auge, Schild.
+-- Guardian statue (Sky Islands, archetype tank): stone base, torso, head with neon eye, shield.
 function Creatures.statue(s: number, color: Color3?, glow: Color3?): Model
 	local m = Instance.new("Model")
-	m.Name = "Waechterstatue"
+	m.Name = "GuardianStatue"
 	local stone = color or C.stoneLight
 	local light = glow or C.crystal
 	local at = frame(s)
@@ -488,7 +488,7 @@ function Creatures.statue(s: number, color: Color3?, glow: Color3?): Model
 	return done(m, body)
 end
 
--- Krone für Bosse: auf das fertige Modell setzen (Höhe `y` über der Körpermitte, in Einheiten von s)
+-- Crown for bosses: put on the finished model (height `y` above the body center, in units of s)
 function Creatures.crown(m: Model, s: number, y: number, color: Color3?): Model
 	local body = m.PrimaryPart :: BasePart
 	local at = body.CFrame * CFrame.new(0, y * s, 0)

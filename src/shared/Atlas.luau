@@ -1,14 +1,14 @@
 --!strict
--- Atlas der Gebiete nach Mockup „Atlas“. Jedes Gebiet ist ein eigenes Rift: es startet auf
--- `depth` (absolute Rift-Tiefe, skaliert die Gegner) und würfelt seine Wellen aus `enemies`
--- (Schlüssel aus Systems/Enemies, doppelte Einträge = häufiger). `pos` in Design-Pixeln der
--- Kartenfläche (1060×790), `next` = Pfade zu Folgegebieten (gepunktete Linien).
--- Freischalten: Ein Gebiet ist offen, sobald in einem Vorgänger (Gebiet mit Pfad hierher)
--- Tiefe `depth − 1` geschafft ist. Die Bestwerte je Gebiet speichert der Spielstand (atlas).
+-- Atlas of the regions per the "Atlas" mockup. Every region is its own Rift: it starts at
+-- `depth` (absolute Rift depth, scales the enemies) and rolls its waves from `enemies`
+-- (keys from Systems/Enemies, duplicate entries = more frequent). `pos` in design pixels of the
+-- map area (1060×790), `next` = paths to follow-up regions (dotted lines).
+-- Unlocking: a region is open as soon as depth `depth − 1` is cleared in a predecessor
+-- (region with a path here). The save stores the best values per region (atlas).
 
 export type Mod = { icon: string, text: string }
--- Echte Gebiets-Boni (Anteile, 0.1 = +10 %): gold = Gold je Drop, xp = Erfahrung je Gegner,
--- items = Chance auf Item-Drops. Fehlt ein Feld, gibt es keinen Bonus.
+-- Real region bonuses (shares, 0.1 = +10 %): gold = gold per drop, xp = XP per enemy,
+-- items = chance of item drops. A missing field means no bonus.
 export type Bonus = { gold: number?, xp: number?, items: number? }
 export type Region = {
 	id: string,
@@ -21,10 +21,10 @@ export type Region = {
 	pos: Vector2,
 	color: Color3,
 	next: { string },
-	depth: number, -- Start-Tiefe des Rifts
-	enemies: { string }, -- Gegner-Mix der Wellen
-	bossKind: string, -- Boss am Ende jeder Tiefe
-	tint: Color3, -- Grundfarbe des Gebiets (Arena-Look: Systems/World)
+	depth: number, -- starting depth of the Rift
+	enemies: { string }, -- enemy mix of the waves
+	bossKind: string, -- boss at the end of every depth
+	tint: Color3, -- base color of the region (arena look: Systems/World)
 	bonus: Bonus,
 	rewards: { { icon: string, rarity: string } },
 }
@@ -39,152 +39,155 @@ end
 
 Atlas.Regions = table.freeze({
 	region({
-		id = "gruene_ebenen",
-		name = "Grüne Ebenen",
+		id = "green_plains",
+		name = "Green Plains",
 		levels = "1–10",
-		boss = "Kristallkönig",
-		bossIcon = "krone",
+		boss = "Crystal King",
+		bossIcon = "crown",
 		mods = {
-			{ icon = "leben", text = "Sanfte Wiesen" },
+			{ icon = "life", text = "Gentle Meadows" },
 			{ icon = "gold", text = "+10 % Gold" },
 		},
-		desc = "Weite Wiesen mit Wasserfällen. Hier sammeln sich die Kristallschleime – "
-			.. "der perfekte Ort für den ersten Lauf.",
+		desc = "Wide meadows with waterfalls. Crystal slimes gather here - "
+			.. "the perfect place for your first run.",
 		pos = Vector2.new(170, 650),
 		color = Color3.fromHex("#7FD96A"),
-		next = { "kristallhoehlen", "pilzsumpf" },
+		next = { "crystal_caves", "mushroom_swamp" },
 		depth = 1,
 		enemies = { "slime", "slime", "slime", "beetle" },
-		bossKind = "kristallkoenig",
+		bossKind = "crystal_king",
 		tint = Color3.fromHex("#FFE9B0"),
 		bonus = { gold = 0.1 },
 		rewards = {
-			{ icon = "slot_helm", rarity = "magic" },
+			{ icon = "slot_helmet", rarity = "magic" },
 			{ icon = "slot_ring", rarity = "rare" },
 			{ icon = "gold", rarity = "normal" },
 		},
 	}),
 	region({
-		id = "kristallhoehlen",
-		name = "Kristallhöhlen",
+		id = "crystal_caves",
+		name = "Crystal Caves",
 		levels = "11–20",
-		boss = "Splitterwurm",
-		bossIcon = "kristall",
+		boss = "Shard Worm",
+		bossIcon = "crystal",
 		mods = {
-			{ icon = "eis", text = "Kalte Luft" },
-			{ icon = "kristall", text = "+15 % Beute" },
+			{ icon = "ice", text = "Cold Air" },
+			{ icon = "crystal", text = "+15 % Loot" },
 		},
-		desc = "Leuchtende Höhlen voller Kristalle. Jeder Schritt hallt durch die Tiefe.",
+		desc = "Glowing caves full of crystals. Every step echoes through the depths.",
 		pos = Vector2.new(330, 330),
 		color = Color3.fromHex("#4FD8F5"),
-		next = { "feuerwueste" },
+		next = { "fire_desert" },
 		depth = 6,
 		enemies = { "crab", "crab", "lantern", "lantern", "slime" },
-		bossKind = "splitterwurm",
+		bossKind = "shard_worm",
 		tint = Color3.fromHex("#9FE6FF"),
 		bonus = { items = 0.15 },
 		rewards = {
-			{ icon = "kristall", rarity = "magic" },
-			{ icon = "slot_amulett", rarity = "rare" },
-			{ icon = "eis", rarity = "epic" },
+			{ icon = "crystal", rarity = "magic" },
+			{ icon = "slot_amulet", rarity = "rare" },
+			{ icon = "ice", rarity = "epic" },
 		},
 	}),
 	region({
-		id = "pilzsumpf",
-		name = "Pilzsumpf",
+		id = "mushroom_swamp",
+		name = "Mushroom Swamp",
 		levels = "21–30",
-		boss = "Sporenmutter",
-		bossIcon = "gift",
-		mods = { { icon = "gift", text = "Giftnebel" }, { icon = "heilen", text = "Heilpilze" } },
-		desc = "Ein bunter Sumpf mit Riesenpilzen. Der Nebel ist schön – und giftig.",
+		boss = "Spore Mother",
+		bossIcon = "poison",
+		mods = {
+			{ icon = "poison", text = "Poison Fog" },
+			{ icon = "heal", text = "Healing Shrooms" },
+		},
+		desc = "A colorful swamp with giant mushrooms. The fog is pretty - and poisonous.",
 		pos = Vector2.new(500, 700),
 		color = Color3.fromHex("#B98CFF"),
-		next = { "feuerwueste" },
+		next = { "fire_desert" },
 		depth = 11,
 		enemies = { "frog", "frog", "frog", "snail" },
-		bossKind = "sporenmutter",
+		bossKind = "spore_mother",
 		tint = Color3.fromHex("#E6B8FF"),
 		bonus = {},
 		rewards = {
-			{ icon = "trank_leben", rarity = "magic" },
-			{ icon = "slot_brust", rarity = "rare" },
-			{ icon = "gift", rarity = "epic" },
+			{ icon = "heal", rarity = "magic" },
+			{ icon = "slot_armor", rarity = "rare" },
+			{ icon = "poison", rarity = "epic" },
 		},
 	}),
 	region({
-		id = "feuerwueste",
-		name = "Feuerwüste",
+		id = "fire_desert",
+		name = "Fire Desert",
 		levels = "31–40",
-		boss = "Ofenfürst Krust",
-		bossIcon = "feuer",
+		boss = "Furnace Lord Krust",
+		bossIcon = "fire",
 		mods = {
-			{ icon = "feuer", text = "Lava-Boden" },
-			{ icon = "itemstufe", text = "+25 % Erfahrung" },
+			{ icon = "fire", text = "Lava Floor" },
+			{ icon = "item_level", text = "+25 % XP" },
 		},
-		desc = "Eine endlose Wüste aus flüssigem Stein und flammenden Winden. Nur die Stärksten "
-			.. "überstehen die sengende Hitze.",
+		desc = "An endless desert of molten stone and blazing winds. Only the strongest "
+			.. "survive the searing heat.",
 		pos = Vector2.new(720, 500),
 		color = Color3.fromHex("#FF9A4A"),
-		next = { "himmelsinseln", "veraenderte_welt" },
+		next = { "sky_islands", "altered_world" },
 		depth = 16,
 		enemies = { "imp", "imp", "imp", "golem", "golem" },
-		bossKind = "ofenfuerst",
+		bossKind = "furnace_lord",
 		tint = Color3.fromHex("#FFB27A"),
 		bonus = { xp = 0.25 },
 		rewards = {
-			{ icon = "begleiter", rarity = "unique" },
+			{ icon = "companion", rarity = "unique" },
 			{ icon = "slot_ring", rarity = "rare" },
-			{ icon = "seelenstern", rarity = "epic" },
+			{ icon = "soulstar", rarity = "epic" },
 		},
 	}),
 	region({
-		id = "himmelsinseln",
-		name = "Himmelsinseln",
+		id = "sky_islands",
+		name = "Sky Islands",
 		levels = "41–50",
-		boss = "Wolkenkönigin",
-		bossIcon = "fluegel",
+		boss = "Cloud Queen",
+		bossIcon = "wings",
 		mods = {
-			{ icon = "fluegel", text = "Starker Wind" },
-			{ icon = "truhe", text = "Mehr Truhen" },
+			{ icon = "wings", text = "Strong Wind" },
+			{ icon = "chest", text = "More Chests" },
 		},
-		desc = "Schwebende Inseln über den Wolken, gekrönt von einem alten Schloss.",
+		desc = "Floating islands above the clouds, crowned by an old castle.",
 		pos = Vector2.new(950, 300),
 		color = Color3.fromHex("#9CE5FF"),
 		next = {},
 		depth = 21,
 		enemies = { "wisp", "wisp", "wisp", "statue", "statue" },
-		bossKind = "wolkenkoenigin",
+		bossKind = "cloud_queen",
 		tint = Color3.fromHex("#DDF4FF"),
 		bonus = { items = 0.25 },
 		rewards = {
-			{ icon = "fluegel", rarity = "epic" },
-			{ icon = "slot_amulett", rarity = "unique" },
-			{ icon = "krone", rarity = "legend" },
+			{ icon = "wings", rarity = "epic" },
+			{ icon = "slot_amulet", rarity = "unique" },
+			{ icon = "crown", rarity = "legend" },
 		},
 	}),
 	region({
-		id = "veraenderte_welt",
-		name = "Veränderte Welt",
+		id = "altered_world",
+		name = "Altered World",
 		levels = "51+",
-		boss = "Der Riss",
+		boss = "The Rift",
 		bossIcon = "portal",
 		mods = {
-			{ icon = "portal", text = "Instabile Risse" },
-			{ icon = "pokal", text = "+20 % Gold & Beute" },
+			{ icon = "portal", text = "Unstable Rifts" },
+			{ icon = "trophy", text = "+20 % Gold & Loot" },
 		},
-		desc = "Hinter dem letzten Riss ist nichts mehr, wie es war. Hier zählt nur, wie tief du kommst.",
+		desc = "Beyond the last Rift nothing is as it was. All that counts here is how deep you get.",
 		pos = Vector2.new(940, 680),
 		color = Color3.fromHex("#B98CFF"),
 		next = {},
 		depth = 26,
 		enemies = { "beetle", "lantern", "snail", "golem", "statue", "wisp" },
-		bossKind = "riss",
+		bossKind = "the_rift",
 		tint = Color3.fromHex("#FF8AE0"),
 		bonus = { gold = 0.2, items = 0.2 },
 		rewards = {
 			{ icon = "portal", rarity = "epic" },
-			{ icon = "pokal", rarity = "legend" },
-			{ icon = "seelenstern", rarity = "unique" },
+			{ icon = "trophy", rarity = "legend" },
+			{ icon = "soulstar", rarity = "unique" },
 		},
 	}),
 } :: { Region })
@@ -200,14 +203,14 @@ for _, r in Atlas.Regions do
 	end
 end
 Atlas.ById = table.freeze(byId)
-Atlas.Start = "gruene_ebenen"
+Atlas.Start = "green_plains"
 
--- Gebiete mit Pfad hierher
+-- Regions with a path here
 function Atlas.before(id: string): { string }
 	return before[id] or {}
 end
 
--- best(id) = höchste geschaffte Tiefe im Gebiet id (0 = nie)
+-- best(id) = highest depth cleared in region id (0 = never)
 function Atlas.isOpen(id: string, best: (string) -> number): boolean
 	local r = byId[id]
 	if not r then
@@ -224,7 +227,7 @@ function Atlas.isOpen(id: string, best: (string) -> number): boolean
 	return false
 end
 
--- Attribut am Spieler mit der Bestleistung je Gebiet (setzt Systems/Rift)
+-- Attribute on the player with the best result per region (set by Systems/Rift)
 function Atlas.attr(id: string): string
 	return "AtlasBest_" .. id
 end

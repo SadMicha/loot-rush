@@ -1,7 +1,7 @@
 --!strict
--- Inventar-Fenster nach Mockup „Inventar“ (Taste I oder Menü-Button):
---   links Ausrüstung mit 3D-Figur und Werten, Mitte Raster mit Filter/Sortierung, rechts Details.
--- Zeigt nur den Schnappschuss vom Server (Net.Inv); jede Aktion ist eine Anfrage an den Server.
+-- Inventory window after the "Inventory" mockup (key I or menu button):
+--   left: equipment with 3D figure and stats, center: grid with filter/sorting, right: details.
+-- Only shows the snapshot from the server (Net.Inv); every action is a request to the server.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,30 +20,30 @@ local InventoryController = {}
 local C = Theme.Color
 local player = Players.LocalPlayer
 
-local MAX_ITEMS = 40 -- wie Server (Systems/Inventory)
+local MAX_ITEMS = 40 -- same as server (Systems/Inventory)
 local COLUMNS, CELL, GAP = 6, 76, 8
 local PAD = 28
 
--- Icon je Ausrüstungsplatz (Assets.Icon)
+-- Icon per equipment slot (Assets.Icon)
 local SLOT_ICON: { [string]: string } = {
-	helm = "slot_helm",
-	ruestung = "slot_brust",
-	waffe = "slot_stab",
-	amulett = "slot_amulett",
+	helmet = "slot_helmet",
+	armor = "slot_armor",
+	weapon = "slot_staff",
+	amulet = "slot_amulet",
 	ring = "slot_ring",
 }
 local STAT_ICON: { [string]: string } = {
-	damage = "schwert",
-	life = "leben",
-	crit = "ziel",
+	damage = "sword",
+	life = "life",
+	crit = "target",
 	speed = "skill_dash",
 }
 local STAT_ORDER = { "damage", "life", "crit", "speed" }
 local RESISTANCES = {
-	{ attr = "ResFire", icon = "feuer", color = Color3.fromHex("#F2812B") },
-	{ attr = "ResCold", icon = "eis", color = Color3.fromHex("#4FD8F5") },
-	{ attr = "ResLightning", icon = "blitz", color = Color3.fromHex("#FFD86B") },
-	{ attr = "ResPoison", icon = "gift", color = Color3.fromHex("#7FD96A") },
+	{ attr = "ResFire", icon = "fire", color = Color3.fromHex("#F2812B") },
+	{ attr = "ResCold", icon = "ice", color = Color3.fromHex("#4FD8F5") },
+	{ attr = "ResLightning", icon = "lightning", color = Color3.fromHex("#FFD86B") },
+	{ attr = "ResPoison", icon = "poison", color = Color3.fromHex("#7FD96A") },
 }
 local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4 }
 
@@ -62,10 +62,10 @@ local items: { Items.Item } = {}
 local equipped: { [string]: Items.Item } = {}
 local selected: Items.Item? = nil
 local selectedEquipped = false
-local filter: string? = nil -- nil = alle Plätze
+local filter: string? = nil -- nil = all slots
 local sortByLevel = false
-local rarityFilter: string? = nil -- nil = alle Seltenheiten
-local searchText = "" -- klein geschrieben
+local rarityFilter: string? = nil -- nil = all rarities
+local searchText = "" -- lowercase
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -86,19 +86,16 @@ local function statTotals(list: { [any]: Items.Item }): { [string]: number }
 end
 
 local function fmt(v: number): string
-	local s = if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
-	return (s:gsub("%.", ","))
+	return if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
 end
 
 local function title(parent: GuiObject, text: string)
-	-- upper() kennt keine Umlaute
-	local caps = string.upper(text):gsub("ü", "Ü"):gsub("ö", "Ö"):gsub("ä", "Ä")
-	local t = Kit.label(caps, 20, C.Text, Theme.Font.Title)
+	local t = Kit.label(string.upper(text), 20, C.Text, Theme.Font.Title)
 	t.Position = UDim2.fromOffset(PAD, 22)
 	t.Parent = parent
 end
 
--- ------------------------------------------------------------------ Ausrüstung (links)
+-- ------------------------------------------------------------------ Equipment (left)
 local function refreshViewport()
 	if idleConn then
 		idleConn:Disconnect()
@@ -124,7 +121,7 @@ local function refreshViewport()
 	world.Parent = viewport
 	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
-	-- Idle: sanftes Wiegen und Atmen, solange die Figur sichtbar ist
+	-- Idle: gentle swaying and breathing while the figure is visible
 	local base = clone:GetPivot()
 	local t0 = os.clock()
 	idleConn = RunService.Heartbeat:Connect(function()
@@ -151,8 +148,8 @@ local function renderEquip()
 			child:Destroy()
 		end
 	end
-	local left = { "helm", "ruestung", "waffe" }
-	local right = { "amulett", "ring" }
+	local left = { "helmet", "armor", "weapon" }
+	local right = { "amulet", "ring" }
 	local function place(slot: string, x: number, i: number)
 		local item = equipped[slot]
 		local b = Kit.itemSlot(84, SLOT_ICON[slot], {
@@ -193,7 +190,7 @@ end
 local function buildEquip(parent: Frame)
 	equipPanel = Kit.panel(Vector2.new(440, 760))
 	equipPanel.Parent = parent
-	title(equipPanel, "Ausrüstung")
+	title(equipPanel, "Equipment")
 
 	local lvl = Instance.new("Frame")
 	lvl.BackgroundTransparency = 1
@@ -202,7 +199,7 @@ local function buildEquip(parent: Frame)
 	lvl.AutomaticSize = Enum.AutomaticSize.X
 	lvl.Size = UDim2.fromOffset(0, 26)
 	Kit.list(lvl, Enum.FillDirection.Horizontal, 6)
-	local ic = Kit.icon("itemstufe", 24)
+	local ic = Kit.icon("item_level", 24)
 	ic.LayoutOrder = 1
 	ic.Parent = lvl
 	ilvlLabel = Kit.label("–", 20, C.Gold)
@@ -220,7 +217,7 @@ local function buildEquip(parent: Frame)
 	local glow = Assets.Fixed.stage_glow
 	local ring = Assets.Fixed.stage_ring
 	if glow and ring then
-		-- Bühne: Lichtschein hinter der Figur (läuft zu den Rändern aus), Ring unter den Füßen
+		-- Stage: light glow behind the figure (fades out toward the edges), ring under the feet
 		local back = Instance.new("ImageLabel")
 		back.Name = "StageGlow"
 		back.BackgroundTransparency = 1
@@ -229,7 +226,7 @@ local function buildEquip(parent: Frame)
 		back.Image = glow.id
 		back.ScaleType = Enum.ScaleType.Stretch
 		back.ZIndex = 0
-		-- Oben und unten auslaufen lassen, damit keine harte Kante bleibt
+		-- Fade out at top and bottom so no hard edge remains
 		local fadeY = Instance.new("UIGradient")
 		fadeY.Rotation = 90
 		fadeY.Transparency = NumberSequence.new({
@@ -240,7 +237,7 @@ local function buildEquip(parent: Frame)
 		})
 		fadeY.Parent = back
 		back.Parent = equipPanel
-		-- Trenner aus der Vorlage über der Oberkante kaschiert den Übergang
+		-- Divider from the template over the top edge hides the transition
 		local glowWidth = 440 - 2 * (PAD + 96) + 80
 		local sep = Kit.divider(glowWidth)
 		sep.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -272,7 +269,7 @@ local function buildEquip(parent: Frame)
 		fallback.Parent = equipPanel
 	end
 
-	-- Werte in einer Reihe (Symbol + Zahl)
+	-- Stats in a row (icon + number)
 	for i, stat in STAT_ORDER do
 		local tile = Instance.new("Frame")
 		tile.Size = UDim2.fromOffset(90, 52)
@@ -283,7 +280,7 @@ local function buildEquip(parent: Frame)
 			Kit.corner(tile, Theme.Radius.M)
 			Kit.stroke(tile, C.Line)
 		end
-		-- Inhalt in eigenem Rahmen, damit das Hintergrundbild nicht im Layout landet
+		-- Content in its own frame so the background image does not end up in the layout
 		local inner = Instance.new("Frame")
 		inner.BackgroundTransparency = 1
 		inner.Size = UDim2.fromScale(1, 1)
@@ -299,8 +296,8 @@ local function buildEquip(parent: Frame)
 		tile.Parent = equipPanel
 	end
 
-	-- Widerstände: Balken je Element. Werte kommen aus Spieler-Attributen (0 bis 100),
-	-- solange es kein Widerstands-System gibt, bleiben sie leer.
+	-- Resistances: bar per element. Values come from player attributes (0 to 100);
+	-- as long as there is no resistance system they stay empty.
 	for i, res in RESISTANCES do
 		local y = 556 + (i - 1) * 40
 		local resIcon = Kit.icon(res.icon, 28)
@@ -323,7 +320,7 @@ local function buildEquip(parent: Frame)
 	end
 end
 
--- ------------------------------------------------------------------ Raster (Mitte)
+-- ------------------------------------------------------------------ Grid (center)
 local function sorted(): { Items.Item }
 	local list: { Items.Item } = {}
 	for _, item in items do
@@ -351,8 +348,8 @@ end
 local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
-		local icon = if slot then SLOT_ICON[slot] else "beutel"
-		local name = if slot then Items.SlotName[slot] or slot else "Alle"
+		local icon = if slot then SLOT_ICON[slot] else "pouch"
+		local name = if slot then Items.SlotName[slot] or slot else "All"
 		local b = Kit.iconButton(icon, name, 72, slot == filter, "tab", name)
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
@@ -391,7 +388,7 @@ end
 local function buildGrid(parent: Frame)
 	local panel = Kit.panel(Vector2.new(560, 760))
 	panel.Parent = parent
-	title(panel, "Inventar")
+	title(panel, "Inventory")
 
 	local count = Instance.new("Frame")
 	count.BackgroundTransparency = 1
@@ -400,7 +397,7 @@ local function buildGrid(parent: Frame)
 	count.AutomaticSize = Enum.AutomaticSize.X
 	count.Size = UDim2.fromOffset(0, 30)
 	Kit.list(count, Enum.FillDirection.Horizontal, 8)
-	local ic = Kit.icon("beutel", 28)
+	local ic = Kit.icon("pouch", 28)
 	ic.LayoutOrder = 1
 	ic.Parent = count
 	countLabel = Kit.label("0 / 40", 20, C.Text)
@@ -419,18 +416,18 @@ local function buildGrid(parent: Frame)
 	tl.Parent = tabRow
 	tabRow.Parent = panel
 
-	local sort = Kit.button("Seltenheit", C.Cyan, Vector2.new(156, 44), "sortieren")
+	local sort = Kit.button("Rarity", C.Cyan, Vector2.new(156, 44), "sort")
 	Kit.buttonLabel(sort).TextSize = Kit.fontSize(15)
 	sort.Position = UDim2.fromOffset(PAD, 166)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
-		Kit.buttonLabel(sort).Text = if sortByLevel then "Stufe" else "Seltenheit"
+		Kit.buttonLabel(sort).Text = if sortByLevel then "Level" else "Rarity"
 		InventoryController.render()
 	end)
 	sort.Parent = panel
 
-	-- Filter nach Seltenheit: Klick schaltet Alle → Normal → Magisch → Selten → Episch weiter
-	local filterBtn = Kit.button("Alle", C.Cyan, Vector2.new(156, 44), "filter")
+	-- Rarity filter: click cycles All -> Normal -> Magic -> Rare -> Epic
+	local filterBtn = Kit.button("All", C.Cyan, Vector2.new(156, 44), "filter")
 	Kit.buttonLabel(filterBtn).TextSize = Kit.fontSize(15)
 	filterBtn.Position = UDim2.fromOffset(PAD + 168, 166)
 	filterBtn.Activated:Connect(function()
@@ -444,12 +441,12 @@ local function buildGrid(parent: Frame)
 		rarityFilter = order[nextIndex]
 		Kit.buttonLabel(filterBtn).Text = if rarityFilter
 			then Items.RarityName[rarityFilter] or rarityFilter
-			else "Alle"
+			else "All"
 		InventoryController.render()
 	end)
 	filterBtn.Parent = panel
 
-	local searchFrame, searchBox = Kit.textBox(Vector2.new(168, 44), "Suchen ...")
+	local searchFrame, searchBox = Kit.textBox(Vector2.new(168, 44), "Search ...")
 	searchFrame.Position = UDim2.fromOffset(PAD + 336, 166)
 	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
 		searchText = string.lower(searchBox.Text)
@@ -473,7 +470,7 @@ local function buildGrid(parent: Frame)
 	gridFrame.Parent = panel
 end
 
--- ------------------------------------------------------------------ Details (rechts)
+-- ------------------------------------------------------------------ Details (right)
 local function chip(text: string, good: boolean, order: number): Frame
 	local color = if good then C.Good else C.Danger
 	local f = Instance.new("Frame")
@@ -508,7 +505,7 @@ local function renderDetail()
 	clear(detail)
 	local item = selected
 	if not item then
-		local hint = Kit.label("Wähle einen Gegenstand", 18, C.Muted, Theme.Font.Body)
+		local hint = Kit.label("Pick an item", 18, C.Muted, Theme.Font.Body)
 		hint.AnchorPoint = Vector2.new(0.5, 0.5)
 		hint.Position = UDim2.fromScale(0.5, 0.45)
 		hint.Parent = detail
@@ -541,7 +538,7 @@ local function renderDetail()
 	sub.Position = UDim2.fromOffset(PAD + 126, PAD + 80)
 	sub.Parent = detail
 
-	-- Gegenstandsstufe oben rechts, darunter der Unterschied zum angelegten Teil
+	-- Item level at the top right, below it the difference to the equipped piece
 	local lvl = Instance.new("Frame")
 	lvl.BackgroundTransparency = 1
 	lvl.AnchorPoint = Vector2.new(1, 0)
@@ -555,7 +552,7 @@ local function renderDetail()
 	lvlRow.Size = UDim2.fromOffset(0, 28)
 	lvlRow.LayoutOrder = 1
 	Kit.list(lvlRow, Enum.FillDirection.Horizontal, 6)
-	local lvlIcon = Kit.icon("itemstufe", 24)
+	local lvlIcon = Kit.icon("item_level", 24)
 	lvlIcon.LayoutOrder = 1
 	lvlIcon.Parent = lvlRow
 	local lvlNum = Kit.label(tostring(item.ilvl), 22, C.Gold)
@@ -577,7 +574,7 @@ local function renderDetail()
 	end
 	lvl.Parent = detail
 
-	-- Vergleich mit dem angelegten Teil am selben Platz
+	-- Comparison with the equipped piece in the same slot
 	local chips = Instance.new("Frame")
 	chips.BackgroundTransparency = 1
 	chips.Position = UDim2.fromOffset(PAD, PAD + 128)
@@ -589,7 +586,7 @@ local function renderDetail()
 	cl.Wraps = true
 	cl.Parent = chips
 	chips.Parent = detail
-	-- Ohne angelegtes Teil gäbe es nur die Affixe ein zweites Mal (doppeltes „+42 Leben“)
+	-- Without an equipped piece this would only repeat the affixes (duplicate "+42 Life")
 	local current = equipped[item.slot]
 	local chipCount = 0
 	if current and not selectedEquipped then
@@ -607,14 +604,14 @@ local function renderDetail()
 		end
 	end
 
-	-- Affixe mit Balken (Wurfqualität)
+	-- Affixes with bars (roll quality)
 	local extra = if chipCount == 0 then -44 elseif chipCount > 2 then 40 else 0
 	local divider = Kit.divider(420 - 2 * PAD)
 	divider.Position = UDim2.fromOffset(PAD, PAD + 172 + extra)
 	divider.Parent = detail
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
-	-- Chips brechen um; ab dem dritten Chip reicht die Zeile meist nicht mehr
+	-- Chips wrap; from the third chip on the row is usually not enough
 	list.Position = UDim2.fromOffset(PAD, PAD + 196 + extra)
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
@@ -636,10 +633,10 @@ local function renderDetail()
 		row.Parent = list
 	end
 	if #item.affixes == 0 then
-		Kit.label("Keine Werte", 16, C.Muted, Theme.Font.Body).Parent = list
+		Kit.label("No stats", 16, C.Muted, Theme.Font.Body).Parent = list
 	end
 
-	-- Aktionen unten
+	-- Actions at the bottom
 	local actions = Instance.new("Frame")
 	actions.BackgroundTransparency = 1
 	actions.AnchorPoint = Vector2.new(0, 1)
@@ -652,7 +649,7 @@ local function renderDetail()
 	actions.Parent = detail
 	local w = 420 - 2 * PAD
 	if selectedEquipped then
-		local b = Kit.button("Ablegen", C.Cyan, Vector2.new(w, 60), "neu_wuerfeln")
+		local b = Kit.button("Unequip", C.Cyan, Vector2.new(w, 60), "reroll")
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.Activated:Connect(function()
 			Net.Unequip:FireServer(item.slot)
@@ -660,7 +657,7 @@ local function renderDetail()
 		end)
 		b.Parent = actions
 	else
-		local b = Kit.button("Ausrüsten", C.Gold, Vector2.new(w, 60), "verbessern")
+		local b = Kit.button("Equip", C.Gold, Vector2.new(w, 60), "upgrade")
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
 		b.LayoutOrder = 1
 		b.Activated:Connect(function()
@@ -670,15 +667,15 @@ local function renderDetail()
 		b.Parent = actions
 		local s = Kit.button(
 			string.format(
-				"Verwerten · %d Gold + %d Splitter",
+				"Salvage · %d Gold + %d Shards",
 				Items.sellValue(item),
 				(Items.Salvage[item.rarity] or Items.Salvage.normal).shards
 			),
 			C.Danger,
 			Vector2.new(w, 50),
-			"verwerten"
+			"salvage"
 		)
-		Kit.buttonLabel(s).TextSize = Kit.fontSize(15) -- langer Text (Gold + Splitter) muss in eine Zeile
+		Kit.buttonLabel(s).TextSize = Kit.fontSize(15) -- long text (gold + shards) must fit on one line
 		s.LayoutOrder = 2
 		s.Activated:Connect(function()
 			Net.Sell:FireServer(item.id)
@@ -693,9 +690,9 @@ local function buildDetail(parent: Frame)
 	detail.Parent = parent
 end
 
--- ------------------------------------------------------------------ Ablauf
+-- ------------------------------------------------------------------ Flow
 function InventoryController.render()
-	-- Auswahl verschwunden (verkauft/angelegt)? Dann Details leeren
+	-- Selection gone (sold/equipped)? Then clear the details
 	if selected then
 		local still = false
 		for _, it in items do
@@ -714,7 +711,7 @@ function InventoryController.render()
 	renderDetail()
 end
 
--- Für andere Fenster (Schmiede): aktueller Schnappschuss, Änderungs-Signal, Icon je Platz
+-- For other windows (Forge): current snapshot, change signal, icon per slot
 local changed = Instance.new("BindableEvent")
 InventoryController.changed = changed.Event
 
@@ -723,13 +720,13 @@ function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item
 end
 
 function InventoryController.slotIcon(slot: string): string
-	return SLOT_ICON[slot] or "beutel"
+	return SLOT_ICON[slot] or "pouch"
 end
 
 function InventoryController.toggle()
 	gui.Enabled = not gui.Enabled
 	if gui.Enabled then
-		Window.closeCurrent() -- immer nur ein Vollbild-Fenster
+		Window.closeCurrent() -- only one fullscreen window at a time
 		refreshViewport()
 	end
 end
@@ -765,7 +762,7 @@ function InventoryController.init()
 		end
 	end
 
-	local close = Kit.iconButton("schliessen", "Schließen", 48, false, "close")
+	local close = Kit.iconButton("close", "Close", 48, false, "close")
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.new(1, -28, 0, 24)
 	close.Activated:Connect(InventoryController.toggle)

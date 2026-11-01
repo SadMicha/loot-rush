@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Werkzeuge laden (rojo, selene, stylua, lune, luau-lsp)
+      - name: Install tools (rojo, selene, stylua, lune, luau-lsp)
         run: bash tools/setup.sh
 
-      - name: Formatierung
+      - name: Format
         run: bash tools/check.sh format
 
       - name: Lint
@@ -25,25 +25,25 @@ jobs:
         if: ${{ !cancelled() }}
         run: bash tools/check.sh types
 
-      - name: Rojo-Build
+      - name: Rojo build
         if: ${{ !cancelled() }}
         run: bash tools/check.sh build
 
-      - name: Unit-Tests
+      - name: Unit tests
         if: ${{ !cancelled() }}
         run: bash tools/check.sh test
 
-      - name: Playwright für UI-Screenshots
+      - name: Playwright for UI screenshots
         if: ${{ !cancelled() }}
         run: |
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps chromium
 
-      - name: UI-Check
+      - name: UI check
         if: ${{ !cancelled() }}
         run: bash tools/check.sh ui
 
-      - name: UI-Bericht hochladen
+      - name: Upload UI report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:

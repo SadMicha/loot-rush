@@ -1,4 +1,4 @@
--- Debug-Menü: Test-Befehle wirken nur in Studio (bzw. für DEV_USERS) und prüfen ihre Werte.
+-- Debug menu: test commands only work in Studio (or for DEV_USERS) and check their values.
 local function server(fn)
 	local out = {}
 	sim:runAs("server", function(req)
@@ -17,14 +17,14 @@ end
 local function state()
 	return server(function(req, player)
 		local p = req("ServerScriptService.Server.Systems.Data").get(player)
-		local skill = p.progress.skills.funkenball
+		local skill = p.progress.skills.spark_ball
 		return {
 			gold = p.gold,
 			level = player:GetAttribute("Level"),
 			candy = p.materials.candy,
 			skill = if skill then skill.level else 1,
 			items = #p.inventory,
-			atlas = player:GetAttribute("AtlasBest_himmelsinseln"),
+			atlas = player:GetAttribute("AtlasBest_sky_islands"),
 			allOpen = (function()
 				local Atlas = req("ReplicatedStorage.Shared.Atlas")
 				for _, region in Atlas.Regions do
@@ -43,8 +43,8 @@ local function state()
 	end)
 end
 
-describe("Debug-Menü", function()
-	it("ignoriert Befehle außerhalb von Studio", function()
+describe("Debug menu", function()
+	it("ignores commands outside of Studio", function()
 		sim:boot({ seconds = 2 })
 		local before = state()
 		expect(before.tools).toBe(true)
@@ -59,7 +59,7 @@ describe("Debug-Menü", function()
 		expect(after.atlas).toBeNil()
 	end)
 
-	it("setzt Gold, Level, Material, Skills, Items und Gebiete", function()
+	it("sets gold, level, materials, skills, items and regions", function()
 		local before = state()
 		client(function(_, Net)
 			Net.Debug:FireServer("gold", 5000)
@@ -75,18 +75,18 @@ describe("Debug-Menü", function()
 		expect(after.candy).toBe(before.candy + 50)
 		expect(after.skill).toBe(before.skill + 2)
 		expect(after.items).toBe(before.items + 3)
-		expect(after.atlas).toBeGreaterThanOrEqual(21) -- Start-Tiefe der Himmelsinseln
+		expect(after.atlas).toBeGreaterThanOrEqual(21) -- starting depth of the Sky Islands
 		expect(after.allOpen).toBe(true)
 	end)
 
-	it("lehnt unsinnige Werte ab", function()
+	it("rejects nonsensical values", function()
 		local before = state()
 		client(function(_, Net)
 			Net.Debug:FireServer("gold", 0 / 0)
 			Net.Debug:FireServer("gold", 1.5)
 			Net.Debug:FireServer("level", 9999)
 			Net.Debug:FireServer("level", "10")
-			Net.Debug:FireServer("quatsch", 1)
+			Net.Debug:FireServer("bogus", 1)
 			Net.Debug:FireServer({ "gold" }, 1)
 		end)
 		local after = state()
@@ -94,7 +94,7 @@ describe("Debug-Menü", function()
 		expect(after.level).toBe(before.level)
 	end)
 
-	it("Knopf im Menü schickt den Befehl", function()
+	it("menu button sends the command", function()
 		local gui = sim.player.PlayerGui:FindFirstChild("LootRushDebug")
 		expect(gui).never.toBeNil()
 		local button = nil

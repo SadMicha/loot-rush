@@ -1,8 +1,8 @@
--- Speichern: Laden mit Migration, Session-Lock, Freigabe bei BindToClose.
-local STORE = "LootRush_Profile_v1/global"
+-- Saving: loading with migration, session lock, release on BindToClose.
+local STORE = "LootRush_Profile_v2/global"
 
 describe("Data", function()
-	it("lädt einen v1-Stand und übernimmt den Lock", function()
+	it("loads a v1 save and takes the lock", function()
 		sim.datastores[STORE] = { p_1 = { version = 1, gold = 50, inventory = {}, equipped = {} } }
 		sim:boot({ seconds = 3 })
 		for _, issue in sim.issues do
@@ -14,7 +14,7 @@ describe("Data", function()
 		expect(rec.lock.job).toBe("sandbox")
 	end)
 
-	it("speichert Level und XP", function()
+	it("saves level and XP", function()
 		sim:runAs("server", function(require)
 			local Data = require("ServerScriptService.Server.Systems.Data")
 			local p = Data.get(sim.player)
@@ -26,7 +26,7 @@ describe("Data", function()
 		expect(rec.data.xp).toBe(12)
 	end)
 
-	it("repariert einen Stand mit NaN, statt nie mehr zu speichern", function()
+	it("repairs a save with NaN instead of never saving again", function()
 		local saved
 		sim:runAs("server", function(require)
 			local Data = require("ServerScriptService.Server.Systems.Data")
@@ -42,7 +42,7 @@ describe("Data", function()
 		expect(rec.data.gold == rec.data.gold).toBe(true)
 	end)
 
-	it("gibt den Lock beim Server-Shutdown frei", function()
+	it("releases the lock on server shutdown", function()
 		sim:runAs("server", function()
 			for _, fn in sim.onClose do
 				fn()
