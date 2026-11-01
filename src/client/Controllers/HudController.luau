@@ -300,7 +300,6 @@ local function buildMinimap()
 	terrain.AnchorPoint = Vector2.new(0.5, 0.5)
 	terrain.Position = UDim2.fromScale(0.5, 0.5)
 	terrain.Size = UDim2.fromOffset(MAP_SIZE * mapInner * 2, MAP_SIZE * mapInner * 2)
-	Kit.corner(terrain, MAP_SIZE)
 	terrain.ZIndex = 1
 	terrain.Parent = mapFrame
 

@@ -16,6 +16,7 @@ local MiniMapView = {}
 -- Containers of the walkable world (see World.luau / Hub.luau); everything else in workspace is ignored
 local CONTAINERS = { "Arena", "Lumenhaven" }
 local BACKDROP = "Backdrop" -- far scenery folder inside the containers, not part of the map
+local CELL = 4 -- studs; ground parts whose centers fall in the same XZ cell are stacked (top slab over base)
 
 export type View = {
 	root: CanvasGroup, -- circular clip around the terrain viewport and its tint
@@ -51,8 +52,12 @@ local function isCreature(part: BasePart): boolean
 	return model ~= nil and model:FindFirstChildOfClass("Humanoid") ~= nil
 end
 
--- Ground tiles live in a folder named "Ground"; the hub spawn pad counts as ground too
+-- Ground tiles live in a folder named "Ground"; the hub spawn pad (a SpawnLocation parented directly
+-- to Lumenhaven) counts as ground too
 local function isGround(part: BasePart): boolean
+	if part:IsA("SpawnLocation") then
+		return true
+	end
 	local folder = part:FindFirstAncestor("Ground")
 	return folder ~= nil and folder:IsA("Folder")
 end
@@ -134,15 +139,34 @@ function MiniMapView.new(): View
 				table.insert(if isGround(part) then ground else props, part)
 			end
 		end
-		local function bySize(a: BasePart, b: BasePart)
-			return a.Size.Magnitude > b.Size.Magnitude
+		-- Top surfaces only: per snapped XZ cell keep the ground part with the highest top, so the bases
+		-- below the coloured top slabs are skipped
+		local tops: { [number]: BasePart } = {}
+		for _, part in ground do
+			local p = part.Position
+			local key = math.floor(p.X / CELL + 0.5) * 100003 + math.floor(p.Z / CELL + 0.5)
+			local other = tops[key]
+			if not other or other.Position.Y + other.Size.Y / 2 < p.Y + part.Size.Y / 2 then
+				tops[key] = part
+			end
 		end
-		table.sort(ground, bySize)
-		table.sort(props, bySize)
-		-- The cap comes after the filters: the largest ground parts first (never more than 3/4 of the
-		-- cap, so props still show), then the largest props
+		table.clear(ground)
+		local dist: { [BasePart]: number } = {}
+		for _, part in tops do
+			local p = part.Position
+			dist[part] = (p.X - origin.X) ^ 2 + (p.Z - origin.Z) ^ 2
+			table.insert(ground, part)
+		end
+		table.sort(ground, function(a: BasePart, b: BasePart)
+			return dist[a] < dist[b]
+		end)
+		table.sort(props, function(a: BasePart, b: BasePart)
+			return a.Size.Magnitude > b.Size.Magnitude
+		end)
+		-- The cap comes after the filters: the nearest top slabs first (never more than GroundShare of
+		-- the cap, so props still show), then the largest props
 		local wanted: { BasePart } = {}
-		local groundMax = math.floor(M.PartCap * 0.75)
+		local groundMax = math.floor(M.PartCap * M.GroundShare)
 		for i = 1, math.min(#ground, groundMax) do
 			table.insert(wanted, ground[i])
 		end
@@ -162,7 +186,12 @@ function MiniMapView.new(): View
 				copies[src] = nil
 			end
 		end
-		local budget = M.ClonesPerRefresh
+		-- Mostly empty (first load, teleport): fill in quickly; otherwise spread the cost
+		local have = 0
+		for _ in copies do
+			have += 1
+		end
+		local budget = if have < #wanted * 0.5 then M.ClonesBurst else M.ClonesPerRefresh
 		for _, src in wanted do
 			local copy = copies[src]
 			if copy then

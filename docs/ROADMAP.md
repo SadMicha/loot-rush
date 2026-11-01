@@ -30,13 +30,13 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 | M13 | Monetization | Soulstar products, 3 gamepasses (VIP, pet slot, loot magnet), robust ProcessReceipt; **all IDs still placeholder `0`** (`docs/MONETIZATION.md`) | 🔧 ready to test (Robux IDs in Creator Hub missing) |
 | M14 | Hardening & multiplayer | Remote throttles (inventory, rift, skills, dash), ID length check, several rifts at once (arena per player, `RIFT_SLOTS = 12`) | 🔧 ready to test (multiplayer playtest with 2+ clients open) |
 | M15 | Tooling & publishing | `tools/check.sh` (format, lint, types, build, test, ui), Lune sandbox, headless UI check, asset check (`check-assets`), auto-publish to test place (Open Cloud), debug menu, checklist template | ✅ Runs in CI (workflows ci, check-assets, publish) |
-| M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8 | 🔧 ready to test (real phone open, with M5) |
+| M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8; PR #42 HUD pass (terrain minimap, text shadows/outlines, icon shadows, orbs, skill arc/cooldown veil, dash diamonds, class icons, hub bar, safe area, Lumenhaven) | 🔧 ready to test (real phone open, with M5; checklist `TEST-HUD` open) |
 
 ## Next milestones (in order)
 
 | # | Milestone | Content | Owner | Status |
 |---|---|---|---|---|
-| N1 | Catch up on playtest round | Work through all 🔧: TEST-M1/M4/M5, TEST-SAVING, TEST-UI-WINDOWS, TEST-PETS, phone; balancing numbers from real runs; bug list | Micha (plays), planner (list), code-reviewer | ⏳ |
+| N1 | Catch up on playtest round | Work through all 🔧: TEST-M1/M4/M5, TEST-SAVING, TEST-UI-WINDOWS, TEST-PETS, TEST-HUD, phone; balancing numbers from real runs; bug list | Micha (plays), planner (list), code-reviewer | ⏳ |
 | N2 | Review gate over #34–#38 | Security (remotes, ProcessReceipt, session lock), save migration rebirth/passes, multi-rift leaks, performance | code-reviewer | ⏳ |
 | N3 | Fixes from N1/N2 | Collected bugs, small briefs per lane | backend-developer / frontend-developer | ⏳ |
 | N4 | Monetization live | Create products/passes in Creator Hub, enter IDs, purchase test (Studio + test place), policy check (random items) | Micha (IDs), backend-developer, code-reviewer | ⏳ |

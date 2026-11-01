@@ -183,10 +183,12 @@ Theme.Hud = table.freeze({
 Theme.MiniMap = table.freeze({
 	Range = 70, -- studs from the center to the edge of the map
 	Fov = 28, -- narrow field of view from high up = nearly orthographic
-	PartCap = 160, -- most parts in the viewport at any time
+	PartCap = 340, -- most parts in the viewport at any time (~240 visible ground cells + props)
+	GroundShare = 0.8, -- share of PartCap that ground top slabs may use (nearest first)
 	PartHz = 4, -- how often the part set is refreshed
 	ViewHz = 15, -- camera + dots refresh rate
-	ClonesPerRefresh = 30, -- new copies per part refresh (spreads the cost)
+	ClonesPerRefresh = 40, -- new copies per part refresh (spreads the cost)
+	ClonesBurst = 180, -- new copies per refresh while the map is mostly empty (teleport / first load)
 	MinPartSize = 1.5, -- studs (Size.Magnitude); smaller parts are skipped
 	MaxAbove = 100, -- ignore parts higher than this above the player (sky, ceilings)
 	MaxBelow = 60,
