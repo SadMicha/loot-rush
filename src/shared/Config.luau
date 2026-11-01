@@ -34,6 +34,10 @@ return table.freeze({
 	DASH_IFRAMES = 0.3, -- seconds of invulnerability per dash (checked by the server)
 	CRIT_CHANCE = 0.1,
 	CRIT_MULT = 2,
+	-- Caps on gear + Star Net totals (Stats.refresh): StatSpeed in % move speed, StatCrit in %
+	-- crit chance on top of CRIT_CHANCE (so the total crit chance tops out at 60%)
+	STAT_SPEED_CAP = 50,
+	STAT_CRIT_CAP = 50,
 	-- Life per level, XP curve, enemy, gold and loot values per depth: Shared/Balance (table)
 	DAMAGE_PER_LEVEL = 0.02, -- +2% damage per level (own assumption; the table scales via the weapon)
 

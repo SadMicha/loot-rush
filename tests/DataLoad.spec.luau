@@ -2,7 +2,9 @@
 -- value untouched, a player leaving while loading leaves no session behind, and a DataStore
 -- outage kicks after Data's load deadline instead of waiting forever.
 -- The tests build on each other (one sandbox per spec file, player N has key p_N).
-local STORE = "LootRush_Profile_v3/global"
+local STORE_NAME = "LootRush_Profile_v3"
+local STORE = STORE_NAME .. "/global"
+local PACKAGE = "ServerScriptService.ServerPackages.ProfileStore"
 local DATA = "ServerScriptService.Server.Systems.Data"
 
 local function raw(key: string)
@@ -107,4 +109,41 @@ describe("Data loads that do not start a session", function()
 		expect(returned).toBeNil()
 		expect(raw("p_4")).toBeNil()
 	end)
+
+	it(
+		"saveNow waits for its own save when a stale error of the previous session arrives",
+		function()
+			local players = game:GetService("Players")
+			local first = sim:joinPlayer("Rejoiner") -- p_5
+			sim:run(3)
+			expect(profileOf(first)).never.toBeNil()
+			sim:signal(players, "PlayerRemoving"):Fire(first)
+			first.Parent = nil
+			-- Quick rejoin with the same UserId (the sandbox hands out ids in order)
+			sim.joined = first.UserId - 1
+			local second = sim:joinPlayer("Rejoiner")
+			expect(second.UserId).toBe(first.UserId)
+			sim:run(3)
+			expect(profileOf(second)).never.toBeNil()
+
+			-- The retried end-of-session save of the first session fails: matched by key, but the new
+			-- session has no save pending
+			sim:runAs("server", function(require)
+				require(PACKAGE).OnError:Fire("stale", STORE_NAME, "p_5")
+			end)
+
+			local done, saved = false, nil
+			sim:runAs("server", function(require)
+				local Data = require(DATA)
+				Data.get(second).level = 21
+				saved = Data.saveNow(second)
+				done = true
+			end)
+			expect(done).toBe(false) -- no early result from the stale error
+			sim:run(1)
+			expect(done).toBe(true)
+			expect(saved).toBe(true) -- and no spurious false
+			expect(raw("p_5").Data.data.level).toBe(21)
+		end
+	)
 end)

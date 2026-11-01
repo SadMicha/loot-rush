@@ -5,11 +5,13 @@
 --   StatArmor, StatBlock, StatCritShard, StatArcaneShield: stars only
 --   StatWeapon: weapon base damage of the worn weapon as a factor (1 = IP 10 or no weapon)
 -- Skill-related stars (skill damage, cooldown …) are applied directly by Progression.effectiveSkill.
+-- StatSpeed and StatCrit are capped (Config.STAT_SPEED_CAP / STAT_CRIT_CAP).
 -- Call Stats.refresh after every change to gear or stars.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Balance = require(ReplicatedStorage.Shared.Balance)
+local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Combat = require(script.Parent.Combat)
@@ -36,6 +38,17 @@ local STAR_ATTR: { [string]: string } = {
 	arcaneShield = "StatArcaneShield",
 }
 
+local CAP: { [string]: number } = {
+	speed = Config.STAT_SPEED_CAP,
+	crit = Config.STAT_CRIT_CAP,
+}
+
+-- Total of a gear stat after its cap (Config.STAT_*_CAP); damage and life are uncapped
+function Stats.capped(stat: string, total: number): number
+	local cap = CAP[stat]
+	return if cap then math.min(total, cap) else total
+end
+
 function Stats.refresh(player: Player, fill: boolean)
 	local profile = Data.get(player)
 	if not profile then
@@ -51,7 +64,7 @@ function Stats.refresh(player: Player, fill: boolean)
 	end
 	local mods = Progression.starMods(profile.progress)
 	for stat, attr in EQUIP_ATTR do
-		player:SetAttribute(attr, sum[stat] + (mods[stat] or 0))
+		player:SetAttribute(attr, Stats.capped(stat, sum[stat] + (mods[stat] or 0)))
 	end
 	for stat, attr in STAR_ATTR do
 		player:SetAttribute(attr, mods[stat] or 0)

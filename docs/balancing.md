@@ -80,28 +80,36 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 ## Simulation result (1 run per depth, without stars/forge)
 
 TTK = seconds per normal enemy (single target). Hits = how many hits the player survives.
+Regenerated from `tests/Balancing.spec.luau` (`lune run tools/lune/test Balancing`) after the
+nine gear slots: the simulated player fills all nine slots (best piece per slot), and crit is
+capped like in the game (see below). Total for depths 1-30: 25 min.
+
+Caps (`Config.STAT_SPEED_CAP` / `STAT_CRIT_CAP`, applied in `Stats.refresh`): gear + Star Net
+move speed is limited to +50% and crit chance to +50% (60% total with the base 10%). The
+absolute best nine-piece set (tier 1 speed and crit on every piece) would reach ~98% speed and
+~77% crit uncapped; the caps only bite on near-perfect sets.
 
 | Depth | Level | TTK | Boss s | Run s | Hits normal | Hits boss | Gold/run |
 |---|---|---|---|---|---|---|---|
 | 1 | 1 | 0.47 | 27.9 | 51 | 18.2 | 12.5 | 91 |
-| 5 | 6 | 0.34 | 20.6 | 46 | 29.9 | 20.6 | 206 |
-| 6 | 7 | 0.70 | 21.5 | 47 | 30.7 | 15.0 | 207 |
-| 10 | 10 | 0.66 | 20.2 | 51 | 25.4 | 12.7 | 525 |
-| 11 | 11 | 0.43 | 17.3 | 40 | 15.8 | 18.1 | 377 |
-| 15 | 15 | 0.36 | 14.5 | 39 | 12.1 | 13.7 | 954 |
-| 16 | 16 | 0.51 | 17.7 | 41 | 16.1 | 9.9 | 733 |
-| 20 | 22 | 0.49 | 17.1 | 45 | 14.6 | 8.9 | 1880 |
-| 21 | 24 | 0.61 | 17.9 | 42 | 13.7 | 9.7 | 1351 |
-| 23 | 26 | 0.90 | 26.4 | 57 | 10.9 | 7.8 | 2219 |
-| 25 | 30 | 1.00 | 29.3 | 66 | 9.3 | 6.6 | 3465 |
-| 26 | 32 | 0.63 | 24.7 | 49 | 8.5 | 5.1 | 3047 |
-| 28 | 35 | 0.95 | 36.9 | 68 | 7.5 | 4.5 | 5023 |
-| 30 | 39 | 1.15 | 44.8 | 85 | 5.9 | 3.6 | 7859 |
+| 5 | 6 | 0.29 | 17.3 | 41 | 39.0 | 26.8 | 206 |
+| 6 | 7 | 0.56 | 17.3 | 41 | 39.0 | 19.1 | 207 |
+| 10 | 10 | 0.57 | 17.4 | 47 | 33.1 | 16.5 | 525 |
+| 11 | 11 | 0.49 | 20.2 | 43 | 19.4 | 22.2 | 377 |
+| 15 | 15 | 0.30 | 12.2 | 36 | 15.6 | 17.7 | 954 |
+| 16 | 16 | 0.42 | 14.7 | 37 | 20.3 | 12.5 | 733 |
+| 20 | 22 | 0.47 | 16.4 | 44 | 18.0 | 11.0 | 1880 |
+| 21 | 24 | 0.55 | 16.0 | 39 | 16.3 | 11.6 | 1351 |
+| 23 | 26 | 0.88 | 25.8 | 57 | 14.7 | 10.5 | 2219 |
+| 25 | 30 | 1.37 | 39.9 | 84 | 12.5 | 8.9 | 3465 |
+| 26 | 32 | 0.87 | 34.0 | 60 | 11.4 | 6.9 | 3047 |
+| 28 | 35 | 0.89 | 34.7 | 65 | 10.3 | 6.2 | 5023 |
+| 30 | 39 | 1.00 | 39.2 | 76 | 8.0 | 4.8 | 7859 |
 
-- Up to depth 20 normal enemies take 0.3–0.7 s, bosses 14–28 s. After that the soft wall kicks in:
-  at depth 30 ~1.2 s per enemy and ~45 s per boss with a single run per depth (spreadsheet: wall from 2 s).
+- Up to depth 20 normal enemies take 0.3–0.6 s, bosses 12–28 s. After that the soft wall kicks in:
+  at depth 25-30 ~1-1.4 s per enemy and ~40 s per boss with a single run per depth (spreadsheet: wall from 2 s).
   Anyone who farms, forges and assigns stars is faster.
-- It gets dangerous via damage: at depth 30 the player survives ~6 normal or ~4 boss hits
+- It gets dangerous via damage: at depth 30 the player survives ~8 normal or ~5 boss hits
   (spreadsheet: enemy damage ×1.12 per depth, health only +12 per level).
 - Jumps: Crystal Caves (from 6) have enemies twice as tough as the Green Plains (many tanks),
   Mushroom Swamp (from 11) deals more damage (charger ×1.6). Both stay within range.
