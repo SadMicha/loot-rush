@@ -18,8 +18,10 @@
 --     for a missing key), stores the returned (value, userIds, metadata) and returns
 --     (value, keyInfo); if fn returns nil nothing is written and the current value is returned
 --   - SetAsync(k, v, userIds, options) stores userIds and options:GetMetadata() if given
+--   - sim.datastoreAccess = false: Get/Set/UpdateAsync error with "403 …" (Studio without API
+--     access; ProfileStore then runs on its mock store)
 --   - not supported: GetVersionAsync/ListVersionsAsync (ProfileStore VersionQuery), budgets
---     (always 100), errors/throttling
+--     (always 100), throttling
 --   - DataStoreOptions:SetExperimentalFeatures() is a no-op
 -- MessagingService (generic, any topic): SubscribeAsync(topic, cb) -> connection with
 -- :Disconnect(); PublishAsync(topic, data) delivers { Data = copy, Sent = unix seconds } to every
@@ -1867,13 +1869,22 @@ function Sandbox:dataStore(key: string)
 		e.metadata = copyValue(metadata or {})
 	end
 
+	-- sim.datastoreAccess = false: every call fails like Studio without API access
+	local function checkAccess()
+		if sb.datastoreAccess == false then
+			error("403: Cannot write to DataStore from studio if API access is not enabled.", 3)
+		end
+	end
+
 	local store = {}
 	function store:GetAsync(k)
 		sched:wait(0)
+		checkAccess()
 		return copyValue(values()[k]), keyInfo(k)
 	end
 	function store:SetAsync(k, v, userIds, options)
 		sched:wait(0)
+		checkAccess()
 		local metadata = if type(options) == "table" and options.GetMetadata
 			then options:GetMetadata()
 			else nil
@@ -1882,6 +1893,7 @@ function Sandbox:dataStore(key: string)
 	end
 	function store:UpdateAsync(k, fn)
 		sched:wait(0)
+		checkAccess()
 		local new, userIds, metadata = fn(copyValue(values()[k]), keyInfo(k))
 		if new ~= nil then
 			write(k, new, userIds, metadata)
@@ -2291,6 +2303,9 @@ function Sandbox:joinPlayer(name: string?)
 			player[k] = v
 		end)
 	end
+	-- Unique UserIds like on Roblox (first player 1, then 2, 3 …): saves are keyed by UserId
+	self.joined = (self.joined or 0) + 1
+	player.UserId = self.joined
 	self:wrap(RInstance.new("PlayerGui")).Parent = player
 	self:wrap(RInstance.new("Backpack")).Parent = player
 	local scripts = self:wrap(RInstance.new("PlayerScripts"))
