@@ -17,6 +17,17 @@ describe("Pet rules", function()
 		end
 	end)
 
+	it("prices eggs: gold grows with the best depth, Soulstars stay fixed", function()
+		local Balance = require("ReplicatedStorage.Shared.Balance")
+		local meadow, star = Pets.EggById.meadow_egg, Pets.EggById.star_egg
+		expect(Pets.eggPrice(meadow, 0)).toBe(
+			math.floor(meadow.price.amount * Balance.shopFactor(0) + 0.5)
+		)
+		expect(Pets.eggPrice(meadow, 40)).toBeGreaterThanOrEqual(Pets.eggPrice(meadow, 0))
+		expect(Pets.eggPrice(star, 0)).toBe(star.price.amount)
+		expect(Pets.eggPrice(star, 40)).toBe(star.price.amount)
+	end)
+
 	it("rolls, raises levels and only sums occupied slots", function()
 		local rng = Random.new(7)
 		for _ = 1, 50 do
@@ -194,6 +205,17 @@ local function send(action, id)
 	sim:run(1)
 end
 
+-- Latest Net.PetResult payload the server sent
+local function lastResult()
+	for i = #sim.netLog, 1, -1 do
+		local e = sim.netLog[i]
+		if e.name == "PetResult" and e.dir == "S→C" then
+			return e.args[1]
+		end
+	end
+	return nil
+end
+
 local function state()
 	return server(function(req, player)
 		local p = req("ServerScriptService.Server.Systems.Data").get(player)
@@ -227,6 +249,10 @@ describe("Pets in game", function()
 		expect(#s.equipped).toBe(1)
 		expect(s.attr).toBe(s.equipped[1])
 		expect(s.slots).toBe(1)
+		local last = lastResult()
+		expect(last.kind).toBe("hatch")
+		expect(last.ok).toBe(true)
+		expect(last.pet).toBe(s.equipped[1])
 		-- the bonus arrives
 		local bonus = server(function(_, player)
 			local total = 0
@@ -255,7 +281,10 @@ describe("Pets in game", function()
 		local s = state()
 		expect(#s.equipped).toBe(0)
 		expect(s.attr).toBe("")
+		expect(lastResult().kind).toBe("unequip")
 		send("equip", id)
 		expect(state().equipped[1]).toBe(id)
+		expect(lastResult().kind).toBe("equip")
+		expect(lastResult().pet).toBe(id)
 	end)
 end)

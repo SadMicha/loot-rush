@@ -32,7 +32,7 @@ describe("Data", function()
 			local p = Data.get(sim.player)
 			p.level, p.xp = 7, 12
 		end)
-		sim:run(310) -- ProfileStore autosave period is 300 s
+		sim:run(130) -- Data sets ProfileStore's AUTO_SAVE_PERIOD to 120 s
 		expect(rec().Data.v).toBe(3)
 		expect(rec().Data.data.level).toBe(7)
 		expect(rec().Data.data.xp).toBe(12)
@@ -71,6 +71,27 @@ describe("Data", function()
 		expect(done).toBe(true)
 		expect(saved).toBe(true)
 		expect(rec().Data.data.level).toBe(11)
+	end)
+
+	it("saveNow returns false when the save fails and true again afterwards", function()
+		local saved
+		sim.datastoreAccess = false -- every DataStore call fails from now on
+		sim:runAs("server", function(require)
+			local Data = require("ServerScriptService.Server.Systems.Data")
+			Data.get(sim.player).level = 13
+			saved = Data.saveNow(sim.player)
+		end)
+		sim:run(1)
+		sim.datastoreAccess = true
+		expect(saved).toBe(false)
+		expect(rec().Data.data.level).toBe(11)
+		-- The failed save is settled: the next saveNow waits for its own result
+		sim:runAs("server", function(require)
+			saved = require("ServerScriptService.Server.Systems.Data").saveNow(sim.player)
+		end)
+		sim:run(1)
+		expect(saved).toBe(true)
+		expect(rec().Data.data.level).toBe(13)
 	end)
 
 	it("releases the session on server shutdown", function()

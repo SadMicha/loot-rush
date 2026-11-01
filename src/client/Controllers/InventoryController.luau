@@ -23,12 +23,20 @@ local player = Players.LocalPlayer
 local MAX_ITEMS = 40 -- same as server (Systems/Inventory)
 local COLUMNS, CELL, GAP = 6, 76, 8
 local PAD = 28
+local TAB_SIZE, TAB_GAP = 60, 8
+local TAB_ROW_WIDTH = 5 * TAB_SIZE + 4 * TAB_GAP + 48 -- five tabs plus room for the wider active tab
+local DOLL_SLOT, DOLL_STEP = 76, 80 -- equipment slot size and row pitch (five rows fit above the stat tiles)
+local FILTER_Y = 76 + TAB_SIZE * 2 + TAB_GAP + 8 -- sort / rarity / search row below the tabs
 
--- Icon per equipment slot (Assets.Icon)
+-- Icon per equipment slot (Assets.Icon), used while no class art exists
 local SLOT_ICON: { [string]: string } = {
 	helmet = "slot_helmet",
 	armor = "slot_armor",
+	gloves = "slot_gloves",
+	belt = "slot_belt",
+	boots = "slot_boots",
 	weapon = "slot_staff",
+	offhand = "slot_shield",
 	amulet = "slot_amulet",
 	ring = "slot_ring",
 }
@@ -153,16 +161,16 @@ local function renderEquip()
 			child:Destroy()
 		end
 	end
-	local left = { "helmet", "armor", "weapon" }
-	local right = { "amulet", "ring" }
+	local left = { "helmet", "armor", "gloves", "belt", "boots" }
+	local right = { "weapon", "offhand", "amulet", "ring" }
 	local function place(slot: string, x: number, i: number)
 		local item = equipped[slot]
-		local b = Kit.itemSlot(84, slotArt(slot), {
+		local b = Kit.itemSlot(DOLL_SLOT, slotArt(slot), {
 			rarity = if item then item.rarity else nil,
 			selected = item ~= nil and selected ~= nil and selected.id == item.id,
 			dim = item == nil,
 		})
-		b.Position = UDim2.fromOffset(x, 80 + (i - 1) * 100)
+		b.Position = UDim2.fromOffset(x, 76 + (i - 1) * DOLL_STEP)
 		if item then
 			b.Activated:Connect(function()
 				selected = item
@@ -176,7 +184,7 @@ local function renderEquip()
 		place(slot, PAD, i)
 	end
 	for i, slot in right do
-		place(slot, 440 - PAD - 84, i)
+		place(slot, 440 - PAD - DOLL_SLOT, i)
 	end
 
 	local totals = statTotals(equipped)
@@ -355,7 +363,7 @@ local function renderTabs()
 	local function tab(slot: string?, order: number)
 		local icon = if slot then slotArt(slot) else "pouch"
 		local name = if slot then Items.SlotName[slot] or slot else "All"
-		local b = Kit.iconButton(icon, name, 72, slot == filter, "tab", name)
+		local b = Kit.iconButton(icon, name, TAB_SIZE, slot == filter, "tab", name)
 		b.LayoutOrder = order
 		b.Activated:Connect(function()
 			filter = slot
@@ -413,17 +421,19 @@ local function buildGrid(parent: Frame)
 	tabRow = Instance.new("Frame")
 	tabRow.BackgroundTransparency = 1
 	tabRow.Position = UDim2.fromOffset(PAD, 76)
-	tabRow.Size = UDim2.fromOffset(560 - 2 * PAD, 76)
+	-- 10 tabs wrap to two rows of five (width fits five tabs incl. one wider active tab, not six)
+	tabRow.Size = UDim2.fromOffset(TAB_ROW_WIDTH, TAB_SIZE * 2 + TAB_GAP)
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
-	tl.Padding = UDim.new(0, 8)
+	tl.Wraps = true
+	tl.Padding = UDim.new(0, TAB_GAP)
 	tl.SortOrder = Enum.SortOrder.LayoutOrder
 	tl.Parent = tabRow
 	tabRow.Parent = panel
 
 	local sort = Kit.button("Rarity", C.Cyan, Vector2.new(156, 44), "sort")
 	Kit.buttonLabel(sort).TextSize = Kit.fontSize(15)
-	sort.Position = UDim2.fromOffset(PAD, 166)
+	sort.Position = UDim2.fromOffset(PAD, FILTER_Y)
 	sort.Activated:Connect(function()
 		sortByLevel = not sortByLevel
 		Kit.buttonLabel(sort).Text = if sortByLevel then "Level" else "Rarity"
@@ -434,7 +444,7 @@ local function buildGrid(parent: Frame)
 	-- Rarity filter: click cycles All -> Normal -> Magic -> Rare -> Epic
 	local filterBtn = Kit.button("All", C.Cyan, Vector2.new(156, 44), "filter")
 	Kit.buttonLabel(filterBtn).TextSize = Kit.fontSize(15)
-	filterBtn.Position = UDim2.fromOffset(PAD + 168, 166)
+	filterBtn.Position = UDim2.fromOffset(PAD + 168, FILTER_Y)
 	filterBtn.Activated:Connect(function()
 		local order = { "normal", "magic", "rare", "epic" }
 		local nextIndex = 1
@@ -452,7 +462,7 @@ local function buildGrid(parent: Frame)
 	filterBtn.Parent = panel
 
 	local searchFrame, searchBox = Kit.textBox(Vector2.new(168, 44), "Search ...")
-	searchFrame.Position = UDim2.fromOffset(PAD + 336, 166)
+	searchFrame.Position = UDim2.fromOffset(PAD + 336, FILTER_Y)
 	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
 		searchText = string.lower(searchBox.Text)
 		InventoryController.render()
@@ -462,8 +472,8 @@ local function buildGrid(parent: Frame)
 	gridFrame = Instance.new("ScrollingFrame")
 	gridFrame.BackgroundTransparency = 1
 	gridFrame.BorderSizePixel = 0
-	gridFrame.Position = UDim2.fromOffset(PAD, 228)
-	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - 228 - PAD)
+	gridFrame.Position = UDim2.fromOffset(PAD, FILTER_Y + 44 + 14)
+	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - (FILTER_Y + 44 + 14) - PAD)
 	gridFrame.ScrollBarThickness = 6
 	gridFrame.ScrollBarImageColor3 = C.Line2
 	gridFrame.ScrollingDirection = Enum.ScrollingDirection.Y

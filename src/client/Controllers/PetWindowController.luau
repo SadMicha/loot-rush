@@ -9,7 +9,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Balance = require(ReplicatedStorage.Shared.Balance)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Pets = require(ReplicatedStorage.Shared.Pets)
 local Shop = require(ReplicatedStorage.Shared.Shop)
@@ -56,7 +55,6 @@ local panel: Frame
 
 local tab = "eggs" -- "eggs" | "pets"
 local selectedPet: string? = nil
-local pendingHatch = false -- a hatch request is on its way (PetResult then means "hatched")
 local lastResult: { ok: boolean, text: string, rarity: string? }? = nil
 
 local function clear(parent: Instance)
@@ -89,14 +87,6 @@ end
 local function bestDepth(): number
 	local v = player:GetAttribute("BestDepth")
 	return if typeof(v) == "number" then v else 1
-end
-
--- Same formula as Systems/Pets.eggPrice (server stays the authority)
-local function eggPrice(egg: Pets.Egg): number
-	if egg.price.kind ~= "gold" then
-		return egg.price.amount
-	end
-	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth()) + 0.5)
 end
 
 local function owned(): { [string]: number }
@@ -239,7 +229,7 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	desc.Parent = f
 
 	-- Price (live: gold grows with the best depth)
-	local price = eggPrice(egg)
+	local price = Pets.eggPrice(egg, bestDepth())
 	local affordable = walletOf(egg.price.kind) >= price
 	local priceRow = Window.frame(UDim2.fromOffset(textW, 32))
 	priceRow.Name = "Price"
@@ -288,7 +278,6 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	Kit.setEnabled(hatch, affordable)
 	hatch.Activated:Connect(function()
 		if hatch.Active then
-			pendingHatch = true
 			Net.Pet:FireServer("hatch", egg.id)
 		end
 	end)
@@ -636,8 +625,7 @@ function PetWindowController.init()
 			return
 		end
 		local pet = if typeof(data.pet) == "string" then Pets.ById[data.pet] else nil
-		local wasHatch = pendingHatch
-		pendingHatch = false
+		local wasHatch = data.kind == "hatch"
 		lastResult = {
 			ok = data.ok == true,
 			text = data.text,

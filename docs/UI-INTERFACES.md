@@ -45,11 +45,18 @@ local next = Rebirth.bonus(n + 1) -- { damage = 25, life = 10, gold = 20, xp = 2
 - Send: `Net.Pet:FireServer("hatch", eggId)`, `("equip", petId)`, `("unequip", petId)`
 - State: `Net.Pets` → `{ owned = { [petId] = level }, equipped = { petId }, slots, odds }`; the client keeps
   the latest state in `PetController.state` and fires `PetController.Changed`.
-- Reply: `Net.PetResult` → `{ ok, text, pet?, level?, shards? }` (after hatching: which pet)
+- Reply: `Net.PetResult` → `{ ok, text, kind, pet?, level?, shards? }`; `kind` = `"hatch"` |
+  `"equip"` | `"unequip"` (which request it answers; after hatching `pet` = the hatched pet)
 - Catalog/display: `Shared/Pets` – `List`, `ById`, `Eggs` (`meadow_egg`, `star_egg`), `StatName`,
-  `bonusOf(id, level)`, `levelMult(level)`, `odds(egg)`. Egg price in gold:
-  `egg.price.amount × Balance.shopFactor(BestDepth)`.
+  `bonusOf(id, level)`, `levelMult(level)`, `odds(egg)`. **Always** show egg prices via
+  `Pets.eggPrice(egg, BestDepth)` (the server charges exactly this).
 - Attributes: `Pets` (equipped, comma-separated), `PetSlots`.
+
+## Gear slots
+
+- `Shared/Items.Slots` = `helmet, armor, gloves, belt, boots, weapon, offhand, amulet, ring` (display
+  order), `Items.SlotName[slot]` = label. `Net.Inv` → `equipped = { [slot]: Item }` may hold any of the
+  9 (old saves only the first 5 kinds). Send `Net.Equip(itemId)` / `Net.Unequip(slot)`.
 
 ## Stations in the Hub
 

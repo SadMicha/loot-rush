@@ -1,11 +1,12 @@
 --!strict
 -- Save data: the only place that touches DataStores. Gameplay only changes the table from Data.get.
---  • ProfileStore (ServerPackages) owns the session lock, autosave (every 5 min), retries and
+--  • ProfileStore (ServerPackages) owns the session lock, autosave (every 2 min), retries and
 --    BindToClose. Only one server owns a save at a time: a second server asks the owner to end
 --    its session (MessagingService) and loads only after that last save went through.
 --  • profile.Data is the record { v, data } from Shared/Profile (defaults, migrations, sanitize).
 --  • Session lost (another server took over) → kick, nothing is stored here any more.
---  • Load failed → kick instead of an empty save, so a real save is never overwritten.
+--  • Load failed (or not done after LOAD_TIMEOUT, e.g. DataStore outage) → kick instead of an
+--    empty save, so a real save is never overwritten and Data.waitFor never hangs.
 --    Only in Studio without API access you play on ProfileStore.Mock (not stored).
 
 local Players = game:GetService("Players")
@@ -20,6 +21,12 @@ export type Profile = ProfileSchema.Data
 -- New name for the ProfileStore format: saves from LootRush_Profile_v2 (own lock format) are ignored
 local STORE_NAME = "LootRush_Profile_v3"
 local SAVE_TIMEOUT = 15 -- saveNow gives up after this long (a purchase then stays NotProcessedYet)
+-- Passing Cancel switches off ProfileStore's own START_SESSION_TIMEOUT, so the load needs its own
+local LOAD_TIMEOUT = 120
+-- ProfileStore default is 300 s: a server crash would lose up to that much gold/XP/drops
+local AUTO_SAVE_PERIOD = 120
+
+ProfileStore.SetConstant("AUTO_SAVE_PERIOD", AUTO_SAVE_PERIOD)
 
 local KICK = table.freeze({
 	lost = "Your save was opened on another server. Please rejoin.",
@@ -50,6 +57,8 @@ local Data = {}
 
 local sessions: { [Player]: Session } = {}
 local loading: { [Player]: boolean } = {}
+-- PlayerRemoving fired while loading (the player is still parented to Players at that moment)
+local left: { [Player]: boolean } = {}
 local warnedMock = false
 
 local function key(player: Player): string
@@ -57,10 +66,15 @@ local function key(player: Player): string
 end
 
 local function present(player: Player): boolean
-	return player.Parent == Players
+	return player.Parent == Players and not left[player]
 end
 
 local function settle(session: Session, stored: boolean)
+	-- No save of this session pending: a stale result (e.g. a retried end-of-session save of the
+	-- previous session after a quick rejoin, matched by key in OnError) must not be counted
+	if session.settled >= session.started then
+		return
+	end
 	session.settled += 1
 	if session.results[session.settled] ~= nil then
 		session.results[session.settled] = stored
@@ -103,9 +117,10 @@ local function open(player: Player)
 	local profile
 	if live then
 		-- Cancel is a real StartSessionAsync param, the package type only lists Steal
+		local deadline = os.clock() + LOAD_TIMEOUT
 		local params: any = {
 			Cancel = function(): boolean
-				return not present(player)
+				return not present(player) or os.clock() >= deadline
 			end,
 		}
 		profile = store:StartSessionAsync(key(player), params)
@@ -126,7 +141,7 @@ local function open(player: Player)
 		return
 	end
 	if not present(player) then
-		profile:EndSession() -- left while loading
+		profile:EndSession() -- left while loading (or PlayerRemoving already ran)
 		return
 	end
 
@@ -167,6 +182,7 @@ local function load(player: Player)
 		open(player)
 	end)
 	loading[player] = nil
+	left[player] = nil
 	if not ok then
 		warn("[LootRush] load failed:", player.UserId, err)
 		if present(player) and not sessions[player] then
@@ -212,6 +228,9 @@ end
 function Data.init()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		-- Still loading: the Cancel check (or the presence check after loading) ends it
+		if loading[player] then
+			left[player] = true
+		end
 		local session = sessions[player]
 		sessions[player] = nil
 		if session then

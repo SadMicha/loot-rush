@@ -109,6 +109,9 @@ describe("ProfileStore in the sandbox", function()
 		profileA.OnSessionEnd:Connect(function()
 			endedOnA = true
 		end)
+		-- Unsaved change right before the hand-off: only A's final save on release can carry it
+		profileA.Data.data.gold = 77
+		expect(raw("p_1").Data.data.gold).toBe(42)
 		local start = os.clock()
 		local done = false
 		local both = false
@@ -129,7 +132,7 @@ describe("ProfileStore in the sandbox", function()
 		expect(profileA:IsActive()).toBe(false)
 		expect(profileB).never.toBeNil()
 		expect(profileB:IsActive()).toBe(true)
-		expect(profileB.Data.data.gold).toBe(42)
+		expect(profileB.Data.data.gold).toBe(77)
 		expect(raw("p_1").MetaData.ActiveSession[2]).toBe("server-b")
 		expect(raw("p_1").MetaData.ForceLoadSession).toBeNil()
 		-- A asked to end its session over MessagingService
@@ -155,7 +158,62 @@ describe("ProfileStore in the sandbox", function()
 		end, 10)).toBe(true)
 		expect(ended).toBe(true)
 		expect(profileB:IsActive()).toBe(false)
-		expect(raw("p_1").Data.data.gold).toBe(42)
+		expect(raw("p_1").Data.data.gold).toBe(77)
+	end)
+
+	it("steals the session after SESSION_STEAL when the owner does not answer", function()
+		local pa = storeA:StartSessionAsync("p_6", {})
+		expect(pa).never.toBeNil()
+		pa.Data.data.gold = 6
+		local saved = false
+		local conn = pa.OnAfterSave:Connect(function()
+			saved = true
+		end)
+		pa:Save()
+		expect(waitUntil(function()
+			return saved
+		end, 10)).toBe(true)
+		conn:Disconnect()
+		-- A no longer hears its session topic (e.g. MessagingService down); unsaved change
+		sim.subscriptions["PS_" .. raw("p_6").MetaData.ActiveSession[3]] = nil
+		pa.Data.data.gold = 99
+
+		local start = os.clock()
+		local pb
+		local done = false
+		task.spawn(function()
+			pb = storeB:StartSessionAsync("p_6", {})
+			done = true
+		end)
+		expect(waitUntil(function()
+			return done
+		end, 90)).toBe(true)
+		local took = os.clock() - start
+		expect(pb).never.toBeNil()
+		expect(pb:IsActive()).toBe(true)
+		-- Stolen: A never saved again, so its unsaved change is lost
+		expect(pb.Data.data.gold).toBe(6)
+		expect(raw("p_6").MetaData.ActiveSession[2]).toBe("server-b")
+		-- FIRST_LOAD_REPEAT (5 s) + SESSION_STEAL (40 s) in LOAD_REPEAT_PERIOD steps
+		expect(took >= 40).toBe(true)
+		expect(took < 70).toBe(true)
+
+		-- A finds out on its next save and ends the session without overwriting B
+		local endedOnA = false
+		pa.OnSessionEnd:Connect(function()
+			endedOnA = true
+		end)
+		pa:Save()
+		expect(waitUntil(function()
+			return endedOnA
+		end, 10)).toBe(true)
+		expect(pa:IsActive()).toBe(false)
+		expect(raw("p_6").Data.data.gold).toBe(6)
+		expect(raw("p_6").MetaData.ActiveSession[2]).toBe("server-b")
+		pb:EndSession()
+		expect(waitUntil(function()
+			return raw("p_6").MetaData.ActiveSession == nil
+		end, 10)).toBe(true)
 	end)
 
 	it("releases all sessions on BindToClose and refuses new ones", function()

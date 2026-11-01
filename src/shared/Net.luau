@@ -19,7 +19,8 @@
 --   Pet       (C→S): action: "hatch" | "equip" | "unequip", id: string (egg or pet ID)
 --   Pets      (S→C): { owned, equipped, slots, odds } - pet state (Shared/Pets);
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
---   PetResult (S→C): { ok, text, pet?, level?, shards? } - feedback (hatching, equipping)
+--   PetResult (S→C): { ok, text, kind, pet?, level?, shards? } - feedback (hatching, equipping);
+--                    kind = "hatch" | "equip" | "unequip" (the request it answers)
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

@@ -1,6 +1,6 @@
 --!strict
--- Save schema: defaults, migration of old saves and the session lock rules.
--- Pure logic without DataStore (testable). Loading/saving itself is done by Systems/Data.
+-- Save schema: defaults, migration of old saves, sanitizing. Pure logic without DataStore
+-- (testable); loading, saving and sessions are Systems/Data on ProfileStore.
 --
 -- New field? Add it to the Data type and to DEFAULTS - missing fields are filled in on load.
 -- Fields with their own validation (e.g. Progression) are appended in Profile.reconcile instead.
@@ -31,13 +31,10 @@ export type Data = {
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 }
 
-export type Lock = { job: string, t: number }
-
--- How a save is stored in the DataStore
+-- The versioned save (stored as ProfileStore's profile.Data)
 export type Record = {
 	v: number,
 	data: Data,
-	lock: Lock?,
 }
 
 Profile.VERSION = 3
@@ -247,16 +244,6 @@ function Profile.migrate(raw: any): Record
 	end
 	record.data = Profile.reconcile(record.data)
 	return record
-end
-
--- Does the key currently belong to another server? A lock older than staleAfter counts as orphaned
--- (server crashed), because every autosave refreshes it.
-function Profile.lockedByOther(record: any, job: string, now: number, staleAfter: number): boolean
-	local lock = typeof(record) == "table" and record.lock
-	if typeof(lock) ~= "table" or lock.job == job then
-		return false
-	end
-	return typeof(lock.t) == "number" and now - lock.t < staleAfter
 end
 
 return Profile

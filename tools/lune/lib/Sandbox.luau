@@ -11,7 +11,10 @@
 -- DataStores (sim.datastores["<name>/<scope>"][key] = raw value), shaped like the real v2 API so
 -- ProfileStore runs unmodified:
 --   - values are deep-copied on write and on read (like Roblox's serialization), so game code
---     never holds a reference into the "stored" value
+--     never holds a reference into the "stored" value; writes (and MessagingService payloads)
+--     reject what JSON cannot hold with a clean error: functions, Instances, Vector3 and other
+--     userdata, tables with metatables, NaN/inf, cycles, mixed or sparse tables
+--   - an UpdateAsync transform that yields errors (like Roblox: callbacks cannot yield)
 --   - every key has a DataStoreKeyInfo (sim.datastoreInfo[store][key]): Version, CreatedTime,
 --     UpdatedTime (ms), :GetUserIds(), :GetMetadata(); seeded keys without info get one on first read
 --   - GetAsync(k) -> (value, keyInfo); UpdateAsync(k, fn) calls fn(value, keyInfo) (keyInfo nil
@@ -29,7 +32,9 @@
 -- Published messages are logged in sim.messages ({ topic, data, t }).
 -- game.JobId reads sim.jobId (default "sandbox"). sim:requireFresh(path, { jobId }) loads a
 -- module with its own module cache under another JobId, i.e. a second "server" in-process
--- (both share DataStores and MessagingService). BindToClose callbacks of all copies land in
+-- (both share DataStores and MessagingService). The JobId is only overridden while the module
+-- loads: code that reads game.JobId later (at runtime) sees sim.jobId again, so a copy must
+-- capture the JobId at load time (ProfileStore does). BindToClose callbacks of all copies land in
 -- sim.onClose without a server tag.
 
 local fs = require("@lune/fs")
@@ -87,16 +92,62 @@ local function errorText(err: any): string
 	return tidy(text)
 end
 
--- Deep copy of plain data (what survives a DataStore/MessagingService round trip)
-local function copyValue(v)
-	if type(v) ~= "table" then
-		return v
+-- Deep copy of plain data (what survives a DataStore/MessagingService round trip). Like Roblox's
+-- JSON serialization it rejects anything without a JSON form with a clean error: functions,
+-- threads, userdata (Vector3, CFrame …), Instances and other tables with a metatable, NaN and
+-- infinite numbers, cycles, keys that are neither strings nor array indices, and mixed
+-- (array + dictionary) or sparse arrays. `where` names the API call in the message.
+local function copyValue(v, where: string?)
+	local seen = {}
+	local function fail(path: string, why: string)
+		error(string.format("%s: cannot store %s at %s", where or "serialize", why, path), 0)
 	end
-	local c = {}
-	for k, x in v do
-		c[k] = copyValue(x)
+	local function copy(x, path: string)
+		local t = realTypeof(x)
+		if t == "number" then
+			if x ~= x or x == math.huge or x == -math.huge then
+				fail(path, "NaN or infinite number")
+			end
+			return x
+		elseif t == "string" or t == "boolean" or t == "nil" then
+			return x
+		elseif t ~= "table" then
+			fail(path, t)
+		end
+		if getmetatable(x) ~= nil then
+			fail(path, "table with a metatable (Instance or custom object)")
+		end
+		if seen[x] then
+			fail(path, "cyclic table")
+		end
+		seen[x] = true
+		local n = #x
+		local numeric, named = 0, 0
+		local c = {}
+		for k, val in x do
+			local kt = type(k)
+			if kt == "number" then
+				if k % 1 ~= 0 or k < 1 or k > n then
+					fail(path, `sparse array (index {k})`)
+				end
+				numeric += 1
+			elseif kt == "string" then
+				named += 1
+			else
+				fail(path, `{kt} key`)
+			end
+			c[k] = copy(val, `{path}.{tostring(k)}`)
+		end
+		if numeric > 0 and named > 0 then
+			fail(path, "mixed table (array and dictionary keys)")
+		end
+		if numeric ~= n then
+			fail(path, "sparse array")
+		end
+		seen[x] = nil
+		return c
 	end
-	return c
+	return copy(v, "value")
 end
 
 -- Mini PRNG (Park–Miller) so Random is reproducible and runs without Roblox
@@ -1423,7 +1474,7 @@ function Sandbox:installCustom()
 			if type(topic) ~= "string" then
 				error("MessagingService:PublishAsync: topic must be a string", 2)
 			end
-			local payload = copyValue(data)
+			local payload = copyValue(data, "MessagingService:PublishAsync")
 			local sent = 1700000000 + sched.now
 			table.insert(self.messages, { topic = topic, data = payload, t = sched.now })
 			for _, sub in table.clone(self.subscriptions[topic] or {}) do
@@ -1857,16 +1908,20 @@ function Sandbox:dataStore(key: string)
 			_metadata = copyValue(e.metadata),
 		}, KeyInfoMT)
 	end
-	local function write(k, v, userIds, metadata)
+	local function write(where, k, v, userIds, metadata)
+		-- Serialize everything first, so a rejected value leaves the key untouched
+		local stored = copyValue(v, where)
+		local ids = copyValue(userIds or {}, where .. " (userIds)")
+		local meta = copyValue(metadata or {}, where .. " (metadata)")
 		local existed = entry(k)
-		values()[k] = copyValue(v)
+		values()[k] = stored
 		local e = entry(k)
 		if existed then
 			e.version += 1
 			e.updated = nowMs()
 		end
-		e.userIds = copyValue(userIds or {})
-		e.metadata = copyValue(metadata or {})
+		e.userIds = ids
+		e.metadata = meta
 	end
 
 	-- sim.datastoreAccess = false: every call fails like Studio without API access
@@ -1888,21 +1943,39 @@ function Sandbox:dataStore(key: string)
 		local metadata = if type(options) == "table" and options.GetMetadata
 			then options:GetMetadata()
 			else nil
-		write(k, v, userIds, metadata)
+		write("SetAsync", k, v, userIds, metadata)
 		return keyInfo(k).Version
 	end
 	function store:UpdateAsync(k, fn)
 		sched:wait(0)
 		checkAccess()
-		local new, userIds, metadata = fn(copyValue(values()[k]), keyInfo(k))
+		-- Roblox forbids yielding in the transform: run it in its own coroutine and fail if it
+		-- comes back suspended (task.wait, a DataStore call …) instead of finishing
+		local co = coroutine.create(fn)
+		sched.threadSide[co] = sched.side
+		local res = table.pack(coroutine.resume(co, copyValue(values()[k]), keyInfo(k)))
+		if coroutine.status(co) == "suspended" then
+			sched:cancel(co)
+			error("UpdateAsync: the transform function yielded (callbacks cannot yield)", 2)
+		end
+		if not res[1] then
+			error(res[2], 0)
+		end
+		local new, userIds, metadata = res[2], res[3], res[4]
 		if new ~= nil then
-			write(k, new, userIds, metadata)
+			write("UpdateAsync", k, new, userIds, metadata)
 		end
 		return copyValue(values()[k]), keyInfo(k)
 	end
 	function store:IncrementAsync(k, delta)
 		local e = entry(k)
-		write(k, (values()[k] or 0) + (delta or 1), e and e.userIds, e and e.metadata)
+		write(
+			"IncrementAsync",
+			k,
+			(values()[k] or 0) + (delta or 1),
+			e and e.userIds,
+			e and e.metadata
+		)
 		return values()[k], keyInfo(k)
 	end
 	function store:RemoveAsync(k)
