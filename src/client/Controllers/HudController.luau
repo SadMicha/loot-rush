@@ -33,6 +33,7 @@ local StarNetController = require(script.Parent.StarNetController)
 local ForgeController = require(script.Parent.ForgeController)
 local AtlasController = require(script.Parent.AtlasController)
 local ShopController = require(script.Parent.ShopController)
+local PetWindowController = require(script.Parent.PetWindowController)
 
 local HudController = {}
 
@@ -57,6 +58,7 @@ local MENU_ACTION: { [string]: () -> () } = {
 	forge = ForgeController.toggle,
 	atlas = AtlasController.toggle,
 	shop = ShopController.toggle,
+	pets = PetWindowController.toggle,
 	-- "Hub": back to the hub while in a Rift (there is nothing to do when already there)
 	hub = function()
 		if RiftController.active() then

@@ -332,7 +332,7 @@ if args.clicks then
 	end
 
 	-- Scenario: windows with a full inventory and materials (the Forge needs items) and the debug menu
-	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "Dbg" } do
+	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "pets", "Dbg" } do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
 		sb:runAs("server", function(req)

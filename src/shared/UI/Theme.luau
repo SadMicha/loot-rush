@@ -174,6 +174,7 @@ Theme.Hud = table.freeze({
 		{ id = "hub", art = "menu_hub", icon = "hub", caption = "Hub" },
 		{ id = "atlas", art = "menu_atlas", icon = "atlas", caption = "Atlas" },
 		{ id = "forge", art = "menu_forge", icon = "forge", caption = "Forge" },
+		{ id = "pets", art = "menu_pets", icon = "companion", caption = "Pets" },
 		{ id = "shop", art = "menu_shop", icon = "pouch", caption = "Shop" },
 	}),
 })
@@ -183,8 +184,8 @@ Theme.Hud = table.freeze({
 Theme.MiniMap = table.freeze({
 	Range = 70, -- studs from the center to the edge of the map
 	Fov = 28, -- narrow field of view from high up = nearly orthographic
-	PartCap = 340, -- most parts in the viewport at any time (~240 visible ground cells + props)
-	GroundShare = 0.8, -- share of PartCap that ground top slabs may use (nearest first)
+	PartCap = 360, -- most parts in the viewport at any time (~270 ground cells and stair steps + props)
+	GroundShare = 0.85, -- share of PartCap that ground top slabs may use (nearest first)
 	PartHz = 4, -- how often the part set is refreshed
 	ViewHz = 15, -- camera + dots refresh rate
 	ClonesPerRefresh = 40, -- new copies per part refresh (spreads the cost)

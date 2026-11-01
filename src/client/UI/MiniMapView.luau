@@ -16,7 +16,7 @@ local MiniMapView = {}
 -- Containers of the walkable world (see World.luau / Hub.luau); everything else in workspace is ignored
 local CONTAINERS = { "Arena", "Lumenhaven" }
 local BACKDROP = "Backdrop" -- far scenery folder inside the containers, not part of the map
-local CELL = 4 -- studs; ground parts whose centers fall in the same XZ cell are stacked (top slab over base)
+local KEY_STEP = 0.05 -- studs; ground parts with the same XZ centre (to this precision) are stacked (top slab over base)
 
 export type View = {
 	root: CanvasGroup, -- circular clip around the terrain viewport and its tint
@@ -139,12 +139,17 @@ function MiniMapView.new(): View
 				table.insert(if isGround(part) then ground else props, part)
 			end
 		end
-		-- Top surfaces only: per snapped XZ cell keep the ground part with the highest top, so the bases
-		-- below the coloured top slabs are skipped
-		local tops: { [number]: BasePart } = {}
+		-- Top surfaces only: per exact XZ centre keep the ground part with the highest top, so the bases
+		-- below the coloured top slabs are skipped. Parts that merely overlap a cell (stair steps) have
+		-- their own centre and are never merged away.
+		local tops: { [string]: BasePart } = {}
 		for _, part in ground do
 			local p = part.Position
-			local key = math.floor(p.X / CELL + 0.5) * 100003 + math.floor(p.Z / CELL + 0.5)
+			local key = string.format(
+				"%d_%d",
+				math.floor(p.X / KEY_STEP + 0.5),
+				math.floor(p.Z / KEY_STEP + 0.5)
+			)
 			local other = tops[key]
 			if not other or other.Position.Y + other.Size.Y / 2 < p.Y + part.Size.Y / 2 then
 				tops[key] = part
@@ -153,8 +158,11 @@ function MiniMapView.new(): View
 		table.clear(ground)
 		local dist: { [BasePart]: number } = {}
 		for _, part in tops do
-			local p = part.Position
-			dist[part] = (p.X - origin.X) ^ 2 + (p.Z - origin.Z) ^ 2
+			-- Distance to the nearest edge of the footprint (not the centre), so big tiles at the rim count
+			local p, s = part.Position, part.Size
+			local dx = math.max(math.abs(p.X - origin.X) - s.X / 2, 0)
+			local dz = math.max(math.abs(p.Z - origin.Z) - s.Z / 2, 0)
+			dist[part] = dx * dx + dz * dz
 			table.insert(ground, part)
 		end
 		table.sort(ground, function(a: BasePart, b: BasePart)
