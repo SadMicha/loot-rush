@@ -27,7 +27,8 @@ export type EnemyAttributes = {
 }
 
 -- Net.Fx events (server → all clients): kind → data
---   dmg     { pos, amount?, text?, crit?, hurt? }
+--   dmg     { pos, amount?, text?, crit?, critTier?, hurt? }
+--           crit = tier >= 1; critTier (optional, >= 1 only on crits) = overcrit tier, 2 = double crit
 --   proj    { from, to, time, color, size }
 --   nova    { pos, radius, color }
 --   chain   { points: {Vector3}, color }

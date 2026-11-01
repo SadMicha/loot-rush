@@ -15,6 +15,7 @@ After `rojo serve` + Connect + Play. Just copy errors from the Output.
 - [x] Q Thunderstorm (ring around you) · E Spark Ball (toward mouse, explosion) · R Chain Lightning (jumps to up to 5) · F Frost Nova (slows)
 - [x] Slots show cooldown fill + seconds; clicking/tapping a slot works too
 - [x] Damage numbers: white normal, gold + "!" on crit, red when you get hit
+- [ ] Overcrit: with the Debug/attribute StatCrit set to ~140 (chance 150%) every hit is a crit and about half of them deal crit multiplier squared; with StatCrit 40 behaves as before (about 50% crit)
 - [ ] Thunderstorm: name, lightning description and HUD icon in the Abilities window; same radius (10) and cooldown (3 s) as the old Blade Whirl; blooms Bolt Rain / Eye of the Storm / Thunderclap / Storm Rider work
 - [ ] No potions anywhere: no potion button left of the orbs, key 1 does nothing, shop has no Supplies tab and no potions in the wallet
 

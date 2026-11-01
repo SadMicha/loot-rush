@@ -7,9 +7,10 @@
 --   • skill hits per cast in waves (TARGETS), the basic attack hits one enemy
 --   • kill XP is split evenly across the 4 skills on the bar (skill levels)
 --   • without Star Net and Forge (= lower bound of player strength)
---   • all nine gear slots (Items.Slots), best piece per slot by score; crit capped like Stats
+--   • all nine gear slots (Items.Slots), best piece per slot by score; crit uncapped with overcrit (Shared/Crit)
 --   • walk/pause time per wave WAVE_OVERHEAD seconds
 local Atlas = require("ReplicatedStorage.Shared.Atlas")
+local Crit = require("ReplicatedStorage.Shared.Crit")
 local Balance = require("ReplicatedStorage.Shared.Balance")
 local Config = require("ReplicatedStorage.Shared.Config")
 local Items = require("ReplicatedStorage.Shared.Items")
@@ -86,10 +87,10 @@ local function simulate()
 			end
 		end
 		local weapon = if gear.weapon then Balance.weaponFactor(Items.itemPower(gear.weapon)) else 1
-		local critChance = Config.CRIT_CHANCE + math.min(eq.crit, Config.STAT_CRIT_CAP) / 100
+		local critChance = Config.CRIT_CHANCE + eq.crit / 100
 		local mult = weapon
 			* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + eq.damage / 100)
-			* (1 + critChance * (Config.CRIT_MULT - 1))
+			* Crit.expectedMult(critChance, Config.CRIT_MULT)
 		local basic = Progression.effectiveSkill(Skills.basic, progress)
 		local single = basic.damage / basic.cooldown
 		local aoe = single
