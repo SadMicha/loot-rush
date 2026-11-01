@@ -109,4 +109,37 @@ describe("Debug menu", function()
 		sim:run(1)
 		expect(state().gold).toBe(before.gold + 10000)
 	end)
+
+	it("slay only defeats enemies of the caller's own Rift", function()
+		sim:run(8) -- refill the debug rate limit
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", "green_plains")
+		end)
+		sim:run(0.5)
+		local own = server(function(req, player)
+			local run = req("ServerScriptService.Server.Systems.Rift").runOf(player)
+			-- an enemy of a foreign run (another player's Rift)
+			req("ServerScriptService.Server.Systems.Enemies").spawn(
+				"slime",
+				Vector3.new(0, 3, 5000),
+				1,
+				{ run = 9999 }
+			)
+			return run
+		end)
+		expect(own).never.toBeNil()
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Debug:FireServer("slay")
+		end)
+		sim:run(0.2)
+		local mine, foreign = server(function(req)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			return Enemies.count(own), Enemies.count(9999)
+		end)
+		expect(mine).toBe(0)
+		expect(foreign).toBe(1)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(9999)
+		end)
+	end)
 end)

@@ -7,6 +7,30 @@
 --   error  - runtime errors in game code (with stack trace), invalid properties, kick …
 --   warn   - warn() output, hanging WaitForChild calls
 --   info   - Roblox functions the sandbox only knows as an empty stub
+--
+-- DataStores (sim.datastores["<name>/<scope>"][key] = raw value), shaped like the real v2 API so
+-- ProfileStore runs unmodified:
+--   - values are deep-copied on write and on read (like Roblox's serialization), so game code
+--     never holds a reference into the "stored" value
+--   - every key has a DataStoreKeyInfo (sim.datastoreInfo[store][key]): Version, CreatedTime,
+--     UpdatedTime (ms), :GetUserIds(), :GetMetadata(); seeded keys without info get one on first read
+--   - GetAsync(k) -> (value, keyInfo); UpdateAsync(k, fn) calls fn(value, keyInfo) (keyInfo nil
+--     for a missing key), stores the returned (value, userIds, metadata) and returns
+--     (value, keyInfo); if fn returns nil nothing is written and the current value is returned
+--   - SetAsync(k, v, userIds, options) stores userIds and options:GetMetadata() if given
+--   - sim.datastoreAccess = false: Get/Set/UpdateAsync error with "403 …" (Studio without API
+--     access; ProfileStore then runs on its mock store)
+--   - not supported: GetVersionAsync/ListVersionsAsync (ProfileStore VersionQuery), budgets
+--     (always 100), throttling
+--   - DataStoreOptions:SetExperimentalFeatures() is a no-op
+-- MessagingService (generic, any topic): SubscribeAsync(topic, cb) -> connection with
+-- :Disconnect(); PublishAsync(topic, data) delivers { Data = copy, Sent = unix seconds } to every
+-- subscriber in its own thread after sim.messagingLatency seconds (default 0, next frame).
+-- Published messages are logged in sim.messages ({ topic, data, t }).
+-- game.JobId reads sim.jobId (default "sandbox"). sim:requireFresh(path, { jobId }) loads a
+-- module with its own module cache under another JobId, i.e. a second "server" in-process
+-- (both share DataStores and MessagingService). BindToClose callbacks of all copies land in
+-- sim.onClose without a server tag.
 
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -61,6 +85,18 @@ local function errorText(err: any): string
 	text = text:gsub("^runtime error: ", "")
 	text = text:match("^(.-)\nstack traceback") or text
 	return tidy(text)
+end
+
+-- Deep copy of plain data (what survives a DataStore/MessagingService round trip)
+local function copyValue(v)
+	if type(v) ~= "table" then
+		return v
+	end
+	local c = {}
+	for k, x in v do
+		c[k] = copyValue(x)
+	end
+	return c
 end
 
 -- Mini PRNG (Park–Miller) so Random is reproducible and runs without Roblox
@@ -217,6 +253,11 @@ function Sandbox.new(opts: Options)
 	self.loading = {}
 	self.globals = { server = {}, client = {} }
 	self.datastores = {}
+	self.datastoreInfo = {}
+	self.messages = {}
+	self.subscriptions = {} -- topic -> { { cb, connected } }
+	self.messagingLatency = 0
+	self.jobId = "sandbox"
 	self.actions = {}
 	self.renderSteps = {}
 	self.layout = Layout.new(self.viewport, 58)
@@ -939,7 +980,7 @@ function Sandbox:installCustom()
 	})
 	self:custom("DataModel", "JobId", {
 		get = function()
-			return "sandbox"
+			return self.jobId
 		end,
 	})
 
@@ -1351,6 +1392,49 @@ function Sandbox:installCustom()
 			return 100
 		end,
 	})
+	self:custom("DataStoreOptions", "SetExperimentalFeatures", { method = function() end })
+
+	self:custom("MessagingService", "SubscribeAsync", {
+		method = function(_, topic, cb)
+			if type(topic) ~= "string" or type(cb) ~= "function" then
+				error("MessagingService:SubscribeAsync(topic: string, callback: function)", 2)
+			end
+			local list = self.subscriptions[topic]
+			if not list then
+				list = {}
+				self.subscriptions[topic] = list
+			end
+			local sub = { cb = cb, connected = true }
+			table.insert(list, sub)
+			local conn = { Connected = true }
+			function conn.Disconnect(c)
+				c.Connected = false
+				sub.connected = false
+				local i = table.find(list, sub)
+				if i then
+					table.remove(list, i)
+				end
+			end
+			return conn
+		end,
+	})
+	self:custom("MessagingService", "PublishAsync", {
+		method = function(_, topic, data)
+			if type(topic) ~= "string" then
+				error("MessagingService:PublishAsync: topic must be a string", 2)
+			end
+			local payload = copyValue(data)
+			local sent = 1700000000 + sched.now
+			table.insert(self.messages, { topic = topic, data = payload, t = sched.now })
+			for _, sub in table.clone(self.subscriptions[topic] or {}) do
+				sched:delay(self.messagingLatency, function()
+					if sub.connected then
+						sub.cb({ Data = copyValue(payload), Sent = sent })
+					end
+				end)
+			end
+		end,
+	})
 
 	self:custom("Stats", "GetTotalMemoryUsageMb", {
 		method = function()
@@ -1707,38 +1791,125 @@ function Sandbox:newTween(target, info, goals)
 	return tween
 end
 
+local KeyInfoMT = { __type = "DataStoreKeyInfo" }
+KeyInfoMT.__index = KeyInfoMT
+function KeyInfoMT:GetUserIds()
+	return copyValue(self._userIds)
+end
+function KeyInfoMT:GetMetadata()
+	return copyValue(self._metadata)
+end
+
 function Sandbox:dataStore(key: string)
-	local data = self.datastores[key]
-	if not data then
-		data = {}
-		self.datastores[key] = data
-	end
+	local sb = self
 	local sched = self.sched
+	-- Looked up per call: tests may replace sim.datastores[key] after the store was opened
+	local function values()
+		local data = sb.datastores[key]
+		if not data then
+			data = {}
+			sb.datastores[key] = data
+		end
+		return data
+	end
+	local function infos()
+		local info = sb.datastoreInfo[key]
+		if not info then
+			info = {}
+			sb.datastoreInfo[key] = info
+		end
+		return info
+	end
+	local function nowMs(): number
+		return math.floor((1700000000 + sched.now) * 1000)
+	end
+	-- Raw info entry of an existing key (created lazily for seeded values)
+	local function entry(k)
+		if values()[k] == nil then
+			infos()[k] = nil
+			return nil
+		end
+		local e = infos()[k]
+		if not e then
+			local t = nowMs()
+			e = { version = 0, created = t, updated = t, userIds = {}, metadata = {} }
+			infos()[k] = e
+		end
+		return e
+	end
+	local function keyInfo(k)
+		local e = entry(k)
+		if not e then
+			return nil
+		end
+		local v = tostring(e.version)
+		return setmetatable({
+			Version = string.rep("0", 16)
+				.. "."
+				.. string.rep("0", 10 - #v)
+				.. v
+				.. "."
+				.. string.rep("0", 16)
+				.. ".01",
+			CreatedTime = e.created,
+			UpdatedTime = e.updated,
+			_userIds = copyValue(e.userIds),
+			_metadata = copyValue(e.metadata),
+		}, KeyInfoMT)
+	end
+	local function write(k, v, userIds, metadata)
+		local existed = entry(k)
+		values()[k] = copyValue(v)
+		local e = entry(k)
+		if existed then
+			e.version += 1
+			e.updated = nowMs()
+		end
+		e.userIds = copyValue(userIds or {})
+		e.metadata = copyValue(metadata or {})
+	end
+
+	-- sim.datastoreAccess = false: every call fails like Studio without API access
+	local function checkAccess()
+		if sb.datastoreAccess == false then
+			error("403: Cannot write to DataStore from studio if API access is not enabled.", 3)
+		end
+	end
+
 	local store = {}
 	function store:GetAsync(k)
 		sched:wait(0)
-		return data[k]
+		checkAccess()
+		return copyValue(values()[k]), keyInfo(k)
 	end
-	function store:SetAsync(k, v)
+	function store:SetAsync(k, v, userIds, options)
 		sched:wait(0)
-		data[k] = v
+		checkAccess()
+		local metadata = if type(options) == "table" and options.GetMetadata
+			then options:GetMetadata()
+			else nil
+		write(k, v, userIds, metadata)
+		return keyInfo(k).Version
 	end
 	function store:UpdateAsync(k, fn)
 		sched:wait(0)
-		local new = fn(data[k])
+		checkAccess()
+		local new, userIds, metadata = fn(copyValue(values()[k]), keyInfo(k))
 		if new ~= nil then
-			data[k] = new
+			write(k, new, userIds, metadata)
 		end
-		return data[k]
+		return copyValue(values()[k]), keyInfo(k)
 	end
 	function store:IncrementAsync(k, delta)
-		data[k] = (data[k] or 0) + (delta or 1)
-		return data[k]
+		local e = entry(k)
+		write(k, (values()[k] or 0) + (delta or 1), e and e.userIds, e and e.metadata)
+		return values()[k], keyInfo(k)
 	end
 	function store:RemoveAsync(k)
-		local old = data[k]
-		data[k] = nil
-		return old
+		local old, info = values()[k], keyInfo(k)
+		values()[k] = nil
+		infos()[k] = nil
+		return old, info
 	end
 	function store:GetSortedAsync()
 		return {
@@ -2132,6 +2303,9 @@ function Sandbox:joinPlayer(name: string?)
 			player[k] = v
 		end)
 	end
+	-- Unique UserIds like on Roblox (first player 1, then 2, 3 …): saves are keyed by UserId
+	self.joined = (self.joined or 0) + 1
+	player.UserId = self.joined
 	self:wrap(RInstance.new("PlayerGui")).Parent = player
 	self:wrap(RInstance.new("Backpack")).Parent = player
 	local scripts = self:wrap(RInstance.new("PlayerScripts"))
@@ -2296,6 +2470,23 @@ function Sandbox:runAs(side: string, fn: (require: (string) -> any) -> ())
 		end)
 	end)
 	self.sched:flushDeferred()
+end
+
+-- Fresh copy of a server module (plus everything it requires while loading) under another
+-- JobId, as if it ran on a second server. Must be called from a sandbox thread.
+function Sandbox:requireFresh(path: string, opts: { jobId: string? }?)
+	local m = self:find(path)
+	assert(m, "module not found: " .. path)
+	local prevCache, prevJob = self.modules.server, self.jobId
+	self.modules.server = {}
+	self.jobId = (opts and opts.jobId) or prevJob
+	local ok, result = pcall(self.require, self, m, "server")
+	self.modules.server = prevCache
+	self.jobId = prevJob
+	if not ok then
+		error(result, 2)
+	end
+	return result
 end
 
 Sandbox.Random = { new = newRandom }

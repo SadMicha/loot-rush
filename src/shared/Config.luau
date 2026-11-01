@@ -35,7 +35,7 @@ return table.freeze({
 	CRIT_CHANCE = 0.1,
 	CRIT_MULT = 2,
 	-- Life per level, XP curve, enemy, gold and loot values per depth: Shared/Balance (table)
-	DAMAGE_PER_LEVEL = 0.02, -- +2 % damage per level (own assumption; the table scales via the weapon)
+	DAMAGE_PER_LEVEL = 0.02, -- +2% damage per level (own assumption; the table scales via the weapon)
 
 	-- Enemies
 	ENEMY_ZONE = Vector3.new(0, 0, -20), -- center of the spawn area

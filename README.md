@@ -5,6 +5,7 @@ Roblox ARPG that plays like an incremental. Built with [Rojo](https://rojo.space
 ## Setup (once)
 
 1. Install the toolchain: install [Rokit](https://github.com/rojo-rbx/rokit), then run `rokit install` in the project folder
+   and `bash tools/packages.sh` (`wally install` into `Packages/`/`ServerPackages/` plus package types for luau-lsp; `tools/check.sh` does it too)
 2. In VS Code, install the extensions **Rojo** and **Luau Language Server**
 3. In Roblox Studio, install the Rojo plugin (Plugins → Rojo)
 

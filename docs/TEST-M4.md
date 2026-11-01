@@ -16,7 +16,7 @@ Note: The arena is now empty until you start a rift (no constant respawn anymore
 ## End
 - [ ] Boss dead → banner "Depth 1 cleared", loot lies on the ground (5× gold, 3 items), panel with "Deeper (Depth 2)" and "Back to the village"
 - [ ] You can first pick up loot and then press the button (no time limit)
-- [ ] "Deeper" → full heal, enemies with +35 % health / +15 % damage, wave 1 starts (more enemies: 8)
+- [ ] "Deeper" → full heal, enemies with +35% health / +15% damage, wave 1 starts (more enemies: 8)
 - [ ] "Back to the village" → you stand at the starting point (hub), fully healed, banner gone, menu/quests/rift button slide in immediately (even right after a fight)
 - [ ] Gold/crystals/soulstar at the top stay visible in combat too
 - [ ] "Leave Rift" (bottom, when idle) in the middle of a run → enemies disappear, return to the hub

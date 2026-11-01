@@ -39,7 +39,7 @@ jobs:
             echo "::warning::Roblox secrets missing, publish skipped (docs/PUBLISH.md)."
           fi
 
-      - name: Install tools
+      - name: Install tools and Wally packages
         if: steps.secrets.outputs.ok == 'true'
         run: bash tools/setup.sh
 

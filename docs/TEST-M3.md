@@ -6,7 +6,7 @@
 
 ## Loot
 
-- [x] Enemies drop gold orbs (always) and with ~35 % an item cube with a name label in rarity color
+- [x] Enemies drop gold orbs (always) and with ~35% an item cube with a name label in rarity color
 - [x] Rare/Epic have a light beam; walking there (6 studs) = automatic pickup, name pops up
 - [x] Gold in the resource bar at the top counts up (only visible when idle)
 

@@ -26,6 +26,7 @@ end
 
 local function publish()
 	player:SetAttribute("DashCharges", charges)
+	player:SetAttribute("DashMax", maxCharges()) -- the HUD shows one diamond per maximum charge
 	player:SetAttribute("DashProgress", recharge / Config.DASH_RECHARGE)
 end
 

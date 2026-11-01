@@ -3,8 +3,10 @@
 
   ROBLOX_API_KEY=... ROBLOX_CREATOR_USER_ID=... python3 tools/upload-assets.py [--only key,key] [--out assets/ui-asset-ids.csv]
 
-The API key needs the Assets read + write permission. Writes a CSV (key,assetId,path) and
-skips keys that are already in it, so re-runs only upload what is missing.
+The API key needs the Assets read + write permission. Writes a CSV (key,assetId,path) after
+every upload and skips keys that are already in it, so re-runs only upload what is missing.
+A key whose file was already uploaded under another key gets that asset id. Exits 1 if any
+upload failed (the others are still recorded).
 """
 
 import argparse
@@ -79,6 +81,21 @@ def upload(key: str, user_id: str, name: str, path: str):
     return str(res["response"]["assetId"]), ""
 
 
+FIELDS = ["key", "assetId", "path"]
+
+
+def write_csv(out: str, done: dict) -> None:
+    # Rewritten in full after every change (temp file + replace), so a crash or Ctrl-C mid-run
+    # never loses ids that were already uploaded.
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    tmp = out + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS)
+        w.writeheader()
+        w.writerows(done.values())
+    os.replace(tmp, out)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default="")
@@ -92,33 +109,50 @@ def main() -> int:
         return 2
 
     with open(os.path.join(ROOT, "tools", "upload-manifest.json"), encoding="utf-8") as f:
-        manifest: dict = json.load(f)
+        raw = json.load(f)
+    # {"assets": [{"key", "file"}]} or {key: path}
+    manifest = {e["key"]: e["file"] for e in raw["assets"]} if "assets" in raw else raw
     only = {k for k in args.only.split(",") if k}
 
     done: dict = {}
     if os.path.exists(args.out):
         with open(args.out, newline="", encoding="utf-8") as f:
             done = {row["key"]: row for row in csv.DictReader(f)}
+    id_by_path = {row["path"]: row["assetId"] for row in done.values() if row.get("assetId")}
 
     failed = 0
-    for k, rel in manifest.items():
-        if (only and k not in only) or k in done:
-            continue
-        asset_id, err = upload(key, user_id, k, os.path.join(ROOT, rel))
-        if asset_id:
-            done[k] = {"key": k, "assetId": asset_id, "path": rel}
-            print(f"ok   {k} -> rbxassetid://{asset_id}")
-        else:
-            failed += 1
-            print(f"FAIL {k}: {err}")
-            if "401" in err or "403" in err:
-                break  # permission problem, the rest would fail the same way
+    try:
+        for k, rel in manifest.items():
+            if (only and k not in only) or k in done:
+                continue
+            if rel in id_by_path:
+                # Same file already uploaded under another key: reuse its id so every key has a row
+                done[k] = {"key": k, "assetId": id_by_path[rel], "path": rel}
+                write_csv(args.out, done)
+                print(f"same {k} -> rbxassetid://{id_by_path[rel]} (file already uploaded)")
+                continue
+            try:
+                asset_id, err = upload(key, user_id, k, os.path.join(ROOT, rel))
+            except (urllib.error.URLError, OSError, KeyError, ValueError, TypeError) as e:
+                # URLError/socket timeouts/missing files are OSError; KeyError/ValueError = odd reply.
+                # Only the exception type and message are printed, never the request headers.
+                asset_id, err = None, f"{type(e).__name__}: {e}"
+            if asset_id:
+                done[k] = {"key": k, "assetId": asset_id, "path": rel}
+                id_by_path[rel] = asset_id
+                write_csv(args.out, done)
+                print(f"ok   {k} -> rbxassetid://{asset_id}", flush=True)
+            else:
+                failed += 1
+                print(f"FAIL {k}: {err}", flush=True)
+                if "(401)" in err or "(403)" in err:
+                    break  # permission problem, the rest would fail the same way
+    except KeyboardInterrupt:
+        write_csv(args.out, done)
+        print("interrupted - recorded ids are saved", file=sys.stderr)
+        return 130
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["key", "assetId", "path"])
-        w.writeheader()
-        w.writerows(done.values())
+    write_csv(args.out, done)
     return 1 if failed else 0
 
 

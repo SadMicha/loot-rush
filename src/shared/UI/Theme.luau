@@ -48,6 +48,87 @@ Theme.HudDesignTouch = Vector2.new(1100, 620)
 -- All text therefore goes through Kit.label / Kit.fontSize and is enlarged by this factor.
 Theme.FontScale = 1.25
 
+-- Drop shadow for text and icons (Kit.label / Kit.shadowed): text gets a thin dark outline, icons a
+-- dark copy of themselves offset down-right by Offset (fraction of the icon size).
+Theme.Shadow = table.freeze({
+	Color = Color3.new(0, 0, 0),
+	Transparency = 0.45, -- icon shadow
+	Offset = 0.05,
+	TextThickness = 1,
+	TextTransparency = 0.35,
+})
+
+-- Per-class equipment and skill art (keys of Assets.Class, built by Kit.equipIcon / Kit.skillIcon).
+-- The game has no class data yet: everyone is the Default class. Switching classes on later only needs
+-- Kit.playerClass to return another name.
+Theme.Class = table.freeze({
+	Default = "Mage",
+	-- Game item slot -> file slot name (Mage_<Slot>.png)
+	EquipSlot = table.freeze({
+		helmet = "head",
+		armor = "armor",
+		weapon = "weapon",
+		amulet = "amulet",
+		ring = "ring",
+	} :: { [string]: string }),
+	-- Skill id -> "<nn>_<name>" of the class skill icon; shared by every class by position
+	SkillSlot = table.freeze({
+		basic = 1,
+		spark_ball = 1,
+		chain_lightning = 2,
+		frost_nova = 3,
+		thunderstorm = 5,
+		dash = 9,
+	} :: { [string]: number }),
+	-- Position -> icon name per class (assets/ui/icons/skills/Index.csv)
+	SkillName = table.freeze({
+		mage = {
+			"arcaneorb",
+			"chainlightning",
+			"icenova",
+			"icelance",
+			"thunderstorm",
+			"firewall",
+			"teleport",
+			"magicshield",
+			"sprint",
+		},
+		mushroom = {
+			"mushroomsummon",
+			"poisoncloud",
+			"healingmushrooms",
+			"mushroomtotem",
+			"graspingvines",
+			"purplemushrooms",
+			"sporeburst",
+			"rootsnare",
+			"sprint",
+		},
+		ranger = {
+			"crystalarrow",
+			"arrowvolley",
+			"arrowrain",
+			"trap",
+			"poisonarrow",
+			"bladewhirl",
+			"icearrow",
+			"falcon",
+			"sprint",
+		},
+		warrior = {
+			"shieldbash",
+			"whirlwind",
+			"battlecry",
+			"groundslam",
+			"charge",
+			"taunt",
+			"stonearmor",
+			"swordslash",
+			"sprint",
+		},
+	} :: { [string]: { string } }),
+})
+
 Theme.Radius = table.freeze({ S = 8, M = 12, L = 18 })
 Theme.Stroke = 1
 
@@ -76,6 +157,7 @@ Theme.Hud = table.freeze({
 	BarCaption = 16,
 	BarGap = 8,
 	RingCyan = Color3.fromRGB(150, 215, 255), -- tint of the silver ring for skill buttons
+	DashDiamond = 20, -- dash charge diamond edge
 	Veil = 0.35, -- cooldown veil transparency
 	-- Skill id (Shared.Skills) -> Assets.Hud key; without an image the atlas icon of the skill is used
 	SkillArt = table.freeze({
@@ -92,8 +174,28 @@ Theme.Hud = table.freeze({
 		{ id = "hub", art = "menu_hub", icon = "hub", caption = "Hub" },
 		{ id = "atlas", art = "menu_atlas", icon = "atlas", caption = "Atlas" },
 		{ id = "forge", art = "menu_forge", icon = "forge", caption = "Forge" },
+		{ id = "pets", art = "menu_pets", icon = "companion", caption = "Pets" },
 		{ id = "shop", art = "menu_shop", icon = "pouch", caption = "Shop" },
 	}),
+})
+
+-- Minimap terrain view (client/UI/MiniMapView): a top-down ViewportFrame with a light copy of the
+-- ground and props around the player.
+Theme.MiniMap = table.freeze({
+	Range = 70, -- studs from the center to the edge of the map
+	Fov = 28, -- narrow field of view from high up = nearly orthographic
+	PartCap = 360, -- most parts in the viewport at any time (~270 ground cells and stair steps + props)
+	GroundShare = 0.85, -- share of PartCap that ground top slabs may use (nearest first)
+	PartHz = 4, -- how often the part set is refreshed
+	ViewHz = 15, -- camera + dots refresh rate
+	ClonesPerRefresh = 40, -- new copies per part refresh (spreads the cost)
+	ClonesBurst = 180, -- new copies per refresh while the map is mostly empty (teleport / first load)
+	MinPartSize = 1.5, -- studs (Size.Magnitude); smaller parts are skipped
+	MaxAbove = 100, -- ignore parts higher than this above the player (sky, ceilings)
+	MaxBelow = 60,
+	Ambient = Color3.fromRGB(170, 172, 190),
+	Light = Color3.fromRGB(255, 242, 220),
+	Tint = 0.78, -- transparency of the dark tint over the terrain (pulls it into the UI palette)
 })
 
 -- Animation vocabulary: the same motions everywhere

@@ -133,7 +133,7 @@ export type Bloom = {
 Skills.BloomMax = 5
 Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
 Skills.MaxLevel = 20
-Skills.DamagePerLevel = 0.05 -- +5 % damage per skill level above 1
+Skills.DamagePerLevel = 0.05 -- +5% damage per skill level above 1
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)
@@ -150,7 +150,7 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Heavy Thunder",
-					text = "+10 % damage per point",
+					text = "+10% damage per point",
 					effect = fx("damage", 0.1),
 				},
 				{
@@ -160,7 +160,7 @@ Skills.Blooms = table.freeze({
 				},
 				{
 					name = "Thunderclap",
-					text = "Second thunderclap with 6 % damage per point",
+					text = "Second thunderclap with 6% damage per point",
 					effect = fx("echo", 0.06),
 				},
 			},
@@ -175,7 +175,7 @@ Skills.Blooms = table.freeze({
 				},
 				{
 					name = "Bolt Rain",
-					text = "1 bolt per point flies outward (40 % damage)",
+					text = "1 bolt per point flies outward (40% damage)",
 					effect = fx("bolts", 1),
 				},
 			},
@@ -190,7 +190,7 @@ Skills.Blooms = table.freeze({
 				},
 				{
 					name = "Storm Rider",
-					text = "After a hit, +3 % move speed for 3 s per point",
+					text = "After a hit, +3% move speed for 3 s per point",
 					effect = fx("haste", 3),
 				},
 			},
@@ -202,7 +202,7 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Hot Core",
-					text = "+10 % damage per point",
+					text = "+10% damage per point",
 					effect = fx("damage", 0.1),
 				},
 				{
@@ -212,7 +212,7 @@ Skills.Blooms = table.freeze({
 				},
 				{
 					name = "Burn",
-					text = "Targets hit burn for 2 s: 10 % damage per point",
+					text = "Targets hit burn for 2 s: 10% damage per point",
 					effect = fx("burn", 0.1),
 				},
 			},
@@ -222,12 +222,12 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Spark Flight",
-					text = "Explosion throws 1 spark per point (25 % damage)",
+					text = "Explosion throws 1 spark per point (25% damage)",
 					effect = fx("sparks", 1),
 				},
 				{
 					name = "Twin Ball",
-					text = "Second ball with 8 % damage per point",
+					text = "Second ball with 8% damage per point",
 					effect = fx("twin", 0.08),
 				},
 			},
@@ -237,12 +237,12 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Tailwind",
-					text = "+3 % flight speed per point",
+					text = "+3% flight speed per point",
 					effect = fx("speed", 0.03),
 				},
 				{
 					name = "Pierce",
-					text = "20 % chance per point to fly through the first enemy",
+					text = "20% chance per point to fly through the first enemy",
 					effect = fx("pierce", 0.2),
 				},
 			},
@@ -254,13 +254,13 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "High Voltage",
-					text = "+10 % damage per point",
+					text = "+10% damage per point",
 					effect = fx("damage", 0.1),
 				},
 				{ name = "Long Chain", text = "+1 jump per point", effect = fx("chains", 1) },
 				{
 					name = "Overload",
-					text = "Last jump +20 % damage per point",
+					text = "Last jump +20% damage per point",
 					effect = fx("lastHit", 0.2),
 				},
 			},
@@ -270,12 +270,12 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Branching",
-					text = "First hit jumps to 2 more: 15 % damage per point",
+					text = "First hit jumps to 2 more: 15% damage per point",
 					effect = fx("fork", 0.15),
 				},
 				{
 					name = "Spark Rain",
-					text = "Every jump scatters sparks: 6 % damage per point",
+					text = "Every jump scatters sparks: 6% damage per point",
 					effect = fx("jumpSpark", 0.06),
 				},
 			},
@@ -300,7 +300,7 @@ Skills.Blooms = table.freeze({
 		trunk = {
 			name = "Cold",
 			nodes = {
-				{ name = "Ice Core", text = "+10 % damage per point", effect = fx("damage", 0.1) },
+				{ name = "Ice Core", text = "+10% damage per point", effect = fx("damage", 0.1) },
 				{
 					name = "Wide Frost",
 					text = "+1 stud radius per point",
@@ -318,12 +318,12 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Ice Shards",
-					text = "Slowed enemies shatter on death: 20 % damage per point",
+					text = "Slowed enemies shatter on death: 20% damage per point",
 					effect = fx("shatter", 0.2),
 				},
 				{
 					name = "Frost Field",
-					text = "Ice field for 3 s: 4 % damage per point every 0.5 s",
+					text = "Ice field for 3 s: 4% damage per point every 0.5 s",
 					effect = fx("field", 0.04),
 				},
 			},
@@ -333,7 +333,7 @@ Skills.Blooms = table.freeze({
 			nodes = {
 				{
 					name = "Ice Armor",
-					text = "+4 % armor for 3 s per point",
+					text = "+4% armor for 3 s per point",
 					effect = fx("armorBuff", 4),
 				},
 				{

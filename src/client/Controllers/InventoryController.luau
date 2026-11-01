@@ -32,6 +32,11 @@ local SLOT_ICON: { [string]: string } = {
 	amulet = "slot_amulet",
 	ring = "slot_ring",
 }
+
+-- Class art of the slot (Kit.equipIcon) or the atlas icon while that is not uploaded; unknown slots: pouch
+local function slotArt(slot: string): string
+	return Kit.equipIcon(slot, SLOT_ICON[slot] or "pouch")
+end
 local STAT_ICON: { [string]: string } = {
 	damage = "sword",
 	life = "life",
@@ -152,7 +157,7 @@ local function renderEquip()
 	local right = { "amulet", "ring" }
 	local function place(slot: string, x: number, i: number)
 		local item = equipped[slot]
-		local b = Kit.itemSlot(84, SLOT_ICON[slot], {
+		local b = Kit.itemSlot(84, slotArt(slot), {
 			rarity = if item then item.rarity else nil,
 			selected = item ~= nil and selected ~= nil and selected.id == item.id,
 			dim = item == nil,
@@ -306,14 +311,14 @@ local function buildEquip(parent: Frame)
 		local back, fill = Kit.bar(Vector2.new(250, 16), res.color)
 		back.Position = UDim2.fromOffset(PAD + 40, y + 4)
 		back.Parent = equipPanel
-		local pct = Kit.label("0 %", 16, C.Muted)
+		local pct = Kit.label("0%", 16, C.Muted)
 		pct.AnchorPoint = Vector2.new(1, 0)
 		pct.Position = UDim2.fromOffset(440 - PAD, y)
 		pct.Parent = equipPanel
 		local function refresh()
 			local v = math.clamp((player:GetAttribute(res.attr) or 0) :: number, 0, 100)
 			fill.Size = UDim2.fromScale(v / 100, 1)
-			pct.Text = string.format("%d %%", v)
+			pct.Text = string.format("%d%%", v)
 		end
 		refresh()
 		player:GetAttributeChangedSignal(res.attr):Connect(refresh)
@@ -348,7 +353,7 @@ end
 local function renderTabs()
 	clear(tabRow)
 	local function tab(slot: string?, order: number)
-		local icon = if slot then SLOT_ICON[slot] else "pouch"
+		local icon = if slot then slotArt(slot) else "pouch"
 		local name = if slot then Items.SlotName[slot] or slot else "All"
 		local b = Kit.iconButton(icon, name, 72, slot == filter, "tab", name)
 		b.LayoutOrder = order
@@ -368,7 +373,7 @@ local function renderGrid()
 	clear(gridFrame)
 	local list = sorted()
 	for i, item in list do
-		local b = Kit.itemSlot(CELL, SLOT_ICON[item.slot], {
+		local b = Kit.itemSlot(CELL, slotArt(item.slot), {
 			rarity = item.rarity,
 			selected = selected ~= nil and not selectedEquipped and selected.id == item.id,
 		})
@@ -513,7 +518,7 @@ local function renderDetail()
 	end
 	local color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 
-	local big = Kit.itemSlot(110, SLOT_ICON[item.slot], { rarity = item.rarity })
+	local big = Kit.itemSlot(110, slotArt(item.slot), { rarity = item.rarity })
 	big.Active = false
 	big.Position = UDim2.fromOffset(PAD, PAD)
 	big.Parent = detail
@@ -720,7 +725,7 @@ function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item
 end
 
 function InventoryController.slotIcon(slot: string): string
-	return SLOT_ICON[slot] or "pouch"
+	return slotArt(slot)
 end
 
 function InventoryController.toggle()
@@ -737,6 +742,8 @@ function InventoryController.init()
 	gui.Enabled = false
 	Window.exclusive(function()
 		gui.Enabled = false
+	end, function()
+		return gui.Enabled
 	end)
 
 	local window = Instance.new("Frame")

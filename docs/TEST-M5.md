@@ -21,7 +21,7 @@
 Reference values (calculated before the playtest, level 1 without equipment):
 - Your single-target damage is about 50/s, area damage much higher → slime (45 health) ≈ 1 s, boss (700 health) ≈ 14 s
 - Depth 1 gives about 500 XP → roughly level 4
-- Per depth: enemies +35 % health, +15 % damage, +25 % XP; waves +2 enemies (max. 24 per wave)
+- Per depth: enemies +35% health, +15% damage, +25% XP; waves +2 enemies (max. 24 per wave)
 - Everything important to tune: `Enemies.luau` (table `KINDS`), `Config.luau` (`RIFT_*`), `Skills.luau`, `Items.luau` (`RANGE`)
 - [ ] Depth 1 feels easy to fair, from depth 3–4 you have to dodge
 - [ ] Boss takes no longer than about 20–30 s and is never threatening just by chance
@@ -33,7 +33,7 @@ Reference values (calculated before the playtest, level 1 without equipment):
 - [ ] Skills aim at the nearest enemy (no mouse pointer)
 - [ ] Pinch zoom works; open inventory/select item/equip by tap
 - [ ] "Deeper" / "Back to the village" / "Enter Rift" easy to hit
-- [ ] Text size readable? (on small displays the UI is scaled down to 55 % – minimum in `Kit.scaledGui`)
+- [ ] Text size readable? (on small displays the UI is scaled down to 55% – minimum in `Kit.scaledGui`)
 
 ## Performance (turn on the overlay, play a rift from depth 5+)
 - [ ] Client FPS on PC stable ≥ 55, on phone ≥ 30 (note the value at the largest enemy count)

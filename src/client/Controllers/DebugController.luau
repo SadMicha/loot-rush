@@ -36,11 +36,11 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "+10 Items", command = "items", value = 10 },
 	{ label = "Unlock Areas", command = "atlas" },
 	{ label = "Kill All Enemies", command = "slay" },
-	{ label = "Pet egg", command = "pet" },
+	{ label = "Pet Egg", command = "pet" },
 	{ label = "Rebirth", command = "rebirth" },
 }
 
--- Overlay nur in Studio oder für freigeschaltete Entwickler (Systems/Debug setzt „DebugTools“)
+-- Overlay only in Studio or for whitelisted developers (Systems/Debug sets "DebugTools")
 local function allowed(): boolean
 	return RunService:IsStudio() or player:GetAttribute("DebugTools") == true
 end

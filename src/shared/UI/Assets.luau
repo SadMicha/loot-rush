@@ -404,7 +404,7 @@ end
 Assets.Art = table.freeze(art)
 
 -- In-game HUD (assets/ui/icons/hud, assets/ui/icons/skills, assets/ui/icons/*.png).
--- Fill in the id after the upload; entries with an empty id are ignored and Kit draws the flat HUD
+-- Entries with an empty id are ignored and Kit draws the flat HUD
 -- (flat orbs, ring frames, atlas icons). Sizes = pixel size of the uploaded file.
 local HUD: { [string]: Fixed } = {
 	-- Orbs: frame and fill share the same 512x512 canvas (Aligned_HUD_512)
@@ -417,19 +417,22 @@ local HUD: { [string]: Fixed } = {
 	ring_gold = { id = "rbxassetid://101733664786827", size = Vector2.new(256, 256) },
 	ring_silver = { id = "rbxassetid://107397262650494", size = Vector2.new(256, 256) },
 	-- Skill icons (skills/128px)
-	skill_storm = { id = "rbxassetid://119271064945748", size = Vector2.new(128, 128) }, -- Mage/Mage_05_Thunderstorm.png
-	skill_spark = { id = "rbxassetid://110139009058803", size = Vector2.new(128, 128) },
+	skill_storm = { id = "rbxassetid://119358956574948", size = Vector2.new(128, 128) },
+	skill_spark = { id = "rbxassetid://78541866026299", size = Vector2.new(128, 128) },
 	skill_chain = { id = "rbxassetid://75188928851964", size = Vector2.new(128, 128) },
-	skill_nova = { id = "rbxassetid://78541866026299", size = Vector2.new(128, 128) },
+	skill_nova = { id = "rbxassetid://110139009058803", size = Vector2.new(128, 128) },
 	skill_dash = { id = "rbxassetid://125754218329440", size = Vector2.new(128, 128) },
 	-- Hub icon bar (assets/ui/icons/*.png, native size)
 	menu_inventory = { id = "rbxassetid://84376860245263", size = Vector2.new(376, 380) },
 	menu_star_net = { id = "rbxassetid://125186955183258", size = Vector2.new(377, 370) },
 	menu_skills = { id = "rbxassetid://89943484818795", size = Vector2.new(445, 379) },
-	menu_hub = { id = "rbxassetid://119271064945748", size = Vector2.new(441, 417) },
+	menu_hub = { id = "rbxassetid://119271064945748", size = Vector2.new(441, 417) }, -- assets/ui/icons/city.png
 	menu_atlas = { id = "rbxassetid://104595046752790", size = Vector2.new(416, 362) },
 	menu_forge = { id = "rbxassetid://80101622482185", size = Vector2.new(405, 395) },
 	menu_shop = { id = "rbxassetid://113985532990245", size = Vector2.new(362, 384) },
+	-- Dash charge diamonds (Icons_256): cyan = charge available, dark = spent
+	hud_diamond_cyan = { id = "rbxassetid://101631660350220", size = Vector2.new(256, 256) },
+	hud_diamond_dark = { id = "rbxassetid://113509830744033", size = Vector2.new(256, 256) },
 	hud_settings = { id = "rbxassetid://96002533781558", size = Vector2.new(373, 368) },
 }
 local hud: { [string]: Fixed } = {}
@@ -439,5 +442,150 @@ for name, h in HUD do
 	end
 end
 Assets.Hud = table.freeze(hud)
+
+-- Per-class equipment and skill icons (assets/ui/icons/equipment/<Class>, assets/ui/icons/skills/128px/<Class>).
+-- Keys: equip_<class>_<slot>, skill_<class>_<nn>_<name> (see Theme.Class).
+-- Ids from the Open Cloud upload (tools/upload-manifest.json); entries with an empty id are ignored and the atlas icons are used.
+local CLASS: { [string]: Fixed } = {
+	equip_mage_amulet = { id = "rbxassetid://125065924404980", size = Vector2.new(350, 398) },
+	equip_mage_armor = { id = "rbxassetid://88546356759786", size = Vector2.new(435, 442) },
+	equip_mage_belt = { id = "rbxassetid://136413239566372", size = Vector2.new(463, 299) },
+	equip_mage_boots = { id = "rbxassetid://71654561936327", size = Vector2.new(421, 392) },
+	equip_mage_gloves = { id = "rbxassetid://134129283354820", size = Vector2.new(415, 361) },
+	equip_mage_head = { id = "rbxassetid://70711621986135", size = Vector2.new(422, 404) },
+	equip_mage_offhand = { id = "rbxassetid://87723442321285", size = Vector2.new(535, 493) },
+	equip_mage_ring = { id = "rbxassetid://89704376825245", size = Vector2.new(468, 465) },
+	equip_mage_weapon = { id = "rbxassetid://118281350894971", size = Vector2.new(434, 537) },
+	equip_mushroom_amulet = { id = "rbxassetid://98788927387712", size = Vector2.new(363, 432) },
+	equip_mushroom_armor = { id = "rbxassetid://110507614481058", size = Vector2.new(431, 441) },
+	equip_mushroom_belt = { id = "rbxassetid://92920422809515", size = Vector2.new(453, 309) },
+	equip_mushroom_boots = { id = "rbxassetid://132859660492209", size = Vector2.new(409, 357) },
+	equip_mushroom_gloves = { id = "rbxassetid://127288130512700", size = Vector2.new(397, 373) },
+	equip_mushroom_head = { id = "rbxassetid://132761668570268", size = Vector2.new(435, 400) },
+	equip_mushroom_offhand = { id = "rbxassetid://109970797209355", size = Vector2.new(431, 450) },
+	equip_mushroom_ring = { id = "rbxassetid://79986580971668", size = Vector2.new(462, 453) },
+	equip_mushroom_weapon = { id = "rbxassetid://71030802331984", size = Vector2.new(560, 515) },
+	equip_ranger_amulet = { id = "rbxassetid://71531343814620", size = Vector2.new(341, 424) },
+	equip_ranger_armor = { id = "rbxassetid://136876909534210", size = Vector2.new(477, 425) },
+	equip_ranger_belt = { id = "rbxassetid://115301549948112", size = Vector2.new(470, 361) },
+	equip_ranger_boots = { id = "rbxassetid://106955056249108", size = Vector2.new(424, 391) },
+	equip_ranger_gloves = { id = "rbxassetid://140700089989243", size = Vector2.new(394, 357) },
+	equip_ranger_head = { id = "rbxassetid://110523064662289", size = Vector2.new(395, 392) },
+	equip_ranger_offhand = { id = "rbxassetid://110403891829235", size = Vector2.new(491, 480) },
+	equip_ranger_ring = { id = "rbxassetid://122566908212990", size = Vector2.new(450, 443) },
+	equip_ranger_weapon = { id = "rbxassetid://130519774902241", size = Vector2.new(614, 524) },
+	equip_warrior_amulet = { id = "rbxassetid://131663837069949", size = Vector2.new(379, 382) },
+	equip_warrior_armor = { id = "rbxassetid://121208819353265", size = Vector2.new(524, 454) },
+	equip_warrior_belt = { id = "rbxassetid://102200700274450", size = Vector2.new(471, 382) },
+	equip_warrior_boots = { id = "rbxassetid://124674053786716", size = Vector2.new(412, 400) },
+	equip_warrior_gloves = { id = "rbxassetid://77615257344190", size = Vector2.new(393, 395) },
+	equip_warrior_head = { id = "rbxassetid://103177720247932", size = Vector2.new(402, 437) },
+	equip_warrior_offhand = { id = "rbxassetid://135179584987585", size = Vector2.new(469, 483) },
+	equip_warrior_ring = { id = "rbxassetid://128944551124714", size = Vector2.new(391, 428) },
+	equip_warrior_weapon = { id = "rbxassetid://75790849392331", size = Vector2.new(578, 523) },
+	skill_ranger_01_crystalarrow = {
+		id = "rbxassetid://131295537950494",
+		size = Vector2.new(128, 128),
+	},
+	skill_ranger_02_arrowvolley = {
+		id = "rbxassetid://86954073317495",
+		size = Vector2.new(128, 128),
+	},
+	skill_ranger_03_arrowrain = { id = "rbxassetid://74794222341995", size = Vector2.new(128, 128) },
+	skill_ranger_04_trap = { id = "rbxassetid://70439174381773", size = Vector2.new(128, 128) },
+	skill_ranger_05_poisonarrow = {
+		id = "rbxassetid://81324622110411",
+		size = Vector2.new(128, 128),
+	},
+	skill_ranger_06_bladewhirl = {
+		id = "rbxassetid://129507514143623",
+		size = Vector2.new(128, 128),
+	},
+	skill_ranger_07_icearrow = { id = "rbxassetid://109380023692342", size = Vector2.new(128, 128) },
+	skill_ranger_08_falcon = { id = "rbxassetid://119996703331790", size = Vector2.new(128, 128) },
+	skill_ranger_09_sprint = { id = "rbxassetid://85144176896379", size = Vector2.new(128, 128) },
+	skill_mushroom_01_mushroomsummon = {
+		id = "rbxassetid://136030302445760",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_02_poisoncloud = {
+		id = "rbxassetid://99506992064796",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_03_healingmushrooms = {
+		id = "rbxassetid://82643503460824",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_04_mushroomtotem = {
+		id = "rbxassetid://96198416368508",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_05_graspingvines = {
+		id = "rbxassetid://84572335337145",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_06_purplemushrooms = {
+		id = "rbxassetid://117935905313645",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_07_sporeburst = {
+		id = "rbxassetid://108045065751577",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_08_rootsnare = {
+		id = "rbxassetid://125085633449819",
+		size = Vector2.new(128, 128),
+	},
+	skill_mushroom_09_sprint = { id = "rbxassetid://122908955419505", size = Vector2.new(128, 128) },
+	skill_mage_01_arcaneorb = { id = "rbxassetid://78541866026299", size = Vector2.new(128, 128) },
+	skill_mage_02_chainlightning = {
+		id = "rbxassetid://75188928851964",
+		size = Vector2.new(128, 128),
+	},
+	skill_mage_03_icenova = { id = "rbxassetid://110139009058803", size = Vector2.new(128, 128) },
+	skill_mage_04_icelance = { id = "rbxassetid://138790665582930", size = Vector2.new(128, 128) },
+	skill_mage_05_thunderstorm = {
+		id = "rbxassetid://119358956574948",
+		size = Vector2.new(128, 128),
+	},
+	skill_mage_06_firewall = { id = "rbxassetid://93391119960740", size = Vector2.new(128, 128) },
+	skill_mage_07_teleport = { id = "rbxassetid://100424727285556", size = Vector2.new(128, 128) },
+	skill_mage_08_magicshield = { id = "rbxassetid://82431048331402", size = Vector2.new(128, 128) },
+	skill_mage_09_sprint = { id = "rbxassetid://125754218329440", size = Vector2.new(128, 128) },
+	skill_warrior_01_shieldbash = {
+		id = "rbxassetid://72113908970070",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_02_whirlwind = {
+		id = "rbxassetid://122449989418230",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_03_battlecry = {
+		id = "rbxassetid://80352221437294",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_04_groundslam = {
+		id = "rbxassetid://116325284481174",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_05_charge = { id = "rbxassetid://95920873728352", size = Vector2.new(128, 128) },
+	skill_warrior_06_taunt = { id = "rbxassetid://132431220958547", size = Vector2.new(128, 128) },
+	skill_warrior_07_stonearmor = {
+		id = "rbxassetid://94172705395298",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_08_swordslash = {
+		id = "rbxassetid://120232738581425",
+		size = Vector2.new(128, 128),
+	},
+	skill_warrior_09_sprint = { id = "rbxassetid://126173903836694", size = Vector2.new(128, 128) },
+}
+local class: { [string]: Fixed } = {}
+for name, c in CLASS do
+	if c.id ~= "" then
+		class[name] = table.freeze(c)
+	end
+end
+Assets.Class = table.freeze(class)
 
 return table.freeze(Assets)

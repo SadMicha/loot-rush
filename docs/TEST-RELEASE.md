@@ -1,19 +1,19 @@
-# Testlauf vor dem Release (Studio + Handy)
+# Test run before the release (Studio + phone)
 
-Schnell hinkommen: **Dbg** unten links (in Studio immer da) → „+10k Gold“, „Level 50“, „Gebiete frei“,
-„Alle Gegner tot“, „+500 Seelensterne“, „Haustier-Ei“, „Wiedergeburt“.
+Getting there fast: **Dbg** bottom left (always there in Studio) → "+10k Gold", "Level 50", "Unlock Areas",
+"Kill All Enemies", "+500 Soulstars", "Pet Egg", "Rebirth".
 
-| # | Wo | Was tun | Was soll passieren |
+| # | Where | What to do | What should happen |
 |---|---|---|---|
-| 1 | Studio, Hub | Spiel starten | Spawn im Hub, warmes Tageslicht |
-| 2 | Hub → Rift-Tor | Grüne Ebenen betreten, Wellen + Boss | Arena-Licht, Gegner, Beute; danach „tiefer“ oder „zurück“ |
-| 3 | zurück im Hub | „Zurück ins Dorf“ | Hub hat wieder **Hub-Licht** (nicht das Gebietslicht) |
-| 4 | Studio, *Test → 2 Spieler* | beide betreten ein Rift | **jeder** bekommt eine eigene Arena, Gegner bleiben getrennt, jeder sieht sein Licht |
-| 5 | Markt (Shop) | Dbg „Gebiete frei“, Shop öffnen | Goldpreise sind höher als vorher (wachsen mit der besten Tiefe) |
-| 6 | überall | (bis es das Fenster gibt) Dbg „Haustier-Ei“ | Haustier schwebt hinter dir, Player-Attribut `BonusGold` o. ä. > 0 |
-| 7 | Hub | Dbg „Wiedergeburt“ (schaltet vorher alle Gebiete frei) | Level 1, Gold 0, Atlas zurück, `Rebirths` = 1, +50 Seelensterne, Schaden spürbar höher |
-| 8 | Speichern | Spiel beenden, neu starten | Level, Gold, Haustiere, Wiedergeburten sind noch da |
-| 9 | Handy (Studio-Gerät oder App) | HUD, Inventar, Shop, Atlas bedienen | alles erreichbar, nichts unter der Topbar |
-| 10 | Live-Test-Place | mit Zweitkonto beitreten | kein Dbg-Knopf sichtbar (nur für `DEV_USERS`) |
+| 1 | Studio, hub | Start the game | Spawn in the hub, warm daylight |
+| 2 | Hub → Rift gate | Enter Green Plains, waves + boss | Arena light, enemies, loot; afterwards "Deeper" or "Back" |
+| 3 | Back in the hub | "Back to the village" | Hub has **hub light** again (not the region light) |
+| 4 | Studio, *Test → 2 players* | Both enter a Rift | **Each** gets their own arena, enemies stay separate, each sees their own light |
+| 5 | Market (shop) | Dbg "Unlock Areas", open the shop | Gold prices are higher than before (grow with the best depth) |
+| 6 | Anywhere | (until the window exists) Dbg "Pet Egg" | Pet floats behind you, player attribute `BonusGold` or similar > 0 |
+| 7 | Hub | Dbg "Rebirth" (unlocks all regions first) | Level 1, gold 0, Atlas reset, `Rebirths` = 1, +50 Soulstars, noticeably more damage |
+| 8 | Saving | Quit the game, start again | Level, gold, pets, rebirths are still there |
+| 9 | Phone (Studio device or app) | Use HUD, inventory, shop, Atlas | Everything reachable, nothing under the topbar |
+| 10 | Live test place | Join with a second account | No Dbg button visible (only for `DEV_USERS`) |
 
-Robux-Käufe testet Studio kostenlos, sobald echte IDs eingetragen sind (`docs/MONETARISIERUNG.md`).
+Studio tests Robux purchases for free once real IDs are entered (`docs/MONETIZATION.md`).

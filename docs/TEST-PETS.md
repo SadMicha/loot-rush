@@ -11,11 +11,24 @@ local p = game.Players:GetPlayers()[1]
 local profile = require(game.ServerScriptService.Server.Systems.Data).get(p)
 ```
 
+**Note:** the pet window (stall UI) is not built yet. Until it is, the odds, hatch and equip
+steps below wait for it, or can be exercised through these **server command bar** calls (after
+the two setup lines above):
+
+```lua
+local PetSys = require(game.ServerScriptService.Server.Systems.Pets)
+local PetRules = require(game.ReplicatedStorage.Shared.Pets)
+for _, o in PetRules.odds(PetRules.EggById.meadow_egg) do print(o.rarity, string.format("%.1f%%", o.percent)) end
+print(PetSys.hatch(p, "meadow_egg"))   -- or "star_egg"; prints ok, message, pet id
+print(PetSys.equip(p, "firefly"))      -- any owned pet id
+print(PetSys.unequip(p, "firefly"))
+```
+
 ## Odds before purchase
 - [ ] At the pet stall (station "Pets") each egg shows its odds per rarity **before** buying, with one decimal
-- [ ] Meadow Egg (`meadow_egg`): Normal 60.0 % · Magic 28.0 % · Rare 10.0 % · Epic 2.0 % (no Legendary row)
-- [ ] Star Egg (`star_egg`): Normal 20.0 % · Magic 40.0 % · Rare 28.0 % · Epic 10.0 % · Legendary 2.0 %
-- [ ] The percentages of each egg add up to 100.0 %
+- [ ] Meadow Egg (`meadow_egg`): Normal 60.0% · Magic 28.0% · Rare 10.0% · Epic 2.0% (no Legendary row)
+- [ ] Star Egg (`star_egg`): Normal 20.0% · Magic 40.0% · Rare 28.0% · Epic 10.0% · Legendary 2.0%
+- [ ] The percentages of each egg add up to 100.0%
 - [ ] Meadow Egg price grows with the best depth (e.g. 600 gold at depth 1, more after clearing deeper); Star Egg stays 75 soulstars
 
 ## Hatching both eggs

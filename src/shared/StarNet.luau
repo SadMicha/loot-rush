@@ -79,7 +79,7 @@ StarNet.Stars = table.freeze({
 	}),
 
 	-- Might
-	small("m1", "might", "heart", 450, 450, "+3 % Damage", { damage = 3 }),
+	small("m1", "might", "heart", 450, 450, "+3% Damage", { damage = 3 }),
 	small("m2", "might", "m1", 380, 520, "+20 Life", { life = 20 }),
 	star({
 		id = "iron_skin",
@@ -89,7 +89,7 @@ StarNet.Stars = table.freeze({
 		from = "m2",
 		pos = Vector2.new(300, 600),
 		icon = "shield_buff",
-		stats = { "+20 % Armor", "+10 % Max Life" },
+		stats = { "+20% Armor", "+10% Max Life" },
 		mods = { lifePct = 10, armor = 20 },
 		flavor = "Your skin grows as hard as the rock of the ancient mountains.",
 	}),
@@ -102,10 +102,10 @@ StarNet.Stars = table.freeze({
 		from = "m3",
 		pos = Vector2.new(140, 740),
 		icon = "life",
-		stats = { "+15 % Max Life", "Below 30 % Life: +10 % Damage" },
+		stats = { "+15% Max Life", "Below 30% Life: +10% Damage" },
 		mods = { lifePct = 15, lowLifeDamage = 10 },
 	}),
-	small("m4", "might", "m1", 450, 580, "+3 % Damage", { damage = 3 }),
+	small("m4", "might", "m1", 450, 580, "+3% Damage", { damage = 3 }),
 	star({
 		id = "shield_wall",
 		name = "Shield Wall",
@@ -114,13 +114,13 @@ StarNet.Stars = table.freeze({
 		from = "m4",
 		pos = Vector2.new(430, 700),
 		icon = "crown",
-		stats = { "+25 % Block Chance" },
+		stats = { "+25% Block Chance" },
 		mods = { block = 25 },
 	}),
 
 	-- Finesse
-	small("f1", "finesse", "heart", 610, 450, "+3 % Attack Speed", { attackSpeed = 3 }),
-	small("f2", "finesse", "f1", 680, 520, "+2 % Crit Chance", { crit = 2 }),
+	small("f1", "finesse", "heart", 610, 450, "+3% Attack Speed", { attackSpeed = 3 }),
+	small("f2", "finesse", "f1", 680, 520, "+2% Crit Chance", { crit = 2 }),
 	star({
 		id = "crystal_blade",
 		name = "Crystal Blade",
@@ -129,10 +129,10 @@ StarNet.Stars = table.freeze({
 		from = "f2",
 		pos = Vector2.new(760, 600),
 		icon = "sword",
-		stats = { "+15 % Crit Damage", "Crits throw a shard (30 % damage)" },
+		stats = { "+15% Crit Damage", "Crits throw a shard (30% damage)" },
 		mods = { critDamage = 15, critShard = 30 },
 	}),
-	small("f3", "finesse", "crystal_blade", 830, 548, "+3 % Attack Speed", { attackSpeed = 3 }),
+	small("f3", "finesse", "crystal_blade", 830, 548, "+3% Attack Speed", { attackSpeed = 3 }),
 	star({
 		id = "windrunner",
 		name = "Windrunner",
@@ -141,10 +141,10 @@ StarNet.Stars = table.freeze({
 		from = "f3",
 		pos = Vector2.new(910, 450),
 		icon = "skill_dash",
-		stats = { "+1 Dash Charge", "+8 % Move Speed" },
+		stats = { "+1 Dash Charge", "+8% Move Speed" },
 		mods = { dash = 1, speed = 8 },
 	}),
-	small("f4", "finesse", "crystal_blade", 872, 660, "+2 % Crit Chance", { crit = 2 }),
+	small("f4", "finesse", "crystal_blade", 872, 660, "+2% Crit Chance", { crit = 2 }),
 	star({
 		id = "crystal_heart",
 		name = "Crystal Heart",
@@ -153,10 +153,10 @@ StarNet.Stars = table.freeze({
 		from = "f4",
 		pos = Vector2.new(920, 740),
 		icon = "crystal",
-		stats = { "+10 % Crystal Shards from Salvage" },
+		stats = { "+10% Crystal Shards from Salvage" },
 		mods = { shardFind = 10 },
 	}),
-	small("f5", "finesse", "f1", 610, 600, "+3 % Attack Speed", { attackSpeed = 3 }),
+	small("f5", "finesse", "f1", 610, 600, "+3% Attack Speed", { attackSpeed = 3 }),
 	star({
 		id = "double_strike",
 		name = "Double Strike",
@@ -165,12 +165,12 @@ StarNet.Stars = table.freeze({
 		from = "f5",
 		pos = Vector2.new(630, 700),
 		icon = "reroll",
-		stats = { "10 % chance for the basic attack to hit twice" },
+		stats = { "10% chance for the basic attack to hit twice" },
 		mods = { double = 10 },
 	}),
 
 	-- Wisdom
-	small("w1", "wisdom", "heart", 530, 300, "+3 % Skill Damage", { skillDamage = 3 }),
+	small("w1", "wisdom", "heart", 530, 300, "+3% Skill Damage", { skillDamage = 3 }),
 	star({
 		id = "resonance",
 		name = "Resonance",
@@ -179,7 +179,7 @@ StarNet.Stars = table.freeze({
 		from = "w1",
 		pos = Vector2.new(530, 200),
 		icon = "whirl",
-		stats = { "−10 % Cooldown" },
+		stats = { "−10% Cooldown" },
 		mods = { cdr = 10 },
 	}),
 	star({
@@ -193,7 +193,7 @@ StarNet.Stars = table.freeze({
 		stats = { "Chain Lightning jumps +2 times" },
 		mods = { ["chain_lightning.chains"] = 2 },
 	}),
-	small("w2", "wisdom", "heart", 450, 335, "+3 % Skill Damage", { skillDamage = 3 }),
+	small("w2", "wisdom", "heart", 450, 335, "+3% Skill Damage", { skillDamage = 3 }),
 	star({
 		id = "spark_flow",
 		name = "Spark Flow",
@@ -202,10 +202,10 @@ StarNet.Stars = table.freeze({
 		from = "w2",
 		pos = Vector2.new(360, 240),
 		icon = "lightning",
-		stats = { "+20 % Spark Ball damage" },
+		stats = { "+20% Spark Ball damage" },
 		mods = { ["spark_ball.damage"] = 20 },
 	}),
-	small("w3", "wisdom", "heart", 610, 335, "+3 % Skill Damage", { skillDamage = 3 }),
+	small("w3", "wisdom", "heart", 610, 335, "+3% Skill Damage", { skillDamage = 3 }),
 	star({
 		id = "arcane_shield",
 		name = "Arcane Shield",
@@ -214,7 +214,7 @@ StarNet.Stars = table.freeze({
 		from = "w3",
 		pos = Vector2.new(700, 240),
 		icon = "shield_buff",
-		stats = { "After a skill: shield for 5 % life (4 s)" },
+		stats = { "After a skill: shield for 5% life (4 s)" },
 		mods = { arcaneShield = 5 },
 	}),
 } :: { Star })

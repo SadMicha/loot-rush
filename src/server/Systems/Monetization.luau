@@ -32,6 +32,11 @@ function Monetization.owns(player: Player, key: string): boolean
 	return o ~= nil and o[key] == true
 end
 
+-- Is there still an ownership entry for this player? (for tests: must be gone after leaving)
+function Monetization.isTracked(player: Player): boolean
+	return owned[player] ~= nil
+end
+
 local function setOwned(player: Player, pass: Rules.Pass)
 	local o = owned[player]
 	if not o then
@@ -65,16 +70,23 @@ local function askOwns(player: Player, id: number): boolean?
 	return nil
 end
 
-local function loadPasses(player: Player)
+-- passes: defaults to Rules.Passes (tests pass a list with a real id to force the ownership query)
+local function loadPasses(player: Player, passes: { Rules.Pass }?)
 	local profile = Data.waitFor(player)
-	if not profile then
+	-- The player may have left while the save loaded: PlayerRemoving already cleared owned[player]
+	-- and writing it again would leak the entry (same check after every yielding query below)
+	if not profile or not player.Parent then
 		return
 	end
 	owned[player] = owned[player] or {}
-	for _, pass in Rules.Passes do
+	for _, pass in passes or Rules.Passes do
 		local has: boolean? = nil
 		if pass.id > 0 then
 			has = askOwns(player, pass.id)
+			if not player.Parent then
+				owned[player] = nil
+				return
+			end
 		end
 		if has == nil then
 			has = profile.passes[pass.key] == true -- outage: last known state
@@ -87,6 +99,7 @@ local function loadPasses(player: Player)
 	end
 	Boosts.refresh(player)
 end
+Monetization.loadPasses = loadPasses
 
 -- ------------------------------------------------------------------ Developer Products
 function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision

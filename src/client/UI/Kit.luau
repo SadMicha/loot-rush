@@ -7,6 +7,7 @@
 -- If an image is missing, the simple flat style remains as a fallback.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -298,6 +299,42 @@ function Kit.flyPanel(size: Vector2): CanvasGroup
 	return g
 end
 
+-- Drop shadow for text: thin dark outline (Theme.Shadow)
+function Kit.textShadow(t: TextLabel)
+	local shadow = Instance.new("UIStroke")
+	shadow.Name = "Shadow"
+	shadow.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	shadow.LineJoinMode = Enum.LineJoinMode.Round
+	shadow.Color = Theme.Shadow.Color
+	shadow.Thickness = Theme.Shadow.TextThickness
+	shadow.Transparency = Theme.Shadow.TextTransparency
+	shadow:SetAttribute("Base", shadow.Transparency)
+	shadow.Parent = t
+	t.TextStrokeTransparency = 1 -- one outline only (the UIStroke); no second built-in text stroke
+end
+
+-- Outline strength of a label made by Kit.label / Kit.textShadow (0 = solid, 1 = none)
+function Kit.textOutline(t: TextLabel, transparency: number)
+	local shadow = t:FindFirstChild("Shadow")
+	if shadow and shadow:IsA("UIStroke") then
+		shadow.Transparency = transparency
+		shadow:SetAttribute("Base", transparency)
+	else
+		t.TextStrokeTransparency = transparency
+	end
+end
+
+-- Text transparency incl. its outline (the outline fades with the text)
+function Kit.setTextTransparency(t: TextLabel, transparency: number)
+	t.TextTransparency = transparency
+	local shadow = t:FindFirstChild("Shadow")
+	if shadow and shadow:IsA("UIStroke") then
+		local base = shadow:GetAttribute("Base")
+		local b = if typeof(base) == "number" then base else Theme.Shadow.TextTransparency
+		shadow.Transparency = 1 - (1 - b) * (1 - transparency)
+	end
+end
+
 function Kit.label(text: string, size: number, color: Color3?, font: Font?): TextLabel
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1
@@ -307,11 +344,101 @@ function Kit.label(text: string, size: number, color: Color3?, font: Font?): Tex
 	t.FontFace = font or Theme.Font.UI
 	t.AutomaticSize = Enum.AutomaticSize.XY
 	t.Size = UDim2.fromOffset(0, 0)
+	Kit.textShadow(t)
 	return t
+end
+
+-- Drop shadow for an image icon: the returned image is an invisible holder (the caller sizes, places and
+-- parents it) with two children: "Shadow" (dark copy, offset down-right by Theme.Shadow.Offset) and
+-- "Face" (the crisp icon exactly at the holder's position, so it stays centered in slots and rings).
+function Kit.shadowed(img: ImageLabel): ImageLabel
+	local holder = img:Clone()
+	holder.Image = ""
+	holder.ImageRectOffset = Vector2.zero
+	holder.ImageRectSize = Vector2.zero
+	holder.BackgroundTransparency = 1
+	local back = img:Clone()
+	back.Name = "Shadow"
+	back.ImageColor3 = Theme.Shadow.Color
+	back.ImageTransparency = Theme.Shadow.Transparency
+	back.AnchorPoint = Vector2.zero
+	back.Position = UDim2.fromScale(Theme.Shadow.Offset, Theme.Shadow.Offset)
+	back.Size = UDim2.fromScale(1, 1)
+	back.ZIndex = 1
+	back.Parent = holder
+	img.Name = "Face"
+	img.AnchorPoint = Vector2.zero
+	img.Position = UDim2.fromScale(0, 0)
+	img.Size = UDim2.fromScale(1, 1)
+	img.ZIndex = 2
+	img.Parent = holder
+	return holder
+end
+
+-- Icon transparency incl. its shadow (dimmed / disabled icons)
+function Kit.setIconTransparency(icon: GuiObject, transparency: number)
+	if not icon:IsA("ImageLabel") then
+		return
+	end
+	local face = icon:FindFirstChild("Face")
+	if face and face:IsA("ImageLabel") then
+		face.ImageTransparency = transparency
+		local back = icon:FindFirstChild("Shadow")
+		if back and back:IsA("ImageLabel") then
+			back.ImageTransparency = math.max(transparency, Theme.Shadow.Transparency)
+		end
+	else
+		icon.ImageTransparency = transparency
+	end
+end
+
+-- ------------------------------------------------------------------ Class art
+-- Class of the local player. There is no class data yet, so this is Theme.Class.Default; a player
+-- attribute "Class" is honored if it ever exists.
+function Kit.playerClass(): string
+	local value = Players.LocalPlayer:GetAttribute("Class")
+	if typeof(value) == "string" and Theme.Class.SkillName[string.lower(value)] then
+		return string.lower(value)
+	end
+	return string.lower(Theme.Class.Default)
+end
+
+-- Icon name for an item slot (helmet, armor, ...): class art if uploaded, otherwise the atlas icon
+function Kit.equipIcon(slot: string, fallback: string): string
+	local file = Theme.Class.EquipSlot[slot]
+	local key = if file then "equip_" .. Kit.playerClass() .. "_" .. file else ""
+	return if Assets.Class[key] then key else fallback
+end
+
+-- Class art key of a skill ("dash" for the dash button) or nil without uploaded art
+function Kit.skillArt(skillId: string): string?
+	local pos = Theme.Class.SkillSlot[skillId]
+	local class = Kit.playerClass()
+	local names = Theme.Class.SkillName[class]
+	if not pos or not names then
+		return nil
+	end
+	local key = string.format("skill_%s_%02d_%s", class, pos, names[pos])
+	return if Assets.Class[key] then key else nil
+end
+
+-- Icon name of a skill for Kit.icon / Kit.itemSlot: class art if uploaded, otherwise the atlas icon
+function Kit.skillIcon(skillId: string, fallback: string): string
+	return Kit.skillArt(skillId) or fallback
 end
 
 -- Icon from the atlas image (Assets.Icon), otherwise a neutral placeholder
 function Kit.icon(name: string, size: number, color: Color3?): GuiObject
+	local classArt = Assets.Class[name]
+	if classArt then
+		local img = Instance.new("ImageLabel")
+		img.Name = "Icon_" .. name
+		img.BackgroundTransparency = 1
+		img.Image = classArt.id
+		img.ScaleType = Enum.ScaleType.Fit
+		img.Size = UDim2.fromOffset(size, size)
+		return Kit.shadowed(img)
+	end
 	local icon = Assets.Icon[name]
 	if icon then
 		local img = Instance.new("ImageLabel")
@@ -322,7 +449,7 @@ function Kit.icon(name: string, size: number, color: Color3?): GuiObject
 		img.ImageRectSize = Assets.IconSize
 		img.ScaleType = Enum.ScaleType.Fit
 		img.Size = UDim2.fromOffset(size, size)
-		return img
+		return Kit.shadowed(img)
 	end
 	local ph = Instance.new("Frame")
 	ph.Size = UDim2.fromOffset(size * 0.7, size * 0.7)
@@ -376,8 +503,8 @@ local function slotIcon(b: GuiObject, size: number, iconName: string, edge: Colo
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.ZIndex = 2
-	if dim and ic:IsA("ImageLabel") then
-		ic.ImageTransparency = 0.7
+	if dim then
+		Kit.setIconTransparency(ic, 0.7)
 	end
 	ic.Parent = b
 end
@@ -431,7 +558,7 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 		local k = Kit.label(key, 11, Theme.Color.Text)
 		k.AnchorPoint = Vector2.new(0.5, 1)
 		k.Position = UDim2.new(0.5, 0, 1, -2)
-		k.TextStrokeTransparency = 0.3
+		Kit.textOutline(k, 0.3)
 		k.ZIndex = 3
 		k.Parent = f
 	end
@@ -478,7 +605,7 @@ function Kit.setEnabled(b: ImageButton, enabled: boolean)
 		b.Image = slice.id
 	end
 	b.Active = enabled
-	Kit.buttonLabel(b).TextTransparency = if enabled then 0 else 0.4
+	Kit.setTextTransparency(Kit.buttonLabel(b), if enabled then 0 else 0.4)
 end
 
 -- Text button (gold = primary action, danger = red, otherwise blue), optionally with an icon left of the text.
@@ -511,6 +638,9 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	label.TextSize = Kit.fontSize(17)
 	label.FontFace = Theme.Font.UI
 	label.TextColor3 = if color == Theme.Color.Gold then Theme.Color.Bg0 else Theme.Color.Text
+	if color ~= Theme.Color.Gold then
+		Kit.textShadow(label) -- dark text on the gold button needs none
+	end
 	label.ZIndex = 2
 	label.Parent = b
 	if iconName then
@@ -579,8 +709,8 @@ end
 
 -- ------------------------------------------------------------------ In-game HUD pieces
 -- Image from Assets.Hud at a fixed size; nil if it has not been uploaded yet (-> flat fallback)
-function Kit.hudImage(name: string, size: Vector2): ImageLabel?
-	local fixed = Assets.Hud[name]
+function Kit.hudImage(name: string, size: Vector2, shadow: boolean?): ImageLabel?
+	local fixed = Assets.Hud[name] or Assets.Class[name]
 	if not fixed then
 		return nil
 	end
@@ -590,6 +720,9 @@ function Kit.hudImage(name: string, size: Vector2): ImageLabel?
 	img.Image = fixed.id
 	img.ScaleType = Enum.ScaleType.Fit
 	img.Size = UDim2.fromOffset(size.X, size.Y)
+	if shadow then
+		return Kit.shadowed(img)
+	end
 	return img
 end
 
@@ -611,7 +744,7 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 	local H = Theme.Hud
 	local span = H.OrbBottom - H.OrbTop
 	local diameter = math.floor(size * span)
-	local frameImg = Kit.hudImage("orb_" .. kind .. "_frame", Vector2.new(size, size))
+	local frameImg = Kit.hudImage("orb_" .. kind .. "_frame", Vector2.new(size, size)) -- no shadow: must stay aligned with the liquid
 	local fillImg = Kit.hudImage("orb_" .. kind .. "_fill", Vector2.new(size, size))
 
 	local root = Instance.new("Frame")
@@ -669,7 +802,7 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 	text.Name = "Value"
 	text.AnchorPoint = Vector2.new(0.5, 0.5)
 	text.Position = UDim2.fromScale(0.5, (H.OrbTop + H.OrbBottom) / 2)
-	text.TextStrokeTransparency = 0.25
+	Kit.textOutline(text, 0.25)
 	text.ZIndex = 5
 	text.Parent = root
 
@@ -705,7 +838,7 @@ function Kit.cooldownVeil(parent: GuiObject): (number, number) -> ()
 	text.Name = "CooldownText"
 	text.AnchorPoint = Vector2.new(0.5, 0.5)
 	text.Position = UDim2.fromScale(0.5, 0.5)
-	text.TextStrokeTransparency = 0.3
+	Kit.textOutline(text, 0.3)
 	text.ZIndex = 5
 	text.Parent = parent
 
@@ -762,7 +895,7 @@ function Kit.roundButton(
 	local inner = math.floor(size * 0.66)
 	local ic: GuiObject? = nil
 	if artName then
-		ic = Kit.hudImage(artName, Vector2.new(inner, inner))
+		ic = Kit.hudImage(artName, Vector2.new(inner, inner), true)
 	end
 	if not ic and fallbackIcon then
 		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
@@ -778,7 +911,7 @@ function Kit.roundButton(
 		k.Name = "Key"
 		k.AnchorPoint = Vector2.new(0.5, 1)
 		k.Position = UDim2.new(0.5, 0, 1, -2)
-		k.TextStrokeTransparency = 0.3
+		Kit.textOutline(k, 0.3)
 		k.ZIndex = 6
 		k.Parent = b
 	end
@@ -803,7 +936,7 @@ function Kit.hudIconButton(
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	Kit.touchTarget(b)
-	local ic: GuiObject = Kit.hudImage(artName, Vector2.new(size, size))
+	local ic: GuiObject = Kit.hudImage(artName, Vector2.new(size, size), true)
 		or Kit.icon(fallbackIcon, size, Theme.Color.Muted)
 	ic.AnchorPoint = Vector2.new(0.5, 0)
 	ic.Position = UDim2.fromScale(0.5, 0)
@@ -816,12 +949,83 @@ function Kit.hudIconButton(
 		t.Position = UDim2.fromScale(0.5, 1)
 		t.Size = UDim2.new(1, 0, 0, captionH)
 		t.TextXAlignment = Enum.TextXAlignment.Center
-		t.TextStrokeTransparency = 0.3
+		Kit.textOutline(t, 0.3)
 		t.ZIndex = 3
 		t.Parent = b
 	end
 	pressFeedback(b)
 	return b
+end
+
+-- Charge diamonds (dash): one per maximum charge, cyan = available, dark = spent. Images
+-- hud_diamond_cyan / hud_diamond_dark, flat rotated squares until they are uploaded.
+-- Returns the row and its updater (available charges, maximum charges).
+function Kit.chargePips(size: number): (Frame, (available: number, max: number) -> ())
+	local row = Instance.new("Frame")
+	row.Name = "ChargePips"
+	row.BackgroundTransparency = 1
+	row.AutomaticSize = Enum.AutomaticSize.XY
+	row.Size = UDim2.fromOffset(0, size)
+	local layout = Kit.list(row, Enum.FillDirection.Horizontal, 2)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	local cyan, dark = Assets.Hud.hud_diamond_cyan, Assets.Hud.hud_diamond_dark
+	local pips: { GuiObject } = {}
+	local function paint(pip: GuiObject, on: boolean)
+		if pip:IsA("ImageLabel") then
+			if cyan and dark then
+				pip.Image = if on then cyan.id else dark.id
+			end
+			return
+		end
+		local flat = pip:FindFirstChild("Diamond")
+		if flat and flat:IsA("Frame") then
+			flat.BackgroundColor3 = if on then Theme.Color.Cyan else Theme.Color.Bg2
+		end
+	end
+	local function newPip(): GuiObject
+		if cyan and dark then
+			local img = Instance.new("ImageLabel")
+			img.BackgroundTransparency = 1
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Size = UDim2.fromOffset(size, size)
+			return img
+		end
+		-- Flat fallback: rotated square in a cell
+		local cell = Instance.new("Frame")
+		cell.BackgroundTransparency = 1
+		cell.Size = UDim2.fromOffset(size, size)
+		local f = Instance.new("Frame")
+		f.Name = "Diamond"
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromScale(0.5, 0.5)
+		f.Size = UDim2.fromOffset(size * 0.6, size * 0.6)
+		f.BorderSizePixel = 0
+		f.Rotation = 45
+		Kit.stroke(f, Theme.Color.Cyan, 1)
+		f.Parent = cell
+		return cell
+	end
+	local function update(available: number, max: number)
+		while #pips > max do
+			local last = table.remove(pips)
+			if last then
+				last:Destroy()
+			end
+		end
+		while #pips < max do
+			local pip = newPip()
+			pip.Name = "Pip"
+			pip.LayoutOrder = #pips + 1
+			pip.Parent = row
+			table.insert(pips, pip)
+		end
+		for i, pip in pips do
+			paint(pip, i <= available)
+		end
+	end
+	return row, update
 end
 
 local PILL_KEY = { gold = "gold", cyan = "cyan", purple = "purple" }

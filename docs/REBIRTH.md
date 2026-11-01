@@ -8,7 +8,7 @@ Voluntary, never forced. Without rebirth it gets noticeably tougher from depth 2
 | Condition | best depth (across all regions) ≥ 20 + 5 × previous rebirths |
 | Reset | level, XP, gold, Atlas progress (regions again from Green Plains), Star Web (star points come from the level) |
 | Kept | equipment, inventory, material, skill levels and blooms, soulstars, pets |
-| Reward per rebirth | +25 % damage, +10 % health, +20 % gold, +20 % XP (stacks) |
+| Reward per rebirth | +25% damage, +10% health, +20% gold, +20% XP (stacks) |
 | Soft wall | starts 5 depths later per rebirth |
 | One-time | 25 + 25 × n soulstars for the n-th rebirth |
 | Cap | 50 rebirths |

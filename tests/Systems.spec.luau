@@ -138,7 +138,7 @@ describe("Systems", function()
 			Combat.hurtPlayer(player, 20)
 			local armored = before - humanoid.Health
 			player:SetAttribute("StatArmor", 0)
-			player:SetAttribute("StatBlock", 100) -- capped at 75 %
+			player:SetAttribute("StatBlock", 100) -- capped at 75%
 			local blocked = 0
 			for _ = 1, 400 do
 				if not Combat.hurtPlayer(player, 1) then

@@ -1,207 +1,177 @@
 --!strict
 -- Save data: the only place that touches DataStores. Gameplay only changes the table from Data.get.
---  • Load via UpdateAsync with a session lock: only one server owns a save at a time.
---    If another server holds the lock (player is switching), wait, kick if necessary.
---  • Save: autosave every 60 s (staggered per player), on leave and on BindToClose.
---    Every save refreshes the lock, the last one releases it. Lock lost → do not overwrite.
---  • All calls with pcall + retry/backoff. Load failed → kick instead of an empty save,
---    so a real save is never overwritten. Only in Studio without API access
---    do you play with an empty save that is not stored.
---  • Schema, defaults and migrations: Shared/Profile.
+--  • ProfileStore (ServerPackages) owns the session lock, autosave (every 5 min), retries and
+--    BindToClose. Only one server owns a save at a time: a second server asks the owner to end
+--    its session (MessagingService) and loads only after that last save went through.
+--  • profile.Data is the record { v, data } from Shared/Profile (defaults, migrations, sanitize).
+--  • Session lost (another server took over) → kick, nothing is stored here any more.
+--  • Load failed → kick instead of an empty save, so a real save is never overwritten.
+--    Only in Studio without API access you play on ProfileStore.Mock (not stored).
 
-local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local ProfileSchema = require(ReplicatedStorage.Shared.Profile)
+local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
 export type Profile = ProfileSchema.Data
 
+-- New name for the ProfileStore format: saves from LootRush_Profile_v2 (own lock format) are ignored
+local STORE_NAME = "LootRush_Profile_v3"
+local SAVE_TIMEOUT = 15 -- saveNow gives up after this long (a purchase then stays NotProcessedYet)
+
+local KICK = table.freeze({
+	lost = "Your save was opened on another server. Please rejoin.",
+	newer = "This server is outdated. Please rejoin.",
+	corrupt = "Your save could not be read. Please contact the developer.",
+	error = "Your save could not be loaded. Please rejoin.",
+})
+
+local store = ProfileStore.New(STORE_NAME, {
+	v = ProfileSchema.VERSION,
+	data = ProfileSchema.fresh(),
+})
+type StoreProfile = typeof(assert(store:StartSessionAsync("", {})))
+
 type Session = {
+	profile: StoreProfile,
 	data: Profile,
-	readOnly: boolean, -- never save (load failed in Studio or lock lost)
-	saving: boolean,
-	released: boolean,
+	mock: boolean, -- Studio without API access: never really stored
+	leaving: boolean, -- we end the session ourselves (player left)
+	-- Saves of one key run one after another (ProfileStore update queue), each one ends with
+	-- OnAfterSave (stored) or OnError (failed). Counting both tells saveNow which result is its own.
+	started: number,
+	settled: number,
+	results: { [number]: boolean }, -- settle index → stored (only indices saveNow waits for)
 }
 
 local Data = {}
 
--- New name after the English ID rename: saves from LootRush_Profile_v1 are simply ignored
-local STORE_NAME = "LootRush_Profile_v2"
-local AUTOSAVE = 60
-local LOCK_STALE = 150 -- lock not refreshed for this long → server counts as crashed
-local LOAD_TRIES = 8
-local SAVE_TRIES = 5
-local CLOSE_TIMEOUT = 25
-local JOB = if game.JobId ~= "" then game.JobId else "studio"
-local IS_STUDIO = RunService:IsStudio()
-
-local store = DataStoreService:GetDataStore(STORE_NAME)
 local sessions: { [Player]: Session } = {}
 local loading: { [Player]: boolean } = {}
-local left: { [Player]: boolean } = {} -- left while loading
+local warnedMock = false
 
 local function key(player: Player): string
 	return "p_" .. player.UserId
 end
 
-local function backoff(attempt: number)
-	task.wait(math.min(2 ^ (attempt - 1), 16))
+local function present(player: Player): boolean
+	return player.Parent == Players
 end
 
--- Waits briefly when the server's request budget is used up (instead of running into throttling)
-local BUDGET_WAIT = 10
-local function waitBudget()
-	local deadline = os.clock() + BUDGET_WAIT
-	while os.clock() < deadline do
-		local ok, budget = pcall(
-			DataStoreService.GetRequestBudgetForRequestType,
-			DataStoreService,
-			Enum.DataStoreRequestType.UpdateAsync
-		)
-		if not ok or typeof(budget) ~= "number" or budget >= 1 then
+local function settle(session: Session, stored: boolean)
+	session.settled += 1
+	if session.results[session.settled] ~= nil then
+		session.results[session.settled] = stored
+	end
+end
+
+-- true = real DataStores; false = Studio without API access (ProfileStore checks once at startup)
+local function hasAccess(): boolean
+	while ProfileStore.DataStoreState == "NotReady" do
+		task.wait()
+	end
+	return ProfileStore.DataStoreState == "Access"
+end
+
+local function watch(player: Player, session: Session)
+	local profile = session.profile
+	profile.OnSave:Connect(function()
+		session.started += 1
+		local fixed = ProfileSchema.sanitize(session.data)
+		if fixed > 0 then
+			warn(`[LootRush] repaired {fixed} invalid values in save:`, player.UserId)
+		end
+	end)
+	profile.OnAfterSave:Connect(function()
+		settle(session, true)
+	end)
+	profile.OnSessionEnd:Connect(function()
+		if session.leaving or ProfileStore.IsClosing then
 			return
 		end
-		task.wait(0.5)
-	end
-end
-
--- Tries once to take over the save.
--- Status: "ok" | "locked" (other server) | "newer" (save from a newer game version) | "corrupt" | "error"
-local function claim(player: Player): (string, ProfileSchema.Record?)
-	local status, record: ProfileSchema.Record? = "error", nil
-	local ok, err = pcall(function()
-		store:UpdateAsync(key(player), function(raw: any): any
-			record = nil
-			local now = os.time()
-			if ProfileSchema.lockedByOther(raw, JOB, now, LOCK_STALE) then
-				status = "locked"
-				return nil -- do not write
-			end
-			local migrated, result = pcall(ProfileSchema.migrate, raw)
-			if not migrated then
-				status = if string.find(tostring(result), "NEWER", 1, true)
-					then "newer"
-					else "corrupt"
-				warn("[LootRush] save not readable:", player.UserId, result)
-				return nil
-			end
-			result.lock = { job = JOB, t = now }
-			status, record = "ok", result
-			return result
-		end)
+		warn("[LootRush] session lost, save will no longer be stored here:", player.UserId)
+		if present(player) then
+			player:Kick(KICK.lost)
+		end
 	end)
+end
+
+local function open(player: Player)
+	local live = hasAccess()
+	local profile
+	if live then
+		-- Cancel is a real StartSessionAsync param, the package type only lists Steal
+		local params: any = {
+			Cancel = function(): boolean
+				return not present(player)
+			end,
+		}
+		profile = store:StartSessionAsync(key(player), params)
+	else
+		if not warnedMock then
+			warnedMock = true
+			warn(
+				"[LootRush] Studio without DataStore access: playing on a mock save, nothing is stored"
+			)
+		end
+		profile = store.Mock:StartSessionAsync(key(player), {})
+	end
+
+	if not profile then
+		if present(player) then
+			player:Kick(KICK.error)
+		end
+		return
+	end
+	if not present(player) then
+		profile:EndSession() -- left while loading
+		return
+	end
+
+	-- Migrate a copy: if the save is unreadable, the session ends with the raw value untouched
+	local raw: any = profile.Data
+	local ok, result = pcall(ProfileSchema.migrate, ProfileSchema.copy(raw))
 	if not ok then
-		warn("[LootRush] load failed:", err)
-		return "error", nil
+		warn("[LootRush] save not readable:", player.UserId, result)
+		local newer = string.find(tostring(result), "NEWER", 1, true) ~= nil
+		profile:EndSession()
+		player:Kick(if newer then KICK.newer else KICK.corrupt)
+		return
 	end
-	return status, record
-end
+	local record: ProfileSchema.Record = result
+	profile.Data = record :: any -- the package's Data type is T & JSONAcceptable
+	profile:AddUserId(player.UserId)
 
--- true if the save is stored in the DataStore
-local function save(player: Player, release: boolean): boolean
-	local session = sessions[player]
-	if not session then
-		return false
-	end
-	while session.saving do
-		task.wait(0.1)
-	end
-	if session.readOnly or session.released then
-		return false
-	end
-	local saved = false
-	session.saving = true
-	if release then
-		session.released = true -- no more saves after this
-	end
-	local fixed = ProfileSchema.sanitize(session.data)
-	if fixed > 0 then
-		warn(`[LootRush] repaired {fixed} invalid values in save:`, player.UserId)
-	end
-	for attempt = 1, SAVE_TRIES do
-		waitBudget()
-		local lost = false
-		local ok, err = pcall(function()
-			store:UpdateAsync(key(player), function(raw: any): any
-				lost = false
-				local lock = typeof(raw) == "table" and raw.lock
-				if raw ~= nil and (typeof(lock) ~= "table" or lock.job ~= JOB) then
-					lost = true -- another server took over: its save wins
-					return nil
-				end
-				return {
-					v = ProfileSchema.VERSION,
-					data = session.data,
-					lock = if release then nil else { job = JOB, t = os.time() },
-				}
-			end)
-		end)
-		if ok then
-			saved = not lost
-			if lost then
-				warn("[LootRush] lock lost, save will no longer be stored here:", player.UserId)
-				session.readOnly = true
-				if not release and player.Parent then
-					player:Kick("Your save was opened on another server. Please rejoin.")
-				end
-			end
-			break
-		end
-		warn(`[LootRush] save failed ({attempt}/{SAVE_TRIES}):`, err)
-		if attempt < SAVE_TRIES then
-			backoff(attempt)
-		end
-	end
-	session.saving = false
-	return saved
+	local session: Session = {
+		profile = profile,
+		data = record.data,
+		mock = not live,
+		leaving = false,
+		started = 0,
+		settled = 0,
+		results = {},
+	}
+	watch(player, session)
+	sessions[player] = session
 end
-
-local KICK = {
-	locked = "Your save is still being stored on another server. Please rejoin in a minute.",
-	newer = "This server is outdated. Please rejoin.",
-	corrupt = "Your save could not be read. Please contact the developer.",
-	error = "Your save could not be loaded. Please rejoin.",
-}
 
 local function load(player: Player)
-	loading[player] = true
-	local status, record = "error", nil
-	for attempt = 1, LOAD_TRIES do
-		waitBudget()
-		status, record = claim(player)
-		if status == "ok" or status == "newer" or status == "corrupt" or left[player] then
-			break
-		end
-		if attempt < LOAD_TRIES then
-			if status == "locked" then
-				task.wait(5) -- the old server is usually done within seconds
-			else
-				backoff(attempt)
-			end
-		end
-	end
-
-	local gone = left[player] or not player.Parent
-	loading[player] = nil
-	left[player] = nil
-
-	if status == "ok" and record then
-		sessions[player] =
-			{ data = record.data, readOnly = false, saving = false, released = false }
-		if gone then
-			save(player, true) -- release the lock right away
-			sessions[player] = nil
-		end
-	elseif gone then
+	-- start() and PlayerAdded may both see a player: ProfileStore errors on a second session
+	if sessions[player] or loading[player] then
 		return
-	elseif status == "error" and IS_STUDIO then
-		warn("[LootRush] Studio without DataStore access: empty save, will not be stored")
-		sessions[player] =
-			{ data = ProfileSchema.fresh(), readOnly = true, saving = false, released = false }
-	else
-		player:Kick(KICK[status] or KICK.error)
+	end
+	loading[player] = true
+	local ok, err = pcall(function()
+		open(player)
+	end)
+	loading[player] = nil
+	if not ok then
+		warn("[LootRush] load failed:", player.UserId, err)
+		if present(player) and not sessions[player] then
+			player:Kick(KICK.error)
+		end
 	end
 end
 
@@ -210,9 +180,25 @@ function Data.get(player: Player): Profile?
 	return session and session.data
 end
 
--- Save immediately (only confirm Robux purchases once they are safely in the save)
+-- Save immediately. true only once this save is stored in the DataStore (Robux purchases are
+-- confirmed only then); false on timeout, failure, lost session or mock save.
 function Data.saveNow(player: Player): boolean
-	return save(player, false)
+	local session = sessions[player]
+	if not session or session.mock or not session.profile:IsActive() then
+		return false
+	end
+	local index = session.started + 1 -- OnSave of this save counts it
+	session.results[index] = false
+	session.profile:Save()
+	local deadline = os.clock() + SAVE_TIMEOUT
+	while session.settled < index and session.profile:IsActive() and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	local stored = session.settled >= index
+		and session.results[index] == true
+		and session.profile:IsActive()
+	session.results[index] = nil
+	return stored
 end
 
 -- Waits until the save is loaded (nil if the player leaves or is kicked first)
@@ -225,31 +211,23 @@ end
 
 function Data.init()
 	Players.PlayerRemoving:Connect(function(player: Player)
-		if loading[player] then
-			left[player] = true -- load() releases the lock as soon as it is done
+		-- Still loading: the Cancel check (or the presence check after loading) ends it
+		local session = sessions[player]
+		sessions[player] = nil
+		if session then
+			session.leaving = true
+			session.profile:EndSession()
+		end
+	end)
+	ProfileStore.OnError:Connect(function(message: string, storeName: string, profileKey: string)
+		if storeName ~= STORE_NAME then
 			return
 		end
-		save(player, true)
-		sessions[player] = nil
-	end)
-	game:BindToClose(function()
-		local open: { Session } = {}
-		for player, session in sessions do
-			table.insert(open, session)
-			task.spawn(save, player, true)
-		end
-		-- wait until all final saves are through (including those from PlayerRemoving)
-		local deadline = os.clock() + CLOSE_TIMEOUT
-		local function busy(): boolean
-			for _, session in open do
-				if session.saving or not (session.released or session.readOnly) then
-					return true
-				end
+		warn("[LootRush] DataStore call failed:", profileKey, message)
+		for _, session in sessions do
+			if session.profile.Key == profileKey then
+				settle(session, false)
 			end
-			return false
-		end
-		while busy() and os.clock() < deadline do
-			task.wait(0.1)
 		end
 	end)
 end
@@ -258,16 +236,7 @@ function Data.start()
 	for _, player in Players:GetPlayers() do
 		task.spawn(load, player)
 	end
-	Players.PlayerAdded:Connect(function(player: Player)
-		load(player)
-	end)
-	while true do
-		task.wait(AUTOSAVE)
-		for player in sessions do
-			-- staggered so not all players save at the same moment
-			task.delay(player.UserId % AUTOSAVE, save, player, false)
-		end
-	end
+	Players.PlayerAdded:Connect(load)
 end
 
 return Data

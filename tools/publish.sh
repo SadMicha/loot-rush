@@ -28,6 +28,7 @@ for var in ROBLOX_UNIVERSE_ID ROBLOX_PLACE_ID; do
 done
 
 command -v rojo >/dev/null || bash tools/setup.sh
+bash tools/packages.sh # ServerPackages/ must exist for the build
 
 PLACE=.tools/out/LootRush.rbxl
 mkdir -p .tools/out

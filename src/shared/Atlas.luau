@@ -7,7 +7,7 @@
 -- (region with a path here). The save stores the best values per region (atlas).
 
 export type Mod = { icon: string, text: string }
--- Real region bonuses (shares, 0.1 = +10 %): gold = gold per drop, xp = XP per enemy,
+-- Real region bonuses (shares, 0.1 = +10%): gold = gold per drop, xp = XP per enemy,
 -- items = chance of item drops. A missing field means no bonus.
 export type Bonus = { gold: number?, xp: number?, items: number? }
 export type Region = {
@@ -46,7 +46,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "crown",
 		mods = {
 			{ icon = "life", text = "Gentle Meadows" },
-			{ icon = "gold", text = "+10 % Gold" },
+			{ icon = "gold", text = "+10% Gold" },
 		},
 		desc = "Wide meadows with waterfalls. Crystal slimes gather here - "
 			.. "the perfect place for your first run.",
@@ -72,7 +72,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "crystal",
 		mods = {
 			{ icon = "ice", text = "Cold Air" },
-			{ icon = "crystal", text = "+15 % Loot" },
+			{ icon = "crystal", text = "+15% Loot" },
 		},
 		desc = "Glowing caves full of crystals. Every step echoes through the depths.",
 		pos = Vector2.new(330, 330),
@@ -122,7 +122,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "fire",
 		mods = {
 			{ icon = "fire", text = "Lava Floor" },
-			{ icon = "item_level", text = "+25 % XP" },
+			{ icon = "item_level", text = "+25% XP" },
 		},
 		desc = "An endless desert of molten stone and blazing winds. Only the strongest "
 			.. "survive the searing heat.",
@@ -173,7 +173,7 @@ Atlas.Regions = table.freeze({
 		bossIcon = "portal",
 		mods = {
 			{ icon = "portal", text = "Unstable Rifts" },
-			{ icon = "trophy", text = "+20 % Gold & Loot" },
+			{ icon = "trophy", text = "+20% Gold & Loot" },
 		},
 		desc = "Beyond the last Rift nothing is as it was. All that counts here is how deep you get.",
 		pos = Vector2.new(940, 680),

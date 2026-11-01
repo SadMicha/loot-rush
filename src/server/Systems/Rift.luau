@@ -107,6 +107,12 @@ function Rift.isRunning(player: Player): boolean
 	return runs[player] ~= nil
 end
 
+-- Run number of the player's running Rift (enemy attribute "Run"), nil = none
+function Rift.runOf(player: Player): number?
+	local r = runs[player]
+	return if r then r.id else nil
+end
+
 -- Running Rifts (for tests and metrics)
 function Rift.count(): number
 	local n = 0
@@ -195,7 +201,10 @@ local function finish(r: Run, reason: EndReason)
 		r.died = nil
 	end
 	local failed = reason == "failed"
-	Metrics.report(string.format("Depth %d %s", r.depth, if failed then "failed" else "left"))
+	Metrics.report(
+		r.owner,
+		string.format("Depth %d %s", r.depth, if failed then "failed" else "left")
+	)
 	local owner = r.owner
 	if reason ~= "gone" then
 		local gold, items = Loot.collect(owner)
@@ -233,7 +242,7 @@ local function finish(r: Run, reason: EndReason)
 end
 
 local function play(r: Run)
-	Metrics.begin(r.owner)
+	Metrics.begin(r.owner, r.id)
 	for wave = 1, Config.RIFT_WAVES do
 		r.wave = wave
 		publish(r, "wave")
@@ -262,7 +271,7 @@ local function play(r: Run)
 	end
 	record(r)
 	r.tally.cleared += 1
-	Metrics.report(string.format("Depth %d cleared", r.depth))
+	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
 	publish(r, "clear")
 	report(r, "clear", nil)
 end

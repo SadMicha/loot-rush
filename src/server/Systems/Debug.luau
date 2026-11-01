@@ -1,6 +1,6 @@
 --!strict
 -- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
--- items, unlock all regions and defeat all enemies (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
+-- items, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
 -- The check lives here on the server - the menu on the client is only a convenience.
 -- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
 -- The server tells the client it is allowed via the player attribute "DebugTools".
@@ -131,18 +131,15 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 	pet = {
 		run = function(player)
 			Shop.grant(player, "soulstars", 75)
-			local ok, text = Pets.hatch(player, "sternen_ei")
+			local ok, text = Pets.hatch(player, "star_egg")
 			Net.PetResult:FireClient(player, { ok = ok, text = text })
 		end,
 	},
 	rebirth = {
 		run = function(player)
-			-- Nicht mitten im Lauf, und tief genug für die nächste Wiedergeburt (Wand wandert mit)
+			-- Not in the middle of a run, and deep enough for the next rebirth (the wall moves with it)
 			if Rift.isRunning(player) then
-				Net.RebirthResult:FireClient(
-					player,
-					{ ok = false, text = "Erst das Rift verlassen" }
-				)
+				Net.RebirthResult:FireClient(player, { ok = false, text = "Leave the Rift first" })
 				return
 			end
 			unlockAtlas(player, RebirthRules.required(Rift.rebirthsOf(player)))
@@ -151,9 +148,14 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 		end,
 	},
 	slay = {
+		-- Only the caller's own run: other players' Rifts run on the same server
 		run = function(player)
+			local run = Rift.runOf(player)
+			if not run then
+				return
+			end
 			for _, enemy in CollectionService:GetTagged("Enemy") do
-				if enemy:IsA("Model") then
+				if enemy:IsA("Model") and enemy:GetAttribute("Run") == run then
 					Combat.slay(player, enemy)
 				end
 			end

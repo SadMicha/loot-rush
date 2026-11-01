@@ -1,35 +1,35 @@
-# Release-Checkliste (erste öffentliche Version)
+# Release checklist (first public version)
 
-Alles, was der Code nicht selbst erledigen kann. Reihenfolge = Vorschlag.
+Everything the code can't take care of by itself. Order = suggestion.
 
-## 1. Creator Hub (Spiel-Einstellungen)
+## 1. Creator Hub (game settings)
 
-- [ ] **Basic Settings → Max Players:** 12 (passt zu `Config.RIFT_SLOTS` = 12 Arenen je Server).
-  Mehr Spieler gehen auch, dann `RIFT_SLOTS` mit erhöhen.
-- [ ] **Security → Enable Studio Access to API Services** an (sonst speichert Studio nicht).
-- [ ] **Genre, Beschreibung, Icon (512²), Thumbnails (1920×1080)** hochladen.
-- [ ] **Maturity/Altersfreigabe:** Fragebogen ausfüllen (Kampf mit Fantasy-Gegnern, keine Gewalt-Details).
-- [ ] **Geräte:** Computer, Handy, Tablet an (Touch ist getestet, Konsole nicht).
-- [ ] **Monetization:** Produkte und Pässe anlegen, IDs in `src/shared/Monetization.luau`
-  eintragen (`docs/MONETARISIERUNG.md`).
-- [ ] **Privat → Öffentlich** erst nach dem Testlauf unten.
+- [ ] **Basic Settings → Max Players:** 12 (matches `Config.RIFT_SLOTS` = 12 arenas per server).
+  More players work too, then raise `RIFT_SLOTS` accordingly.
+- [ ] **Security → Enable Studio Access to API Services** on (otherwise Studio doesn't save).
+- [ ] Upload **genre, description, icon (512²), thumbnails (1920×1080)**.
+- [ ] **Maturity:** fill in the questionnaire (combat against fantasy enemies, no graphic violence).
+- [ ] **Devices:** computer, phone, tablet on (touch is tested, console is not).
+- [ ] **Monetization:** create products and passes, enter the IDs in `src/shared/Monetization.luau`
+  (`docs/MONETIZATION.md`).
+- [ ] **Private → Public** only after the test run below.
 
 ## 2. Code
 
-- [ ] `DEV_USERS` in `src/server/Systems/Debug.luau`: eigene UserId eintragen, damit das
-  Debug-Menü im Live-Spiel für dich (und nur dich) geht.
-- [ ] Upload: Push auf `main` → GitHub Action lädt in den Test-Place (`docs/PUBLISH.md`).
-  Für den echten Place die Secrets `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` auf das Live-Spiel setzen
-  oder einmal manuell aus Studio veröffentlichen.
+- [ ] `DEV_USERS` in `src/server/Systems/Debug.luau`: enter your own UserId so the
+  debug menu works in the live game for you (and only you).
+- [ ] Upload: push to `main` → GitHub Action uploads to the test place (`docs/PUBLISH.md`).
+  For the real place, point the secrets `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game
+  or publish once manually from Studio.
 
-## 3. Testlauf vor dem Veröffentlichen
+## 3. Test run before publishing
 
-Siehe `docs/TEST-RELEASE.md` (Studio + Handy, ca. 30 Minuten).
+See `docs/TEST-RELEASE.md` (Studio + phone, about 30 minutes).
 
-## Bewusst noch nicht drin
+## Deliberately not in yet
 
-- Fenster für Haustiere, Wiedergeburt und Gamepässe (Micha baut die UI; Server und Daten sind
-  fertig, Schnittstellen in `docs/UI-SCHNITTSTELLEN.md`).
-- Bestenliste, Daily Rewards, Offline-Ertrag, Handel zwischen Spielern.
-- Bewegungs-Prüfung gegen Speed-/Teleport-Hacks: Schaden, Beute und Käufe prüft der Server,
-  Laufen aber nicht (Roblox-Standard). Schlimmster Fall: ein Cheater sammelt seine eigene Beute schneller.
+- Windows for pets, rebirth and gamepasses (Micha builds the UI; server and data are
+  done, interfaces in `docs/UI-INTERFACES.md`).
+- Leaderboard, daily rewards, offline income, trading between players.
+- Movement checks against speed/teleport hacks: the server checks damage, loot and purchases,
+  but not walking (Roblox default). Worst case: a cheater collects their own loot faster.

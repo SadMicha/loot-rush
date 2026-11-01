@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # All checks without Roblox Studio. Without arguments all steps run,
 # otherwise only the named ones: format lint types build test ui
+# (types/build/test/ui first run tools/packages.sh = wally install, skipped if unchanged)
 #   bash tools/check.sh            # everything
 #   bash tools/check.sh test ui    # only unit tests and UI check
 # Images for the UI preview: LOOTRUSH_IMAGES="/path/to/pngs;/another/one"
@@ -39,6 +40,7 @@ types() {
 		luau-lsp analyze --platform=roblox \
 			--defs=.tools/roblox/globalTypes.d.luau \
 			--sourcemap=.tools/out/sourcemap.json \
+			--ignore="**/Packages/**" --ignore="**/ServerPackages/**" \
 			src 2>&1 | grep -v '^/' # hide duplicates with an absolute path
 	return "${PIPESTATUS[0]}"
 }
@@ -51,8 +53,13 @@ ui() {
 }
 
 mkdir -p .tools/out
+# types/build/test/ui need the Wally packages (default.project.json maps ServerPackages/)
+if [[ " ${STEPS[*]} " =~ \ (types|build|test|ui)\  ]]; then
+	STEPS=(packages "${STEPS[@]}")
+fi
 for step in "${STEPS[@]}"; do
 	case $step in
+	packages) run packages bash tools/packages.sh ;;
 	format) run format stylua --check src ;;
 	lint) run lint selene src ;;
 	types) run types types ;;
