@@ -1,6 +1,6 @@
 --!strict
--- Save schema: defaults and migration of old saves (the session lock is ProfileStore's job).
--- Pure logic without DataStore (testable). Loading/saving itself is done by Systems/Data.
+-- Save schema: defaults, migration of old saves, sanitizing. Pure logic without DataStore
+-- (testable); loading, saving and sessions are Systems/Data on ProfileStore.
 --
 -- New field? Add it to the Data type and to DEFAULTS - missing fields are filled in on load.
 -- Fields with their own validation (e.g. Progression) are appended in Profile.reconcile instead.
@@ -31,7 +31,7 @@ export type Data = {
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 }
 
--- The versioned save (ProfileStore's profile.Data; the session lock belongs to ProfileStore)
+-- The versioned save (stored as ProfileStore's profile.Data)
 export type Record = {
 	v: number,
 	data: Data,

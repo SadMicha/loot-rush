@@ -22,8 +22,24 @@ describe("Monetization rules", function()
 	end)
 end)
 
+local STORE = "LootRush_Profile_v3/global"
+local PRODUCT_ID = 777 -- test ID for soulstars_s (the real IDs are still 0 = no product)
+
+-- Gives soulstars_s a real product ID in the sandbox's copy of Shared/Monetization (before boot)
+local function liveProduct()
+	local native = sim:nativeOf(sim:find("ReplicatedStorage.Shared.Monetization"))
+	local source, count =
+		string.gsub(native.Source, "soulstars_s = 0,", `soulstars_s = {PRODUCT_ID},`)
+	assert(count == 1, "soulstars_s ID not found in Shared/Monetization")
+	native.Source = source
+	-- The rules tests above already loaded the old source: start the game with empty module caches
+	sim.modules.server = {}
+	sim.modules.client = {}
+end
+
 describe("Monetization in game", function()
 	it("ProcessReceipt books nothing unknown", function()
+		liveProduct()
 		sim:boot({ seconds = 2 })
 		local decision, stars
 		sim:runAs("server", function(req)
@@ -35,6 +51,46 @@ describe("Monetization in game", function()
 		end)
 		expect(decision).toBe(Enum.ProductPurchaseDecision.NotProcessedYet)
 		expect(stars).toBe(0)
+	end)
+
+	it("ProcessReceipt grants once and confirms only after the save is stored", function()
+		local purchase =
+			{ ProductId = PRODUCT_ID, PlayerId = sim.player.UserId, PurchaseId = "buy-1" }
+		local decision, stars
+		sim:runAs("server", function(req)
+			local M = req("ServerScriptService.Server.Systems.Monetization")
+			decision = M.processReceipt(purchase)
+			stars = req("ServerScriptService.Server.Systems.Data").get(sim.player).soulstars
+		end)
+		-- Same moment: granted in game, but not confirmed before the DataStore has it
+		expect(decision).toBeNil()
+		expect(sim.datastores[STORE].p_1.Data.data.soulstars).toBe(0)
+		sim:run(1)
+		expect(decision).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
+		expect(stars).toBe(100)
+		local saved = sim.datastores[STORE].p_1.Data.data
+		expect(saved.soulstars).toBe(100)
+		expect(saved.receipts).toContain("buy-1")
+
+		-- Roblox retries the same purchase (e.g. the confirmation got lost): nothing is added
+		decision = nil
+		sim:runAs("server", function(req)
+			decision =
+				req("ServerScriptService.Server.Systems.Monetization").processReceipt(purchase)
+			stars = req("ServerScriptService.Server.Systems.Data").get(sim.player).soulstars
+		end)
+		sim:run(1)
+		expect(decision).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
+		expect(stars).toBe(100)
+		saved = sim.datastores[STORE].p_1.Data.data
+		expect(saved.soulstars).toBe(100)
+		local count = 0
+		for _, id in saved.receipts do
+			if id == "buy-1" then
+				count += 1
+			end
+		end
+		expect(count).toBe(1)
 	end)
 
 	it("saved pass ownership gives bonuses and the second pet slot", function()
