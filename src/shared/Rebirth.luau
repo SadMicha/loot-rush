@@ -16,7 +16,7 @@ local Rebirth = {}
 Rebirth.WALL_STEP = 5 -- depths every Rebirth moves the soft wall by
 Rebirth.MAX = 50 -- upper bound (protection against nonsense in the save)
 
--- Bonus per Rebirth in percent (adds up: 3 Rebirths = +75 % damage)
+-- Bonus per Rebirth in percent (adds up: 3 Rebirths = +75% damage)
 Rebirth.PerRebirth = table.freeze({
 	damage = 25,
 	life = 10,

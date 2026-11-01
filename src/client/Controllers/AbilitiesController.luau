@@ -60,7 +60,7 @@ local function renderList()
 	local bar = Window.frame(UDim2.fromOffset(LEFT_W - 2 * PAD, 110), UDim2.fromOffset(PAD, PAD))
 	Kit.list(bar, Enum.FillDirection.Horizontal, 16, Enum.VerticalAlignment.Top)
 	for i, skill in Skills.bar do
-		local s = Kit.itemSlot(80, skill.icon, {
+		local s = Kit.itemSlot(80, Kit.skillIcon(skill.id, skill.icon), {
 			rarity = if i == selected then "rare" else "normal",
 			selected = i == selected,
 		})
@@ -98,7 +98,7 @@ local function renderList()
 			Kit.stroke(row, C.Gold, 2)
 			Kit.corner(row, Theme.Radius.M)
 		end
-		local ic = Kit.itemSlot(64, skill.icon, { rarity = "normal" })
+		local ic = Kit.itemSlot(64, Kit.skillIcon(skill.id, skill.icon), { rarity = "normal" })
 		ic.Active = false
 		ic.AnchorPoint = Vector2.new(0, 0.5)
 		ic.Position = UDim2.new(0, 10, 0.5, 0)
@@ -166,7 +166,7 @@ local function renderTree()
 	Window.line(tree, root, right[1], lineColor, 3)
 	Window.line(tree, right[1], right[2], lineColor, 3)
 
-	local rootNode = Window.node(skill.icon, 120, root, {
+	local rootNode = Window.node(Kit.skillIcon(skill.id, skill.icon), 120, root, {
 		art = "node_ring_active",
 		rarity = "rare",
 	})
@@ -284,7 +284,7 @@ local function renderDetail()
 	local sp = progressOf(skill)
 	local w = SIDE_W - 2 * PAD
 
-	local big = Kit.itemSlot(110, skill.icon, { rarity = "rare" })
+	local big = Kit.itemSlot(110, Kit.skillIcon(skill.id, skill.icon), { rarity = "rare" })
 	big.Active = false
 	big.Position = UDim2.fromOffset(PAD, PAD)
 	big.Parent = detail

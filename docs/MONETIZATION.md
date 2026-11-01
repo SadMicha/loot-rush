@@ -10,9 +10,9 @@ the button stays off, the server accepts nothing.
 | Developer Product | `soulstars_s` | 100 soulstars | 49 |
 | Developer Product | `soulstars_m` | 550 soulstars | 249 |
 | Developer Product | `soulstars_l` | 1,200 soulstars | 499 |
-| Gamepass | `vip` | +25 % gold, +25 % XP | 299 |
+| Gamepass | `vip` | +25% gold, +25% XP | 299 |
 | Gamepass | `pet_slot` | 2nd pet slot | 199 |
-| Gamepass | `magnet` | +8 studs pickup radius, +10 % item chance | 149 |
+| Gamepass | `magnet` | +8 studs pickup radius, +10% item chance | 149 |
 
 Soulstars are spent in the game: gold packs, Star Egg (pets). No pay-to-win pressure:
 everything except the passes is also available without Robux (soulstars also via rebirths).

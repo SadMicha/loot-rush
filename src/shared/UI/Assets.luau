@@ -426,10 +426,13 @@ local HUD: { [string]: Fixed } = {
 	menu_inventory = { id = "rbxassetid://84376860245263", size = Vector2.new(376, 380) },
 	menu_star_net = { id = "rbxassetid://125186955183258", size = Vector2.new(377, 370) },
 	menu_skills = { id = "rbxassetid://89943484818795", size = Vector2.new(445, 379) },
-	menu_hub = { id = "rbxassetid://119271064945748", size = Vector2.new(441, 417) },
+	menu_hub = { id = "", size = Vector2.new(441, 417) }, -- assets/ui/icons/city.png, not uploaded yet (atlas "hub" icon until then)
 	menu_atlas = { id = "rbxassetid://104595046752790", size = Vector2.new(416, 362) },
 	menu_forge = { id = "rbxassetid://80101622482185", size = Vector2.new(405, 395) },
 	menu_shop = { id = "rbxassetid://113985532990245", size = Vector2.new(362, 384) },
+	-- Dash charge diamonds (Icons_256): cyan = charge available, dark = spent
+	hud_diamond_cyan = { id = "", size = Vector2.new(256, 256) },
+	hud_diamond_dark = { id = "", size = Vector2.new(256, 256) },
 	hud_settings = { id = "rbxassetid://96002533781558", size = Vector2.new(373, 368) },
 }
 local hud: { [string]: Fixed } = {}
@@ -439,5 +442,90 @@ for name, h in HUD do
 	end
 end
 Assets.Hud = table.freeze(hud)
+
+-- Per-class equipment and skill icons (assets/ui/icons/equipment/<Class>, assets/ui/icons/skills/128px/<Class>).
+-- Keys: equip_<class>_<slot>, skill_<class>_<nn>_<name> (see Theme.Class). Fill in the ids after the
+-- upload (tools/upload-manifest.json); entries with an empty id are ignored and the atlas icons are used.
+local CLASS: { [string]: Fixed } = {
+	equip_mage_amulet = { id = "", size = Vector2.new(350, 398) },
+	equip_mage_armor = { id = "", size = Vector2.new(435, 442) },
+	equip_mage_belt = { id = "", size = Vector2.new(463, 299) },
+	equip_mage_boots = { id = "", size = Vector2.new(421, 392) },
+	equip_mage_gloves = { id = "", size = Vector2.new(415, 361) },
+	equip_mage_head = { id = "", size = Vector2.new(422, 404) },
+	equip_mage_offhand = { id = "", size = Vector2.new(535, 493) },
+	equip_mage_ring = { id = "", size = Vector2.new(468, 465) },
+	equip_mage_weapon = { id = "", size = Vector2.new(434, 537) },
+	equip_mushroom_amulet = { id = "", size = Vector2.new(363, 432) },
+	equip_mushroom_armor = { id = "", size = Vector2.new(431, 441) },
+	equip_mushroom_belt = { id = "", size = Vector2.new(453, 309) },
+	equip_mushroom_boots = { id = "", size = Vector2.new(409, 357) },
+	equip_mushroom_gloves = { id = "", size = Vector2.new(397, 373) },
+	equip_mushroom_head = { id = "", size = Vector2.new(435, 400) },
+	equip_mushroom_offhand = { id = "", size = Vector2.new(431, 450) },
+	equip_mushroom_ring = { id = "", size = Vector2.new(462, 453) },
+	equip_mushroom_weapon = { id = "", size = Vector2.new(560, 515) },
+	equip_ranger_amulet = { id = "", size = Vector2.new(341, 424) },
+	equip_ranger_armor = { id = "", size = Vector2.new(477, 425) },
+	equip_ranger_belt = { id = "", size = Vector2.new(470, 361) },
+	equip_ranger_boots = { id = "", size = Vector2.new(424, 391) },
+	equip_ranger_gloves = { id = "", size = Vector2.new(394, 357) },
+	equip_ranger_head = { id = "", size = Vector2.new(395, 392) },
+	equip_ranger_offhand = { id = "", size = Vector2.new(491, 480) },
+	equip_ranger_ring = { id = "", size = Vector2.new(450, 443) },
+	equip_ranger_weapon = { id = "", size = Vector2.new(614, 524) },
+	equip_warrior_amulet = { id = "", size = Vector2.new(379, 382) },
+	equip_warrior_armor = { id = "", size = Vector2.new(524, 454) },
+	equip_warrior_belt = { id = "", size = Vector2.new(471, 382) },
+	equip_warrior_boots = { id = "", size = Vector2.new(412, 400) },
+	equip_warrior_gloves = { id = "", size = Vector2.new(393, 395) },
+	equip_warrior_head = { id = "", size = Vector2.new(402, 437) },
+	equip_warrior_offhand = { id = "", size = Vector2.new(469, 483) },
+	equip_warrior_ring = { id = "", size = Vector2.new(391, 428) },
+	equip_warrior_weapon = { id = "", size = Vector2.new(578, 523) },
+	skill_ranger_01_crystalarrow = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_02_arrowvolley = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_03_arrowrain = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_04_trap = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_05_poisonarrow = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_06_bladewhirl = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_07_icearrow = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_08_falcon = { id = "", size = Vector2.new(128, 128) },
+	skill_ranger_09_sprint = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_01_mushroomsummon = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_02_poisoncloud = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_03_healingmushrooms = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_04_mushroomtotem = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_05_graspingvines = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_06_purplemushrooms = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_07_sporeburst = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_08_rootsnare = { id = "", size = Vector2.new(128, 128) },
+	skill_mushroom_09_sprint = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_01_arcaneorb = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_02_chainlightning = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_03_icenova = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_04_icelance = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_05_thunderstorm = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_06_firewall = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_07_teleport = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_08_magicshield = { id = "", size = Vector2.new(128, 128) },
+	skill_mage_09_sprint = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_01_shieldbash = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_02_whirlwind = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_03_battlecry = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_04_groundslam = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_05_charge = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_06_taunt = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_07_stonearmor = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_08_swordslash = { id = "", size = Vector2.new(128, 128) },
+	skill_warrior_09_sprint = { id = "", size = Vector2.new(128, 128) },
+}
+local class: { [string]: Fixed } = {}
+for name, c in CLASS do
+	if c.id ~= "" then
+		class[name] = table.freeze(c)
+	end
+end
+Assets.Class = table.freeze(class)
 
 return table.freeze(Assets)

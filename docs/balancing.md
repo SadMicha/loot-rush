@@ -1,9 +1,38 @@
 # Balancing – game vs. `LootRush_Balancing.xlsx`
 
-The values of the spreadsheet (sheet "Parameter") live in `src/shared/Balance.luau`, with the names from
-the spreadsheet. If the spreadsheet changes, update them there. `tests/Balancing.spec.luau` plays depth 1–30
-once and fails if something is out of range (`bash tools/check.sh test`, the
-table is in the output).
+The values of the spreadsheet (sheet "Parameter") live in `Balance.P` in `src/shared/Balance.luau`.
+The keys are English translations of the (German) spreadsheet names; the mapping is below. If the
+spreadsheet changes, look up the German name in the table and update the English key there.
+`tests/Balancing.spec.luau` plays depth 1–30 once and fails if something is out of range
+(`bash tools/check.sh test`, the table is in the output).
+
+## Spreadsheet name -> `Balance.P` key
+
+| Spreadsheet (German) | `Balance.P` (English) | Meaning |
+|---|---|---|
+| `hp_basis` | `hp_base` | enemy health at depth 1 |
+| `hp_wachstum` | `hp_growth` | enemy health factor per depth |
+| `dmg_basis` | `dmg_base` | enemy damage at depth 1 |
+| `dmg_wachstum` | `dmg_growth` | enemy damage factor per depth |
+| `boss_hp` | `boss_hp` | boss health factor (unchanged) |
+| `wand_ab` | `wall_from` | soft wall starts at this depth (own assumption) |
+| `wand_wachstum` | `wall_growth` | extra enemy health factor per depth behind the wall |
+| `gold_basis` | `gold_base` | kill gold at depth 1 |
+| `gold_wachstum` | `gold_growth` | kill gold factor per depth (also shop prices) |
+| `xp_basis` | `xp_base` | kill XP at depth 1 |
+| `xp_wachstum` | `xp_growth` | kill XP factor per depth |
+| `boss_beute` | `boss_loot` | boss gold/XP factor |
+| `xp_level_basis` | `xp_level_base` | XP for level 1 -> 2 |
+| `xp_level_exp` | `xp_level_exp` | level XP exponent (unchanged) |
+| `level_max` | `level_max` | max player level (unchanged) |
+| `leben_basis` | `life_base` | player life at level 1 |
+| `leben_pro_level` | `life_per_level` | player life per level |
+| `waffe_basis` | `weapon_base` | weapon base damage at IP 10 |
+| `waffe_wachstum` | `weapon_growth` | weapon damage factor per 10 IP |
+| `drop_normal` | `drop_normal` | item chance per normal kill (unchanged) |
+| `drops_boss` | `drops_boss` | items per boss (unchanged) |
+| `loot_tiefe` | `loot_depth` | rarity shift divisor (shift = 1 + depth / loot_depth) |
+| `ip_pro_tiefe` | `ip_per_depth` | item power per depth |
 
 ## What now follows the spreadsheet
 
@@ -20,9 +49,9 @@ table is in the output).
 | Item level of loot | depth × 2 − 1 | depth (item power = depth × 10) |
 | Weapon base damage | didn't exist | 12 × 1.155 per 10 IP, acts as a factor on all damage |
 | IP bonus per rarity | – | Magic +5, Rare +10, Epic +20 |
-| Item chance per kill | 35 % | 12 % |
-| Rarity | 60/28/9/3, +4 % per depth | 60/28/9.5/2, shift 1 + depth/50 |
-| Boss loot | 3 items, +50 % find | 3 items, the first at least Rare |
+| Item chance per kill | 35% | 12% |
+| Rarity | 60/28/9/3, +4% per depth | 60/28/9.5/2, shift 1 + depth/50 |
+| Boss loot | 3 items, +50% find | 3 items, the first at least Rare |
 
 Forge (costs, charges, tiers), salvage and archetype factors were already correct.
 
@@ -37,11 +66,11 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
   get harder. From depth 20 (`wall_from`) enemy health additionally grows ×1.1 per depth
   (`wall_growth`, depth 30: ×2.6). Damage stays per spreadsheet.
 - **Boss items** are 1 level (10 IP) above the depth.
-- **Damage per level:** +2 % (before +10 %). The spreadsheet scales damage only via the weapon; with
-  +10 % the player became far too strong from depth 15.
+- **Damage per level:** +2% (before +10%). The spreadsheet scales damage only via the weapon; with
+  +10% the player became far too strong from depth 15.
 - **Percent affixes** (damage, crit, movement speed) only grow via the tier, no longer with the
-  item level. Before, crit reached almost 80 % at depth 30 and movement speed grew without limit.
-  Health keeps growing with the level (+12 % per level).
+  item level. Before, crit reached almost 80% at depth 30 and movement speed grew without limit.
+  Health keeps growing with the level (+12% per level).
 - **Skill levels:** same XP curve as the player level (before 30 × L^1.6; with the new XP
   skills would have reached level 20 at depth ~20).
 - **Unique/Legendary** don't exist yet; their weights (0.45/0.05) are dropped.

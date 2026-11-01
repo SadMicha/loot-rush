@@ -1,0 +1,680 @@
+{
+ "note": "Images to upload to Roblox (Decal/Image). After upload, put the rbxassetid into the registry named in \"registry\" (src/shared/UI/Assets.luau). Empty ids render the fallback.",
+ "assets": [
+  {
+   "key": "hud_diamond_cyan",
+   "file": "assets/ui/icons/hud/Icons_256/Diamond_Cyan.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "hud_diamond_dark",
+   "file": "assets/ui/icons/hud/Icons_256/Diamond_Dark.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_hub",
+   "file": "assets/ui/icons/city.png",
+   "size": [
+    441,
+    417
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "equip_mage_amulet",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Amulet.png",
+   "size": [
+    350,
+    398
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_armor",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Armor.png",
+   "size": [
+    435,
+    442
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_belt",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Belt.png",
+   "size": [
+    463,
+    299
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_boots",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Boots.png",
+   "size": [
+    421,
+    392
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_gloves",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Gloves.png",
+   "size": [
+    415,
+    361
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_head",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Head.png",
+   "size": [
+    422,
+    404
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_offhand",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Offhand.png",
+   "size": [
+    535,
+    493
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_ring",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Ring.png",
+   "size": [
+    468,
+    465
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mage_weapon",
+   "file": "assets/ui/icons/equipment/Mage/Mage_Weapon.png",
+   "size": [
+    434,
+    537
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_amulet",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Amulet.png",
+   "size": [
+    363,
+    432
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_armor",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Armor.png",
+   "size": [
+    431,
+    441
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_belt",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Belt.png",
+   "size": [
+    453,
+    309
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_boots",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Boots.png",
+   "size": [
+    409,
+    357
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_gloves",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Gloves.png",
+   "size": [
+    397,
+    373
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_head",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Head.png",
+   "size": [
+    435,
+    400
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_offhand",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Offhand.png",
+   "size": [
+    431,
+    450
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_ring",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Ring.png",
+   "size": [
+    462,
+    453
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_mushroom_weapon",
+   "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Weapon.png",
+   "size": [
+    560,
+    515
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_amulet",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Amulet.png",
+   "size": [
+    341,
+    424
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_armor",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Armor.png",
+   "size": [
+    477,
+    425
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_belt",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Belt.png",
+   "size": [
+    470,
+    361
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_boots",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Boots.png",
+   "size": [
+    424,
+    391
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_gloves",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Gloves.png",
+   "size": [
+    394,
+    357
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_head",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Head.png",
+   "size": [
+    395,
+    392
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_offhand",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Offhand.png",
+   "size": [
+    491,
+    480
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_ring",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Ring.png",
+   "size": [
+    450,
+    443
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_ranger_weapon",
+   "file": "assets/ui/icons/equipment/Ranger/Ranger_Weapon.png",
+   "size": [
+    614,
+    524
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_amulet",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Amulet.png",
+   "size": [
+    379,
+    382
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_armor",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Armor.png",
+   "size": [
+    524,
+    454
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_belt",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Belt.png",
+   "size": [
+    471,
+    382
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_boots",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Boots.png",
+   "size": [
+    412,
+    400
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_gloves",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Gloves.png",
+   "size": [
+    393,
+    395
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_head",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Head.png",
+   "size": [
+    402,
+    437
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_offhand",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Offhand.png",
+   "size": [
+    469,
+    483
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_ring",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Ring.png",
+   "size": [
+    391,
+    428
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "equip_warrior_weapon",
+   "file": "assets/ui/icons/equipment/Warrior/Warrior_Weapon.png",
+   "size": [
+    578,
+    523
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_01_crystalarrow",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_01_CrystalArrow.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_02_arrowvolley",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_02_ArrowVolley.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_03_arrowrain",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_03_ArrowRain.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_04_trap",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_04_Trap.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_05_poisonarrow",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_05_PoisonArrow.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_06_bladewhirl",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_06_BladeWhirl.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_07_icearrow",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_07_IceArrow.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_08_falcon",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_08_Falcon.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_ranger_09_sprint",
+   "file": "assets/ui/icons/skills/128px/Ranger/Ranger_09_Sprint.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_01_mushroomsummon",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_01_MushroomSummon.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_02_poisoncloud",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_02_PoisonCloud.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_03_healingmushrooms",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_03_HealingMushrooms.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_04_mushroomtotem",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_04_MushroomTotem.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_05_graspingvines",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_05_GraspingVines.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_06_purplemushrooms",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_06_PurpleMushrooms.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_07_sporeburst",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_07_SporeBurst.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_08_rootsnare",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_08_RootSnare.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mushroom_09_sprint",
+   "file": "assets/ui/icons/skills/128px/Mushroom/Mushroom_09_Sprint.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_01_arcaneorb",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_01_ArcaneOrb.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_02_chainlightning",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_02_ChainLightning.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_03_icenova",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_03_IceNova.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_04_icelance",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_04_IceLance.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_05_thunderstorm",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_05_Thunderstorm.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_06_firewall",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_06_FireWall.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_07_teleport",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_07_Teleport.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_08_magicshield",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_08_MagicShield.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_mage_09_sprint",
+   "file": "assets/ui/icons/skills/128px/Mage/Mage_09_Sprint.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_01_shieldbash",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_01_ShieldBash.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_02_whirlwind",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_02_Whirlwind.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_03_battlecry",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_03_BattleCry.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_04_groundslam",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_04_GroundSlam.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_05_charge",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_05_Charge.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_06_taunt",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_06_Taunt.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_07_stonearmor",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_07_StoneArmor.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_08_swordslash",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_08_SwordSlash.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  },
+  {
+   "key": "skill_warrior_09_sprint",
+   "file": "assets/ui/icons/skills/128px/Warrior/Warrior_09_Sprint.png",
+   "size": [
+    128,
+    128
+   ],
+   "registry": "Assets.Class"
+  }
+ ]
+}

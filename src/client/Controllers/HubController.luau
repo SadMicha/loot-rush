@@ -1,5 +1,5 @@
 --!strict
--- Stations in the "Lumen Harbor" Hub: the server sets ProximityPrompts with the attribute "Window"
+-- Stations in the "Lumenhaven" Hub: the server sets ProximityPrompts with the attribute "Window"
 -- (Rift Gate -> Atlas, Forge, Market -> Shop, Stash -> Inventory, Pet Stable -> Pets).
 -- The window is opened here. Stations without their own window in OPEN (e.g. "Pets", "Rebirth")
 -- fire HubController.Requested(name) - a new window hooks in there.

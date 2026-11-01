@@ -43,7 +43,7 @@ local rng = Random.new()
 local BODY_RADIUS = 1.7 -- enemy body, added to the hit radius
 
 -- Special effects (own assumptions, not in the balancing sheet)
-local MAX_ARMOR = 0.75 -- armor %: at most 75 % less damage
+local MAX_ARMOR = 0.75 -- armor %: at most 75% less damage
 local MAX_BLOCK = 0.75
 local SHIELD_TIME = 4 -- Arcane Shield lasts this long
 local SPLINTER_RANGE = 16 -- Crit Shard looks for the nearest other enemy
@@ -51,7 +51,7 @@ local BURN_TICKS, BURN_TICK = 4, 0.5 -- Burn: 2 s
 local SPARK_RANGE, SPARK_SHARE = 14, 0.25 -- Spark Flight
 local JUMP_SPARK_RADIUS = 4 -- Spark Rain around every chain jump
 local SHATTER_RADIUS = 6 -- Ice Shards
-local FIELD_TICKS, FIELD_TICK, FIELD_RADIUS, FIELD_SLOW = 6, 0.5, 0.6, 0.6 -- Frost Field: 3 s, 60 % radius
+local FIELD_TICKS, FIELD_TICK, FIELD_RADIUS, FIELD_SLOW = 6, 0.5, 0.6, 0.6 -- Frost Field: 3 s, 60% radius
 local BOLT_SHARE, BOLT_RANGE, BOLT_SPEED = 0.4, 20, 60 -- Bolt Rain
 local PULL_MIN = 2.5 -- Pull does not pull any closer
 local HASTE_TIME, ARMOR_TIME = 3, 3 -- Storm Rider, Ice Armor

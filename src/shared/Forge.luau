@@ -2,7 +2,7 @@
 -- Glitter Forge: actions on a chosen affix (per the "Glitter Forge" mockup).
 -- Pure rules for client (display) and server (Systems/Forge, which alone rolls and deducts).
 -- Values from LootRush_Balancing.xlsx, sheet "Forge":
---   every action except sealing uses 0–2 Glitter charges (10 / 60 / 30 %);
+--   every action except sealing uses 0–2 Glitter charges (10 / 60 / 30%);
 --   once the charges are empty, the item is finished.
 
 local Items = require(script.Parent.Items)

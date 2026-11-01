@@ -61,4 +61,17 @@ describe("Monetization in game", function()
 		expect(gold).toBeGreaterThanOrEqual(25)
 		expect(slots).toBe(2)
 	end)
+
+	it("leaves no ownership entry behind when the player leaves while loading", function()
+		local players = game:GetService("Players")
+		local leaver = sim:joinPlayer("Leaver") -- loadPasses now waits for the save
+		leaver.Parent = nil
+		sim:signal(players, "PlayerRemoving"):Fire(leaver)
+		sim:run(2)
+		local tracked
+		sim:runAs("server", function(req)
+			tracked = req("ServerScriptService.Server.Systems.Monetization").isTracked(leaver)
+		end)
+		expect(tracked).toBe(false)
+	end)
 end)

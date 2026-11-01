@@ -145,8 +145,8 @@ function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOpt
 		ic.AnchorPoint = Vector2.new(0.5, 0.5)
 		ic.Position = UDim2.fromScale(0.5, 0.5)
 		ic.ZIndex = 2
-		if opts.dim and ic:IsA("ImageLabel") then
-			ic.ImageTransparency = 0.6
+		if opts.dim then
+			Kit.setIconTransparency(ic, 0.6)
 		end
 		ic.Parent = b
 	else

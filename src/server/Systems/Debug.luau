@@ -1,6 +1,6 @@
 --!strict
 -- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
--- items, unlock all regions and defeat all enemies (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
+-- items, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
 -- The check lives here on the server - the menu on the client is only a convenience.
 -- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
 -- The server tells the client it is allowed via the player attribute "DebugTools".
@@ -125,9 +125,14 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 		end,
 	},
 	slay = {
+		-- Only the caller's own run: other players' Rifts run on the same server
 		run = function(player)
+			local run = Rift.runOf(player)
+			if not run then
+				return
+			end
 			for _, enemy in CollectionService:GetTagged("Enemy") do
-				if enemy:IsA("Model") then
+				if enemy:IsA("Model") and enemy:GetAttribute("Run") == run then
 					Combat.slay(player, enemy)
 				end
 			end

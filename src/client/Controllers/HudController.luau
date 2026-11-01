@@ -22,6 +22,7 @@ local Skills = require(ReplicatedStorage.Shared.Skills)
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local MiniMapView = require(script.Parent.Parent.UI.MiniMapView)
 local CameraController = require(script.Parent.CameraController)
 local DashController = require(script.Parent.DashController)
 local SkillController = require(script.Parent.SkillController)
@@ -241,12 +242,14 @@ local function bindHumanoid(humanoid: Humanoid)
 end
 
 -- ------------------------------------------------------------------ Minimap (top right)
--- Compass ring (minimap_frame image has the "N" built in), below it a plaque with the location.
+-- Compass ring (minimap_frame image has the "N" built in) around a top-down view of the real terrain
+-- (MiniMapView), enemy dots and the player arrow on top; below it a plaque with the location.
 local mapFrame: Frame
 local mapPlace: TextLabel
 local dots: { Frame } = {}
 local MAP_SIZE = 156
-local MAP_RANGE = 70 -- studs from the center to the edge
+local MAP_RANGE = Theme.MiniMap.Range -- studs from the center to the edge
+local mapView: MiniMapView.View
 local mapInner = 0.4 -- radius of the map area inside the ring (fraction of the width)
 
 local function buildMinimap()
@@ -291,13 +294,21 @@ local function buildMinimap()
 		north.Parent = mapFrame
 	end
 
-	local me = Instance.new("Frame")
-	me.Size = UDim2.fromOffset(12, 12)
+	-- Terrain: round view exactly as large as the map area (MAP_RANGE studs from the center to the edge)
+	mapView = MiniMapView.new()
+	local terrain = mapView.root
+	terrain.AnchorPoint = Vector2.new(0.5, 0.5)
+	terrain.Position = UDim2.fromScale(0.5, 0.5)
+	terrain.Size = UDim2.fromOffset(MAP_SIZE * mapInner * 2, MAP_SIZE * mapInner * 2)
+	Kit.corner(terrain, MAP_SIZE)
+	terrain.ZIndex = 1
+	terrain.Parent = mapFrame
+
+	-- Player arrow in the center (the map turns with the camera, so it always points up)
+	local me = Kit.label("▲", 16, C.GoldHi)
+	me.Name = "Me"
 	me.AnchorPoint = Vector2.new(0.5, 0.5)
 	me.Position = UDim2.fromScale(0.5, 0.5)
-	me.Rotation = 45
-	me.BackgroundColor3 = C.Text
-	me.BorderSizePixel = 0
 	me.ZIndex = 2
 	me.Parent = mapFrame
 
@@ -319,7 +330,7 @@ local function refreshPlace()
 		local depth = player:GetAttribute("RiftDepth")
 		mapPlace.Text = info.name .. (if typeof(depth) == "number" then " · D" .. depth else "")
 	else
-		mapPlace.Text = "Lumen Harbor"
+		mapPlace.Text = "Lumenhaven"
 	end
 end
 
@@ -373,7 +384,7 @@ end
 -- ------------------------------------------------------------------ Skills + dash (bottom right)
 -- Dash = big gold-ringed button in the corner (always there), the four skills sit on a quarter arc
 -- around it (combat only).
-local dashCount: TextLabel
+local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
 
@@ -382,17 +393,22 @@ local function buildSkills()
 	local S, D, R, M = H.SkillSize, H.DashSize, H.SkillArc, H.Margin
 
 	-- Dash
-	local dash =
-		Kit.roundButton(D, "gold", "skill_dash", "skill_dash", if keyboard then "Space" else nil)
+	local dash = Kit.roundButton(
+		D,
+		"gold",
+		Kit.skillArt("dash") or "skill_dash",
+		"skill_dash",
+		if keyboard then "Space" else nil
+	)
 	dash.Name = "Dash"
 	onTap(dash, DashController.dash)
-	dashCount = Kit.label(tostring(player:GetAttribute("DashCharges") or 2), 15, C.Cyan)
-	dashCount.Name = "Charges"
-	dashCount.AnchorPoint = Vector2.new(0.5, 0.5)
-	dashCount.Position = UDim2.fromScale(0.86, 0.14)
-	dashCount.TextStrokeTransparency = 0.2
-	dashCount.ZIndex = 7
-	dashCount.Parent = dash
+	-- One diamond per maximum charge above the button: cyan = available, dark = spent
+	local pips, setPips = Kit.chargePips(H.DashDiamond)
+	pips.AnchorPoint = Vector2.new(0.5, 0.5)
+	pips.Position = UDim2.fromScale(0.5, 0.04)
+	pips.ZIndex = 7
+	pips.Parent = dash
+	updateDashPips = setPips
 	place(dash, Vector2.new(1, 1), UDim2.new(1, -M, 1, -M))
 
 	-- Skill arc: the group's bottom right corner sits S/2 beyond the dash center
@@ -405,7 +421,7 @@ local function buildSkills()
 		local btn, update = Kit.roundButton(
 			S,
 			"cyan",
-			H.SkillArt[skill.id],
+			Kit.skillArt(skill.id) or H.SkillArt[skill.id],
 			skill.icon,
 			if keyboard then SLOT_KEYS[i] else nil
 		)
@@ -732,9 +748,15 @@ function HudController.start()
 		player:GetAttributeChangedSignal(attr):Connect(refreshPlace)
 	end
 	refreshPlace()
-	player:GetAttributeChangedSignal("DashCharges"):Connect(function()
-		dashCount.Text = tostring(player:GetAttribute("DashCharges") or 0)
-	end)
+	local function refreshDash()
+		local charges = player:GetAttribute("DashCharges")
+		local max = player:GetAttribute("DashMax")
+		local maxN = if typeof(max) == "number" then max else 2
+		updateDashPips(if typeof(charges) == "number" then charges else maxN, maxN)
+	end
+	player:GetAttributeChangedSignal("DashCharges"):Connect(refreshDash)
+	player:GetAttributeChangedSignal("DashMax"):Connect(refreshDash)
+	refreshDash()
 
 	local function onCharacter(character: Model)
 		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
@@ -750,8 +772,15 @@ function HudController.start()
 		for i, update in skillVeils do
 			update(SkillController.cooldownRatio(i), SkillController.remaining(i))
 		end
+		local character = player.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		mapView.update(
+			dt,
+			if rootPart and rootPart:IsA("BasePart") then rootPart else nil,
+			CameraController.getYaw()
+		)
 		acc += dt
-		if acc >= 0.15 then
+		if acc >= 1 / Theme.MiniMap.ViewHz then
 			acc = 0
 			updateMinimap()
 		end

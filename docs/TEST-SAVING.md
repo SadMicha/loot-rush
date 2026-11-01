@@ -3,6 +3,9 @@
 Prerequisite in Studio: *Game Settings → Security → Enable Studio Access to API Services* on
 (otherwise you play with an empty state that isn't saved – Output shows a warning).
 
+Note: the save store is now `LootRush_Profile_v2` (after the English ID rename). Old
+`LootRush_Profile_v1` test saves are intentionally ignored, so everyone starts fresh once.
+
 1. Play, defeat a few enemies (level/XP), pick up loot, equip something, earn gold.
 2. Stop, Play again: level, XP, gold, inventory and equipment are back.
 3. Output: no `[LootRush] … failed` warnings.

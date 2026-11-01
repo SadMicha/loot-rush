@@ -187,7 +187,7 @@ export type RollOpts = {
 	min: string?, -- at least this rarity (boss: "rare")
 }
 
--- find: bonus on the weights of all rarities above normal (0.5 = +50 %)
+-- find: bonus on the weights of all rarities above normal (0.5 = +50%)
 function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): Item
 	local boost = 1 + math.max(0, find or 0)
 	local shift = math.max(1, opts and opts.shift or 1)

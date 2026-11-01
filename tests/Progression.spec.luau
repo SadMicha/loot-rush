@@ -72,7 +72,7 @@ describe("Skill levels and Bloom", function()
 		data.stars = { w1 = true, resonance = true, storm_spirit = true }
 		local base = Skills.bar[Skills.BarIndex.chain_lightning]
 		local eff = Progression.effectiveSkill(base, data)
-		-- 1 + 4 × 5 % (level) + 3 % (skill damage) + 2 × 10 % (High Voltage)
+		-- 1 + 4 × 5% (level) + 3% (skill damage) + 2 × 10% (High Voltage)
 		expect(eff.damage).toBeCloseTo(base.damage * 1.43, 1e-6)
 		expect(eff.chains).toBe((base.chains :: number) + 1 + 2)
 		expect(eff.cooldown).toBeCloseTo((base.cooldown - 0.3) * 0.9, 1e-6)

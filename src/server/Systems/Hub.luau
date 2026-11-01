@@ -1,6 +1,6 @@
 --!strict
--- Hub "Lumenhaven" as its own map, separate from the combat arena (site plan:
--- art-prompts/Hub_Lumenhafen.md, concept hub_lageplan_raster.png). 16 × 16 cells of 8 studs around
+-- Hub "Lumenhaven" as its own map, separate from the combat arena (site plan: the hub design
+-- brief, kept outside the repo; concept hub_lageplan_raster.png). 16 × 16 cells of 8 studs around
 -- Config.HUB_ORIGIN: spawn in the south, market square with compass, Rift Gate on the north terrace,
 -- Forge and market in the west, stash and pets in the east, cliffs, waterfalls, castle.
 -- Floors, stairs and cliffs are built in code; buildings and props come from
