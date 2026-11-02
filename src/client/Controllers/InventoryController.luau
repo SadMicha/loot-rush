@@ -982,7 +982,7 @@ local function buildHeader(parent: Frame)
 	currency(1, "gold", C.GoldHi, "Gold")
 	currency(2, "crystal", C.Cyan, "Shards")
 	currency(3, "soulstar", Theme.Rarity.epic, "Soulstars")
-	local close = Flat.close(40)
+	local close = Flat.close(48)
 	close.LayoutOrder = 4
 	close.Activated:Connect(function()
 		InventoryController.toggle()

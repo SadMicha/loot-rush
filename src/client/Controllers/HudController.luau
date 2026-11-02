@@ -21,6 +21,7 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 local MiniMapView = require(script.Parent.Parent.UI.MiniMapView)
 local CameraController = require(script.Parent.CameraController)
@@ -116,12 +117,16 @@ local function ring(parent: GuiObject, size: number)
 		img.ZIndex = 1
 		img.Parent = parent
 	else
+		-- Flat ring: transparent center, gold rim with a soft glow
 		local f = Instance.new("Frame")
+		f.Name = "Ring"
 		f.Size = UDim2.fromOffset(size, size)
-		f.BackgroundColor3 = C.Bg1
+		f.BackgroundTransparency = 1
 		f.BorderSizePixel = 0
+		f.ZIndex = 3
 		Kit.corner(f, size // 2)
-		Kit.stroke(f, C.Gold, 2)
+		Kit.stroke(f, C.Gold, 2.5)
+		Shape.glow(f, C.Gold, 2, false, size // 2)
 		f.Parent = parent
 	end
 end
@@ -139,10 +144,10 @@ local function plaque(parent: GuiObject, size: Vector2, textSize: number): TextL
 		img.ZIndex = 3
 		img.Parent = f
 	else
-		f.BackgroundColor3 = C.Bg1
-		f.BackgroundTransparency = 0
+		f.BackgroundColor3 = Theme.Flat.Surface1
+		f.BackgroundTransparency = 0.1
 		Kit.corner(f, size.Y // 2)
-		Kit.stroke(f, C.Gold)
+		Kit.stroke(f, C.Gold, 1.5)
 	end
 	local t = Kit.label("", textSize, C.GoldHi)
 	t.AutomaticSize = Enum.AutomaticSize.None

@@ -2,9 +2,9 @@
 -- UI kit building blocks (Luau version of tools/lr_ui_kit.py).
 -- Every UI in the game is built from this - never invent your own colors/roundings.
 -- Sizes are in design pixels (1600×900); the HUD scales via UIScale.
--- The look comes entirely from the images (Assets.Slice / Assets.Fixed, designed with ChatGPT):
--- windows, buttons, slots, tabs, menu, capsules, chips, bars. The code only places text and icons on top.
--- If an image is missing, the simple flat style remains as a fallback.
+-- Look (since 2026-11): the flat code style of Theme.Flat (UI/Shape): rounded shapes, gradients,
+-- programmed rarity glow and springs. Drawn 9-slice frames/buttons/slots are retired (Kit.skin returns nil);
+-- only icons and scene pictures are images. New windows use UI/Flat directly.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -13,6 +13,8 @@ local UserInputService = game:GetService("UserInputService")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Shape = require(script.Parent.Shape)
+local Spring = require(script.Parent.Spring)
 
 local Kit = {}
 
@@ -25,8 +27,8 @@ end
 function Kit.stroke(parent: GuiObject, color: Color3?, thickness: number?)
 	local s = Instance.new("UIStroke")
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	s.Color = color or Theme.Color.Line
-	s.Thickness = thickness or Theme.Stroke
+	s.Color = color or Theme.Flat.Edge
+	s.Thickness = thickness or Theme.Flat.Stroke
 	s.Parent = parent
 end
 
@@ -227,62 +229,44 @@ function Kit.scaledGui(
 	return gui, root
 end
 
--- Border ≈ one third of the height, at most `maxScale` (Roblox applies SliceScale to the source pixels)
-local function sliceScale(slice: Assets.Slice, height: number?, maxScale: number): number
-	if height then
-		return math.min(maxScale, height * 0.34 / math.max(1, slice.center.Min.Y))
-	end
-	return maxScale
-end
+-- Former 9-slice skin (drawn frames). With the flat look it styles `parent` as a flat surface instead
+-- (tile / raised / banner by the old image name) and returns an invisible "Skin" marker, so call sites
+-- that only add a fallback when nil keep working unchanged. The UIStroke is named "Edge".
+local RAISED: { [string]: boolean } = { btn_sort = true, header_banner = true }
 
--- Apply the image properties of a 9-slice to an image object
-local function applySlice(
-	img: ImageLabel | ImageButton,
+function Kit.skin(
+	parent: GuiObject,
 	name: string,
-	height: number?,
-	maxScale: number
-)
-	local slice = Assets.Slice[name]
-	local target = img :: ImageLabel -- same image properties as ImageButton
-	target.Image = slice.id
-	target.ScaleType = Enum.ScaleType.Slice
-	target.SliceCenter = slice.center
-	target.SliceScale = sliceScale(slice, height, maxScale)
-end
-
--- Put a 9-slice image as the bottom layer into parent (only for frames that have no text themselves).
--- nil = no image available.
-function Kit.skin(parent: GuiObject, name: string, height: number?, maxScale: number?): ImageLabel?
-	if not Assets.Slice[name] then
-		return nil
+	_height: number?,
+	_maxScale: number?
+): ImageLabel?
+	local F = Theme.Flat
+	local raised = RAISED[name] == true
+	parent.BackgroundColor3 = if raised then F.Surface3 else F.Surface2
+	parent.BackgroundTransparency = if raised then 0.05 else 0.25
+	parent.BorderSizePixel = 0
+	if not parent:FindFirstChildOfClass("UICorner") then
+		Shape.corner(parent, F.Radius.M)
 	end
-	local img = Instance.new("ImageLabel")
-	img.Name = "Skin"
-	img.BackgroundTransparency = 1
-	img.Size = UDim2.fromScale(1, 1)
-	img.ZIndex = 0
-	applySlice(img, name, height, maxScale or 0.4)
-	img.Parent = parent
-	parent.BackgroundTransparency = 1
-	return img
+	if not parent:FindFirstChildOfClass("UIStroke") then
+		local edge = Shape.stroke(parent, if raised then F.EdgeHi else F.Edge)
+		edge.Name = "Edge"
+	end
+	local marker = Instance.new("ImageLabel")
+	marker.Name = "Skin"
+	marker.BackgroundTransparency = 1
+	marker.ImageTransparency = 1
+	marker.Size = UDim2.fromScale(1, 1)
+	marker.ZIndex = 0
+	marker.Parent = parent
+	return marker
 end
 
--- Standard panel: window with gold frame (tall / wide / small), otherwise flat surface
+-- Standard panel: flat card (Theme.Flat), `accent` tints the edge
 function Kit.panel(size: Vector2, accent: Color3?): Frame
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
-	f.BackgroundColor3 = Theme.Color.Bg1
-	f.BorderSizePixel = 0
-	local name = if size.Y < 200
-		then nil
-		elseif size.Y < 330 then "window_small"
-		elseif size.X >= size.Y * 1.3 then "window_main"
-		else "window_tall"
-	if name and Kit.skin(f, name) then
-		return f
-	end
-	Kit.corner(f, Theme.Radius.L)
-	Kit.stroke(f, accent or Theme.Color.Line)
+	Shape.card(f, nil, accent)
 	return f
 end
 
@@ -290,12 +274,7 @@ end
 function Kit.flyPanel(size: Vector2): CanvasGroup
 	local g = Instance.new("CanvasGroup")
 	g.Size = UDim2.fromOffset(size.X, size.Y)
-	g.BackgroundColor3 = Theme.Color.Bg1
-	g.BorderSizePixel = 0
-	if not Kit.skin(g, "window_small") then
-		Kit.corner(g, Theme.Radius.L)
-		Kit.stroke(g, Theme.Color.Line)
-	end
+	Shape.card(g)
 	return g
 end
 
@@ -465,41 +444,23 @@ export type SlotOptions = {
 	count: number?, -- stack count bottom left
 	selected: boolean?,
 	dim: boolean?, -- icon dimmed (empty equipment slot)
+	round: boolean?, -- circle (tree nodes)
+	tint: Color3?, -- edge/glow color instead of the rarity color
 }
 
--- Slot image by rarity; border and diamond are part of the image
-local function slotImage(rarity: string?): string?
-	local fixed = Assets.Fixed["slot_" .. (rarity or "empty")] or Assets.Fixed.slot_normal
-	return if fixed then fixed.id else nil
-end
-
--- Flat fallback slot in case an image is missing
-local function flatSlot(b: GuiObject, edge: Color3?)
-	b.BackgroundColor3 = Theme.Color.Bg1
-	b.BackgroundTransparency = 0
-	Kit.corner(b, Theme.Radius.M)
-	Kit.stroke(b, edge or Theme.Color.Line2, 2)
-end
-
-local function slotBase(size: number, rarity: string?, edge: Color3?): ImageButton
+local function slotBase(size: number, rarity: string?, opts: SlotOptions?): ImageButton
 	local b = Instance.new("ImageButton")
 	b.Name = "Slot"
+	b.Image = ""
 	b.Size = UDim2.fromOffset(size, size)
-	b.BackgroundTransparency = 1
 	b.AutoButtonColor = false
-	b.BorderSizePixel = 0
-	local id = slotImage(rarity)
-	if id then
-		b.Image = id
-		b.ScaleType = Enum.ScaleType.Fit
-	else
-		flatSlot(b, edge)
-	end
+	local o: SlotOptions = opts or {}
+	Shape.cell(b, size, { rarity = rarity, selected = o.selected, round = o.round, tint = o.tint })
 	return b
 end
 
 local function slotIcon(b: GuiObject, size: number, iconName: string, edge: Color3?, dim: boolean?)
-	local ic = Kit.icon(iconName, math.floor(size * 0.6), edge)
+	local ic = Kit.icon(iconName, math.floor(size * 0.64), edge)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.ZIndex = 2
@@ -509,44 +470,33 @@ local function slotIcon(b: GuiObject, size: number, iconName: string, edge: Colo
 	ic.Parent = b
 end
 
--- Item slot like in the inventory mockup: image per rarity, icon on top, selection frame as overlay
+-- Item slot: flat cell with rarity tint, edge and glow (UI/Shape), icon on top, hover/press springs
 function Kit.itemSlot(size: number, iconName: string?, opts: SlotOptions?): ImageButton
 	local o: SlotOptions = opts or {}
 	local edge = if o.rarity then Theme.Rarity[o.rarity] or Theme.Rarity.normal else nil
-	local b = slotBase(size, o.rarity, edge)
+	local b = slotBase(size, o.rarity, o)
 	if iconName then
 		slotIcon(b, size, iconName, edge, o.dim)
 	end
-	if o.selected then
-		local sel = Assets.Fixed.slot_selected
-		if sel then
-			local ring = Instance.new("ImageLabel")
-			ring.Name = "Selected"
-			ring.BackgroundTransparency = 1
-			ring.AnchorPoint = Vector2.new(0.5, 0.5)
-			ring.Position = UDim2.fromScale(0.5, 0.5)
-			ring.Size = UDim2.fromOffset(size * 224 / 192, size * 224 / 192)
-			ring.Image = sel.id
-			ring.ScaleType = Enum.ScaleType.Fit
-			ring.ZIndex = 1
-			ring.Parent = b
-		else
-			Kit.stroke(b, Theme.Color.Gold, 3)
-		end
-	end
 	if o.count then
 		local c = Kit.label(tostring(o.count), math.max(11, size // 6), Theme.Color.Text)
-		c.AnchorPoint = Vector2.new(0, 1)
-		c.Position = UDim2.new(0, 8, 1, -6)
+		c.AnchorPoint = Vector2.new(1, 1)
+		c.Position = UDim2.new(1, -6, 1, -4)
 		c.ZIndex = 4
 		c.Parent = b
 	end
+	-- Hover/press springs only for clickable slots (callers turn display slots off with Active = false)
+	task.defer(function()
+		if b.Active and b.Parent then
+			Shape.motion(b, if o.selected then Theme.Flat.SelectScale else 1)
+		end
+	end)
 	return b
 end
 
 -- Square slot (skills) with centered icon and optional key label
 function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): ImageButton
-	local f = slotBase(size, "normal", edge)
+	local f = slotBase(size, "normal", { tint = edge })
 	f.Active = false
 	slotIcon(f, size, iconName, edge)
 	if key then
@@ -565,70 +515,53 @@ function Kit.slot(size: number, iconName: string, edge: Color3?, key: string?): 
 	return f
 end
 
--- Short press effect (button shrinks briefly)
-local function pressFeedback(b: GuiButton)
-	local scale = Instance.new("UIScale")
-	scale.Parent = b
-	b.MouseButton1Down:Connect(function()
-		TweenService:Create(scale, Theme.Tween.Fast, { Scale = 0.97 }):Play()
-	end)
-	local function release()
-		TweenService:Create(scale, Theme.Tween.Fast, { Scale = 1 }):Play()
-	end
-	b.MouseButton1Up:Connect(release)
-	b.MouseLeave:Connect(release)
-end
-
--- Button color -> image name (gold = primary action, danger = red, everything else blue)
-local function buttonSkin(color: Color3): string
+-- Button color -> flat style: gold = primary (gold gradient, dark text), danger = red, otherwise a dark
+-- surface whose edge and sheen carry the color
+local function buttonStyle(color: Color3): (Color3, Color3, Color3, Color3)
+	local F = Theme.Flat
 	if color == Theme.Color.Gold then
-		return "btn_gold"
+		return Theme.Color.GoldHi, Theme.Color.GoldLo, Theme.Color.GoldHi, F.Surface0
 	elseif color == Theme.Color.Danger then
-		return "btn_red"
+		return Theme.Color.Danger, Theme.Color.Life, Theme.Color.Danger, Theme.Color.Text
 	end
-	return "btn_blue"
+	return F.Surface3:Lerp(color, 0.18), F.Surface2, color, Theme.Color.Text
 end
 
--- Text of the button (lives in a child label so the image does not draw over it)
+-- Text of the button (lives in a child label)
 function Kit.buttonLabel(b: GuiObject): TextLabel
 	return b:FindFirstChild("Label") :: TextLabel
 end
 
--- Button on/off: swaps to the "disabled" image (gold, blue) and blocks input
+-- Button on/off: dims it and blocks input
 function Kit.setEnabled(b: ImageButton, enabled: boolean)
-	local base = b:GetAttribute("Skin") :: string?
-	if not base then
-		return
-	end
-	local slice = Assets.Slice[if enabled then base else base .. "_disabled"]
-	if slice then
-		b.Image = slice.id
-	end
 	b.Active = enabled
-	Kit.setTextTransparency(Kit.buttonLabel(b), if enabled then 0 else 0.4)
+	b:SetAttribute("Enabled", enabled)
+	b.BackgroundTransparency = if enabled then 0 else 0.55
+	local edge = b:FindFirstChild("Edge")
+	if edge and edge:IsA("UIStroke") then
+		edge.Transparency = if enabled then 0.25 else 0.7
+	end
+	local label = Kit.buttonLabel(b)
+	if label then
+		Kit.setTextTransparency(label, if enabled then 0 else 0.45)
+	end
 end
 
--- Text button (gold = primary action, danger = red, otherwise blue), optionally with an icon left of the text.
--- Returns an ImageButton; set the text via Kit.buttonLabel(b).Text.
+-- Text button (gold = primary action, danger = red, otherwise the color tints a dark button), optionally
+-- with an icon left of the text. Returns an ImageButton; set the text via Kit.buttonLabel(b).Text.
 function Kit.button(text: string, color: Color3, size: Vector2, iconName: string?): ImageButton
-	local skinName = buttonSkin(color)
+	local top, bottom, edgeColor, textColor = buttonStyle(color)
 	local b = Instance.new("ImageButton")
+	b.Image = ""
 	b.Size = UDim2.fromOffset(size.X, size.Y)
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
-	b.BackgroundTransparency = 1
-	b:SetAttribute("Skin", skinName)
+	b.BackgroundColor3 = Color3.new(1, 1, 1)
 	Kit.touchTarget(b)
-	local normal = Assets.Slice[skinName]
-	local pressed = Assets.Slice[skinName .. "_pressed"]
-	if normal then
-		applySlice(b, skinName, size.Y, 0.5)
-	else
-		b.BackgroundTransparency = 0
-		b.BackgroundColor3 = Theme.Color.Bg1
-		Kit.corner(b, Theme.Radius.M)
-		Kit.stroke(b, color, 2)
-	end
+	Shape.corner(b, Theme.Flat.Radius.M)
+	Shape.gradient(b, top, bottom)
+	local edge = Shape.stroke(b, edgeColor, Theme.Flat.Stroke, 0.25)
+	edge.Name = "Edge"
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -637,80 +570,62 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	label.Text = text
 	label.TextSize = Kit.fontSize(17)
 	label.FontFace = Theme.Font.UI
-	label.TextColor3 = if color == Theme.Color.Gold then Theme.Color.Bg0 else Theme.Color.Text
-	if color ~= Theme.Color.Gold then
-		Kit.textShadow(label) -- dark text on the gold button needs none
-	end
+	label.TextColor3 = textColor
 	label.ZIndex = 2
 	label.Parent = b
 	if iconName then
 		local s = math.floor(size.Y * 0.5)
 		local ic = Kit.icon(iconName, s)
 		ic.AnchorPoint = Vector2.new(0, 0.5)
-		ic.Position = UDim2.new(0, 22, 0.5, 0)
+		ic.Position = UDim2.new(0, 18, 0.5, 0)
 		ic.ZIndex = 2
 		ic.Parent = b
 		local pad = Instance.new("UIPadding")
-		pad.PaddingLeft = UDim.new(0, s + 22)
+		pad.PaddingLeft = UDim.new(0, s + 18)
 		pad.Parent = label
 	end
-
-	if pressed then
-		b.MouseButton1Down:Connect(function()
-			b.Image = pressed.id
-		end)
-		local function release()
-			if normal and b.Active then
-				b.Image = normal.id
-			end
-		end
-		b.MouseButton1Up:Connect(release)
-		b.MouseLeave:Connect(release)
-	end
-	pressFeedback(b)
+	Shape.motion(b)
 	return b
 end
 
 -- Bar (life, progress). Returns frame and fill; the fill is scaled via Size.X.
--- From 12 px height with images, below that (thin lines) flat.
 function Kit.bar(size: Vector2, color: Color3): (Frame, Frame)
 	local back = Instance.new("Frame")
 	back.Size = UDim2.fromOffset(size.X, size.Y)
 	back.BorderSizePixel = 0
+	back.BackgroundColor3 = Theme.Flat.Surface0
+	back.BackgroundTransparency = 0.1
+	Shape.corner(back, math.ceil(size.Y / 2))
+	Shape.stroke(back, Theme.Flat.Edge, 1)
 	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(1, 1)
 	fill.BorderSizePixel = 0
-	local useImages = size.Y >= 12
-		and Assets.Slice.bar_frame ~= nil
-		and Assets.Slice.bar_fill ~= nil
-	if useImages then
-		back.BackgroundTransparency = 1
-		Kit.skin(back, "bar_frame", size.Y, 0.5)
-		fill.BackgroundTransparency = 1
-		fill.ClipsDescendants = true
-		fill.ZIndex = 2
-		local img = Instance.new("ImageLabel")
-		img.BackgroundTransparency = 1
-		img.Size = UDim2.fromOffset(size.X, size.Y)
-		applySlice(img, "bar_fill", size.Y, 0.5)
-		img.ImageColor3 = if color == Theme.Color.Gold then Color3.new(1, 1, 1) else color
-		img.Parent = fill
-	else
-		back.BackgroundColor3 = Theme.Color.Bg0
-		back.BackgroundTransparency = 0.15
-		Kit.corner(back, math.floor(size.Y / 2))
-		Kit.stroke(back, Theme.Color.Line2)
-		fill.BackgroundColor3 = color
-		Kit.corner(fill, math.floor(size.Y / 2))
-	end
+	fill.BackgroundColor3 = Color3.new(1, 1, 1)
+	Shape.corner(fill, math.ceil(size.Y / 2))
+	Shape.gradient(fill, color:Lerp(Color3.new(1, 1, 1), 0.25), color, 0, 0, 0)
 	fill.Parent = back
 	return back, fill
 end
 
 -- ------------------------------------------------------------------ In-game HUD pieces
 -- Image from Assets.Hud at a fixed size; nil if it has not been uploaded yet (-> flat fallback)
+-- Drawn HUD frames (orb glass, rings, minimap frame, charge diamonds) are retired with the flat look;
+-- skill and menu icons stay images.
+local HUD_FRAME: { [string]: boolean } = {
+	orb_health_frame = true,
+	orb_health_fill = true,
+	orb_mana_frame = true,
+	orb_mana_fill = true,
+	minimap_frame = true,
+	ring_gold = true,
+	ring_silver = true,
+	hud_diamond_cyan = true,
+	hud_diamond_dark = true,
+}
+
 function Kit.hudImage(name: string, size: Vector2, shadow: boolean?): ImageLabel?
-	local fixed = Assets.Hud[name] or Assets.Class[name]
+	local fixed = if HUD_FRAME[name] then nil else Assets.Hud[name] or Assets.Class[name]
 	if not fixed then
 		return nil
 	end
@@ -758,12 +673,14 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 	well.AnchorPoint = Vector2.new(0.5, 0.5)
 	well.Position = UDim2.fromScale(0.5, (H.OrbTop + H.OrbBottom) / 2)
 	well.Size = UDim2.fromOffset(diameter, diameter)
-	well.BackgroundColor3 = Theme.Color.Bg0
-	well.BackgroundTransparency = 0.2
+	well.BackgroundColor3 = Theme.Flat.Surface0
+	well.BackgroundTransparency = 0.15
 	well.BorderSizePixel = 0
 	circle(well)
 	if not frameImg then
-		Kit.stroke(well, Theme.Color.Gold, 3)
+		-- Flat orb: colored rim with a soft glow
+		Shape.stroke(well, color, 2.5, 0.1)
+		Shape.glow(well, color, 2, true, diameter // 2)
 	end
 	well.Parent = root
 
@@ -788,10 +705,27 @@ function Kit.orb(size: number, kind: string, color: Color3): Orb
 		liquid.AnchorPoint = Vector2.new(0.5, 1)
 		liquid.Position = UDim2.fromScale(0.5, 1)
 		liquid.Size = UDim2.fromOffset(diameter, diameter)
-		liquid.BackgroundColor3 = color
+		liquid.BackgroundColor3 = Color3.new(1, 1, 1)
 		liquid.BorderSizePixel = 0
 		circle(liquid)
+		Shape.gradient(
+			liquid,
+			color:Lerp(Color3.new(1, 1, 1), 0.25),
+			color:Lerp(Theme.Flat.Surface0, 0.35)
+		)
 		liquid.Parent = clip
+		-- Glass highlight at the top left
+		local gloss = Instance.new("Frame")
+		gloss.Name = "Gloss"
+		gloss.AnchorPoint = Vector2.new(0.5, 0.5)
+		gloss.Position = UDim2.fromScale(0.5, H.OrbTop + span * 0.24)
+		gloss.Size = UDim2.fromOffset(diameter * 0.55, diameter * 0.22)
+		gloss.BackgroundColor3 = Color3.new(1, 1, 1)
+		gloss.BorderSizePixel = 0
+		gloss.ZIndex = 4
+		circle(gloss)
+		Shape.gradient(gloss, Color3.new(1, 1, 1), Color3.new(1, 1, 1), 0.7, 1)
+		gloss.Parent = root
 	end
 	if frameImg then
 		frameImg.ZIndex = 3
@@ -878,7 +812,8 @@ function Kit.roundButton(
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	Kit.touchTarget(b)
-	local ringArt = Assets.Hud[if ring == "gold" then "ring_gold" else "ring_silver"]
+	local ringName = if ring == "gold" then "ring_gold" else "ring_silver"
+	local ringArt = if HUD_FRAME[ringName] then nil else Assets.Hud[ringName]
 	if ringArt then
 		b.Image = ringArt.id
 		b.ScaleType = Enum.ScaleType.Fit
@@ -886,10 +821,14 @@ function Kit.roundButton(
 			b.ImageColor3 = Theme.Hud.RingCyan
 		end
 	else
-		b.BackgroundTransparency = 0
-		b.BackgroundColor3 = Theme.Color.Bg1
+		-- Flat ring: dark disc with a gradient, colored rim and glow
+		local rim = if ring == "gold" then Theme.Color.Gold else Theme.Color.Cyan
+		b.BackgroundTransparency = 0.05
+		b.BackgroundColor3 = Color3.new(1, 1, 1)
 		circle(b)
-		Kit.stroke(b, if ring == "gold" then Theme.Color.Gold else Theme.Color.Cyan, 3)
+		Shape.gradient(b, Theme.Flat.Surface3, Theme.Flat.Surface0)
+		Shape.stroke(b, rim, 2.5, 0.05)
+		Shape.glow(b, rim, if ring == "gold" then 2 else 1, false, size // 2)
 	end
 
 	local inner = math.floor(size * 0.66)
@@ -916,7 +855,7 @@ function Kit.roundButton(
 		k.Parent = b
 	end
 	local update = Kit.cooldownVeil(b)
-	pressFeedback(b)
+	Shape.motion(b)
 	return b, update
 end
 
@@ -953,7 +892,7 @@ function Kit.hudIconButton(
 		t.ZIndex = 3
 		t.Parent = b
 	end
-	pressFeedback(b)
+	Shape.motion(b)
 	return b
 end
 
@@ -970,7 +909,7 @@ function Kit.chargePips(size: number): (Frame, (available: number, max: number) 
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local cyan, dark = Assets.Hud.hud_diamond_cyan, Assets.Hud.hud_diamond_dark
+	local cyan: Assets.Fixed?, dark: Assets.Fixed? = nil, nil -- drawn diamonds retired (flat look)
 	local pips: { GuiObject } = {}
 	local function paint(pip: GuiObject, on: boolean)
 		if pip:IsA("ImageLabel") then
@@ -1028,74 +967,82 @@ function Kit.chargePips(size: number): (Frame, (available: number, max: number) 
 	return row, update
 end
 
-local PILL_KEY = { gold = "gold", cyan = "cyan", purple = "purple" }
 local PILL_HEIGHT = 40
-local PILL_PLUS = 32
+local PILL_PLUS = 30
 
 -- Resource display: capsule with icon on the left, number in the middle and its own + button on the right.
--- Returns capsule, number label and + button (button is nil without an image).
+-- Returns capsule, number label and + button.
 function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextLabel, ImageButton?)
 	local c = color or Theme.Color.Gold
-	local key = if c == Theme.Color.Cyan
-		then PILL_KEY.cyan
-		elseif c == Theme.Rarity.epic then PILL_KEY.purple
-		else PILL_KEY.gold
+	local F = Theme.Flat
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(190, PILL_HEIGHT)
-	f.BackgroundColor3 = Theme.Color.Bg1
+	f.BackgroundColor3 = F.Surface1
+	f.BackgroundTransparency = 0.1
 	f.BorderSizePixel = 0
-	local skin = Kit.skin(f, "pill3_" .. key, PILL_HEIGHT, 0.5)
-	local slice = Assets.Slice["pill3_" .. key]
-	local plusFixed = Assets.Fixed["plus_" .. key]
-	if skin and slice then
-		-- Never distort the capsule: scale = display height / image height
-		skin.SliceScale = PILL_HEIGHT / slice.size.Y
-	else
-		Kit.corner(f, PILL_HEIGHT // 2)
-		Kit.stroke(f, Theme.Color.Line)
-	end
-	local ic = Kit.icon(iconName, math.floor(PILL_HEIGHT * 0.62), c)
+	Shape.corner(f, PILL_HEIGHT // 2)
+	Shape.stroke(f, F.Edge)
+	-- Faint color wash from the icon side
+	local wash = Instance.new("Frame")
+	wash.Name = "Wash"
+	wash.BackgroundColor3 = c
+	wash.BorderSizePixel = 0
+	wash.Size = UDim2.fromScale(1, 1)
+	wash.Active = false
+	Shape.corner(wash, PILL_HEIGHT // 2)
+	Shape.gradient(wash, c, c, 0.8, 1, 0)
+	wash.Parent = f
+	local ic = Kit.icon(iconName, math.floor(PILL_HEIGHT * 0.66), c)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.new(0, math.floor(PILL_HEIGHT * 0.5) + 2, 0.5, 0)
 	ic.ZIndex = 2
 	ic.Parent = f
-	local plus: ImageButton? = nil
-	if plusFixed then
-		-- Invisible hit area (grows on touch), the image sits fixed at the right edge
-		local pb = Instance.new("ImageButton")
-		pb.Name = "Plus"
-		pb.AnchorPoint = Vector2.new(1, 0.5)
-		pb.Position = UDim2.new(1, -5, 0.5, 0)
-		pb.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
-		pb.BackgroundTransparency = 1
-		pb.AutoButtonColor = false
-		pb.ZIndex = 3
-		Kit.touchTarget(pb)
-		local img = Instance.new("ImageLabel")
-		img.Name = "Image"
-		img.AnchorPoint = Vector2.new(1, 0.5)
-		img.Position = UDim2.fromScale(1, 0.5)
-		img.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
-		img.BackgroundTransparency = 1
-		img.Image = plusFixed.id
-		img.ScaleType = Enum.ScaleType.Fit
-		img.ZIndex = 3
-		img.Parent = pb
-		pb.MouseButton1Down:Connect(function()
-			img.Size = UDim2.fromOffset(PILL_PLUS - 4, PILL_PLUS - 4)
-			img.ImageColor3 = Color3.fromRGB(190, 190, 190)
-		end)
-		local function release()
-			img.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
-			img.ImageColor3 = Color3.new(1, 1, 1)
-		end
-		pb.MouseButton1Up:Connect(release)
-		pb.MouseLeave:Connect(release)
-		pb.Parent = f
-		plus = pb
+
+	-- Invisible hit area (grows on touch); the round + sits fixed at the right edge
+	local plus = Instance.new("ImageButton")
+	plus.Name = "Plus"
+	plus.Image = ""
+	plus.AnchorPoint = Vector2.new(1, 0.5)
+	plus.Position = UDim2.new(1, -5, 0.5, 0)
+	plus.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+	plus.AutoButtonColor = false
+	plus.BackgroundTransparency = 1
+	plus.BorderSizePixel = 0
+	plus.ZIndex = 3
+	Kit.touchTarget(plus)
+	local disc = Instance.new("Frame")
+	disc.Name = "Disc"
+	disc.AnchorPoint = Vector2.new(1, 0.5)
+	disc.Position = UDim2.fromScale(1, 0.5)
+	disc.Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS)
+	disc.BackgroundColor3 = Color3.new(1, 1, 1)
+	disc.BorderSizePixel = 0
+	disc.ZIndex = 3
+	Shape.corner(disc, PILL_PLUS // 2)
+	Shape.gradient(disc, c:Lerp(Color3.new(1, 1, 1), 0.2), c:Lerp(F.Surface0, 0.25))
+	local glyph = Instance.new("TextLabel")
+	glyph.Name = "Glyph"
+	glyph.BackgroundTransparency = 1
+	glyph.Size = UDim2.fromScale(1, 1)
+	glyph.Text = "+"
+	glyph.TextColor3 = F.Surface0
+	glyph.FontFace = Theme.Font.UI
+	glyph.TextSize = Kit.fontSize(18)
+	glyph.ZIndex = 4
+	glyph.Parent = disc
+	disc.Parent = plus
+	plus.MouseButton1Down:Connect(function()
+		Spring.target(disc, { Size = UDim2.fromOffset(PILL_PLUS - 4, PILL_PLUS - 4) }, "Snappy")
+	end)
+	local function release()
+		Spring.target(disc, { Size = UDim2.fromOffset(PILL_PLUS, PILL_PLUS) }, "Bouncy")
 	end
+	plus.MouseButton1Up:Connect(release)
+	plus.MouseLeave:Connect(release)
+	plus.Parent = f
+
 	local leftW = PILL_HEIGHT + 4
-	local rightW = if plus then PILL_PLUS + 10 else 20
+	local rightW = PILL_PLUS + 10
 	local t = Kit.label(text, 16)
 	t.AutomaticSize = Enum.AutomaticSize.None
 	t.Size = UDim2.new(1, -(leftW + rightW), 1, 0)
@@ -1129,25 +1076,18 @@ function Kit.iconButton(
 	b.BorderSizePixel = 0
 	b.BackgroundTransparency = 1
 	if k == "close" then
-		-- Always red: there is no hover on touch, otherwise the button would look different per window
-		local fixed = Assets.Fixed.close_red or Assets.Fixed.close_dark
-		if fixed then
-			b.Image = fixed.id
-			b.ScaleType = Enum.ScaleType.Fit
-			return b
-		end
+		local close = Shape.close(s)
+		close.Name = label
+		return close
 	end
-	local skinName = k .. (if active then "_active" else "_idle")
-	if k == "close" then
-		skinName = "nav_idle"
-	end
-	if Assets.Slice[skinName] then
-		applySlice(b, skinName, s, 0.5)
-	else
-		b.BackgroundTransparency = 0
-		b.BackgroundColor3 = if active then Theme.Color.Bg3 else Theme.Color.Bg1
-		Kit.corner(b, Theme.Radius.M)
-		Kit.stroke(b, if active then Theme.Color.Gold else Theme.Color.Line)
+	local F = Theme.Flat
+	b.BackgroundTransparency = if active then 0 else 0.15
+	b.BackgroundColor3 = if active then F.Surface3 else F.Surface1
+	Shape.corner(b, F.Radius.M)
+	local edge = Shape.stroke(b, if active then Theme.Color.Gold else F.Edge)
+	edge.Name = "Edge"
+	if active then
+		Shape.glow(b, Theme.Color.Gold, 1, false, F.Radius.M)
 	end
 	local ic = Kit.icon(
 		iconName,
@@ -1158,6 +1098,7 @@ function Kit.iconButton(
 	ic.Position = UDim2.fromScale(0.5, if captioned then 0.4 else 0.5)
 	ic.ZIndex = 2
 	ic.Parent = b
+	Shape.motion(b)
 	if captioned then
 		-- Inner glow: gold at the edge, clear toward the center
 		local glow = Instance.new("Frame")
@@ -1166,7 +1107,7 @@ function Kit.iconButton(
 		glow.BackgroundColor3 = Theme.Color.Gold
 		glow.BorderSizePixel = 0
 		glow.ZIndex = 1
-		Kit.corner(glow, math.floor(s * 0.22))
+		Kit.corner(glow, F.Radius.M)
 		local fade = Instance.new("UIGradient")
 		fade.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0.45),
@@ -1185,51 +1126,33 @@ function Kit.iconButton(
 	return b
 end
 
--- Divider with diamond (image, stretched in width only)
+-- Divider: thin line that fades out at both ends
 function Kit.divider(width: number): GuiObject
-	local fixed = Assets.Fixed.divider
-	if not fixed then
-		local f = Instance.new("Frame")
-		f.Size = UDim2.fromOffset(width, 1)
-		f.BackgroundColor3 = Theme.Color.Line
-		f.BorderSizePixel = 0
-		return f
-	end
-	local img = Instance.new("ImageLabel")
-	img.Name = "Divider"
-	img.BackgroundTransparency = 1
-	img.Image = fixed.id
-	img.ScaleType = Enum.ScaleType.Stretch
-	img.Size = UDim2.fromOffset(width, math.max(8, math.floor(width * fixed.size.Y / fixed.size.X)))
-	return img
+	local f = Instance.new("Frame")
+	f.Name = "Divider"
+	f.Size = UDim2.fromOffset(width, 1)
+	f.BackgroundColor3 = Theme.Flat.EdgeHi
+	f.BorderSizePixel = 0
+	local g = Instance.new("UIGradient")
+	g.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	g.Parent = f
+	return f
 end
 
 -- Input field (search) in the look of the sort button with a magnifier on the left. Returns frame and TextBox.
 function Kit.textBox(size: Vector2, placeholder: string): (Frame, TextBox)
 	local f = Instance.new("Frame")
 	f.Size = UDim2.fromOffset(size.X, size.Y)
-	f.BackgroundColor3 = Theme.Color.Bg1
+	f.BackgroundColor3 = Theme.Flat.Surface0
+	f.BackgroundTransparency = 0.2
 	f.BorderSizePixel = 0
-	if not Kit.skin(f, "btn_sort", size.Y, 0.5) then
-		Kit.corner(f, Theme.Radius.M)
-		Kit.stroke(f, Theme.Color.Line2)
-	end
+	Shape.corner(f, Theme.Flat.Radius.M)
+	Shape.stroke(f, Theme.Flat.Edge)
 	local leftW = 14
-	local lens = Assets.Fixed.icon_search
-	if lens then
-		local iconSize = math.floor(size.Y * 0.5)
-		local ic = Instance.new("ImageLabel")
-		ic.Name = "Magnifier"
-		ic.BackgroundTransparency = 1
-		ic.AnchorPoint = Vector2.new(0, 0.5)
-		ic.Position = UDim2.new(0, 14, 0.5, 0)
-		ic.Size = UDim2.fromOffset(iconSize, iconSize)
-		ic.Image = lens.id
-		ic.ScaleType = Enum.ScaleType.Fit
-		ic.ZIndex = 2
-		ic.Parent = f
-		leftW = 14 + iconSize + 8
-	end
 	local t = Instance.new("TextBox")
 	t.BackgroundTransparency = 1
 	t.Size = UDim2.new(1, -(leftW + 14), 1, 0)
