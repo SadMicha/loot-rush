@@ -36,6 +36,7 @@ local AtlasController = require(script.Parent.AtlasController)
 local ShopController = require(script.Parent.ShopController)
 local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
+local ProgressController = require(script.Parent.ProgressController)
 
 local HudController = {}
 
@@ -393,7 +394,25 @@ end
 -- around it (combat only).
 local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
+local skillButtons: { ImageButton } = {}
+local shownSkills: { string } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
+
+-- Loadout or auto-cast changed: new icons, "AUTO" tag on auto-casting slots
+local function refreshSkillButtons()
+	local data = ProgressController.data()
+	for i, btn in skillButtons do
+		local skill = SkillController.skill(i)
+		if skill and shownSkills[i] ~= skill.id then
+			shownSkills[i] = skill.id
+			Kit.setRoundIcon(btn, Kit.skillArt(skill.id) or H.SkillArt[skill.id], skill.icon)
+		end
+		local tag = btn:FindFirstChild("Auto")
+		if tag and tag:IsA("TextLabel") then
+			tag.Visible = skill ~= nil and data.auto[skill.id] == true
+		end
+	end
+end
 
 local function buildSkills()
 	local keyboard = not UserInputService.TouchEnabled
@@ -433,6 +452,16 @@ local function buildSkills()
 			if keyboard then SLOT_KEYS[i] else nil
 		)
 		btn.Name = "Skill" .. i
+		shownSkills[i] = skill.id
+		local tag = Kit.label("AUTO", 10, Theme.Color.Cyan)
+		tag.Name = "Auto"
+		tag.AnchorPoint = Vector2.new(0.5, 0)
+		tag.Position = UDim2.new(0.5, 0, 0, 2)
+		tag.ZIndex = 6
+		tag.Visible = false
+		Kit.textOutline(tag, 0.3)
+		tag.Parent = btn
+		skillButtons[i] = btn
 		btn.AnchorPoint = Vector2.new(0.5, 0.5)
 		btn.Position = UDim2.fromOffset(cx + R * math.cos(angle), cy - R * math.sin(angle))
 		onTap(btn, function()
@@ -785,6 +814,9 @@ function HudController.start()
 	player:GetAttributeChangedSignal("InCombat"):Connect(function()
 		setCalm(player:GetAttribute("InCombat") ~= true, false)
 	end)
+
+	ProgressController.changed:Connect(refreshSkillButtons)
+	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
 		goldText.Text = Format.big((player:GetAttribute("Gold") or 0) :: number)

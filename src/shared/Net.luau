@@ -22,6 +22,8 @@
 --   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
 --                    events: { done = { questText }, unlocked = { windowId } } on progress
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
+--   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
+--   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -49,6 +51,8 @@ local NAMES = {
 	"PetResult",
 	"Quest",
 	"AutoSalvage",
+	"Loadout",
+	"SkillCast",
 	"Debug",
 }
 
@@ -94,5 +98,7 @@ return table.freeze({
 	PetResult = get("PetResult"),
 	Quest = get("Quest"),
 	AutoSalvage = get("AutoSalvage"),
+	Loadout = get("Loadout"),
+	SkillCast = get("SkillCast"),
 	Debug = get("Debug"),
 })

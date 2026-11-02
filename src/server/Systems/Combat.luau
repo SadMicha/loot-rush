@@ -17,7 +17,8 @@ local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 
 type PState = {
-	cdUntil: { number },
+	cdUntil: { [string]: number }, -- per skill id (swapping the bar does not reset cooldowns)
+	autoAt: number, -- next auto-cast check
 	basicUntil: number,
 	iframesUntil: number,
 	dashCharges: number,
@@ -783,17 +784,18 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 	return true
 end
 
-local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
-	local base = Skills.bar[slot]
+local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3): boolean
+	local profile = Data.get(player)
+	local base = if profile then Progression.barSkill(profile.progress, slot) else nil
 	local st = states[player]
 	local root = body(player)
 	if not base or not st or not root then
-		return
+		return false
 	end
 	local skill = effective(player, base)
 	local now = os.clock()
-	if now < st.cdUntil[slot] then
-		return
+	if now < (st.cdUntil[base.id] or 0) then
+		return false
 	end
 	-- The client knows its own position more precisely (server lags while walking); only accept plausible values
 	if flat(origin - root.Position).Magnitude > 12 then
@@ -808,9 +810,10 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		ok = castChain(player, root, skill, aim)
 	end
 	if not ok then
-		return
+		return false
 	end
-	st.cdUntil[slot] = now + skill.cooldown
+	st.cdUntil[base.id] = now + skill.cooldown
+	Net.SkillCast:FireClient(player, base.id, skill.cooldown)
 	-- Bloom "Twin Ball": second ball shortly after
 	local twin = skill.twin
 	if skill.kind == "projectile" and twin then
@@ -840,6 +843,46 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 				player:SetAttribute("Shield", 0)
 			end
 		end)
+	end
+	return true
+end
+
+-- Auto-cast: equipped skills with auto-cast on fire at the nearest enemy in reach
+local AUTO_EVERY = 0.25
+local function autoCast(player: Player, st: PState, now: number, pool: { Model })
+	if now < st.autoAt then
+		return
+	end
+	st.autoAt = now + AUTO_EVERY
+	local profile = Data.get(player)
+	local root = body(player)
+	if not profile or not root or next(profile.progress.auto) == nil or #pool == 0 then
+		return
+	end
+	local progress = profile.progress
+	for slot = 1, Skills.SLOTS do
+		local base = Progression.barSkill(progress, slot)
+		if
+			base
+			and progress.auto[base.id]
+			and now >= (st.cdUntil[base.id] or 0)
+			and Progression.canAuto(progress, base.id, profile.rebirths)
+		then
+			local skill = effective(player, base)
+			local reach = if skill.kind == "nova" then skill.radius * 0.9 else skill.range
+			local target: Model? = nil
+			local best = reach
+			for _, e in pool do
+				local d = flat(enemyPos(e) - root.Position).Magnitude
+				if d <= best then
+					best = d
+					target = e
+				end
+			end
+			if target then
+				cast(player, slot, enemyPos(target), root.Position)
+			end
+		end
 	end
 end
 
@@ -871,7 +914,8 @@ end
 -- ------------------------------------------------------------------ Lifecycle
 local function onPlayer(player: Player)
 	states[player] = {
-		cdUntil = { 0, 0, 0, 0 },
+		cdUntil = {},
+		autoAt = 0,
 		basicUntil = 0,
 		iframesUntil = 0,
 		dashCharges = Config.DASH_CHARGES,
@@ -919,6 +963,9 @@ function Combat.init()
 		if typeof(slot) ~= "number" or typeof(aim) ~= "Vector3" or typeof(origin) ~= "Vector3" then
 			return
 		end
+		if slot ~= math.floor(slot) or slot < 1 or slot > Skills.SLOTS then
+			return
+		end
 		if not ((aim :: Vector3).Magnitude < 1e6 and (origin :: Vector3).Magnitude < 1e6) then -- catches NaN and infinity
 			return
 		end
@@ -947,6 +994,7 @@ function Combat.start()
 		local now = os.clock()
 		local pool = aliveEnemies()
 		for player, st in states do
+			autoCast(player, st, now, pool)
 			if now >= st.basicUntil then
 				local root = body(player)
 				if root then

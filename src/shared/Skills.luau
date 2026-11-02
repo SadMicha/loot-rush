@@ -2,6 +2,9 @@
 -- Skill definitions of the starting class (Spark Mage Zap).
 -- The client uses them for display and cooldown preview, the server for the real effect.
 -- New skill = new entry; the effect comes solely from `kind` and the numbers.
+-- 8 skills (Skills.list), 4 of them on the bar (Q/E/R/F, chosen in the Abilities window;
+-- Skills.bar = the starting loadout). Skills 5-8 unlock with the player level (`unlock`).
+-- Auto-cast: per skill from skill level AUTO_LEVEL, for all skills after the first Rebirth.
 
 export type Kind = "projectile" | "nova" | "chain"
 
@@ -35,6 +38,7 @@ export type Skill = {
 	shatter: number?, -- slowed enemies shatter on death
 	field: number?, -- nova: ice field, damage every 0.5 s
 	armorBuff: number?, -- nova: % armor for a short time
+	unlock: number?, -- player level needed to equip (nil = from the start)
 }
 
 local function def(s: Skill): Skill
@@ -114,6 +118,69 @@ Skills.bar = table.freeze({
 	}),
 })
 
+-- Skills 5-8: unlock with the player level, equip in the Abilities window
+Skills.extra = table.freeze({
+	def({
+		id = "meteor",
+		name = "Meteor",
+		desc = "A slow, heavy meteor that smashes a wide area and sets it ablaze.",
+		icon = "fire",
+		color = Color3.fromHex("#FF6A3D"),
+		kind = "projectile",
+		damage = 60,
+		cooldown = 6,
+		range = 55,
+		radius = 9,
+		speed = 40,
+		burn = 0.3,
+		unlock = 8,
+	}),
+	def({
+		id = "arc_whirl",
+		name = "Arc Whirl",
+		desc = "A quick whirl of sparks around you. Short cooldown, small radius.",
+		icon = "whirl",
+		color = Color3.fromHex("#7FE7FF"),
+		kind = "nova",
+		damage = 10,
+		cooldown = 1.5,
+		range = 0,
+		radius = 7,
+		unlock = 12,
+	}),
+	def({
+		id = "ice_lance",
+		name = "Ice Lance",
+		desc = "A fast lance of ice that hits hard and slows its target.",
+		icon = "ice_cube",
+		color = Color3.fromHex("#BDEFFF"),
+		kind = "projectile",
+		damage = 34,
+		cooldown = 2.5,
+		range = 48,
+		radius = 2.5,
+		speed = 110,
+		slow = 0.6,
+		slowTime = 2,
+		unlock = 16,
+	}),
+	def({
+		id = "venom_arc",
+		name = "Venom Arc",
+		desc = "A toxic bolt that jumps across a whole pack and leaves them burning.",
+		icon = "poison",
+		color = Color3.fromHex("#9BEA5B"),
+		kind = "chain",
+		damage = 14,
+		cooldown = 6,
+		range = 32,
+		radius = 12,
+		chains = 8,
+		burn = 0.4,
+		unlock = 20,
+	}),
+})
+
 -- Skill Blooms (abilities window): per skill one trunk (3 nodes) and two branches (2 each), max. 5
 -- points per node. A node needs a point in the node before it. Keys: "trunk1" … "right2".
 -- `effect` = effect per point (see Progression.effectiveSkill); without `effect` the node is
@@ -134,6 +201,8 @@ Skills.BloomMax = 5
 Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
 Skills.MaxLevel = 20
 Skills.DamagePerLevel = 0.05 -- +5% damage per skill level above 1
+Skills.SLOTS = 4 -- skills on the bar
+Skills.AUTO_LEVEL = 5 -- skill level that unlocks auto-cast for this skill
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)
@@ -344,6 +413,202 @@ Skills.Blooms = table.freeze({
 			},
 		},
 	}),
+	meteor = bloom({
+		trunk = {
+			name = "Impact",
+			nodes = {
+				{
+					name = "Molten Core",
+					text = "+10% damage per point",
+					effect = fx("damage", 0.1),
+				},
+				{
+					name = "Crater",
+					text = "+1 stud impact radius per point",
+					effect = fx("radius", 1),
+				},
+				{
+					name = "Scorched Earth",
+					text = "Targets hit burn for 2 s: 10% damage per point",
+					effect = fx("burn", 0.1),
+				},
+			},
+		},
+		left = {
+			name = "Debris",
+			nodes = {
+				{
+					name = "Fragments",
+					text = "Impact throws 1 spark per point (25% damage)",
+					effect = fx("sparks", 1),
+				},
+				{
+					name = "Twin Star",
+					text = "Second meteor with 8% damage per point",
+					effect = fx("twin", 0.08),
+				},
+			},
+		},
+		right = {
+			name = "Orbit",
+			nodes = {
+				{
+					name = "Fast Fall",
+					text = "+5% fall speed per point",
+					effect = fx("speed", 0.05),
+				},
+				{
+					name = "Starfall",
+					text = "−0.4 s cooldown per point",
+					effect = fx("cooldown", 0.4),
+				},
+			},
+		},
+	}),
+	arc_whirl = bloom({
+		trunk = {
+			name = "Spin",
+			nodes = {
+				{ name = "Live Wire", text = "+10% damage per point", effect = fx("damage", 0.1) },
+				{
+					name = "Wide Spin",
+					text = "+1 stud radius per point",
+					effect = fx("radius", 1),
+				},
+				{
+					name = "Afterspin",
+					text = "Second whirl with 6% damage per point",
+					effect = fx("echo", 0.06),
+				},
+			},
+		},
+		left = {
+			name = "Pull",
+			nodes = {
+				{
+					name = "Vortex",
+					text = "Pulls targets hit in by 1 stud per point",
+					effect = fx("pull", 1),
+				},
+				{
+					name = "Spark Spray",
+					text = "1 bolt per point flies outward (40% damage)",
+					effect = fx("bolts", 1),
+				},
+			},
+		},
+		right = {
+			name = "Rhythm",
+			nodes = {
+				{
+					name = "Quick Spin",
+					text = "−0.1 s cooldown per point",
+					effect = fx("cooldown", 0.1),
+				},
+				{
+					name = "Dancer",
+					text = "After a hit, +3% move speed for 3 s per point",
+					effect = fx("haste", 3),
+				},
+			},
+		},
+	}),
+	ice_lance = bloom({
+		trunk = {
+			name = "Point",
+			nodes = {
+				{ name = "Sharp Tip", text = "+10% damage per point", effect = fx("damage", 0.1) },
+				{
+					name = "Long Freeze",
+					text = "Slow +0.2 s per point",
+					effect = fx("slowTime", 0.2),
+				},
+				{
+					name = "Piercing Cold",
+					text = "20% chance per point to fly through the first enemy",
+					effect = fx("pierce", 0.2),
+				},
+			},
+		},
+		left = {
+			name = "Splinter",
+			nodes = {
+				{
+					name = "Ice Splinters",
+					text = "Slowed enemies shatter on death: 20% damage per point",
+					effect = fx("shatter", 0.2),
+				},
+				{
+					name = "Twin Lance",
+					text = "Second lance with 8% damage per point",
+					effect = fx("twin", 0.08),
+				},
+			},
+		},
+		right = {
+			name = "Flight",
+			nodes = {
+				{
+					name = "Hail",
+					text = "+3% flight speed per point",
+					effect = fx("speed", 0.03),
+				},
+				{
+					name = "Cold Hands",
+					text = "−0.2 s cooldown per point",
+					effect = fx("cooldown", 0.2),
+				},
+			},
+		},
+	}),
+	venom_arc = bloom({
+		trunk = {
+			name = "Toxin",
+			nodes = {
+				{
+					name = "Potent Venom",
+					text = "+10% damage per point",
+					effect = fx("damage", 0.1),
+				},
+				{ name = "Spreading", text = "+1 jump per point", effect = fx("chains", 1) },
+				{
+					name = "Lingering",
+					text = "Burn +10% damage per point",
+					effect = fx("burn", 0.1),
+				},
+			},
+		},
+		left = {
+			name = "Fork",
+			nodes = {
+				{
+					name = "Split Venom",
+					text = "First hit jumps to 2 more: 15% damage per point",
+					effect = fx("fork", 0.15),
+				},
+				{
+					name = "Final Bite",
+					text = "Last jump +20% damage per point",
+					effect = fx("lastHit", 0.2),
+				},
+			},
+		},
+		right = {
+			name = "Reach",
+			nodes = {
+				{
+					name = "Long Arc",
+					text = "+1 stud jump range per point",
+					effect = fx("radius", 1),
+				},
+				{
+					name = "Fast Venom",
+					text = "−0.3 s cooldown per point",
+					effect = fx("cooldown", 0.3),
+				},
+			},
+		},
+	}),
 } :: { [string]: Bloom })
 
 -- Node for a key like "left2" (nil if it does not exist)
@@ -361,10 +626,30 @@ function Skills.bloomNode(skillId: string, key: string): (BloomNode?, string?, n
 	return spec.nodes[index], branch, index
 end
 
+-- Index in the starting bar (Skills.bar)
 local barIndex: { [string]: number } = {}
 for i, s in Skills.bar do
 	barIndex[s.id] = i
 end
 Skills.BarIndex = table.freeze(barIndex)
+
+-- All castable skills (not the basic attack), in Abilities order
+local list: { Skill } = {}
+local byId: { [string]: Skill } = {}
+for _, group in { Skills.bar, Skills.extra } do
+	for _, s in group do
+		table.insert(list, s)
+		byId[s.id] = s
+	end
+end
+Skills.list = table.freeze(list)
+Skills.ById = table.freeze(byId)
+
+-- Starting loadout (ids, one per slot)
+local default: { string } = {}
+for i, s in Skills.bar do
+	default[i] = s.id
+end
+Skills.DefaultBar = table.freeze(default)
 
 return table.freeze(Skills)

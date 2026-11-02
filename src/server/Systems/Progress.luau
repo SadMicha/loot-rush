@@ -89,18 +89,14 @@ local function onKilled(player: any, _pos: any, _level: any, boss: any, skillId:
 	if not profile then
 		return
 	end
-	if typeof(skillId) == "string" and Skills.BarIndex[skillId] and typeof(xp) == "number" then
+	if typeof(skillId) == "string" and Skills.ById[skillId] and typeof(xp) == "number" then
 		local sp = Progression.skillMut(profile.progress, skillId)
 		if Progression.addSkillXp(sp, xp) > 0 then
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			if root and root:IsA("BasePart") then
 				Net.Fx:FireClient(player, "dmg", {
 					pos = root.Position + Vector3.new(0, 5, 0),
-					text = string.format(
-						"%s level %d",
-						Skills.bar[Skills.BarIndex[skillId]].name,
-						sp.level
-					),
+					text = string.format("%s level %d", Skills.ById[skillId].name, sp.level),
 				})
 			end
 		end
@@ -137,6 +133,42 @@ local function onBloom(player: Player, action: any, skillId: any, key: any)
 		local sp = profile.progress.skills[skillId]
 		if sp then
 			table.clear(sp.bloom)
+		end
+	else
+		return
+	end
+	send(player)
+end
+
+-- Bar loadout and auto-cast switches (Abilities window)
+local function onLoadout(player: Player, action: any, a: any, b: any)
+	if not allow(player) or typeof(action) ~= "string" then
+		return
+	end
+	local profile = Data.get(player)
+	if not profile then
+		return
+	end
+	local progress = profile.progress
+	if action == "equip" then
+		if typeof(a) ~= "number" or typeof(b) ~= "string" then
+			return
+		end
+		local level = (player:GetAttribute("Level") or 1) :: number
+		if not Progression.equip(progress, a, b, level) then
+			return
+		end
+	elseif action == "auto" then
+		if typeof(a) ~= "string" or typeof(b) ~= "boolean" then
+			return
+		end
+		if b then
+			if not Progression.canAuto(progress, a, profile.rebirths) then
+				return
+			end
+			progress.auto[a] = true
+		else
+			progress.auto[a] = nil
 		end
 	else
 		return
@@ -189,6 +221,7 @@ end
 function Progress.init()
 	Net.Bloom.OnServerEvent:Connect(onBloom)
 	Net.Star.OnServerEvent:Connect(onStar)
+	Net.Loadout.OnServerEvent:Connect(onLoadout)
 	Combat.EnemyKilled.Event:Connect(onKilled)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		dirty[player] = nil

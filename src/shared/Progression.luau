@@ -16,6 +16,8 @@ export type SkillProgress = {
 export type Data = {
 	skills: { [string]: SkillProgress },
 	stars: { [string]: boolean }, -- allocated stars (without the heart)
+	bar: { string }, -- skill id per bar slot (Skills.SLOTS entries)
+	auto: { [string]: boolean }, -- auto-cast switched on per skill
 }
 export type Materials = { candy: number, shards: number, dust: number }
 
@@ -65,7 +67,7 @@ Progression.SpecialStats = table.freeze({
 
 -- ------------------------------------------------------------------ Save data
 function Progression.fresh(): Data
-	return { skills = {}, stars = {} }
+	return { skills = {}, stars = {}, bar = table.clone(Skills.DefaultBar), auto = {} }
 end
 
 function Progression.freshMaterials(): Materials
@@ -104,6 +106,37 @@ function Progression.reconcile(raw: any): Data
 					xp = count(sp.xp),
 					bloom = bloom,
 				}
+			end
+		end
+	end
+	if typeof(raw.bar) == "table" then
+		-- valid, distinct ids; gaps are filled with starting skills that are not on the bar yet
+		local used: { [string]: boolean } = {}
+		local bar: { string? } = {}
+		for slot = 1, Skills.SLOTS do
+			local id = raw.bar[slot]
+			if typeof(id) == "string" and Skills.ById[id] and not used[id] then
+				bar[slot] = id
+				used[id] = true
+			end
+		end
+		for slot = 1, Skills.SLOTS do
+			if not bar[slot] then
+				for _, id in Skills.DefaultBar do
+					if not used[id] then
+						bar[slot] = id
+						used[id] = true
+						break
+					end
+				end
+			end
+		end
+		data.bar = bar :: { string }
+	end
+	if typeof(raw.auto) == "table" then
+		for id, on in raw.auto do
+			if typeof(id) == "string" and Skills.ById[id] and on == true then
+				data.auto[id] = true
 			end
 		end
 	end
@@ -269,6 +302,52 @@ function Progression.starMods(data: Data): { [string]: number }
 	return sum
 end
 
+-- ------------------------------------------------------------------ Bar and auto-cast
+-- Skill in a bar slot (nil for an invalid slot)
+function Progression.barSkill(data: Data, slot: number): Skills.Skill?
+	local id = data.bar[slot]
+	return if id then Skills.ById[id] else nil
+end
+
+-- Can the skill go on the bar at this player level?
+function Progression.canEquip(skillId: string, playerLevel: number): (boolean, string?)
+	local skill = Skills.ById[skillId]
+	if not skill then
+		return false, "Unknown skill"
+	end
+	if playerLevel < (skill.unlock or 1) then
+		return false, string.format("Unlocks at level %d", skill.unlock or 1)
+	end
+	return true, nil
+end
+
+-- Puts a skill into a slot; if it already sits in another slot, the two swap places.
+-- Returns false if the move is not allowed (nothing changes then).
+function Progression.equip(data: Data, slot: number, skillId: string, playerLevel: number): boolean
+	if slot ~= math.floor(slot) or slot < 1 or slot > Skills.SLOTS then
+		return false
+	end
+	if not Progression.canEquip(skillId, playerLevel) then
+		return false
+	end
+	local old = data.bar[slot]
+	for i, id in data.bar do
+		if id == skillId then
+			data.bar[i] = old
+		end
+	end
+	data.bar[slot] = skillId
+	return true
+end
+
+-- Auto-cast may be switched on from skill level AUTO_LEVEL, or for every skill after a Rebirth
+function Progression.canAuto(data: Data, skillId: string, rebirths: number): boolean
+	if not Skills.ById[skillId] then
+		return false
+	end
+	return rebirths > 0 or Progression.skill(data, skillId).level >= Skills.AUTO_LEVEL
+end
+
 -- ------------------------------------------------------------------ Effect on skills
 -- Skill with level, bloom and stars applied. `mods` = Progression.starMods(data) (optional, precomputed).
 function Progression.effectiveSkill(
@@ -278,7 +357,7 @@ function Progression.effectiveSkill(
 ): Skills.Skill
 	local m = mods or Progression.starMods(data)
 	local out = table.clone(skill) :: any
-	local onBar = Skills.BarIndex[skill.id] ~= nil
+	local onBar = Skills.ById[skill.id] ~= nil
 
 	local add: { [string]: number } = {}
 	local damage = 1
@@ -320,7 +399,7 @@ function Progression.effectiveSkill(
 	end
 	for _, k in Progression.SpecialStats do
 		if (add[k] or 0) > 0 then
-			out[k] = add[k]
+			out[k] = ((skill :: any)[k] or 0) + add[k]
 		end
 	end
 	return table.freeze(out) :: Skills.Skill

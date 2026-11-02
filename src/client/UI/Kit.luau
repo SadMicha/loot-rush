@@ -799,6 +799,29 @@ end
 
 -- Round HUD button (skill, dash): ring image with icon in the center, optional key label (keyboard only)
 -- and cooldown veil. ring = "gold" | "cyan" (cyan = tinted silver ring). Returns button and veil updater.
+-- Swaps the picture inside a Kit.roundButton (e.g. the skill bar after a loadout change)
+function Kit.setRoundIcon(b: GuiObject, artName: string?, fallbackIcon: string?)
+	local old = b:FindFirstChild("Icon")
+	if old then
+		old:Destroy()
+	end
+	local inner = math.floor(b.Size.X.Offset * 0.66)
+	local ic: GuiObject? = nil
+	if artName then
+		ic = Kit.hudImage(artName, Vector2.new(inner, inner), true)
+	end
+	if not ic and fallbackIcon then
+		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
+	end
+	if ic then
+		ic.Name = "Icon"
+		ic.AnchorPoint = Vector2.new(0.5, 0.5)
+		ic.Position = UDim2.fromScale(0.5, 0.5)
+		ic.ZIndex = 2
+		ic.Parent = b
+	end
+end
+
 function Kit.roundButton(
 	size: number,
 	ring: string,
@@ -832,20 +855,7 @@ function Kit.roundButton(
 		Shape.glow(b, rim, if ring == "gold" then 2 else 1, false, size // 2)
 	end
 
-	local inner = math.floor(size * 0.66)
-	local ic: GuiObject? = nil
-	if artName then
-		ic = Kit.hudImage(artName, Vector2.new(inner, inner), true)
-	end
-	if not ic and fallbackIcon then
-		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
-	end
-	if ic then
-		ic.AnchorPoint = Vector2.new(0.5, 0.5)
-		ic.Position = UDim2.fromScale(0.5, 0.5)
-		ic.ZIndex = 2
-		ic.Parent = b
-	end
+	Kit.setRoundIcon(b, artName, fallbackIcon)
 	if key then
 		local k = Kit.label(key, 11)
 		k.Name = "Key"

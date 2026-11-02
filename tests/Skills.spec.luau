@@ -3,7 +3,7 @@ local Assets = require("ReplicatedStorage.Shared.UI.Assets")
 
 describe("Skills", function()
 	local all = { Skills.basic }
-	for _, s in Skills.bar do
+	for _, s in Skills.list do
 		table.insert(all, s)
 	end
 
