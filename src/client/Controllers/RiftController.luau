@@ -138,14 +138,39 @@ function RiftController.start()
 	for _, attr in { "RiftPhase", "RiftRegion", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
-	-- Announce the variant of each new depth (name in the banner, rule as a toast)
-	player:GetAttributeChangedSignal("RiftVariant"):Connect(function()
-		local variant = RiftVariants.ById[(player:GetAttribute("RiftVariant") or "") :: string]
-		if variant then
+	-- Announce the variant of each new depth (name in the banner, rule as a toast). Keyed on
+	-- region + depth + variant and checked one frame later, so a repeated roll still toasts and
+	-- the attributes the server sets one after another are read together.
+	local announced = ""
+	local pending = false
+	local function announce()
+		pending = false
+		if phase() == "" then
+			announced = "" -- left the rift: the next run announces again
+			return
+		end
+		local id = (player:GetAttribute("RiftVariant") or "") :: string
+		local key = string.format(
+			"%s|%d|%s",
+			(player:GetAttribute("RiftRegion") or "") :: string,
+			(player:GetAttribute("RiftDepth") or 0) :: number,
+			id
+		)
+		local variant = RiftVariants.ById[id]
+		if key ~= announced and variant then
 			QuestController.toast(variant.name .. ": " .. variant.text, C.Gold)
 		end
-		refresh()
-	end)
+		announced = key
+	end
+	for _, attr in { "RiftVariant", "RiftDepth", "RiftRegion", "RiftPhase" } do
+		player:GetAttributeChangedSignal(attr):Connect(function()
+			if not pending then
+				pending = true
+				task.defer(announce)
+			end
+		end)
+	end
+	player:GetAttributeChangedSignal("RiftVariant"):Connect(refresh)
 	refresh()
 	while true do
 		if bossBox.Visible then
