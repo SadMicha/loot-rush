@@ -1,16 +1,26 @@
 # Own ideas – how Loot Rush stops feeling like a clone
 
-As of 2026-11-02. Status: **decided (see below), nothing built yet**. The chosen ideas get a spec in
+As of 2026-11-02. Status: **decided (see below)**; #1, Stud VFX and #6 are built (PR #54), the rest is not. The chosen ideas get a spec in
 `docs/specs/` and a slot in `docs/DECISIONS.md` §4.
 
 ## Decision (owner, 2026-11-02)
 
-- **Take #1 Brick Break.**
-- **#3 class floor verbs: no** as a gameplay mechanic. Instead the stud style goes into the **skill
-  VFX** ("Stud VFX", below), so every skill has visual impact in the brick look.
-- **#4 Loot Tower: no** (opposite of the intended direction).
-- **#6 The Smoothing: yes** (story and world depth).
-- Everything else (#2, #5, #7–#11) stays a backlog idea, not decided.
+- **Take #1 Brick Break**, **Stud VFX** and **#6 The Smoothing** (built in PR #54).
+- **Dropped:** old #2 Snap Crafting, old #3 class floor verbs, #4 Loot Tower. #2 and #3 are replaced
+  by new ideas that grow out of the stud world (#2 Stud Rush, #3 Rebuilding Bosses), plus #12–#14.
+- **#5 → Season 1 "Blueprints"**: PoE-style repeatable maps as the first season mechanic
+  (`docs/specs/SEASON-1-BLUEPRINTS.md`); the Rift Cards become Blueprint mods.
+- **Seasons**: every season trials one new mechanic; well-received ones stay
+  (`docs/specs/SEASONS.md`).
+- **#8 → The Great Build**: one global monument for the whole player base (SEASONS §7).
+- Everything else (#7, #9–#14) stays a backlog idea; #13 and #14 are the Season 2/3 candidates.
+
+## Recommendation (Claude, 2026-11-02)
+
+**Top pick: #2 Stud Rush** as a permanent core mechanic for 1.0 (not seasonal): it is the brick
+feeling everyone knows, it turns Brick Break into a combat rhythm, it explains the name "Loot Rush",
+and it needs no class work. Then #3 Rebuilding Bosses (uses the boss phases that exist), #12 Colour
+Match. Seasonal: S1 Blueprints, S2 #13 Smoothing Breaches, S3 #14 Build Kits.
 
 Context: Loot Rush is now a **pure ARPG** (no rebirth/idle/village), 4 classes at launch
 (Knight Brix, Ranger Fynn, Spark Mage Zap, Shaman Mora), the world is **studded parts**, mobile first,
@@ -53,73 +63,61 @@ fade, no physics replication). Props get a `Breakable` tag with HP; server owns 
 **Risks.** Performance on low-end phones → hard debris budget + quality setting. Arena layout must
 stay readable when cover breaks.
 
-## 2. Bricks are the crafting material ("Snap Crafting")
+## 2. Stud Rush – collect the studs, unleash the rush (NEW, top pick)
 
-**Mechanic.** Items have a small **stud plate** (e.g. 2×2 for rings, 3×3 for weapons, 4×4 for armor).
-Affixes are **coloured bricks** (red = fire, blue = cold, yellow = lightning, green = poison, grey =
-physical, white = life …) that drop from enemies and from breaking things. You **snap** affix bricks
-onto the plate; bigger bricks (1×2, 2×2) give stronger tiers but use more space. Plate full = item done
-(replaces Forge charges). **Fusing:** two items of the same slot stack into one; the new plate keeps
-the bricks that fit.
+**Mechanic.** Every kill and every broken prop (Brick Break, #1) pops **loose studs** in the
+colours of what you broke. Studs are vacuumed in automatically when you walk near them (no tapping,
+mobile friendly) and fill the **Rush meter** on the HUD. Full meter → tap **RUSH**: 8 seconds of
++30 % move speed, +25 % attack speed, studs and loot fly to you from the whole screen, every kill
+explodes into twice the bricks, music and colours pump up. Bigger enemies drop bigger studs
+(1×1 → 2×2 → golden 4×4 from bosses). Rush chains: kills during Rush refill the meter a little, so
+good players keep it going longer.
 
-**Why it feels different.** Crafting is a tactile puzzle you can see, not a text list of affix rerolls.
-The item literally looks like what it does (a red-heavy sword is a fire sword). Mobile drag-and-drop is
-natural.
+**Why it feels different.** It is the brick-game feeling everyone knows (collecting studs), turned
+into a combat rhythm: break → collect → rush → break more. It gives the game its name a meaning
+("Loot **Rush**") and it is a pure skill/flow reward, no gamble, no loss. Every class uses it the
+same way, so it adds no class complexity.
 
-**Implementation sketch.** `Shared/Items` gets `plate = {w, h}` and `bricks = {{id, x, y, rot}}`;
-affix values derive from bricks (pure, testable). `Systems/Forge` validates placement server-side
-(overlap, bounds, ownership, rate limit). New Forge window = grid in Kit. Existing affix data maps 1:1
-to brick colours, so balancing stays.
+**Implementation sketch.** Server counts the meter per player (from kills/breaks it already knows,
+no client stud claims) and owns Rush state (`RushMeter`, `RushUntil` attributes, `Net.Rush` with
+rate limit). Client spawns the studs from the Brick Break pool and flies them to the player
+(purely visual). Tuning in `Config`/`Balance` (meter per kill by enemy size, Rush length, bonuses).
+Star Web and uniques can later hook in ("Rush lasts +2 s", "Rush starts with a Frost Nova").
 
-**Effort** L. **Fit** 📱 (drag on grid) ⏱ (one craft = seconds).
-**Risks.** Save schema grows (bricks per item) → cap bricks per plate; new store version needed
-(test place, no migration – allowed by CLAUDE.md). Must keep it simple for 10-year-olds.
+**Effort** M. **Fit** 📱 (auto-collect, one big button) 👥 (other players see your rush glow) ⏱.
+**Risks.** Must not hide enemy telegraphs → studs render below telegraphs, capped by the debris
+budget. Balance: Rush is a spike, not a requirement; bosses take reduced Rush damage bonus.
 
-## 3. Classes that change the floor
+## 3. Rebuilding Bosses – smash the bricks before they snap back (NEW)
 
-Each class gets **one world verb** on top of its 8 skills. The rift floor is a stud grid, so each
-class leaves something on it that the rest of the fight builds on.
+**Mechanic.** Bosses are brick builds (fits #1 and #9). At each phase change (66 %/33 %) the boss
+**falls apart** into floating brick clusters that fly back toward its core over 6 seconds. Every
+cluster you smash before it arrives is gone: the next phase starts with less life, or without the
+attack that cluster belonged to (a claw, a cannon). Clusters that make it back snap in with a
+satisfying click and a shockwave telegraph. Golden clusters drop extra loot when smashed.
 
-| Class | Verb | How it plays |
-|---|---|---|
-| **Knight Brix** | **Build** | Shield skills place brick walls (max 3). Knocking an enemy into a wall = *Wall Slam* (bonus damage + stun). Walls block projectiles and funnel swarms. |
-| **Ranger Fynn** | **Ricochet** | Arrows bounce off walls, props and Brix walls. Each bounce adds damage; she can place *bounce posts*. Angles matter – a skill shot in a top-down ARPG. Auto-aim picks a bounce path on mobile. |
-| **Spark Mage Zap** | **Circuit** | Sparks leave charged studs; chain lightning jumps between charged enemies **and** charged floor tiles. Closing a loop (3+ nodes in a ring) triggers *Overload* (area burst). |
-| **Shaman Mora** | **Garden** | Tiles she walks over sprout moss; mushrooms only grow on moss. Mushrooms are her minions, traps and spore clouds. The garden stays for the whole depth and spreads. |
+**Why it feels different.** A boss phase transition becomes an active, readable mini-game instead
+of an invulnerable cutscene, and it only works in a brick world. Short, visual, kid-friendly.
 
-**Why it feels different.** In other ARPGs classes differ by numbers and animations; here each class
-changes the arena in a way you can see and plan around. It also feeds co-op (#7).
+**Implementation sketch.** Builds on the boss phases (`Shared/Bosses`): server spawns 4–8 cluster
+entities with small HP and a flight path, counts the smashed ones, applies the phase penalty.
+Client shows them as brick groups from the shared pool.
 
-**Implementation sketch.** Server: a per-run `FloorGrid` (sparse map of tile → state, 4-stud tiles)
-in `Systems/Rift`; skills read/write it. Client: tile overlays via pooled parts. Zap's current skills
-(spark ball, chain lightning, frost nova, thunderstorm) already fit "Circuit" – start there.
+**Effort** M (one shared system for all bosses). **Fit** 📱 (auto-target prefers clusters during
+the rebuild) ⏱.
+**Risks.** Melee classes need reach → clusters fly in low arcs near the boss; ranged ones must not
+trivialise it → cluster count scales with distance.
 
-**Effort** L (M per class; Zap first, the only class with code today). **Fit** 📱 (auto-aim keeps it
-touch friendly) 👥 ⏱.
-**Risks.** Must stay readable with 100 enemies → tile effects subtle, enemy telegraphs stay brightest
-(concept rule). Grid state must be cleared per depth.
+## 4. Loot Tower – dropped (owner, 2026-11-02)
 
-## 4. Loot Tower – push your luck with a visible backpack
+Push-your-luck backpack tower. Not built: "the opposite of what I am looking at".
 
-**Mechanic.** Loot you pick up in a rift is not banked yet: it stacks as a **brick tower on your
-back** that grows with every item (rarity colour = brick colour). Taking big hits knocks the top
-bricks off – they bounce away and you can grab them again. Between depths you choose **Bank** (leave
-with everything) or **Deeper** (more loot, bigger tower, higher risk). Dying loses half the tower.
+## 5. Rift Cards – pick your own risk → part of Season 1 Blueprints
 
-**Why it feels different.** Turns "deeper or leave" (already in `RiftResult`) into a visible gamble.
-Other players in the hub see your tower – it is your bragging rights and a great thumbnail. Classic
-extraction tension without a PvP extraction shooter.
+**Owner, 2026-11-02:** liked as a PoE-style map system and planned as the first season mechanic:
+`docs/specs/SEASON-1-BLUEPRINTS.md` (maps as Blueprints, the cards below become Blueprint mods).
+The original card idea is kept here for reference.
 
-**Implementation sketch.** `Systems/Rift` already has `clear` → `deeper`/`leave` and end reasons. Add
-an unbanked list per run, bank on `left`, halve on `failed`. Tower = client-side accessory welded to
-the character (pooled bricks, max ~20 visible, then it grows wider). Knock-off = server event on hits
-above X % HP.
-
-**Effort** M. **Fit** 📱 👥 (visible to others) ⏱ (one rift = one bet).
-**Risks.** Losing loot frustrates kids → only half lost, normal-rarity first, never equipped gear.
-Tune knock-off so it is rare.
-
-## 5. Rift Cards – pick your own risk
 
 **Mechanic.** Before entering, the portal deals **3 Rift Cards**; you pick 0–2. Each card is a
 mutator with a clear trade: *"Glass Floor – tiles crack after you stand on them · +40 % loot"*,
@@ -154,7 +152,7 @@ of text + a short camera move.
 
 ## 7. Combo co-op – classes that complete each other
 
-**Mechanic.** Class verbs (#3) interact: Fynn's arrows bounce off Brix walls, Zap's circuit runs
+**Mechanic.** (Written for the dropped class floor verbs; needs a new combo hook, e.g. Colour Match #12 or Build Kits #14.) Class verbs interact: Fynn's arrows bounce off Brix walls, Zap's circuit runs
 through Mora's wet moss (+range), Brix knocks enemies into Mora's mushroom traps. A downed player
 turns into a **brick statue**; teammates rebuild them by standing next to them (no death screen).
 
@@ -163,21 +161,22 @@ together. Rebuild instead of revive fits the theme.
 
 **Effort** L (needs party/matchmaking, today dropped as D3). **Fit** 👥 is the whole point.
 **Risks.** Server cost (one arena per party), griefing (walls blocking teammates → walls don't block
-allies). Fits Live-Ops, but #3 should be designed with it in mind from day one.
+allies). Fits Live-Ops.
 
-## 8. Server Build – the hub rebuilds itself
+## 8. The Great Build – the whole player base builds one monument (owner change)
 
-**Mechanic.** Everyone on the server donates spare bricks (from salvage) to a **shared build** in
-Lumenhaven: a bridge, a lighthouse, a giant statue. Each finished stage gives the whole server a
-1-hour buff (+loot, +XP) and the top donors get their name on a brick. Replaces the dropped village as
-the "reason to come back".
+**Owner, 2026-11-02:** instead of one build per server, the build is **global**: every server fills
+the same progress bar, so no server is left behind. Full plan with the cross-server design
+(per-server batches every 30 s → MemoryStore counter + durable DataStore copy, MessagingService for
+"stage complete", time-based global buffs, daily donation cap): `docs/specs/SEASONS.md` §7. One
+monument per season.
 
-**Why it feels different.** Social cooperation without trading or co-op rifts; the server literally
-builds something together and you see it grow in real time.
+**Mechanic.** Players donate spare bricks (from salvage and Brick Break) at a chute in Lumenhaven;
+the monument grows in 10 stages on all servers at once; every stage gives everyone a 2-hour buff
+and puts the top donors on a name plaque brick.
 
-**Effort** M. **Fit** 👥 ⏱ (donate in 5 seconds).
-**Risks.** Server-local progress resets when the server closes → stages are short (minutes), or use
-MemoryStore per server; abuse (donation spam) → rate limit server-side.
+**Effort** M. **Fit** 👥 ⏱ (donate in 5 seconds). **Risks.** Quotas (solved by batching), lost
+donations on a hard server crash (≤ 30 s), stage pacing (thresholds tunable live).
 
 ## 9. Boss Parts – break the boss, keep the piece
 
@@ -204,7 +203,7 @@ favourites, which is the opposite of the Diablo "replace every 5 minutes" loop.
 
 **Effort** M. **Fit** 📱 ⏱.
 **Risks.** Keeping a favourite must not block progress → awakened items can absorb a newer item's
-base stats (fusion via #2).
+base stats (fusion at the Forge).
 
 ## 11. Echo Builders – asynchronous friend help
 
@@ -218,18 +217,51 @@ first), good for short sessions.
 **Effort** M (save a build snapshot, simple AI). **Fit** 👥 ⏱ 📱.
 **Risks.** Snapshot size in saves (keep only class, 4 skills, 3 stats); friends API rate limits.
 
+## 12. Colour Match – brick colours on your gear (NEW)
+
+**Mechanic.** Every item has a **brick colour** shown on the avatar (helmet, armor, boots …). Wearing
+3/5/7 pieces of the same colour gives a colour bonus: red = +burn damage, blue = +chill, yellow =
++Rush meter gain, green = +regen, white = +shield, black = +crit. Uniques have two colours and count
+for both. The character ends up looking like their build.
+
+**Why it feels different.** Gear choice you can see from across the hub; a simple, readable
+alternative to set items. **Effort** S–M. **Fit** 📱 👥 ⏱. **Risks.** Must not force ugly outfits →
+a free hub "paint" option changes the *look* only, the bonus follows the item's real colour.
+
+## 13. Smoothing Breaches – pop the grey bubble (NEW, season candidate)
+
+**Mechanic.** In a rift a grey glossy **Smoothing bubble** appears and grows. Inside, the world is
+smooth and studless and Smoothing enemies pour out; every kill pushes the bubble back and paints
+studs and colour back onto the floor. Kill fast enough and the bubble **pops** into a confetti of
+coloured bricks with a Smoothing boss and "Smooth Shards" (season currency for Smoothing uniques).
+
+**Why it feels different.** The story (#6) as a playable, visible encounter; every success
+literally restores the world. **Effort** M. **Fit** 📱 ⏱. Planned as Season 2
+(`docs/specs/SEASONS.md` §8). **Risks.** Must stay readable (grey enemies vs grey floor → rim light).
+
+## 14. Build Kits – snap a helper together mid-fight (NEW, season candidate)
+
+**Mechanic.** Some breakable props drop **kit pieces** (4 per kit). Collect all four and the kit
+**auto-builds** next to you brick by brick: a stud cannon turret (shoots for 20 s), a healing
+fountain, a loot piñata (smash it for a gold shower), a brick knight ally. Kits are random per rift,
+you only choose when to collect the last piece.
+
+**Why it feels different.** Building with a purpose and no build UI (the good part of free building
+without its scope). **Effort** M. **Fit** 📱 (walk over pieces) ⏱. Planned as Season 3.
+**Risks.** Turret power must not replace skills → short lifetimes, one kit active.
+
 ---
 
 ## Considered and not recommended
 
 - **Rhythm/beat bonus** for skills – fun but hard on mobile latency and auto-cast; conflicts with
   "the game handles targeting".
-- **Free building (place any brick anywhere)** – exploding scope, griefing, Bloxburg territory. #3 and
-  #8 take the good part (building with a purpose) without it.
+- **Free building (place any brick anywhere)** – exploding scope, griefing, Bloxburg territory. #8 and
+  #14 take the good part (building with a purpose) without it.
 - **Fully physical destruction (unanchored parts everywhere)** – network and phone cost; #1 gets the
   feeling with client-side debris.
 
-## Original recommendation (superseded by the decision at the top)
+## Original recommendation (superseded; kept for history, refers to the dropped ideas)
 
 1. **#1 Brick Break** – the base layer; cheap to see in every second of play, sets the identity.
 2. **#3 Classes that change the floor** – the real gameplay hook; start with Zap's *Circuit* because
@@ -245,7 +277,7 @@ What this package replaces or changes in `docs/DECISIONS.md`: the 1.0 build orde
 step "Brick Break + Smoothing look", step 5 "Skills to 8" becomes "Zap to 8 skills incl. Circuit",
 and the other classes are designed around their verb. Uniques/loot filter/star web stay as they are.
 
-## Stud VFX (owner choice, replaces #3 as a visual layer)
+## Stud VFX (owner choice, replaces the class floor verbs as a visual layer)
 
 Every effect is built from studded bricks instead of generic particles, so the game has its own look:
 
@@ -290,4 +322,5 @@ Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 
 ## Open decisions for Micha
 
-1. Snap Crafting (#2): later idea or drop?
+1. Stud Rush (#2) into 1.0 as a core mechanic? (recommended)
+2. Season characters: same character (recommended) or fresh start each season? (`docs/specs/SEASONS.md`)

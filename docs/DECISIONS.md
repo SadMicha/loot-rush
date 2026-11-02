@@ -31,7 +31,8 @@ can be overturned at any time. Where the concept already answers a question, the
 | World / UI | Map from parts with stud texture (owner). UI look is owned by a separate thread; this plan does not change the look. |
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
-| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. |
+| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. New ideas (Stud Rush, Rebuilding Bosses, Colour Match …) are in `docs/IDEAS.md`. |
+| Seasons | **After 1.0** (owner, 2026-11-02): every season trials one new mechanic; if it is well received it stays (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
 
 ## 2. What changes in the existing code
 
@@ -84,5 +85,5 @@ can be overturned at any time. Where the concept already answers a question, the
 
 ## 6. After 1.0
 
-Master classes · Worldboss · party/co-op · dream-map atlas and time labyrinth · weekly seasons and
-leaderboards per class · cosmetics shop, hat slot · Legendary fusing · cross-server ticker.
+Master classes · Worldboss · party/co-op · **season framework + Season 1 Blueprints** (replaces the
+dream-map atlas; `docs/specs/SEASONS.md`) · time labyrinth · season ladders per class · cosmetics shop, hat slot · Legendary fusing · cross-server ticker.
