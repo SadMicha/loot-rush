@@ -148,8 +148,10 @@ local function plaque(parent: GuiObject, size: Vector2, textSize: number): TextL
 	else
 		f.BackgroundColor3 = Theme.Flat.Surface1
 		f.BackgroundTransparency = 0.1
-		Kit.corner(f, size.Y // 2)
+		Kit.corner(f, Theme.Flat.Radius.M)
 		Kit.stroke(f, C.Gold, 1.5)
+		Shape.topLine(f)
+		Shape.brackets(f, C.GoldHi, 8, 0)
 	end
 	local t = Kit.label("", textSize, C.GoldHi)
 	t.AutomaticSize = Enum.AutomaticSize.None
@@ -519,11 +521,12 @@ local function buildCalmPanels()
 
 	-- Hub icon bar at the bottom center
 	local cellW = H.BarIcon + 12
-	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap
-	local barH = H.BarIcon + H.BarCaption
+	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap + 2 * H.DockPad
+	local barH = H.BarIcon + H.BarCaption + H.DockPad
 	local bar = group(Vector2.new(barW, barH))
 	bar.Name = "HubBar"
-	Kit.list(bar, Enum.FillDirection.Horizontal, H.BarGap)
+	local barRow = Kit.dock(bar, H.DockPad)
+	Kit.list(barRow, Enum.FillDirection.Horizontal, H.BarGap)
 	for i, entry in H.Bar do
 		local b = Kit.hudIconButton(H.BarIcon, entry.art, entry.icon, entry.caption)
 		b.Name = entry.id
@@ -540,7 +543,7 @@ local function buildCalmPanels()
 				open()
 			end)
 		end
-		b.Parent = bar
+		b.Parent = barRow
 		table.insert(barButtons, { id = entry.id, button = b })
 	end
 	addFly(
@@ -806,13 +809,13 @@ function HudController.start()
 	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
-		goldText.Text = Format.big((player:GetAttribute("Gold") or 0) :: number)
+		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.big)
 	end)
 	player:GetAttributeChangedSignal("Shards"):Connect(function()
-		shardText.Text = Format.big((player:GetAttribute("Shards") or 0) :: number)
+		Shape.tickTo(shardText, (player:GetAttribute("Shards") or 0) :: number, Format.big)
 	end)
 	player:GetAttributeChangedSignal("Soulstars"):Connect(function()
-		starText.Text = Format.big((player:GetAttribute("Soulstars") or 0) :: number)
+		Shape.tickTo(starText, (player:GetAttribute("Soulstars") or 0) :: number, Format.big)
 	end)
 
 	local function refreshLevel()

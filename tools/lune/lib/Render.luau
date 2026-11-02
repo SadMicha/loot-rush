@@ -457,14 +457,38 @@ local function nodeHtml(src: ImageSource, layout, n, parentRect, out: { string }
 		local isTextObj = n:IsA("TextLabel") or n:IsA("TextButton") or n:IsA("TextBox")
 		if mode == Enum.ApplyStrokeMode.Border or not isTextObj then
 			local t = get(stroke, "Thickness", 1) * r.s
-			table.insert(
-				style,
-				string.format(
-					"box-shadow:0 0 0 %s %s;",
-					px(t),
-					rgba(get(stroke, "Color", roblox.Color3.new()), get(stroke, "Transparency", 0))
-				)
-			)
+			local sc = get(stroke, "Color", roblox.Color3.new())
+			local st = get(stroke, "Transparency", 0)
+			-- Gradient on the stroke: approximated by its average (box-shadow has one color)
+			local sg = stroke:FindFirstChildOfClass("UIGradient")
+			if sg and get(sg, "Enabled", true) then
+				local seq, tseq = get(sg, "Color"), get(sg, "Transparency")
+				local N = 9
+				if seq then
+					local cr, cg, cb = 0, 0, 0
+					for i = 0, N - 1 do
+						local m = seqAt(seq, i / (N - 1), function(a, b, f)
+							return roblox.Color3.new(
+								a.R + (b.R - a.R) * f,
+								a.G + (b.G - a.G) * f,
+								a.B + (b.B - a.B) * f
+							)
+						end)
+						cr, cg, cb = cr + m.R / N, cg + m.G / N, cb + m.B / N
+					end
+					sc = roblox.Color3.new(sc.R * cr, sc.G * cg, sc.B * cb)
+				end
+				if tseq then
+					local mt = 0
+					for i = 0, N - 1 do
+						mt += seqAt(tseq, i / (N - 1), function(a, b, f)
+							return a + (b - a) * f
+						end) / N
+					end
+					st = 1 - (1 - st) * (1 - mt)
+				end
+			end
+			table.insert(style, string.format("box-shadow:0 0 0 %s %s;", px(t), rgba(sc, st)))
 		end
 	end
 	if get(n, "ClipsDescendants", false) or n:IsA("ScrollingFrame") or n:IsA("CanvasGroup") then
@@ -597,7 +621,7 @@ function Render.page(sb, src: ImageSource, title: string, findings): string
 		esc(title),
 		"</title>",
 		'<link rel="preconnect" href="https://fonts.googleapis.com">',
-		'<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Nunito:wght@400;600;700;800;900&display=block" rel="stylesheet">',
+		'<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Nunito:wght@400;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=block" rel="stylesheet">',
 		"<style>",
 		CSS,
 		"</style></head><body class=issues>",

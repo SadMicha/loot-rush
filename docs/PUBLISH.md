@@ -1,6 +1,8 @@
 # Publishing to Roblox automatically
 
-On every push to `main` (or via a button in GitHub), GitHub Actions checks the game, builds it with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud to an existing place. After that it's playable in the Roblox app on phone and iPad.
+On every push to `main` that changes the game (or via a button in GitHub), GitHub Actions checks the game, builds it with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud to an existing place as a **Published** version. After that it's playable in the Roblox app on phone and iPad.
+
+**Speed:** the workflow runs only the fast gates (format, lint, types, Rojo build, about a second each) and then uploads; the toolchain comes from the Actions cache. The full Lune suite (~9 min) is not repeated here because CI already runs it on every PR. A run takes well under a minute. Pushes that only touch `docs/`, `tests/`, `assets/` or other non-game files don't publish at all, and a newer push cancels an older run that is still going. **Run workflow** has a `fullTests` box if you want the suite before an upload anyway.
 
 > **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. Still, use a **separate test game** instead of the later live game.
 
@@ -49,6 +51,17 @@ On the phone/iPad: Roblox app with **your** account, then open the link `https:/
 Running servers keep the old version. If you're already in: leave the game and rejoin, otherwise in Creator Hub at the place **⋯ → Shut down all servers**.
 
 From now on every merge to `main` publishes automatically. `Saved` in the Run workflow menu only saves a version without making it playable.
+
+## Making the game public (one click, done by you)
+
+The workflow publishes new **versions** of the place; it never changes who can play. Switching the game to public is up to you:
+
+1. [Creator Hub → Creations](https://create.roblox.com/dashboard/creations) → on the game's tile click **⋯ → Make Public**
+   (or open the game → **Configure → Access/Settings** → set it to **Public** → **Save**).
+2. If Roblox asks first: fill in the **maturity & compliance questionnaire** once and confirm the devices (Computer, Phone, Tablet).
+3. Back to private the same way (**⋯ → Make Private**).
+
+Before going public with the real game, read [RELEASE.md](RELEASE.md) (Max Players, API access, product IDs, `DEV_USERS`).
 
 ## Uploading locally (without GitHub)
 

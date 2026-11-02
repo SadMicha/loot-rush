@@ -610,6 +610,11 @@ Assets.Sound = table.freeze({
 	rift = "",
 	waterfall = "",
 	forge = "",
+	-- UI sounds (client/UI/Shape.sound); empty = silent
+	ui_click = "",
+	ui_open = "",
+	ui_close = "",
+	ui_reward = "",
 })
 
 return table.freeze(Assets)

@@ -174,6 +174,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		row.BorderSizePixel = 0
 		row.Size = UDim2.fromOffset(w, 56)
 		row.LayoutOrder = i
+		Kit.touchTarget(row)
 		Kit.corner(row, Theme.Radius.M)
 		Kit.stroke(row, if on then C.Gold else Theme.Flat.Edge, if on then 2 else 1)
 		local t = Kit.label(Items.affixText(a), 17, if a.implicit then C.Gold else C.Text)
