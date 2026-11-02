@@ -21,6 +21,7 @@ local Kit = require(script.Parent.Parent.UI.Kit)
 local Spring = require(script.Parent.Parent.UI.Spring)
 local Window = require(script.Parent.Parent.UI.Window)
 local ProgressController = require(script.Parent.ProgressController)
+local QuestController = require(script.Parent.QuestController)
 
 local InventoryController = {}
 
@@ -86,8 +87,8 @@ local STAT_ICON: { [string]: string } = {
 	speed = "skill_dash",
 }
 local STAT_ORDER = { "damage", "life", "crit", "speed" }
-local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4 }
-local RARITY_CYCLE = { "normal", "magic", "rare", "epic" }
+local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4, unique = 5 }
+local RARITY_CYCLE = { "normal", "magic", "rare", "epic", "unique" }
 local SORTS = { "rarity", "level", "newest" }
 local SORT_NAME: { [string]: string } =
 	{ rarity = "Rarity", level = "Item Level", newest = "Newest" }
@@ -110,6 +111,9 @@ local footNormal: Frame
 local footSalvage: Frame
 local salvageButton: TextButton
 local salvageLabel: TextLabel
+local autoButton: TextButton
+local autoLabel: TextLabel
+local AUTO_CYCLE = { "", "normal", "magic", "rare" } -- auto-salvage on pickup (never uniques)
 local sortLabel: TextLabel
 local filterLabel: TextLabel
 local tabs: Flat.Tabs
@@ -661,8 +665,14 @@ local function renderGrid()
 		end
 	end
 	salvageLabel.Text = if n > 0
-		then string.format("Salvage %d  ·  +%s Gold  +%d Shards", n, Format.big(value), shards)
-		else "Mark items to salvage"
+		then string.format("Salvage %d · +%s Gold", n, Format.big(value))
+		else "Mark items"
+	local auto = (player:GetAttribute("AutoSalvage") or "") :: string
+	autoLabel.Text = if not QuestController.isOpen("auto_salvage")
+		then "Auto: Locked"
+		elseif auto == "" then "Auto: Off"
+		else "Auto: ≤ " .. (Items.RarityName[auto] or auto)
+	Flat.setEnabled(autoButton, QuestController.isOpen("auto_salvage"))
 	Flat.setEnabled(salvageButton, n > 0 and not salvaging)
 	sortLabel.Text = "Sort: " .. SORT_NAME[sortMode]
 	filterLabel.Text = if rarityFilter
@@ -847,21 +857,36 @@ local function buildGrid(parent: Frame)
 	footSalvage.Visible = false
 	local sl = Kit.list(footSalvage, Enum.FillDirection.Horizontal, 8)
 	sl.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	local markNormal = footButton("+ Normal", 100, nil, "ghost")
+	local markNormal = footButton("+ Normal", 92, nil, "ghost")
 	markNormal.LayoutOrder = 1
 	markNormal.Activated:Connect(function()
 		markUpTo("normal")
 	end)
 	markNormal.Parent = footSalvage
-	local markMagic = footButton("+ Magic", 100, nil, "ghost")
+	local markMagic = footButton("+ Magic", 92, nil, "ghost")
 	markMagic.LayoutOrder = 2
 	markMagic.Activated:Connect(function()
 		markUpTo("magic")
 	end)
 	markMagic.Parent = footSalvage
-	salvageButton, salvageLabel = footButton("Mark items to salvage", 250, nil, "danger")
+	-- Auto-salvage on pickup (unlocked at depth 10): cycles Off → Normal → Magic → Rare
+	autoButton, autoLabel = footButton("Auto: Off", 118, nil, "ghost")
+	autoLabel.TextSize = Kit.fontSize(12)
+	autoButton.Name = "AutoSalvage"
+	autoButton.LayoutOrder = 3
+	autoButton.Activated:Connect(function()
+		if not QuestController.isOpen("auto_salvage") then
+			QuestController.toast("Locked · " .. (QuestController.lockHint("auto_salvage") or ""))
+			return
+		end
+		local now = (player:GetAttribute("AutoSalvage") or "") :: string
+		local i = table.find(AUTO_CYCLE, now) or 1
+		Net.AutoSalvage:FireServer(AUTO_CYCLE[i % #AUTO_CYCLE + 1])
+	end)
+	autoButton.Parent = footSalvage
+	salvageButton, salvageLabel = footButton("Mark items", 160, nil, "danger")
 	salvageLabel.TextSize = Kit.fontSize(12)
-	salvageButton.LayoutOrder = 3
+	salvageButton.LayoutOrder = 4
 	salvageButton.Activated:Connect(function()
 		if salvageButton:GetAttribute("Enabled") ~= false then
 			salvageMarked()
@@ -1162,6 +1187,9 @@ function InventoryController.start()
 		seenIds = now
 		InventoryController.render()
 		changed:Fire()
+	end)
+	player:GetAttributeChangedSignal("AutoSalvage"):Connect(function()
+		InventoryController.render()
 	end)
 	ProgressController.changed:Connect(function()
 		if category == "materials" then

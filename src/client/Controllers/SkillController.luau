@@ -1,7 +1,7 @@
 --!strict
--- Skill input: Q/E/R/F = skills 1-4, click/tap on slot.
+-- Skill input: Q/E/R/F = bar slots 1-4 (loadout from ProgressController), click/tap on slot.
 -- Aim point: mouse on ground plane, on touch the nearest enemy. Cooldowns here are display only -
--- the server validates everything itself.
+-- the server validates everything itself and reports every cast (also auto-casts) via SkillCast.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -9,13 +9,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local ProgressController = require(script.Parent.ProgressController)
 
 local SkillController = {}
 
 local player = Players.LocalPlayer
-local cdStart: { number } = { 0, 0, 0, 0 }
-local cdUntil: { number } = { 0, 0, 0, 0 }
+-- per skill id, so swapping the bar keeps the running cooldowns
+local cdStart: { [string]: number } = {}
+local cdUntil: { [string]: number } = {}
 
 local AIM_HEIGHT = 1.5 -- Enemy body center, target plane for the mouse cursor
 
@@ -68,27 +71,37 @@ local function aimPoint(): Vector3
 	return nearestEnemy(root.Position) or (root.Position + root.CFrame.LookVector * 20)
 end
 
+-- Skill in a bar slot
+function SkillController.skill(slot: number): Skills.Skill?
+	return Progression.barSkill(ProgressController.data(), slot)
+end
+
 -- 0 = ready ... 1 = just started
 function SkillController.cooldownRatio(slot: number): number
-	local total = cdUntil[slot] - cdStart[slot]
+	local skill = SkillController.skill(slot)
+	if not skill then
+		return 0
+	end
+	local total = (cdUntil[skill.id] or 0) - (cdStart[skill.id] or 0)
 	if total <= 0 then
 		return 0
 	end
-	return math.clamp((cdUntil[slot] - os.clock()) / total, 0, 1)
+	return math.clamp(((cdUntil[skill.id] or 0) - os.clock()) / total, 0, 1)
 end
 
 function SkillController.remaining(slot: number): number
-	return math.max(0, cdUntil[slot] - os.clock())
+	local skill = SkillController.skill(slot)
+	return if skill then math.max(0, (cdUntil[skill.id] or 0) - os.clock()) else 0
 end
 
 function SkillController.cast(slot: number)
-	local skill = Skills.bar[slot]
+	local skill = SkillController.skill(slot)
 	local now = os.clock()
-	if not skill or now < cdUntil[slot] or not rootPart() then
+	if not skill or now < (cdUntil[skill.id] or 0) or not rootPart() then
 		return
 	end
-	cdStart[slot] = now
-	cdUntil[slot] = now + skill.cooldown
+	cdStart[skill.id] = now
+	cdUntil[skill.id] = now + skill.cooldown
 	local root = rootPart()
 	if root then
 		Net.CastSkill:FireServer(slot, aimPoint(), root.Position)
@@ -96,6 +109,14 @@ function SkillController.cast(slot: number)
 end
 
 function SkillController.init()
+	-- The server's cooldown (with Blooms and stars) replaces the local guess
+	Net.SkillCast.OnClientEvent:Connect(function(id: any, cooldown: any)
+		if typeof(id) == "string" and typeof(cooldown) == "number" and Skills.ById[id] then
+			local now = os.clock()
+			cdStart[id] = now
+			cdUntil[id] = now + math.clamp(cooldown, 0, 60)
+		end
+	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if processed then
 			return

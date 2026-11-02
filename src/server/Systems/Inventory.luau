@@ -42,14 +42,31 @@ local function findIndex(list: { Items.Item }, id: string): number?
 	return nil
 end
 
-function Inventory.add(player: Player, item: Items.Item): boolean
+-- Auto-salvage (unlocked at depth 10, Shared/Quests): loot up to this rarity is salvaged on pickup
+local function autoSalvages(profile: Data.Profile, item: Items.Item): boolean
+	local limit = Items.rank(profile.autoSalvage)
+	return limit > 0 and Items.rank(item.rarity) <= limit
+end
+
+-- Puts an item into the bag. fromLoot = picked up in a Rift: the auto-salvage setting applies.
+-- Returns (stored or salvaged, salvaged).
+function Inventory.add(player: Player, item: Items.Item, fromLoot: boolean?): (boolean, boolean)
 	local profile = Data.get(player)
-	if not profile or #profile.inventory >= MAX_ITEMS then
-		return false
+	if not profile then
+		return false, false
+	end
+	if fromLoot and autoSalvages(profile, item) then
+		Inventory.addGold(player, Items.sellValue(item))
+		Progress.salvage(player, item)
+		Actions.fire(player, "salvage")
+		return true, true
+	end
+	if #profile.inventory >= MAX_ITEMS then
+		return false, false
 	end
 	table.insert(profile.inventory, item)
 	snapshot(player)
-	return true
+	return true, false
 end
 
 function Inventory.addGold(player: Player, amount: number)
@@ -115,12 +132,28 @@ local function onSell(player: Player, id: any)
 	Actions.fire(player, "salvage")
 end
 
+local allowFilter = RateLimit.new(2, 4)
+
+local function onAutoSalvage(player: Player, rarity: any)
+	local profile = Data.get(player)
+	if not profile or not allowFilter(player) or typeof(rarity) ~= "string" then
+		return
+	end
+	-- "" = off; never uniques (they are the reason to play)
+	if rarity ~= "" and (Items.rank(rarity) == 0 or rarity == "unique") then
+		return
+	end
+	profile.autoSalvage = rarity
+	player:SetAttribute("AutoSalvage", rarity)
+end
+
 local function onPlayer(player: Player)
 	local profile = Data.waitFor(player)
 	if not profile then
 		return
 	end
 	player:SetAttribute("Gold", profile.gold)
+	player:SetAttribute("AutoSalvage", profile.autoSalvage)
 	recompute(player, true)
 	snapshot(player)
 end
@@ -129,6 +162,7 @@ function Inventory.init()
 	Net.Equip.OnServerEvent:Connect(onEquip)
 	Net.Unequip.OnServerEvent:Connect(onUnequip)
 	Net.Sell.OnServerEvent:Connect(onSell)
+	Net.AutoSalvage.OnServerEvent:Connect(onAutoSalvage)
 end
 
 function Inventory.start()

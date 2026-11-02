@@ -60,7 +60,7 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 - **Rift length:** 3 waves of 6–24 enemies + boss instead of 150 enemies + 3 elites. Per minute,
   XP, gold and items still come close to the spreadsheet (depth 1: ~800 XP, ~100 gold, ~7 items per minute;
   spreadsheet ~900 / ~120 / ~9).
-- **Elites** don't exist yet; their share of gold/XP is therefore missing.
+- **Elites** exist since the loot PR (see `docs/LOOT.md`); the simulation table above does not count them yet.
 - **Boss damage:** factor per boss 1.2–1.7 (taken from the old values).
 - **Deep curve (2026-11-02, replaces the rebirth soft wall):** from depth 20 (`deep_from`) enemy
   health additionally grows ×1.06 per depth (`deep_growth`, depth 30: ×1.8), so deeper depths stay

@@ -57,10 +57,10 @@ describe("Items.roll", function()
 		end
 	end)
 
-	it("hands out every rarity eventually", function()
+	it("hands out every rarity eventually (uniques only with the flag)", function()
 		local seen = {}
-		for seed = 1, 2000 do
-			seen[Items.roll(5, Random.new(seed)).rarity] = true
+		for seed = 1, 4000 do
+			seen[Items.roll(5, Random.new(seed), nil, { uniques = true }).rarity] = true
 		end
 		for id in Items.RarityName do
 			expect(seen[id]).toBe(true)

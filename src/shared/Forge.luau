@@ -94,7 +94,7 @@ Forge.ById = table.freeze(byId)
 
 -- Max number of free (unsealed) extra affixes per rarity
 Forge.MaxAffixes =
-	table.freeze({ normal = 1, magic = 3, rare = 4, epic = 5 } :: { [string]: number })
+	table.freeze({ normal = 1, magic = 3, rare = 4, epic = 5, unique = 0 } :: { [string]: number })
 
 -- Charges per action: chance for 0, 1, 2
 Forge.ChargeOdds = table.freeze({ 0.1, 0.6, 0.3 })
@@ -148,6 +148,9 @@ function Forge.check(
 	local action = Forge.ById[actionId]
 	if not action then
 		return false, "Unknown action"
+	end
+	if item.rarity == "unique" then
+		return false, "Uniques cannot be forged"
 	end
 	if action.usesCharges and Items.chargesOf(item) <= 0 then
 		return false, "No Glitter charges left"

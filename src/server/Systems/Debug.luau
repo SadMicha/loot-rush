@@ -61,7 +61,7 @@ local function addSkillLevels(player: Player, n: number)
 	if not profile then
 		return
 	end
-	for _, skill in Skills.bar do
+	for _, skill in Skills.list do
 		local sp = Progression.skillMut(profile.progress, skill.id)
 		for _ = 1, n do
 			Progression.addSkillXp(sp, Progression.skillXpFor(sp.level) - sp.xp)

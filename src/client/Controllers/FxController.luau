@@ -1,5 +1,5 @@
 --!strict
--- Combat effects: damage numbers, projectiles, rings, lightning chains, death burst, level-up
+-- Combat effects: damage numbers, projectiles, rings, lightning chains, level-up
 -- and health bars above enemies. Everything arrives as a Net.Fx event from the server (see Types.luau).
 
 local CollectionService = game:GetService("CollectionService")
@@ -15,7 +15,6 @@ local FxController = {}
 
 local C = Theme.Color
 local container: Folder
-local rng = Random.new()
 
 local function part(size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?): Part
 	local p = Instance.new("Part")
@@ -157,26 +156,7 @@ function handlers.chain(d)
 	end
 end
 
-function handlers.death(d)
-	local pos = d.pos :: Vector3
-	local color = d.color :: Color3
-	for _ = 1, 8 do
-		local cube = part(
-			Vector3.one * rng:NextNumber(0.6, 1.1),
-			CFrame.new(pos) * CFrame.Angles(rng:NextNumber(0, 6), rng:NextNumber(0, 6), 0),
-			color
-		)
-		local out = Vector3.new(rng:NextNumber(-5, 5), rng:NextNumber(1, 5), rng:NextNumber(-5, 5))
-		TweenService
-			:Create(cube, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				CFrame = CFrame.new(pos + out),
-				Size = Vector3.one * 0.1,
-				Transparency = 1,
-			})
-			:Play()
-		Debris:AddItem(cube, 0.55)
-	end
-end
+-- Kills: the enemy shatters into its own bricks (BrickController, FeelController)
 
 function handlers.levelup(d)
 	local pos = d.pos :: Vector3

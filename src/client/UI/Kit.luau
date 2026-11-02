@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
+local Skills = require(ReplicatedStorage.Shared.Skills)
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Shape = require(script.Parent.Shape)
@@ -372,8 +373,7 @@ function Kit.setIconTransparency(icon: GuiObject, transparency: number)
 end
 
 -- ------------------------------------------------------------------ Class art
--- Class of the local player. There is no class data yet, so this is Theme.Class.Default; a player
--- attribute "Class" is honored if it ever exists.
+-- Class of the local player (attribute "Class", Systems/ClassChoice); Theme.Class.Default before load.
 function Kit.playerClass(): string
 	local value = Players.LocalPlayer:GetAttribute("Class")
 	if typeof(value) == "string" and Theme.Class.SkillName[string.lower(value)] then
@@ -391,7 +391,8 @@ end
 
 -- Class art key of a skill ("dash" for the dash button) or nil without uploaded art
 function Kit.skillArt(skillId: string): string?
-	local pos = Theme.Class.SkillSlot[skillId]
+	local skill = Skills.ById[skillId]
+	local pos = Theme.Class.SkillSlot[skillId] or (if skill then skill.art else nil)
 	local class = Kit.playerClass()
 	local names = Theme.Class.SkillName[class]
 	if not pos or not names then
@@ -813,6 +814,29 @@ end
 
 -- Round HUD button (skill, dash): ring image with icon in the center, optional key label (keyboard only)
 -- and cooldown veil. ring = "gold" | "cyan" (cyan = tinted silver ring). Returns button and veil updater.
+-- Swaps the picture inside a Kit.roundButton (e.g. the skill bar after a loadout change)
+function Kit.setRoundIcon(b: GuiObject, artName: string?, fallbackIcon: string?)
+	local old = b:FindFirstChild("Icon")
+	if old then
+		old:Destroy()
+	end
+	local inner = math.floor(b.Size.X.Offset * 0.66)
+	local ic: GuiObject? = nil
+	if artName then
+		ic = Kit.hudImage(artName, Vector2.new(inner, inner), true)
+	end
+	if not ic and fallbackIcon then
+		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
+	end
+	if ic then
+		ic.Name = "Icon"
+		ic.AnchorPoint = Vector2.new(0.5, 0.5)
+		ic.Position = UDim2.fromScale(0.5, 0.5)
+		ic.ZIndex = 2
+		ic.Parent = b
+	end
+end
+
 function Kit.roundButton(
 	size: number,
 	ring: string,
@@ -846,20 +870,7 @@ function Kit.roundButton(
 		Shape.glow(b, rim, if ring == "gold" then 2 else 1, false, size // 2)
 	end
 
-	local inner = math.floor(size * 0.66)
-	local ic: GuiObject? = nil
-	if artName then
-		ic = Kit.hudImage(artName, Vector2.new(inner, inner), true)
-	end
-	if not ic and fallbackIcon then
-		ic = Kit.icon(fallbackIcon, inner, Theme.Color.Muted)
-	end
-	if ic then
-		ic.AnchorPoint = Vector2.new(0.5, 0.5)
-		ic.Position = UDim2.fromScale(0.5, 0.5)
-		ic.ZIndex = 2
-		ic.Parent = b
-	end
+	Kit.setRoundIcon(b, artName, fallbackIcon)
 	if key then
 		local k = Kit.label(key, 11)
 		k.Name = "Key"

@@ -16,6 +16,8 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
+local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
+local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
@@ -37,13 +39,17 @@ type Run = {
 	depth: number, -- absolute depth (scales the enemies)
 	tier: number, -- World Tier (Shared/WorldTiers), chosen before the run
 	wave: number,
+	variant: string, -- rift variant of the current depth (Shared/RiftVariants, "" = normal)
+	restored: number, -- The Smoothing: how far the owner restored this region (0..1)
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
 }
 
 type EndReason = "left" | "abandoned" | "failed" | "gone"
 
-local Rift = {}
+local Rift = {
+	forceVariant = nil :: string?, -- tests / debug: every depth gets this variant
+}
 
 local FAILED_SHOWN = 4 -- seconds "failed" stays in the HUD
 local POLL = 0.3
@@ -154,6 +160,7 @@ local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftDepth", r.depth)
 	r.owner:SetAttribute("RiftWave", r.wave)
 	r.owner:SetAttribute("RiftWaves", Config.RIFT_WAVES)
+	r.owner:SetAttribute("RiftVariant", r.variant)
 	r.owner:SetAttribute("RiftPhase", phase)
 end
 
@@ -171,8 +178,23 @@ local function spawnPoint(r: Run): Vector3
 		+ Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 
-local function spawn(r: Run, kind: string, pos: Vector3)
-	mark(r, Enemies.spawn(kind, pos, r.depth, { tier = r.tier, center = r.center, run = r.id }))
+local function spawn(r: Run, kind: string, pos: Vector3, elite: boolean?, goblin: boolean?)
+	mark(
+		r,
+		Enemies.spawn(kind, pos, r.depth, {
+			tier = r.tier,
+			center = r.center,
+			run = r.id,
+			elite = elite,
+			goblin = goblin,
+			smoothed = not goblin and rng:NextNumber() < Smoothing.enemyChance(r.restored),
+			healthMult = if r.variant == "swarm"
+					and not elite
+					and not goblin
+				then RiftVariants.SWARM_HEALTH
+				else nil,
+		})
+	)
 end
 
 -- Waits until all enemies are dead. false = run was aborted.
@@ -252,6 +274,8 @@ end
 
 local function play(r: Run)
 	Metrics.begin(r.owner, r.id)
+	r.variant = Rift.forceVariant or RiftVariants.roll(rng, r.depth)
+	local deadline = os.clock() + RiftVariants.TIMED_LIMIT
 	for wave = 1, Config.RIFT_WAVES do
 		r.wave = wave
 		publish(r, "wave")
@@ -260,9 +284,17 @@ local function play(r: Run)
 			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + sinceStart),
 			Config.RIFT_WAVE_MAX
 		)
+		if r.variant == "swarm" then
+			count = math.floor(count * RiftVariants.SWARM_COUNT)
+		end
 		local mix = r.region.enemies
-		for _ = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r))
+		-- the last RIFT_ELITES waves open with elites: one, plus one per World Tier above Normal
+		local elite = r.variant == "elite_hunt" or wave > Config.RIFT_WAVES - Config.RIFT_ELITES
+		for i = 1, count do
+			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i <= r.tier)
+		end
+		if r.variant == "goblin" and wave == 1 then
+			spawn(r, mix[1], spawnPoint(r), false, true)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")
@@ -274,9 +306,18 @@ local function play(r: Run)
 	end
 
 	publish(r, "boss")
-	spawn(r, r.region.bossKind, r.center + Config.ENEMY_ZONE)
+	local bossAt = r.center + Config.ENEMY_ZONE
+	spawn(r, r.region.bossKind, bossAt)
+	local intro = Smoothing.BossIntro[r.region.id]
+	if intro then
+		Net.Fx:FireClient(r.owner, "intro", { text = intro, color = r.region.color })
+	end
 	if not waitClear(r) then
 		return finish(r, "failed")
+	end
+	if r.variant == "timed" and os.clock() <= deadline and r.owner.Parent then
+		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, RiftVariants.TIMED_ITEMS)
+		r.owner:SetAttribute("RiftVariantDone", r.variant)
 	end
 	record(r)
 	r.tally.cleared += 1
@@ -315,6 +356,8 @@ local function begin(player: Player, regionId: any)
 		depth = region.depth,
 		tier = if Data.get(player) then (Data.get(player) :: any).tier.selected else 1,
 		wave = 0,
+		variant = "",
+		restored = Smoothing.restored(region.depth, bestOf(player)(region.id)),
 		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
 	}
 	runs[player] = r
@@ -324,6 +367,7 @@ local function begin(player: Player, regionId: any)
 		finish(r, "failed")
 	end)
 	World.build(region, slot)
+	World.smooth(slot, Smoothing.arenaShare(r.restored))
 	model:PivotTo(CFrame.new(r.center + Config.RIFT_START))
 	task.spawn(play, r)
 	Actions.fire(player, "rift")

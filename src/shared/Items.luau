@@ -24,6 +24,7 @@ export type Item = {
 	ilvl: number,
 	affixes: { Affix },
 	charges: number?,
+	unique: string?, -- id in Items.Uniques (rarity "unique")
 }
 
 local Items = {}
@@ -89,6 +90,7 @@ local RARITIES = {
 	{ id = "magic", affixes = { 1, 2 }, sell = 2 },
 	{ id = "rare", affixes = { 3, 3 }, sell = 5 },
 	{ id = "epic", affixes = { 4, 4 }, sell = 12 },
+	{ id = "unique", affixes = { 0, 0 }, sell = 25 }, -- fixed affixes from Items.Uniques
 }
 local RANK: { [string]: number } = {}
 for i, r in RARITIES do
@@ -127,7 +129,9 @@ Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
 Items.IP_PER_LEVEL = 10 -- item power = item level × 10
 
 -- Glitter charges of new items per rarity (balancing: Loot · Affixes & Salvage)
-Items.Charges = table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5 } :: { [string]: number })
+-- Uniques are finished items: no charges, the Forge cannot change them
+Items.Charges =
+	table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5, unique = 0 } :: { [string]: number })
 
 -- Salvage yield: shards fixed, Rune Candy as expected value, Glitter Dust as a chance
 Items.Salvage = table.freeze({
@@ -135,6 +139,7 @@ Items.Salvage = table.freeze({
 	magic = { shards = 5, candy = 0, dust = 0 },
 	rare = { shards = 12, candy = 0.1, dust = 0 },
 	epic = { shards = 30, candy = 1, dust = 0.15 },
+	unique = { shards = 60, candy = 2, dust = 0.5 },
 } :: { [string]: { shards: number, candy: number, dust: number } })
 
 local function round(stat: string, v: number): number
@@ -212,15 +217,108 @@ end
 export type RollOpts = {
 	shift: number?, -- rarity shift (Balance.rarityShift), 1 = depth 0
 	min: string?, -- at least this rarity (boss: "rare")
+	uniques: boolean?, -- may roll a unique (depth ≥ Balance.UNIQUE_FROM)
 }
+
+-- Uniques: fixed name, slot and stat package (factor on the normal roll range, like a tier).
+-- Their values roll inside the package and grow with the item level like other items.
+export type Unique = {
+	id: string,
+	name: string,
+	slot: string,
+	stats: { { stat: string, mult: number } },
+}
+
+Items.Uniques = table.freeze({
+	{
+		id = "stormcaller",
+		name = "Stormcaller",
+		slot = "weapon",
+		stats = { { stat = "damage", mult = 3.2 }, { stat = "crit", mult = 2.4 } },
+	},
+	{
+		id = "glibber_crown",
+		name = "Crown of King Glibber",
+		slot = "helmet",
+		stats = { { stat = "life", mult = 3 }, { stat = "damage", mult = 1.8 } },
+	},
+	{
+		id = "geode_heart",
+		name = "Geode Heart",
+		slot = "amulet",
+		stats = { { stat = "crit", mult = 3 }, { stat = "life", mult = 2 } },
+	},
+	{
+		id = "spore_mantle",
+		name = "Spore Mantle",
+		slot = "armor",
+		stats = { { stat = "life", mult = 3.4 }, { stat = "speed", mult = 1.8 } },
+	},
+	{
+		id = "oven_mitts",
+		name = "Ovenlord Mitts",
+		slot = "gloves",
+		stats = { { stat = "damage", mult = 2.4 }, { stat = "crit", mult = 2.4 } },
+	},
+	{
+		id = "cloud_steps",
+		name = "Cloud Steps",
+		slot = "boots",
+		stats = { { stat = "speed", mult = 3.2 }, { stat = "life", mult = 1.8 } },
+	},
+	{
+		id = "thread_of_fate",
+		name = "Thread of Fate",
+		slot = "ring",
+		stats = { { stat = "crit", mult = 2.8 }, { stat = "speed", mult = 2.2 } },
+	},
+	{
+		id = "ember_band",
+		name = "Ember Band",
+		slot = "ring",
+		stats = { { stat = "damage", mult = 2.8 }, { stat = "life", mult = 1.8 } },
+	},
+	{
+		id = "warden_girdle",
+		name = "Warden's Girdle",
+		slot = "belt",
+		stats = { { stat = "life", mult = 3.6 }, { stat = "crit", mult = 1.6 } },
+	},
+	{
+		id = "moonlit_tome",
+		name = "Moonlit Tome",
+		slot = "offhand",
+		stats = { { stat = "damage", mult = 2.6 }, { stat = "crit", mult = 2 } },
+	},
+	{
+		id = "storm_shard",
+		name = "Shard of the Stormkeeper",
+		slot = "weapon",
+		stats = { { stat = "damage", mult = 2.6 }, { stat = "speed", mult = 2.4 } },
+	},
+	{
+		id = "lumen_lantern",
+		name = "Lumen Lantern",
+		slot = "offhand",
+		stats = { { stat = "life", mult = 2.4 }, { stat = "speed", mult = 2.4 } },
+	},
+} :: { Unique })
+
+local uniqueById: { [string]: Unique } = {}
+for _, u in Items.Uniques do
+	assert(IMPLICIT[u.slot], `unique {u.id}: unknown slot`)
+	uniqueById[u.id] = u
+end
+Items.UniqueById = table.freeze(uniqueById)
 
 -- find: bonus on the weights of all rarities above normal (0.5 = +50%)
 function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): Item
 	local boost = 1 + math.max(0, find or 0)
 	local shift = math.max(1, opts and opts.shift or 1)
 	local minRank = opts and opts.min and RANK[opts.min] or 1
+	local uniques = opts ~= nil and opts.uniques == true
 	local function weight(i: number): number
-		if i < minRank then
+		if i < minRank or (RARITIES[i].id == "unique" and not uniques) then
 			return 0
 		end
 		local b = Balance.Rarity[i]
@@ -240,6 +338,10 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 			rarity = r
 			break
 		end
+	end
+
+	if rarity.id == "unique" then
+		return Items.makeUnique(Items.Uniques[rng:NextInteger(1, #Items.Uniques)], ilvl, rng)
 	end
 
 	local slot = Items.Slots[rng:NextInteger(1, #Items.Slots)]
@@ -281,6 +383,26 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 	}
 end
 
+-- A unique item at this level: implicit of the slot plus its fixed stat package
+function Items.makeUnique(u: Unique, ilvl: number, rng: Random): Item
+	local implicit = IMPLICIT[u.slot]
+	local affixes: { Affix } =
+		{ { stat = implicit, value = value(implicit, ilvl, rng, 1.5), implicit = true } }
+	for _, s in u.stats do
+		table.insert(affixes, { stat = s.stat, value = value(s.stat, ilvl, rng, s.mult), tier = 1 })
+	end
+	return {
+		id = HttpService:GenerateGUID(false),
+		slot = u.slot,
+		rarity = "unique",
+		name = u.name,
+		ilvl = ilvl,
+		affixes = affixes,
+		charges = 0,
+		unique = u.id,
+	}
+end
+
 function Items.sellValue(item: Item): number
 	local mult = 1
 	for _, r in RARITIES do
@@ -291,11 +413,17 @@ function Items.sellValue(item: Item): number
 	return math.max(1, item.ilvl * 2 * mult)
 end
 
+-- 1 = normal … 5 = unique, 0 = unknown / "" (order of Balance.Rarity)
+function Items.rank(rarity: string): number
+	return RANK[rarity] or 0
+end
+
 Items.RarityName = table.freeze({
 	normal = "Normal",
 	magic = "Magic",
 	rare = "Rare",
 	epic = "Epic",
+	unique = "Unique",
 })
 
 -- How good is the roll? 0..1 relative to the maximum at this item level (for bars in the UI)

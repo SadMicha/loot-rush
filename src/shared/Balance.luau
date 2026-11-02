@@ -23,6 +23,11 @@ Balance.P = table.freeze({
 	xp_base = 15,
 	xp_growth = 1.16,
 	boss_loot = 25,
+	-- Elites (spreadsheet: elite_hp, elite_dmg, elite_beute, drops_elite)
+	elite_hp = 4,
+	elite_dmg = 1.5,
+	elite_loot = 5,
+	drops_elite = 2,
 	-- Player
 	xp_level_base = 100,
 	xp_level_exp = 1.6,
@@ -39,17 +44,20 @@ Balance.P = table.freeze({
 })
 
 -- Rarity weights at depth 1 and exponent of the shift (sheet "Loot").
--- Unique/Legendary (0.45 / 0.05) do not exist in the game yet.
+-- Unique 0.45 drops from depth Balance.UNIQUE_FROM (Items.Uniques); Legendary (0.05) comes after 1.0.
 Balance.Rarity = table.freeze({
 	{ id = "normal", weight = 60, exp = 0 },
 	{ id = "magic", weight = 28, exp = 0.5 },
 	{ id = "rare", weight = 9.5, exp = 1 },
 	{ id = "epic", weight = 2, exp = 1.5 },
+	{ id = "unique", weight = 0.45, exp = 2 },
 })
+Balance.UNIQUE_FROM = 10 -- uniques only drop from this depth on (own assumption)
 
 -- IP bonus per rarity (sheet "Loot · Affixes & Salvage")
-Balance.IpBonus =
-	table.freeze({ normal = 0, magic = 5, rare = 10, epic = 20 } :: { [string]: number })
+Balance.IpBonus = table.freeze(
+	{ normal = 0, magic = 5, rare = 10, epic = 20, unique = 30 } :: { [string]: number }
+)
 
 local P = Balance.P
 
@@ -112,10 +120,13 @@ function Balance.rarityShift(depth: number): number
 end
 
 -- Probabilities per rarity at this shift (sum 1)
-function Balance.rarityOdds(shift: number): { [string]: number }
+function Balance.rarityOdds(shift: number, uniques: boolean?): { [string]: number }
 	local out: { [string]: number } = {}
 	local total = 0
 	for _, r in Balance.Rarity do
+		if r.id == "unique" and not uniques then
+			continue
+		end
 		local w = r.weight * shift ^ r.exp
 		out[r.id] = w
 		total += w

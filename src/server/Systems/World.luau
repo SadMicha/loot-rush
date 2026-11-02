@@ -15,6 +15,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
 
@@ -1049,6 +1050,45 @@ function World.build(region: Atlas.Region?, slot: number?)
 	folder:SetAttribute("Center", center)
 	folder.Parent = arena
 	current[n] = folder
+end
+
+-- The Smoothing (Shared/Smoothing): a share of the arena decoration turns into studless grey
+-- plastic; the rest gets its studs and colour back. Called at every run start with the owner's
+-- restoration, deterministic per part so the same parts stay smoothed.
+function World.smooth(slot: number, share: number)
+	local folder = current[slot]
+	local deco = folder and folder:FindFirstChild("Deco")
+	if not deco then
+		return
+	end
+	local i = 0
+	for _, d in deco:GetDescendants() do
+		if d:IsA("BasePart") and (d:GetAttribute("Smoothed") or not Models.Studs.keeps(d)) then
+			i += 1
+			local smooth = (i * 0.618034) % 1 < share
+			local was = d:GetAttribute("Smoothed") == true
+			if smooth and not was then
+				d:SetAttribute("Smoothed", true)
+				d:SetAttribute("OrigColor", d.Color)
+				d:SetAttribute("NoStuds", true)
+				d.Material = Enum.Material.SmoothPlastic
+				d.MaterialVariant = ""
+				d.TopSurface = Enum.SurfaceType.Smooth
+				d.BottomSurface = Enum.SurfaceType.Smooth
+				d.Color = Smoothing.fade(d.Color)
+			elseif not smooth and was then
+				local c = d:GetAttribute("OrigColor")
+				if typeof(c) == "Color3" then
+					d.Color = c
+				end
+				d:SetAttribute("Smoothed", nil)
+				d:SetAttribute("OrigColor", nil)
+				d:SetAttribute("NoStuds", nil)
+				Models.Studs.apply(d)
+			end
+		end
+	end
+	folder:SetAttribute("Smoothed", share)
 end
 
 -- Free the slot again (slot 1 shows the Green Plains afterwards)

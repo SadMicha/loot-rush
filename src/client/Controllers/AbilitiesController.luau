@@ -1,17 +1,23 @@
 --!strict
 -- Abilities window after the "Abilities" mockup (key K or menu button):
---   left: skill bar Q/E/R/F and skill list, center: skill bloom, right: details.
+--   left: skill bar Q/E/R/F and all 8 skills, center: skill bloom, right: details with the
+--   slot buttons (equip a skill to Q/E/R/F).
 -- Values come from Shared.Skills, combined with level, bloom and stars (Progression.effectiveSkill).
--- Levels and bloom points are kept by the server (Systems/Progress); the window only sends requests (Net.Bloom).
+-- Levels and bloom points are kept by the server (Systems/Progress); the window only sends requests
+-- (Net.Bloom, Net.Loadout).
+
+local Players = game:GetService("Players")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local ClassController = require(script.Parent.ClassController)
 local ProgressController = require(script.Parent.ProgressController)
 
 local AbilitiesController = {}
@@ -30,7 +36,9 @@ local tree: Frame
 local detail: Frame
 local hint: TextLabel
 
-local selected = 1 -- index in Skills.bar
+local player = Players.LocalPlayer
+local ROW_H = 82 -- 8 rows must stay touchable on phones (Phone.spec)
+local selected = Skills.DefaultBar[1] -- skill id (kept inside the current class, see kit())
 local selectedNode: string? = nil -- bloom node, e.g. "trunk2"
 
 local function clear(parent: Instance)
@@ -53,89 +61,121 @@ local function fmt(v: number): string
 	return if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
 end
 
+-- Skills of the player's class; moves the selection into the class if it is outside
+local function kit(): Skills.ClassKit
+	local k = Skills.forClass(Kit.playerClass())
+	local s = Skills.ById[selected]
+	if not s or s.class ~= Kit.playerClass() then
+		selected = k.bar[1]
+		selectedNode = nil
+	end
+	return k
+end
+
+local function playerLevel(): number
+	return (player:GetAttribute("Level") or 1) :: number
+end
+
+-- Bar slot of a skill (nil = not equipped)
+local function slotOf(id: string): number?
+	for i, other in ProgressController.data().bar do
+		if other == id then
+			return i
+		end
+	end
+	return nil
+end
+
 -- ------------------------------------------------------------------ Left: bar and list
 local function renderList()
 	clear(listPanel)
 
-	local bar = Window.frame(UDim2.fromOffset(LEFT_W - 2 * PAD, 110), UDim2.fromOffset(PAD, PAD))
-	Kit.list(bar, Enum.FillDirection.Horizontal, 16, Enum.VerticalAlignment.Top)
-	for i, skill in Skills.bar do
-		local s = Kit.itemSlot(80, Kit.skillIcon(skill.id, skill.icon), {
-			rarity = if i == selected then "rare" else "normal",
-			selected = i == selected,
-		})
-		s.LayoutOrder = i
-		s.Activated:Connect(function()
-			selected = i
-			selectedNode = nil
-			AbilitiesController.render()
-		end)
-		local k = Kit.label(KEYS[i], 16, if i == selected then C.GoldHi else C.Muted)
-		k.AnchorPoint = Vector2.new(0.5, 0)
-		k.Position = UDim2.new(0.5, 0, 1, 4)
-		k.ZIndex = 4
-		k.Parent = s
-		s.Parent = bar
-	end
-	bar.Parent = listPanel
+	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
+	head.Position = UDim2.fromOffset(PAD, PAD - 6)
+	head.Parent = listPanel
+	-- Class change: hub only (the server refuses it inside a rift)
+	local change = Kit.button("Class", C.Gold, Vector2.new(110, 40), "crown")
+	change.Name = "ChangeClass"
+	change.AnchorPoint = Vector2.new(1, 0)
+	change.Position = UDim2.new(1, -PAD, 0, PAD - 10)
+	Kit.setEnabled(change, (player:GetAttribute("RiftPhase") or "") == "")
+	change.Activated:Connect(function()
+		if change.Active then
+			win.close()
+			ClassController.open()
+		end
+	end)
+	change.Parent = listPanel
 
-	local divider = Kit.divider(LEFT_W - 2 * PAD)
-	divider.Position = UDim2.fromOffset(PAD, PAD + 124)
-	divider.Parent = listPanel
-
-	local list =
-		Window.frame(UDim2.fromOffset(LEFT_W - 2 * PAD, 560), UDim2.fromOffset(PAD, PAD + 148))
-	Kit.list(list, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
-	for i, skill in Skills.bar do
+	local list = Window.frame(
+		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - 44),
+		UDim2.fromOffset(PAD, PAD + 44)
+	)
+	Kit.list(list, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top)
+	local level = playerLevel()
+	for i, skill in kit().list do
+		local on = skill.id == selected
+		local locked = level < (skill.unlock or 1)
+		local slot = slotOf(skill.id)
 		local row = Instance.new("ImageButton")
 		row.Name = skill.id
 		row.AutoButtonColor = false
 		row.BackgroundTransparency = 1
-		row.Size = UDim2.fromOffset(LEFT_W - 2 * PAD, 92)
+		row.Size = UDim2.fromOffset(LEFT_W - 2 * PAD, ROW_H)
 		row.LayoutOrder = i
-		if i == selected then
+		if on then
 			Kit.corner(row, Theme.Radius.M)
 			Kit.stroke(row, C.Gold, 2)
 		end
-		Kit.skin(row, if i == selected then "btn_sort" else "stat_tile", 92, 0.5)
-		local ic = Kit.itemSlot(64, Kit.skillIcon(skill.id, skill.icon), { rarity = "normal" })
+		Kit.skin(row, if on then "btn_sort" else "stat_tile", ROW_H, 0.5)
+		local ic = Kit.itemSlot(60, Kit.skillIcon(skill.id, skill.icon), { rarity = "normal" })
 		ic.Active = false
 		ic.AnchorPoint = Vector2.new(0, 0.5)
-		ic.Position = UDim2.new(0, 10, 0.5, 0)
+		ic.Position = UDim2.new(0, 8, 0.5, 0)
 		ic.ZIndex = 2
 		ic.Parent = row
-		local name = Kit.label(skill.name, 19, if i == selected then C.GoldHi else C.Text)
-		name.Position = UDim2.fromOffset(88, 10)
+		local name =
+			Kit.label(skill.name, 17, if on then C.GoldHi elseif locked then C.Muted else C.Text)
+		name.Position = UDim2.fromOffset(84, 14)
 		name.ZIndex = 2
 		name.Parent = row
 		local eff = effectiveOf(skill)
 		local sub = Kit.label(
-			string.format(
-				"Level %d · %s Damage · %s s",
-				progressOf(skill).level,
-				fmt(math.floor(eff.damage + 0.5)),
-				fmt(eff.cooldown)
-			),
+			if locked
+				then string.format("Unlocks at level %d", skill.unlock or 1)
+				else string.format(
+					"Level %d · %s Damage · %s s",
+					progressOf(skill).level,
+					fmt(math.floor(eff.damage + 0.5)),
+					fmt(eff.cooldown)
+				),
 			14,
 			C.Muted,
 			Theme.Font.Body
 		)
-		-- Ends before the key hint on the right; wraps to two lines on small screens
 		sub.AutomaticSize = Enum.AutomaticSize.None
-		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 88 - 44, 42)
-		sub.TextWrapped = true
+		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 84 - 70, 20)
+		sub.TextTruncate = Enum.TextTruncate.AtEnd
 		sub.TextXAlignment = Enum.TextXAlignment.Left
-		sub.TextYAlignment = Enum.TextYAlignment.Top
-		sub.Position = UDim2.fromOffset(88, 40)
+		sub.Position = UDim2.fromOffset(84, 46)
 		sub.ZIndex = 2
 		sub.Parent = row
-		local key = Kit.label(KEYS[i], 18, C.Muted)
+		-- Right side: bar key if equipped
+		local tagText = if locked then "" elseif slot then KEYS[slot] else ""
+		local key = Kit.label(tagText, 15, if slot then C.GoldHi else C.Cyan)
 		key.AnchorPoint = Vector2.new(1, 0.5)
-		key.Position = UDim2.new(1, -18, 0.5, 0)
+		key.Position = UDim2.new(1, -14, 0.5, 0)
 		key.ZIndex = 2
 		key.Parent = row
+		if locked then
+			local lock = Kit.icon("lock", 22, C.Muted)
+			lock.AnchorPoint = Vector2.new(1, 0.5)
+			lock.Position = UDim2.new(1, -14, 0.5, 0)
+			lock.ZIndex = 2
+			lock.Parent = row
+		end
 		row.Activated:Connect(function()
-			selected = i
+			selected = skill.id
 			selectedNode = nil
 			AbilitiesController.render()
 		end)
@@ -147,7 +187,7 @@ end
 -- ------------------------------------------------------------------ Center: skill bloom
 local function renderTree()
 	clear(tree)
-	local skill = Skills.bar[selected]
+	local skill = Skills.ById[selected]
 	local bloom = Skills.Blooms[skill.id]
 
 	local cx = TREE_W / 2
@@ -279,7 +319,7 @@ end
 
 local function renderDetail()
 	clear(detail)
-	local skill = Skills.bar[selected]
+	local skill = Skills.ById[selected]
 	local eff = effectiveOf(skill)
 	local sp = progressOf(skill)
 	local w = SIDE_W - 2 * PAD
@@ -291,8 +331,11 @@ local function renderDetail()
 	local name = Window.heading(skill.name, 22, C.Cyan)
 	name.Position = UDim2.fromOffset(PAD + 128, PAD + 18)
 	name.Parent = detail
+	local slot = slotOf(skill.id)
 	local key = Kit.label(
-		string.format("Key %s · Level %d", KEYS[selected], sp.level),
+		if slot
+			then string.format("Key %s · Level %d", KEYS[slot], sp.level)
+			else string.format("Not on the bar · Level %d", sp.level),
 		16,
 		C.Muted,
 		Theme.Font.Body
@@ -341,28 +384,19 @@ local function renderDetail()
 		C.Muted,
 		Theme.Font.Body
 	)
+	xp.AutomaticSize = Enum.AutomaticSize.None
+	xp.Size = UDim2.fromOffset(w, 20)
+	xp.TextXAlignment = Enum.TextXAlignment.Left
 	xp.Position = UDim2.fromOffset(PAD, PAD + 514)
 	xp.Parent = detail
 	local ptsIcon = Kit.icon("star_net", 30)
 	ptsIcon.Position = UDim2.fromOffset(PAD, PAD + 350)
 	ptsIcon.Parent = detail
-	local info = Kit.label(
-		"Skills level up when they defeat enemies. Each level: +5% damage and a bloom point.",
-		15,
-		C.Muted,
-		Theme.Font.Body
-	)
-	info.AutomaticSize = Enum.AutomaticSize.Y
-	info.Size = UDim2.fromOffset(w, 0)
-	info.TextWrapped = true
-	info.TextXAlignment = Enum.TextXAlignment.Left
-	info.Position = UDim2.fromOffset(PAD, PAD + 404)
-	info.Parent = detail
 
 	-- Reset bloom (free)
 	local reset = Kit.button("Reset Bloom", C.Danger, Vector2.new(w, 50), "reroll")
 	reset.AnchorPoint = Vector2.new(0, 1)
-	reset.Position = UDim2.new(0, PAD, 1, -PAD - 72)
+	reset.Position = UDim2.new(0, PAD, 1, -PAD - 90)
 	Kit.setEnabled(reset, Progression.bloomSpent(sp) > 0)
 	reset.Activated:Connect(function()
 		if reset.Active then
@@ -371,25 +405,111 @@ local function renderDetail()
 	end)
 	reset.Parent = detail
 
-	-- Selected node: spend a point. Otherwise: all four skills are fixed on the bar.
+	-- Spell stone sockets (Shared/SpellStones): tap cycles through owned stones that fit.
+	-- (Skills level up by defeating enemies: +5% damage and a bloom point per level.)
+	local data = ProgressController.data()
+	local socketed: { string } = (data.sockets or {})[skill.id] or {}
+	local sw = (w - 2 * 8) / SpellStones.SOCKETS
+	for i = 1, SpellStones.SOCKETS do
+		local id = socketed[i]
+		local stone = if id then SpellStones.ById[id] else nil
+		local b = Kit.button(
+			if stone then stone.name else "Empty",
+			if stone then stone.color else C.Muted,
+			Vector2.new(sw, 40),
+			nil
+		)
+		b.Name = "Socket" .. i
+		b.Position = UDim2.fromOffset(PAD + (i - 1) * (sw + 8), PAD + 410) -- above the XP bar
+		local usable = i <= #socketed + 1
+		Kit.setEnabled(b, usable)
+		b.Activated:Connect(function()
+			if not b.Active then
+				return
+			end
+			-- next fitting stone with a free copy after the current one; "" after the last
+			local options: { string } = {}
+			for _, st in SpellStones.List do
+				local owned = ((data.stones or {})[st.id] or 0) :: number
+				local spare = owned - Progression.stonesUsed(data, st.id)
+				if SpellStones.fits(st.id, skill.kind) and (spare > 0 or st.id == id) then
+					table.insert(options, st.id)
+				end
+			end
+			local pick = ""
+			for k, optionId in options do
+				if optionId == id then
+					pick = options[k + 1] or ""
+					break
+				end
+			end
+			if not id then
+				pick = options[1] or ""
+			end
+			if pick ~= "" or id then
+				local args: { any } = { i, pick }
+				Net.Loadout:FireServer("socket", skill.id, args)
+			end
+		end)
+		b.Parent = detail
+	end
+
+	-- Selected node: spend a point. Otherwise: slot buttons to put the skill on Q/E/R/F.
 	local nodeKey = selectedNode
-	local b
 	if nodeKey then
-		b = Kit.button("Spend Point", C.Gold, Vector2.new(w, 60), "upgrade")
+		local b = Kit.button("Spend Point", C.Gold, Vector2.new(w, 60), "upgrade")
 		Kit.setEnabled(b, (Progression.canBloom(sp, skill.id, nodeKey)))
 		b.Activated:Connect(function()
 			if b.Active then
 				Net.Bloom:FireServer("spend", skill.id, nodeKey)
 			end
 		end)
-	else
-		b = Kit.button("Equipped", C.Gold, Vector2.new(w, 60), "upgrade")
-		Kit.setEnabled(b, false)
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
+		b.AnchorPoint = Vector2.new(0, 1)
+		b.Position = UDim2.new(0, PAD, 1, -PAD)
+		b.Parent = detail
+		return
 	end
-	Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
-	b.AnchorPoint = Vector2.new(0, 1)
-	b.Position = UDim2.new(0, PAD, 1, -PAD)
-	b.Parent = detail
+	local okEquip, why = Progression.canEquip(skill.id, playerLevel(), Kit.playerClass())
+	if not okEquip then
+		local b = Kit.button(why or "Locked", C.Muted, Vector2.new(w, 60), "lock")
+		Kit.setEnabled(b, false)
+		b.AnchorPoint = Vector2.new(0, 1)
+		b.Position = UDim2.new(0, PAD, 1, -PAD)
+		b.Parent = detail
+		return
+	end
+	local gap = 10
+	local bw = math.floor((w - gap * (Skills.SLOTS - 1)) / Skills.SLOTS)
+	local row = Window.frame(UDim2.fromOffset(w, 60))
+	row.Name = "Slots"
+	Kit.list(row, Enum.FillDirection.Horizontal, gap)
+	for i = 1, Skills.SLOTS do
+		local here = slot == i
+		local b = Kit.button(KEYS[i], if here then C.Gold else C.Cyan, Vector2.new(bw, 60))
+		b.Name = "Slot" .. i
+		b.LayoutOrder = i
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
+		Kit.setEnabled(b, not here)
+		b.Activated:Connect(function()
+			if b.Active then
+				Net.Loadout:FireServer("equip", i, skill.id)
+			end
+		end)
+		b.Parent = row
+	end
+	row.AnchorPoint = Vector2.new(0, 1)
+	row.Position = UDim2.new(0, PAD, 1, -PAD)
+	row.Parent = detail
+	local label = Kit.label(
+		if slot then "Move to another key" else "Put on key",
+		14,
+		C.Muted,
+		Theme.Font.Body
+	)
+	label.AnchorPoint = Vector2.new(0, 1)
+	label.Position = UDim2.new(0, PAD, 1, -PAD - 64)
+	label.Parent = detail
 end
 
 -- ------------------------------------------------------------------ Flow
@@ -441,11 +561,14 @@ function AbilitiesController.init()
 	detail.Parent = win.body
 
 	win.onOpen(AbilitiesController.render)
-	ProgressController.changed:Connect(function()
+	local function refresh()
 		if win.isOpen() then
 			AbilitiesController.render()
 		end
-	end)
+	end
+	ProgressController.changed:Connect(refresh)
+	player:GetAttributeChangedSignal("Level"):Connect(refresh)
+	player:GetAttributeChangedSignal("Class"):Connect(refresh)
 	AbilitiesController.render()
 end
 

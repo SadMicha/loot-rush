@@ -36,6 +36,7 @@ local AtlasController = require(script.Parent.AtlasController)
 local ShopController = require(script.Parent.ShopController)
 local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
+local ProgressController = require(script.Parent.ProgressController)
 
 local HudController = {}
 
@@ -395,7 +396,20 @@ end
 -- around it (combat only).
 local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
+local skillButtons: { ImageButton } = {}
+local shownSkills: { string } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
+
+-- Loadout changed: new icons
+local function refreshSkillButtons()
+	for i, btn in skillButtons do
+		local skill = SkillController.skill(i)
+		if skill and shownSkills[i] ~= skill.id then
+			shownSkills[i] = skill.id
+			Kit.setRoundIcon(btn, Kit.skillArt(skill.id) or H.SkillArt[skill.id], skill.icon)
+		end
+	end
+end
 
 local function buildSkills()
 	local keyboard = not UserInputService.TouchEnabled
@@ -435,6 +449,8 @@ local function buildSkills()
 			if keyboard then SLOT_KEYS[i] else nil
 		)
 		btn.Name = "Skill" .. i
+		shownSkills[i] = skill.id
+		skillButtons[i] = btn
 		btn.AnchorPoint = Vector2.new(0.5, 0.5)
 		btn.Position = UDim2.fromOffset(cx + R * math.cos(angle), cy - R * math.sin(angle))
 		onTap(btn, function()
@@ -788,6 +804,9 @@ function HudController.start()
 	player:GetAttributeChangedSignal("InCombat"):Connect(function()
 		setCalm(player:GetAttribute("InCombat") ~= true, false)
 	end)
+
+	ProgressController.changed:Connect(refreshSkillButtons)
+	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
 		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.big)

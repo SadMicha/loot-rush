@@ -22,6 +22,12 @@ local Balance = require(ReplicatedStorage.Shared.Balance)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
+local Bosses = require(ReplicatedStorage.Shared.Bosses)
+local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
+local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
+local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
+local Studs = require(ReplicatedStorage.Shared.Models.Studs)
+local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
 
@@ -59,6 +65,9 @@ type Enemy = {
 	center: Vector3, -- center of the own arena (Rift slot)
 	run: number, -- Rift run the enemy belongs to (0 = none)
 	summoned: boolean,
+	stage: number, -- boss phase 1-3 (Shared/Bosses)
+	speedMult: number,
+	cdMult: number,
 	phase: number,
 	nextAttack: number,
 	nextSummon: number,
@@ -70,6 +79,10 @@ type Enemy = {
 	dashFrom: Vector3,
 	dashTo: Vector3,
 	dashEnd: number, -- 0 = no charge
+	mods: { [string]: boolean }, -- elite modifiers (Shared/EliteMods)
+	windup: number, -- attack wind-up in seconds (kind.windup, shorter when Fast)
+	nextAura: number, -- Frozen aura: next slow pulse
+	goblinUntil: number, -- Treasure Goblin: escapes at this time (0 = no goblin)
 }
 
 local Enemies = {}
@@ -86,7 +99,6 @@ local ARCH = {
 local CHARGE_LENGTH = 18
 local CHARGE_TIME = 0.3
 local MAX_MINIONS = 4
-local BOSS_SUMMONS = 4
 local BASE_BODY_Y = Creatures.BODY_Y
 -- Walking area: arena grid without the raised north edge and side cliffs (see Systems/World)
 local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
@@ -410,6 +422,8 @@ local KINDS: { [string]: Kind } = {
 
 local list: { Enemy } = {}
 local folder: Folder
+-- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
+local knock: { [Model]: Vector3 } = {}
 local rng = Random.new()
 
 local function flat(
@@ -480,6 +494,11 @@ export type SpawnOpts = {
 	tier: number?, -- World Tier of the run (Shared/WorldTiers), default 1
 	center: Vector3?, -- center of the arena (default: origin)
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
+	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
+	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
+	healthMult: number?, -- life factor (rift variant Swarm)
+	goblin: boolean?, -- Treasure Goblin (rift variant): flees, never attacks, escapes after a while
+	smoothed: boolean?, -- creature of the Smoothing: studless grey plastic, tougher, pays more
 }
 
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
@@ -492,9 +511,75 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		return nil
 	end
 	local st = Enemies.stats(kindName, depth, tier)
+	local elite = o.elite == true and not kind.boss
+	if elite then
+		local P = Balance.P
+		st.health = math.floor(st.health * P.elite_hp)
+		st.damage = math.floor(st.damage * P.elite_dmg + 0.5)
+		st.xp = math.floor(st.xp * P.elite_loot + 0.5)
+		st.gold *= P.elite_loot
+	end
+	if o.goblin then
+		st.health = math.floor(st.health * RiftVariants.GOBLIN_HEALTH)
+		st.gold *= RiftVariants.GOBLIN_GOLD
+	end
+	if o.smoothed then
+		st.health = math.floor(st.health * Smoothing.HEALTH)
+		st.xp = math.floor(st.xp * Smoothing.REWARD + 0.5)
+		st.gold *= Smoothing.REWARD
+	end
+	if o.healthMult then
+		st.health = math.max(1, math.floor(st.health * math.clamp(o.healthMult, 0.05, 10)))
+	end
 	local health = st.health
 	local model = kind.build(kind.scale)
-	model.Name = kind.name
+	local modIds: { string } = if elite
+		then (o.mods or EliteMods.roll(rng, EliteMods.count(tier)))
+		else {}
+	local mods: { [string]: boolean } = {}
+	for _, id in modIds do
+		if EliteMods.ById[id] then
+			mods[id] = true
+		end
+	end
+	model.Name = if o.goblin
+		then "Treasure Goblin"
+		elseif elite then EliteMods.title(modIds, kind.name)
+		else kind.name
+	if o.smoothed and not o.goblin then
+		model.Name = "Smooth " .. model.Name
+		model:SetAttribute("Smoothed", true)
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and not Studs.keeps(d) then
+				d:SetAttribute("NoStuds", true)
+				d.Material = Enum.Material.SmoothPlastic
+				d.MaterialVariant = ""
+				d.TopSurface = Enum.SurfaceType.Smooth
+				d.BottomSurface = Enum.SurfaceType.Smooth
+				d.Color = Smoothing.fade(d.Color)
+			end
+		end
+	end
+	if o.goblin then
+		model:SetAttribute("Goblin", true)
+		model:ScaleTo(0.8)
+	end
+	if elite then
+		model:SetAttribute("Elite", true)
+		model:SetAttribute("Mods", table.concat(modIds, ","))
+		if mods.shielded then
+			local shield = math.floor(health * EliteMods.SHIELD)
+			model:SetAttribute("Shield", shield)
+			model:SetAttribute("MaxShield", shield)
+		end
+		local glow = Instance.new("Highlight")
+		glow.Name = "EliteGlow"
+		glow.FillTransparency = 1
+		glow.OutlineColor = Color3.fromRGB(255, 196, 64)
+		glow.OutlineTransparency = 0
+		glow.DepthMode = Enum.HighlightDepthMode.Occluded
+		glow.Parent = model
+	end
 	model:PivotTo(CFrame.new(pos.X, bodyY(kind), pos.Z))
 	model:SetAttribute("Health", health)
 	model:SetAttribute("MaxHealth", health)
@@ -518,6 +603,9 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		center = o.center or Vector3.zero,
 		run = o.run or 0,
 		summoned = false,
+		stage = 1,
+		speedMult = 1,
+		cdMult = 1,
 		phase = rng:NextNumber(0, 6),
 		nextAttack = now + 1,
 		nextSummon = now + (kind.summonEvery or 0) / 2,
@@ -529,6 +617,10 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		dashFrom = pos,
 		dashTo = pos,
 		dashEnd = 0,
+		mods = mods,
+		goblinUntil = if o.goblin then now + RiftVariants.GOBLIN_TIME else 0,
+		windup = kind.windup * (if mods.fast then EliteMods.FAST_WINDUP else 1),
+		nextAura = now,
 	})
 	return model
 end
@@ -612,7 +704,7 @@ local function circle(e: Enemy, at: Vector3, radius: number)
 	inner.Shape = Enum.PartType.Cylinder
 	TweenService:Create(
 		inner,
-		TweenInfo.new(e.kind.windup, Enum.EasingStyle.Linear),
+		TweenInfo.new(e.windup, Enum.EasingStyle.Linear),
 		{ Size = Vector3.new(0.25, d, d) }
 	):Play()
 	table.insert(e.telegraphs, outer)
@@ -631,7 +723,7 @@ local function line(e: Enemy, from: Vector3, dir: Vector3)
 	)
 	local inner =
 		flat(base * CFrame.new(0, 0.05, -0.05), Vector3.new(w, 0.25, 0.1), DANGER_CORE, 0.45, outer)
-	TweenService:Create(inner, TweenInfo.new(e.kind.windup, Enum.EasingStyle.Linear), {
+	TweenService:Create(inner, TweenInfo.new(e.windup, Enum.EasingStyle.Linear), {
 		Size = Vector3.new(w, 0.25, CHARGE_LENGTH),
 		CFrame = base * CFrame.new(0, 0.05, -CHARGE_LENGTH / 2),
 	}):Play()
@@ -640,7 +732,7 @@ end
 
 local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: number)
 	local kind = e.kind
-	e.windupEnd = now + kind.windup
+	e.windupEnd = now + e.windup
 	table.clear(e.targets)
 	local ground = Vector3.new(pos.X, 0, pos.Z)
 	local goal = Vector3.new(targetPos.X, 0, targetPos.Z)
@@ -662,7 +754,7 @@ local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: numb
 			Net.Fx:FireAllClients("proj", {
 				from = pos,
 				to = at + Vector3.new(0, 0.5, 0),
-				time = kind.windup,
+				time = e.windup,
 				color = kind.color,
 				size = 0.8 * kind.scale,
 			})
@@ -673,10 +765,49 @@ local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: numb
 	end
 end
 
+-- Vampiric: life back from damage dealt, capped at max life
+local function heal(e: Enemy, amount: number)
+	local model = e.model
+	local hp = (model:GetAttribute("Health") or 0) :: number
+	local max = (model:GetAttribute("MaxHealth") or 0) :: number
+	if hp > 0 and hp < max then
+		model:SetAttribute("Health", math.min(max, math.floor(hp + amount + 0.5)))
+	end
+end
+
+-- Exploding: a telegraphed blast where the elite died
+local function blast(at: Vector3, damage: number)
+	local r = EliteMods.BLAST_RADIUS
+	local d = r * 2
+	local outer =
+		flat(CFrame.new(at.X, 0.2, at.Z) * ROT, Vector3.new(0.2, d, d), DANGER, 0.6, folder)
+	outer.Shape = Enum.PartType.Cylinder
+	local inner =
+		flat(CFrame.new(at.X, 0.25, at.Z) * ROT, Vector3.new(0.25, 1, 1), DANGER_CORE, 0.4, outer)
+	inner.Shape = Enum.PartType.Cylinder
+	TweenService:Create(
+		inner,
+		TweenInfo.new(EliteMods.BLAST_DELAY, Enum.EasingStyle.Linear),
+		{ Size = Vector3.new(0.25, d, d) }
+	):Play()
+	task.delay(EliteMods.BLAST_DELAY, function()
+		outer:Destroy()
+		Net.Fx:FireAllClients(
+			"nova",
+			{ pos = Vector3.new(at.X, 0.5, at.Z), radius = r, color = DANGER }
+		)
+		eachPlayer(function(player, pos)
+			if (pos - Vector3.new(at.X, 0, at.Z)).Magnitude <= r then
+				Combat.hurtPlayer(player, damage)
+			end
+		end)
+	end)
+end
+
 local function resolveAttack(e: Enemy, now: number)
 	clearTelegraph(e)
 	e.windupEnd = 0
-	e.nextAttack = now + e.kind.cooldown
+	e.nextAttack = now + e.kind.cooldown * e.cdMult
 	local kind = e.kind
 	local hit: { [Player]: boolean } = {}
 	if kind.ai == "charge" then
@@ -702,7 +833,9 @@ local function resolveAttack(e: Enemy, now: number)
 		end
 	end
 	for player in hit do
-		Combat.hurtPlayer(player, e.damage)
+		if Combat.hurtPlayer(player, e.damage) and e.mods.vampiric then
+			heal(e, e.damage * EliteMods.LEECH)
+		end
 	end
 end
 
@@ -740,6 +873,50 @@ local function minionsAlive(e: Enemy): number
 	return #e.minions
 end
 
+-- Boss phases (Shared/Bosses): adds and tempo at 66 %, enrage at 33 %
+local function phaseCheck(e: Enemy, pos: Vector3)
+	local model = e.model
+	local hp = (model:GetAttribute("Health") or 0) :: number
+	local max = (model:GetAttribute("MaxHealth") or 0) :: number
+	if max <= 0 or hp <= 0 then
+		return
+	end
+	local share = hp / max
+	local target = if share <= Bosses.PHASE3 then 3 elseif share <= Bosses.PHASE2 then 2 else 1
+	-- one phase per call: a big hit from 70 % to 30 % still plays phase 2 first (next frame: 3)
+	if target <= e.stage then
+		return
+	end
+	local stage = e.stage + 1
+	e.stage = stage
+	model:SetAttribute("BossPhase", stage)
+	if stage == 2 then
+		e.speedMult = Bosses.PHASE2_SPEED
+		e.cdMult = Bosses.PHASE2_COOLDOWN
+	else
+		e.speedMult = Bosses.ENRAGE_SPEED
+		e.cdMult = Bosses.ENRAGE_COOLDOWN
+		e.damage = math.floor(e.damage * Bosses.ENRAGE_DAMAGE + 0.5)
+		e.windup *= Bosses.ENRAGE_WINDUP
+		model:SetAttribute("Enraged", true)
+		local glow = Instance.new("Highlight")
+		glow.Name = "Enrage"
+		glow.FillColor = DANGER_CORE
+		glow.FillTransparency = 0.75
+		glow.OutlineColor = DANGER
+		glow.DepthMode = Enum.HighlightDepthMode.Occluded
+		glow.Parent = model
+	end
+	e.summoned = true
+	summon(e, pos, Bosses.ADDS)
+	Net.Fx:FireAllClients("phase", { pos = pos, stage = stage })
+	Net.Fx:FireAllClients("nova", {
+		pos = Vector3.new(pos.X, 0.5, pos.Z),
+		radius = 14 * e.kind.scale / 2,
+		color = if stage == 3 then DANGER_CORE else e.kind.color,
+	})
+end
+
 local function step(dt: number)
 	local now = os.clock()
 	for i = #list, 1, -1 do
@@ -747,6 +924,7 @@ local function step(dt: number)
 		local model = e.model
 		if not model.Parent then
 			clearTelegraph(e)
+			knock[model] = nil
 			table.remove(list, i)
 			continue
 		end
@@ -758,14 +936,8 @@ local function step(dt: number)
 		local y = baseY
 		local dir = Vector3.zero
 
-		if
-			kind.boss
-			and not e.summoned
-			and (model:GetAttribute("Health") or 0) :: number
-				<= ((model:GetAttribute("MaxHealth") or 0) :: number) / 2
-		then
-			e.summoned = true
-			summon(e, pos, BOSS_SUMMONS)
+		if kind.boss then
+			phaseCheck(e, pos)
 		end
 		if kind.summonEvery and target and now >= e.nextSummon then
 			e.nextSummon = now + kind.summonEvery
@@ -779,7 +951,29 @@ local function step(dt: number)
 			end
 		end
 
-		if e.dashEnd > 0 then
+		if e.goblinUntil > 0 then
+			if now >= e.goblinUntil then
+				-- escaped: puff and gone, no loot
+				Net.Fx:FireAllClients(
+					"nova",
+					{ pos = Vector3.new(pos.X, 0.5, pos.Z), radius = 5, color = kind.color }
+				)
+				model:Destroy()
+				continue
+			end
+			if target and targetPos then
+				local away = Vector3.new(pos.X - targetPos.X, 0, pos.Z - targetPos.Z)
+				if away.Magnitude < 0.1 then
+					away = Vector3.new(math.cos(e.phase), 0, math.sin(e.phase))
+				end
+				-- run away, sliding along the arena edge instead of sticking to it
+				local swirl = Vector3.new(-away.Z, 0, away.X).Unit * 0.6
+				dir = (away.Unit + swirl).Unit
+				local step3 = dir * kind.speed * RiftVariants.GOBLIN_SPEED * dt
+				pos = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
+				y = baseY + math.abs(math.sin(now * 9 + e.phase)) * 0.8 * kind.scale
+			end
+		elseif e.dashEnd > 0 then
 			-- Charge along the telegraph line
 			local t = 1 - math.max(e.dashEnd - now, 0) / CHARGE_TIME
 			local p = e.dashFrom:Lerp(e.dashTo, t)
@@ -790,8 +984,7 @@ local function step(dt: number)
 			end
 		elseif e.windupEnd > 0 then
 			-- Windup: stand still, squash
-			y = baseY
-				- 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / kind.windup) * math.pi)
+			y = baseY - 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / e.windup) * math.pi)
 			if kind.ai == "charge" then
 				dir = e.dir
 			end
@@ -809,7 +1002,10 @@ local function step(dt: number)
 				move = -1
 			end
 			if move ~= 0 and dir.Magnitude > 0.01 then
-				local speed = kind.speed * move
+				local speed = kind.speed
+					* move
+					* e.speedMult
+					* (if e.mods.fast then EliteMods.FAST_SPEED else 1)
 				if now < ((model:GetAttribute("SlowUntil") or 0) :: number) then
 					speed *= (model:GetAttribute("SlowFactor") or 1) :: number
 				end
@@ -820,6 +1016,28 @@ local function step(dt: number)
 			end
 		else
 			y = baseY + math.abs(math.sin(now * 3 + e.phase)) * 0.25 * kind.scale
+		end
+
+		if e.mods.frozen_aura and now >= e.nextAura then
+			e.nextAura = now + 0.5
+			eachPlayer(function(player, at)
+				if (at - Vector3.new(pos.X, 0, pos.Z)).Magnitude <= EliteMods.AURA_RADIUS then
+					Combat.chill(player, now + 0.7, EliteMods.AURA_SLOW)
+				end
+			end)
+		end
+
+		local kv = knock[model]
+		if kv then
+			if e.dashEnd == 0 then -- a charge is not interrupted
+				pos = clampArena(e, pos + kv * dt)
+			end
+			local left: Vector3 = kv * math.exp(-Feel.KNOCKBACK_DECAY * dt)
+			if left.Magnitude > 0.5 then
+				knock[model] = left
+			else
+				knock[model] = nil
+			end
 		end
 
 		local here = Vector3.new(pos.X, y, pos.Z)
@@ -837,8 +1055,38 @@ function Enemies.init()
 	folder.Parent = workspace
 end
 
+-- Pushes an enemy away from `from` (direct hits, Combat.EnemyHit). Bosses and elites barely move.
+function Enemies.knockback(model: Model, from: Vector3, crit: boolean)
+	if not model.Parent then
+		return
+	end
+	local away = model:GetPivot().Position - from
+	away = Vector3.new(away.X, 0, away.Z)
+	if away.Magnitude < 0.01 then
+		return
+	end
+	local force = if crit then Feel.KNOCKBACK_CRIT else Feel.KNOCKBACK
+	if model:GetAttribute("Boss") == true or model:GetAttribute("Elite") == true then
+		force *= Feel.KNOCKBACK_BOSS
+	end
+	knock[model] = away.Unit * force
+end
+
 function Enemies.start()
 	RunService.Heartbeat:Connect(step)
+	Combat.EnemyHit.Event:Connect(function(model: Model, from: Vector3, crit: boolean)
+		Enemies.knockback(model, from, crit)
+	end)
+	Combat.EnemyDied.Event:Connect(function(model: Model, pos: Vector3)
+		for _, e in list do
+			if e.model == model then
+				if e.mods.exploding then
+					blast(pos, e.damage * EliteMods.BLAST_DAMAGE)
+				end
+				break
+			end
+		end
+	end)
 end
 
 return Enemies

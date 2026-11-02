@@ -1185,6 +1185,13 @@ function Sandbox:installCustom()
 			end,
 		})
 	end
+	self:custom("Workspace", "BulkMoveTo", {
+		method = function(_, parts, cframes)
+			for i, part in parts do
+				part.CFrame = cframes[i]
+			end
+		end,
+	})
 	self:custom("Workspace", "GetServerTimeNow", {
 		method = function()
 			return 1.7e9 + sched.now

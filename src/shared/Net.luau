@@ -19,8 +19,12 @@
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
 --   PetResult (S→C): { ok, text, kind, pet?, level?, shards? } - feedback (hatching, equipping);
 --                    kind = "hatch" | "equip" | "unequip" (the request it answers)
+--   Class     (C→S): "choose", classId - pick/change the class (first join, or in the hub)
 --   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
 --                    events: { done = { questText }, unlocked = { windowId } } on progress
+--   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
+--   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
+--   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,6 +51,10 @@ local NAMES = {
 	"Pets",
 	"PetResult",
 	"Quest",
+	"Class",
+	"AutoSalvage",
+	"Loadout",
+	"SkillCast",
 	"Debug",
 }
 
@@ -91,5 +99,9 @@ return table.freeze({
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),
 	Quest = get("Quest"),
+	Class = get("Class"),
+	AutoSalvage = get("AutoSalvage"),
+	Loadout = get("Loadout"),
+	SkillCast = get("SkillCast"),
 	Debug = get("Debug"),
 })
