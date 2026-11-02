@@ -111,7 +111,7 @@ describe("Regions in game", function()
 		local names = server(function()
 			local out = {}
 			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
-				out[e.Name] = true
+				out[e:GetAttribute("BaseName") or e.Name] = true
 			end
 			return out
 		end)

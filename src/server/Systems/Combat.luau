@@ -216,7 +216,10 @@ local function addXP(player: Player, amount: number)
 		applyLevelStats(player, true)
 		local root = body(player)
 		if root then
-			Net.Fx:FireAllClients("levelup", { pos = root.Position, level = level })
+			Net.Fx:FireAllClients(
+				"levelup",
+				{ pos = root.Position, level = level, who = player.UserId }
+			)
 		end
 	end
 end
@@ -458,18 +461,22 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		return false
 	end
 	if os.clock() < st.iframesUntil then
-		Net.Fx:FireAllClients(
-			"dmg",
-			{ pos = root.Position + Vector3.new(0, 3, 0), text = "Dodged", dodge = true }
-		)
+		Net.Fx:FireAllClients("dmg", {
+			pos = root.Position + Vector3.new(0, 3, 0),
+			text = "Dodged",
+			dodge = true,
+			who = player.UserId,
+		})
 		return false
 	end
 	-- Star "Shield Wall"
 	if rng:NextNumber() < math.min(MAX_BLOCK, num(player, "StatBlock") / 100) then
-		Net.Fx:FireAllClients(
-			"dmg",
-			{ pos = root.Position + Vector3.new(0, 3, 0), text = "Blocked!", color = ICE }
-		)
+		Net.Fx:FireAllClients("dmg", {
+			pos = root.Position + Vector3.new(0, 3, 0),
+			text = "Blocked!",
+			color = ICE,
+			who = player.UserId,
+		})
 		return false
 	end
 	-- Armor % = less damage (star "Iron Skin" + bloom "Ice Armor")
@@ -485,10 +492,12 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		amount -= absorbed
 		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
 		if amount <= 0 then
-			Net.Fx:FireAllClients(
-				"dmg",
-				{ pos = root.Position + Vector3.new(0, 3, 0), text = "Shield", color = CRYSTAL }
-			)
+			Net.Fx:FireAllClients("dmg", {
+				pos = root.Position + Vector3.new(0, 3, 0),
+				text = "Shield",
+				color = CRYSTAL,
+				who = player.UserId,
+			})
 			return true
 		end
 	end
