@@ -145,9 +145,13 @@ function RiftController.start()
 	local pending = false
 	local function announce()
 		pending = false
-		if phase() == "" then
-			announced = "" -- left the rift: the next run announces again
+		local p = phase()
+		if p == "" or p == "failed" or player:GetAttribute("RiftRegion") == nil then
+			announced = "" -- run over: the next run announces again
 			return
+		end
+		if p ~= "wave" then
+			return -- a depth always starts with its waves; boss/clear never announce
 		end
 		local id = (player:GetAttribute("RiftVariant") or "") :: string
 		local key = string.format(
