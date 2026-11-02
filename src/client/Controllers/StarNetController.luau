@@ -285,7 +285,7 @@ local function renderSide()
 	local reset = Kit.button("Reset", C.Danger, Vector2.new(w, 50), "reroll")
 	reset.AnchorPoint = Vector2.new(0, 1)
 	reset.Position = UDim2.new(0, PAD, 1, -PAD)
-	Kit.setEnabled(reset, next(ProgressController.data().stars) ~= nil)
+	Kit.setEnabled(reset, Progression.starSpent(ProgressController.data()) > 0)
 	reset.Activated:Connect(function()
 		if reset.Active then
 			Net.Star:FireServer("reset")
