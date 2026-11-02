@@ -25,6 +25,7 @@
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
 --   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
+--   Rush      (C→S): "start" - trigger a Stud Rush with a full meter (Systems/Rush)
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -56,6 +57,7 @@ local NAMES = {
 	"Loadout",
 	"SkillCast",
 	"Debug",
+	"Rush",
 }
 
 local folder: Instance
@@ -104,4 +106,5 @@ return table.freeze({
 	Loadout = get("Loadout"),
 	SkillCast = get("SkillCast"),
 	Debug = get("Debug"),
+	Rush = get("Rush"),
 })
