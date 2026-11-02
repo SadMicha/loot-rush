@@ -35,9 +35,9 @@ on:
         type: boolean
         default: false
 
-# Only the newest main matters: a newer push cancels an older run that is still checking.
+# Per branch, only the newest commit matters: a newer push cancels an older run of the same branch.
 concurrency:
-  group: publish
+  group: publish-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
