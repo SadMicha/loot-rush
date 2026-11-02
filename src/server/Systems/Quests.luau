@@ -1,0 +1,138 @@
+--!strict
+-- Onboarding quest chain and window unlocks on the server (rules: Shared/Quests).
+--   • count goals come from Util/Actions (other systems fire them) plus kills and item pickups
+--   • state goals (level, best depth) are re-checked when the attributes "Level"/"BestDepth" change
+--   • rewards are gold; every finished quest is one onboarding funnel step in AnalyticsService
+-- The client only reads: snapshots via Net.Quest (no client → server remote).
+-- Unlocks are pacing, not security: the server does not refuse Forge/Star/Pet requests of
+-- locked windows (nothing to gain from it), the client hides them.
+
+local AnalyticsService = game:GetService("AnalyticsService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Net = require(ReplicatedStorage.Shared.Net)
+local Rules = require(ReplicatedStorage.Shared.Quests)
+local Actions = require(script.Parent.Parent.Util.Actions)
+local Combat = require(script.Parent.Combat)
+local Data = require(script.Parent.Data)
+local Inventory = require(script.Parent.Inventory)
+local Loot = require(script.Parent.Loot)
+
+local Quests = {}
+
+local function stateOf(player: Player): (number, number)
+	local level = player:GetAttribute("Level")
+	local depth = player:GetAttribute("BestDepth")
+	return if typeof(level) == "number" then level else 1,
+		if typeof(depth) == "number" then depth else 0
+end
+
+local function unlockList(data: Rules.Data): { string }
+	local out = {}
+	for id in data.unlocks do
+		table.insert(out, id)
+	end
+	table.sort(out)
+	return out
+end
+
+local function send(player: Player, data: Rules.Data, done: { string }?, unlocked: { string }?)
+	local level, depth = stateOf(player)
+	local q = Rules.active(data)
+	local now, target = Rules.progress(data, level, depth)
+	Net.Quest:FireClient(player, {
+		step = data.step,
+		total = #Rules.Chain,
+		text = if q then q.text else nil,
+		gold = if q then q.gold else nil,
+		count = now,
+		target = target,
+		unlocks = unlockList(data),
+		done = done,
+		unlocked = unlocked,
+	})
+end
+
+local function logStep(player: Player, step: number, id: string)
+	pcall(function()
+		AnalyticsService:LogOnboardingFunnelStepEvent(player, step, id)
+	end)
+end
+
+-- Counts an action (goal = nil: only re-check level/depth) and pays finished quests
+function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
+	local profile = Data.get(player)
+	if not profile then
+		return
+	end
+	local data = profile.quests
+	local level, depth = stateOf(player)
+	local stepBefore, countBefore = data.step, data.count
+	local finished = Rules.advance(data, goal, amount, level, depth)
+	local unlocked = Rules.refreshUnlocks(data, level, depth)
+	local doneTexts = {}
+	for i, q in finished do
+		Inventory.addGold(player, q.gold)
+		table.insert(doneTexts, q.text)
+		logStep(player, stepBefore + i - 1, q.id)
+		if q.unlocks and not table.find(unlocked, q.unlocks) then
+			table.insert(unlocked, q.unlocks)
+		end
+	end
+	if #finished > 0 or #unlocked > 0 or data.count ~= countBefore then
+		send(
+			player,
+			data,
+			if #doneTexts > 0 then doneTexts else nil,
+			if #unlocked > 0 then unlocked else nil
+		)
+	end
+end
+
+local function onAction(player: any, kind: any, amount: any)
+	if typeof(player) ~= "Instance" or not player:IsA("Player") or typeof(kind) ~= "string" then
+		return
+	end
+	Quests.advance(player, kind :: Rules.Goal, if typeof(amount) == "number" then amount else 1)
+end
+
+local function onPlayer(player: Player)
+	local profile = Data.waitFor(player)
+	if not profile then
+		return
+	end
+	local function recheck()
+		Quests.advance(player, nil, 0)
+	end
+	player:GetAttributeChangedSignal("Level"):Connect(recheck)
+	player:GetAttributeChangedSignal("BestDepth"):Connect(recheck)
+	-- Quietly bring old saves up to date (unlocks by level/depth), then the first snapshot
+	local level, depth = stateOf(player)
+	Rules.refreshUnlocks(profile.quests, level, depth)
+	send(player, profile.quests)
+	recheck()
+end
+
+function Quests.init()
+	Actions.Event.Event:Connect(onAction)
+	Combat.EnemyKilled.Event:Connect(function(player: any)
+		onAction(player, "kill", 1)
+	end)
+	Loot.Picked.Event:Connect(function(player: any, _gold: any, item: any)
+		if typeof(item) == "table" then
+			onAction(player, "pickup", 1)
+		end
+	end)
+end
+
+function Quests.start()
+	for _, player in Players:GetPlayers() do
+		task.spawn(onPlayer, player)
+	end
+	Players.PlayerAdded:Connect(function(player: Player)
+		task.spawn(onPlayer, player)
+	end)
+end
+
+return Quests

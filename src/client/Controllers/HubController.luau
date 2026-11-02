@@ -9,6 +9,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local AtlasController = require(script.Parent.AtlasController)
 local ForgeController = require(script.Parent.ForgeController)
 local InventoryController = require(script.Parent.InventoryController)
+local QuestController = require(script.Parent.QuestController)
 local ShopController = require(script.Parent.ShopController)
 
 local HubController = {
@@ -18,7 +19,14 @@ local HubController = {
 
 local OPEN: { [string]: () -> () } = {
 	Atlas = AtlasController.toggle,
-	Forge = ForgeController.toggle,
+	Forge = function()
+		local hint = QuestController.lockHint("forge")
+		if hint then
+			QuestController.toast("Locked · " .. hint)
+		else
+			ForgeController.toggle()
+		end
+	end,
 	Inventory = InventoryController.toggle,
 	Shop = function()
 		ShopController.open()

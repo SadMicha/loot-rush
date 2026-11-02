@@ -24,6 +24,7 @@ local Loot = require(script.Parent.Loot)
 local Metrics = require(script.Parent.Metrics)
 local Enemies = require(script.Parent.Enemies)
 local Progress = require(script.Parent.Progress)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local World = require(script.Parent.World)
 
@@ -317,6 +318,7 @@ local function begin(player: Player, regionId: any)
 	World.build(region, slot)
 	model:PivotTo(CFrame.new(r.center + Config.RIFT_START))
 	task.spawn(play, r)
+	Actions.fire(player, "rift")
 end
 
 local function deeper(player: Player)

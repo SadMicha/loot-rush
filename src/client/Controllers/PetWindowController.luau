@@ -17,6 +17,7 @@ local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
 local HubController = require(script.Parent.HubController)
+local QuestController = require(script.Parent.QuestController)
 local PetController = require(script.Parent.PetController)
 
 local PetWindowController = {}
@@ -639,7 +640,12 @@ function PetWindowController.init()
 
 	HubController.Requested.Event:Connect(function(name: string)
 		if name == "Pets" then
-			PetWindowController.open()
+			local hint = QuestController.lockHint("pets")
+			if hint then
+				QuestController.toast("Locked · " .. hint)
+			else
+				PetWindowController.open()
+			end
 		end
 	end)
 end

@@ -282,6 +282,7 @@ function StarNetController.init()
 		title = "Star Net",
 		icon = "star_net",
 		key = Enum.KeyCode.N,
+		unlock = "star_net",
 		background = "bg_starnet",
 	})
 

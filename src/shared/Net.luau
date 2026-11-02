@@ -21,6 +21,8 @@
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
 --   PetResult (S→C): { ok, text, kind, pet?, level?, shards? } - feedback (hatching, equipping);
 --                    kind = "hatch" | "equip" | "unequip" (the request it answers)
+--   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
+--                    events: { done = { questText }, unlocked = { windowId } } on progress
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,6 +50,7 @@ local NAMES = {
 	"Pet",
 	"Pets",
 	"PetResult",
+	"Quest",
 	"Debug",
 }
 
@@ -93,5 +96,6 @@ return table.freeze({
 	Pet = get("Pet"),
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),
+	Quest = get("Quest"),
 	Debug = get("Debug"),
 })

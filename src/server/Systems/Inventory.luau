@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Progress = require(script.Parent.Progress)
@@ -80,6 +81,7 @@ local function onEquip(player: Player, id: any)
 	end
 	recompute(player, false)
 	snapshot(player)
+	Actions.fire(player, "equip")
 end
 
 local function onUnequip(player: Player, slot: any)
@@ -110,6 +112,7 @@ local function onSell(player: Player, id: any)
 	Inventory.addGold(player, Items.sellValue(item))
 	Progress.salvage(player, item)
 	snapshot(player)
+	Actions.fire(player, "salvage")
 end
 
 local function onPlayer(player: Player)

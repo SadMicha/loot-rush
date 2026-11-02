@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Pets)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Boosts = require(script.Parent.Boosts)
 local Data = require(script.Parent.Data)
@@ -101,6 +102,7 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	end
 	Boosts.refresh(player)
 	Pets.sync(player)
+	Actions.fire(player, "hatch")
 	local text = if fresh
 		then pet.name .. " hatched!"
 		elseif shards > 0 then string.format(

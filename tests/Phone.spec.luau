@@ -73,6 +73,8 @@ describe("Phone layout", function()
 		-- items and materials so the Forge & co. show real content
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]
+			player:SetAttribute("Level", 5) -- unlocks Star Web, Forge, Pets (Shared/Quests)
+			player:SetAttribute("BestDepth", 8)
 			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
 			local Items = req("ReplicatedStorage.Shared.Items")
 			for i = 1, 12 do
