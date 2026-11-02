@@ -882,10 +882,12 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 		return
 	end
 	local share = hp / max
-	local stage = if share <= Bosses.PHASE3 then 3 elseif share <= Bosses.PHASE2 then 2 else 1
-	if stage <= e.stage then
+	local target = if share <= Bosses.PHASE3 then 3 elseif share <= Bosses.PHASE2 then 2 else 1
+	-- one phase per call: a big hit from 70 % to 30 % still plays phase 2 first (next frame: 3)
+	if target <= e.stage then
 		return
 	end
+	local stage = e.stage + 1
 	e.stage = stage
 	model:SetAttribute("BossPhase", stage)
 	if stage == 2 then

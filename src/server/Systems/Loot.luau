@@ -193,7 +193,12 @@ local function onKilled(
 		return
 	end
 	if rng:NextNumber() < itemChance then
-		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, { shift = t.shift }))
+		makeDrop(
+			pos,
+			owner,
+			0,
+			Items.roll(t.ilvl, rng, nil, { shift = t.shift, uniques = t.uniques })
+		)
 	end
 end
 

@@ -64,6 +64,31 @@ describe("Bosses and variants in game", function()
 		end)
 	end)
 
+	it("plays both phases when one hit skips past 66 %", function()
+		local boss = server(function(req, player)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local root = player.Character.HumanoidRootPart
+			local m = Enemies.spawn(
+				"the_rift",
+				root.Position + Vector3.new(0, 0, -30),
+				20,
+				{ center = root.Position, run = 45 }
+			)
+			m:SetAttribute("Health", math.floor(m:GetAttribute("MaxHealth") * 0.2))
+			return m
+		end)
+		sim:run(0.3)
+		local phase, count = server(function(req)
+			return boss:GetAttribute("BossPhase"),
+				req("ServerScriptService.Server.Systems.Enemies").count(45)
+		end)
+		expect(phase).toBe(3)
+		expect(count).toBe(1 + 2 * Bosses.ADDS)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(45)
+		end)
+	end)
+
 	it("lets the Treasure Goblin flee and escape", function()
 		local goblin, d0 = server(function(req, player)
 			local Enemies = req("ServerScriptService.Server.Systems.Enemies")

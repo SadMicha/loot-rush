@@ -58,9 +58,7 @@ local function take(): Part
 end
 
 local function release(i: number)
-	local b = active[i]
-	active[i] = active[#active]
-	active[#active] = nil
+	local b = table.remove(active, i) :: Brick -- keeps spawn order, so index 1 is the oldest
 	b.part.Parent = nil
 	table.insert(free, b.part)
 end
