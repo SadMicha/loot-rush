@@ -95,14 +95,19 @@ local function tile(parent: Instance, col: number, row: number)
 	local p = cell(col, row)
 	local h = height(col, row)
 	if k == "W" then
-		-- studded riverbed, water above it (Terrain water, or a glass sheet without Terrain)
+		-- studded riverbed, water above it (Terrain water, or a glass sheet without Terrain).
+		-- Terrain voxels are 4-stud cells on world multiples of 4, so the water layer is snapped
+		-- to that grid: the 4-stud cell just under the bank (grass top at 1) is filled.
 		local terrain = workspace:FindFirstChildOfClass("Terrain")
+		local bed: number -- top of the riverbed (local Y)
 		if terrain then
+			local top = math.floor((origin.Y + h + 1) / 4) * 4 - origin.Y -- world grid line
 			terrain:FillBlock(
-				at(p + Vector3.new(0, h - 2, 0)),
+				at(p + Vector3.new(0, top - 2, 0)),
 				Vector3.new(T, 4, T),
 				Enum.Material.Water
 			)
+			bed = top - 4
 		else
 			local s = block(
 				parent,
@@ -113,8 +118,9 @@ local function tile(parent: Instance, col: number, row: number)
 			)
 			s.Transparency = 0.25
 			s.CanCollide = false
+			bed = h - 0.4 -- shallow: the bed sits right under the sheet, no drop
 		end
-		block(parent, Vector3.new(T, 4, T), at(p + Vector3.new(0, h - 6, 0)), C.dirt)
+		block(parent, Vector3.new(T, 4, T), at(p + Vector3.new(0, bed - 2, 0)), C.dirt)
 		return
 	end
 	if k == "X" or k == "Y" then
