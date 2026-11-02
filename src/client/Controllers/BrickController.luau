@@ -230,10 +230,9 @@ local function step(dt: number)
 		local b = active[i]
 		local age = now - b.born
 		local homing = b.home ~= nil and now >= b.home and target ~= nil
-		if homing and target and (target - b.part.Position).Magnitude < 2 then
-			release(i) -- collected
-		elseif age >= b.life then
-			release(i)
+		local collected = homing and target ~= nil and (target - b.part.Position).Magnitude < 2
+		if collected or age >= b.life then
+			release(i) -- collected by the character, or faded out
 		elseif homing and target then
 			local to = target - b.part.Position
 			b.vel = to.Unit * math.max(Feel.STUD_HOME_SPEED, b.vel.Magnitude)
