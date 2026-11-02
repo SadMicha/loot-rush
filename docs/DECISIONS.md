@@ -31,6 +31,7 @@ can be overturned at any time. Where the concept already answers a question, the
 | World / UI | Map from parts with stud texture (owner). UI look is owned by a separate thread; this plan does not change the look. |
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
+| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. |
 
 ## 2. What changes in the existing code
 
@@ -61,6 +62,9 @@ can be overturned at any time. Where the concept already answers a question, the
 - Telegraphs: every enemy and boss attack has a ground warning with wind-up; dodgeable.
 - Enemy archetypes (concept): swarm, ranged, tank, charger (telegraph), summoner, elite with aura.
 - Sound hooks: `Shared/Sounds` registry, `SoundController`; empty id = silent (Micha fills ids).
+- **Brick Break + Stud VFX**: client-side, one shared brick pool with a hard debris budget
+  (quality setting for low-end phones), built on `FxController`; the server only decides
+  dead/broken (props with a `Breakable` tag and server HP).
 
 ## 5. Build order (PRs, `tools/check.sh` green)
 
@@ -68,9 +72,11 @@ can be overturned at any time. Where the concept already answers a question, the
 2. **Weapon pack**: weapons per class in `assets/weapons/`, `Shared/Weapons`, upload entries, held weapon on the avatar (part fallback until ids exist).
 3. **Remove the incremental layer**: rebirth out, World Tiers in, quests/balance/saves adjusted.
 4. **Combat feel**: dodge roll, hitstop, shake, hit flash, knockback, telegraphs, sound hooks.
+4b. **Brick Break + Stud VFX**: shattering kills, breakable props, brick-built skill effects.
 5. **Elites with modifiers, uniques, loot filter** (affixes such as Fast, Shielded, Vampiric, Frozen Aura, Exploding).
 6. **Four classes**: class choice at first join (change in the hub), 8 skills each (icons in `assets/ui/icons/skills/`), 4 equipped, new skill kinds (melee arc, slam, leap, arrow volley, trap, summon, totem, buff).
 7. **Bosses with phases** (one per region; phase changes at 66 % / 33 %, adds, enrage) and **rift variants** (swarm, elite hunt, treasure goblin, timed).
+7b. **The Smoothing**: smooth studless enemy variant (`Shared/Models/Creatures`), save field `restored` per region, hub/minimap tint per region, one boss intro line per region (`Shared/Atlas`).
 8. **Spell stones** (support gems, up to 3 per skill).
 9. **Star Web to 100 nodes**, class start points, cross-class paths.
 10. **Release pass**: performance, audio ids, RELEASE.md / TEST-RELEASE.md / ROADMAP.
