@@ -12,6 +12,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 local QuestController = require(script.Parent.QuestController)
 local RiftController = require(script.Parent.RiftController)
@@ -127,8 +128,10 @@ local function renderMap()
 		-- Fallback plate built in code until the image has loaded
 		plate.BackgroundColor3 = C.Bg1
 		plate.BackgroundTransparency = 0.1
-		Kit.corner(plate, LABEL.Y // 2)
-		Kit.stroke(plate, if on then C.GoldHi else r.color, if on then 3 else 2)
+		Kit.corner(plate, Theme.Flat.Radius.M)
+		Kit.stroke(plate, if on then C.GoldHi else r.color, if on then 2.5 else 1.5)
+		Shape.topLine(plate)
+		Shape.brackets(plate, if on then C.GoldHi else r.color, 12, 0)
 		local art = Window.art("plaque_region", LABEL)
 		if art then
 			art.ScaleType = Enum.ScaleType.Stretch
@@ -143,7 +146,8 @@ local function renderMap()
 				end
 			end)
 		end
-		local name = Kit.label(r.name, 18, if on then C.GoldHi else C.Text)
+		local name =
+			Kit.label(string.upper(r.name), 17, if on then C.GoldHi else C.Text, Theme.Font.Title)
 		name.AnchorPoint = Vector2.new(0.5, 0)
 		name.Position = UDim2.new(0.5, 0, 0, 20)
 		name.ZIndex = 3

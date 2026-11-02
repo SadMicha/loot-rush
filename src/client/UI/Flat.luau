@@ -23,6 +23,15 @@ Flat.gradient = Shape.gradient
 Flat.glow = Shape.glow
 Flat.spin = Shape.spin
 Flat.motion = Shape.motion
+Flat.shine = Shape.shine
+Flat.brackets = Shape.brackets
+Flat.topLine = Shape.topLine
+Flat.accentRule = Shape.accentRule
+Flat.ripple = Shape.ripple
+Flat.sound = Shape.sound
+Flat.tickTo = Shape.tickTo
+Flat.reveal = Shape.reveal
+Flat.thousands = Shape.thousands
 
 function Flat.frame(size: UDim2, pos: UDim2?): Frame
 	local f = Instance.new("Frame")
@@ -105,6 +114,12 @@ function Flat.button(
 	Flat.corner(b, F.Radius.M)
 	Flat.gradient(b, style.fill, style.fill2)
 	Flat.stroke(b, style.edge, F.Stroke, 0.3)
+	if kind == "primary" then
+		Shape.topLine(b, 0.45)
+		Shape.shine(b, F.Radius.M)
+	elseif kind ~= "ghost" then
+		Shape.topLine(b)
+	end
 	local row = Flat.frame(UDim2.fromScale(1, 1))
 	row.Name = "Row"
 	Kit.list(row, Enum.FillDirection.Horizontal, 8)
@@ -132,10 +147,17 @@ end
 function Flat.setEnabled(b: GuiButton, enabled: boolean)
 	b:SetAttribute("Enabled", enabled)
 	b.AutoButtonColor = false
-	b.BackgroundTransparency = if enabled then 0 else 0.6
+	b.BackgroundTransparency = if enabled then 0 else 0.1
+	Shape.setDisabledLook(b, enabled)
 	local label = b:FindFirstChild("Label", true)
 	if label and label:IsA("TextLabel") then
-		label.TextTransparency = if enabled then 0 else 0.5
+		local base = label:GetAttribute("BaseColor")
+		if typeof(base) ~= "Color3" then
+			label:SetAttribute("BaseColor", label.TextColor3)
+			base = label.TextColor3
+		end
+		label.TextColor3 = if enabled then base :: Color3 else C.Muted
+		label.TextTransparency = if enabled then 0 else 0.25
 	end
 end
 
@@ -360,13 +382,15 @@ function Flat.bar(
 	track.BackgroundColor3 = F.Surface0
 	track.BorderSizePixel = 0
 	track.Size = UDim2.fromOffset(size.X, size.Y)
-	Flat.corner(track, math.ceil(size.Y / 2))
+	Flat.corner(track, F.Radius.S)
+	Flat.stroke(track, F.Edge, 1, 0.2)
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.BackgroundColor3 = Color3.new(1, 1, 1)
 	fill.BorderSizePixel = 0
 	fill.Size = UDim2.fromScale(0, 1)
-	Flat.corner(fill, math.ceil(size.Y / 2))
+	Flat.corner(fill, F.Radius.S)
+	Shape.topLine(fill, 0.55, 0)
 	Flat.gradient(fill, color:Lerp(Color3.new(1, 1, 1), 0.25), color, 0, 0, 0)
 	fill.Parent = track
 	local function set(fraction: number, animate: boolean?)

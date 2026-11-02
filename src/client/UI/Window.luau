@@ -6,13 +6,17 @@
 -- Only one of these windows is open at a time; opening one closes the previous.
 
 local GuiService = game:GetService("GuiService")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Kit)
+local Shape = require(script.Parent.Shape)
+local Spring = require(script.Parent.Spring)
 
 local Window = {}
 
@@ -77,6 +81,25 @@ function Window.anyOpen(): boolean
 	return false
 end
 
+-- Blur the world behind fullscreen windows (one shared BlurEffect, faded in/out)
+local blur: BlurEffect? = nil
+function Window.blur(on: boolean)
+	local b = blur
+	if not b then
+		local e = Instance.new("BlurEffect")
+		e.Name = "LootRushUIBlur"
+		e.Size = 0
+		e.Parent = Lighting
+		blur = e
+		b = e
+	end
+	if b then
+		local info =
+			TweenInfo.new(Theme.Flat.Blur.Time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(b, info, { Size = if on then Theme.Flat.Blur.Size else 0 }):Play()
+	end
+end
+
 function Window.caps(text: string): string
 	return string.upper(text)
 end
@@ -84,6 +107,13 @@ end
 -- Window title in capital letters (title font)
 function Window.heading(text: string, size: number?, color: Color3?): TextLabel
 	return Kit.label(Window.caps(text), size or 20, color or Theme.Color.Text, Theme.Font.Title)
+end
+
+-- Gilded heading: title font with a gold gradient (bright top, deep bottom)
+function Window.gilded(text: string, size: number): TextLabel
+	local t = Kit.label(Window.caps(text), size, Color3.new(1, 1, 1), Theme.Font.Title)
+	Shape.gradient(t, Theme.Color.GoldHi, Theme.Color.Gold:Lerp(Theme.Color.GoldLo, 0.5))
+	return t
 end
 
 -- Borderless container without background
@@ -265,6 +295,22 @@ function Window.new(opts: Options): Window
 		g.Parent = shade
 		shade.Parent = back
 	end
+	-- Vignette: darker toward the left and right edges, keeps the eye in the middle
+	local vignette = Instance.new("Frame")
+	vignette.Name = "Vignette"
+	vignette.BackgroundColor3 = Color3.new(0, 0, 0)
+	vignette.BorderSizePixel = 0
+	vignette.Size = UDim2.fromScale(1, 1)
+	vignette.Active = false
+	local vg = Instance.new("UIGradient")
+	vg.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(0.25, 1),
+		NumberSequenceKeypoint.new(0.75, 1),
+		NumberSequenceKeypoint.new(1, 0.35),
+	})
+	vg.Parent = vignette
+	vignette.Parent = back
 	back.Parent = root
 
 	local head = Window.frame(UDim2.fromOffset(600, HEAD))
@@ -277,10 +323,13 @@ function Window.new(opts: Options): Window
 		ic.LayoutOrder = 1
 		ic.Parent = head
 	end
-	local t = Window.heading(opts.title, 30, Theme.Color.GoldHi)
+	local t = Window.gilded(opts.title, 32)
 	t.LayoutOrder = 2
 	t.Parent = head
 	head.Parent = root
+	local rule = Shape.accentRule(260)
+	rule.AnchorPoint = Vector2.new(0, 0)
+	rule.Parent = root
 
 	local body = Window.frame(UDim2.fromOffset(Window.BODY.X, Window.BODY.Y))
 	body.Name = "Content"
@@ -293,9 +342,15 @@ function Window.new(opts: Options): Window
 	local win: Window
 
 	local function close()
+		if gui.Enabled then
+			Shape.sound("ui_close")
+		end
 		gui.Enabled = false
 		if current == win then
 			current = nil
+		end
+		if not Window.anyOpen() then
+			Window.blur(false)
 		end
 	end
 
@@ -308,6 +363,12 @@ function Window.new(opts: Options): Window
 		end
 		current = win
 		gui.Enabled = true
+		Window.blur(true)
+		Shape.sound("ui_open")
+		-- Content rises into place
+		local final = body.Position
+		Spring.snap(body, { Position = final + UDim2.fromOffset(0, Theme.Flat.OpenDrop) })
+		Spring.target(body, { Position = final }, "Snappy")
 		for _, fn in openFns do
 			task.spawn(fn)
 		end
@@ -352,6 +413,7 @@ function Window.new(opts: Options): Window
 		local mid = math.max(MARGIN + HEAD / 2 - 16, barH / 2)
 		local left = math.max(MARGIN, barRight + 16)
 		head.Position = UDim2.fromOffset(left, mid)
+		rule.Position = UDim2.fromOffset(left, mid + HEAD / 2 + 1)
 		head.Size = UDim2.fromOffset(math.max(200, view.X - left - 120), HEAD)
 		x.Position = UDim2.new(1, -28, 0, mid)
 
@@ -359,7 +421,7 @@ function Window.new(opts: Options): Window
 		local availW, availH = view.X - 2 * MARGIN, view.Y - top - 16
 		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
 		bodyScale.Scale = k
-		body.Position = UDim2.fromOffset(view.X / 2, top + availH / 2)
+		Spring.snap(body, { Position = UDim2.fromOffset(view.X / 2, top + availH / 2) })
 		Kit.refit(root)
 	end
 	arrange()
