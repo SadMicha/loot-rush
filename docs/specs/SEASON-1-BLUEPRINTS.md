@@ -17,7 +17,8 @@ Smoothing erased the world, the builders' Blueprints rebuild it.
 
 ## 2. Player loop
 
-1. Reach depth 20 on any World Tier → quest "The Builder's Table" unlocks Blueprints; the first
+1. Blueprints are a **Season 1 league** mechanic (fresh season character, `docs/specs/SEASONS.md`).
+   Reach depth 20 on any World Tier → quest "The Builder's Table" unlocks Blueprints; the first
    three are given (T1, one per starter region).
 2. Blueprints also drop in normal rifts from depth 20 on (elites 3 %, bosses 25 %).
 3. At the Builder's Table pick a Blueprint (optionally improve it, §5) → **Build** → the arena
@@ -113,7 +114,8 @@ improve rules, atlas points, `fresh()` and `reconcile()` for the save block.
   in the player's stash, player in the hub and not in a run, enough Glue, rate limit 4 per second.
 - `RiftResult` summary gets `blueprint = { kind, tier, firstClear, drops }` for the result screen.
 
-**Save** (`profile.mech.blueprints`, additive, store `LootRush_Profile_v3`):
+**Save** (`leagues[league].mech.blueprints`, one block per league like the PoE atlas; store
+`LootRush_Profile_v3`, account schema v4 from `docs/specs/SEASONS.md` §6):
 
 ```lua
 mech.blueprints = {
@@ -129,7 +131,8 @@ mech.blueprints = {
 `reconcile` drops unknown kinds/mods, clamps tier 1–10, caps the stash, removes duplicate ids,
 and removes nodes the points do not cover. Ladder: `LootRush_Ladder_S1_<class>` (see SEASONS §6).
 
-**If Blueprints are retired** after the season: unused Blueprints and Glue convert to Forge
+**At season end** the S1 block merges into Legacy (stashes combined up to the cap, extra maps
+→ Glue, atlas keeps the higher tier per type). **If Blueprints are retired**: unused Blueprints and Glue convert to Forge
 materials and gold; the Atlas tab stays visible as a trophy wall. **If promoted**: Blueprints become
 the permanent endgame after depth 20, Glue and atlas stay, future seasons add types and mods.
 

@@ -31,8 +31,8 @@ can be overturned at any time. Where the concept already answers a question, the
 | World / UI | Map from parts with stud texture (owner). UI look is owned by a separate thread; this plan does not change the look. |
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
-| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. New ideas (Stud Rush, Rebuilding Bosses, Colour Match …) are in `docs/IDEAS.md`. |
-| Seasons | **After 1.0** (owner, 2026-11-02): every season trials one new mechanic; if it is well received it stays (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
+| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. **Stud Rush** (owner, 2026-11-02: in 1.0): kills and broken props pop studs that fill a Rush meter; full meter = 8 s Rush burst. Other new ideas (Rebuilding Bosses, Colour Match …) in `docs/IDEAS.md`. |
+| Seasons | **After 1.0** (owner, 2026-11-02): PoE-style leagues: fresh season characters, moved into the permanent **Legacy** league at season end; every season trials one new mechanic, well-received ones stay in Legacy (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
 
 ## 2. What changes in the existing code
 
@@ -80,6 +80,7 @@ can be overturned at any time. Where the concept already answers a question, the
 7. **Bosses with phases** (one per region; phase changes at 66 % / 33 %, adds, enrage) and **rift variants** (swarm, elite hunt, treasure goblin, timed).
 7b. **The Smoothing**: smooth studless enemy variant (`Shared/Models/Creatures`), save field `restored` per region, hub/minimap tint per region, one boss intro line per region (`Shared/Atlas`).
 8. **Spell stones** (support gems, up to 3 per skill).
+8b. **Stud Rush** (`docs/IDEAS.md` #2): stud pickups from kills/breaks (Brick Break pool), server-owned Rush meter and burst, HUD button, tuning in `Config`/`Balance`.
 9. **Star Web to 100 nodes**, class start points, cross-class paths.
 10. **Release pass**: performance, audio ids, RELEASE.md / TEST-RELEASE.md / ROADMAP.
 

@@ -10,14 +10,16 @@ As of 2026-11-02. Status: **decided (see below)**; #1, Stud VFX and #6 are built
   by new ideas that grow out of the stud world (#2 Stud Rush, #3 Rebuilding Bosses), plus #12–#14.
 - **#5 → Season 1 "Blueprints"**: PoE-style repeatable maps as the first season mechanic
   (`docs/specs/SEASON-1-BLUEPRINTS.md`); the Rift Cards become Blueprint mods.
-- **Seasons**: every season trials one new mechanic; well-received ones stay
+- **#2 Stud Rush: yes, in 1.0** (core mechanic, not seasonal).
+- **Seasons**: PoE-style leagues with fresh season characters that move into the permanent Legacy
+  league at season end; every season trials one new mechanic, well-received ones stay in Legacy
   (`docs/specs/SEASONS.md`).
 - **#8 → The Great Build**: one global monument for the whole player base (SEASONS §7).
 - Everything else (#7, #9–#14) stays a backlog idea; #13 and #14 are the Season 2/3 candidates.
 
 ## Recommendation (Claude, 2026-11-02)
 
-**Top pick: #2 Stud Rush** as a permanent core mechanic for 1.0 (not seasonal): it is the brick
+**Top pick: #2 Stud Rush** – **owner decision 2026-11-02: in 1.0** as a permanent core mechanic (not seasonal): it is the brick
 feeling everyone knows, it turns Brick Break into a combat rhythm, it explains the name "Loot Rush",
 and it needs no class work. Then #3 Rebuilding Bosses (uses the boss phases that exist), #12 Colour
 Match. Seasonal: S1 Blueprints, S2 #13 Smoothing Breaches, S3 #14 Build Kits.
@@ -322,5 +324,5 @@ Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 
 ## Open decisions for Micha
 
-1. Stud Rush (#2) into 1.0 as a core mechanic? (recommended)
-2. Season characters: same character (recommended) or fresh start each season? (`docs/specs/SEASONS.md`)
+None open. Decided 2026-11-02: Stud Rush (#2) goes into 1.0; seasons use fresh PoE-style season
+characters that move into the permanent Legacy league at season end (`docs/specs/SEASONS.md`).
