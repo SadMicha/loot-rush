@@ -50,8 +50,9 @@ can be overturned at any time. Where the concept already answers a question, the
 
 - Four tiers: **Normal, Veteran, Elite, Mythic**. A tier is chosen at the portal; the next tier
   unlocks by beating the depth 20 boss in the current tier.
-- Per tier: enemy life and damage ×(1, 2.5, 6, 15), +1 elite per rift, +1 elite modifier,
-  item level +10 per tier, rarity shift +0.2 per tier; uniques drop from Veteran on.
+- Per tier: enemy life ×(1, 2.5, 6, 15), damage ×(1, 1.8, 3, 5), gold/XP ×(1, 1.6, 2.5, 4),
+  item level +10 and rarity shift +0.2 per tier (`docs/WORLD-TIERS.md`). Elites PR: +1 elite and
+  +1 elite modifier per tier, uniques from Veteran on.
 - Depth stays endless inside a tier (leaderboard = best depth per tier and class).
 
 ## 4. Combat feel (the core)

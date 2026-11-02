@@ -8,8 +8,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
+
 local Net = require(ReplicatedStorage.Shared.Net)
-local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Shop)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
@@ -73,7 +74,7 @@ local function onBuy(player: Player, offerId: any)
 		return
 	end
 	local profile = Data.get(player)
-	local best = if profile then Rebirth.bestDepth(profile.atlas) else 1
+	local best = if profile then Atlas.bestDepth(profile.atlas) else 1
 	local ok, why = Rules.check(offer, wallet, best)
 	local price = Rules.price(offer, best)
 	if not ok or not price then

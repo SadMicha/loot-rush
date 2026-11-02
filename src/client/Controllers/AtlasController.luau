@@ -9,9 +9,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
+local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local QuestController = require(script.Parent.QuestController)
 local RiftController = require(script.Parent.RiftController)
 
 local AtlasController = {}
@@ -264,6 +266,36 @@ local function renderSide()
 		s.Parent = rewards
 	end
 
+	-- World Tier picker (Shared/WorldTiers): only between runs, only unlocked tiers
+	local player = Players.LocalPlayer
+	local tier = WorldTiers.get(player:GetAttribute("WorldTier"))
+	local unlocked = WorldTiers.get(player:GetAttribute("WorldTierUnlocked")).id
+	local tierRow = Window.frame(UDim2.fromOffset(w, 48))
+	tierRow.Name = "WorldTier"
+	tierRow.AnchorPoint = Vector2.new(0, 1)
+	tierRow.Position = UDim2.new(0, PAD, 1, -PAD - 76)
+	local function arrow(text: string, step: number, x: number)
+		local target = tier.id + step
+		local b = Kit.button(text, C.Gold, Vector2.new(56, 48))
+		b.Name = if step < 0 then "TierDown" else "TierUp"
+		b.Position = UDim2.fromOffset(x, 0)
+		Kit.setEnabled(b, target >= 1 and target <= unlocked and not RiftController.active())
+		b.Activated:Connect(function()
+			if b.Active then
+				Net.Rift:FireServer("tier", target)
+			end
+		end)
+		b.Parent = tierRow
+	end
+	arrow("<", -1, 0)
+	arrow(">", 1, w - 56)
+	local tierText =
+		Kit.label("World Tier: " .. tier.name, 18, if tier.id > 1 then C.GoldHi else C.Text)
+	tierText.AnchorPoint = Vector2.new(0.5, 0.5)
+	tierText.Position = UDim2.fromScale(0.5, 0.5)
+	tierText.Parent = tierRow
+	tierRow.Parent = side
+
 	local inRift = RiftController.active()
 	local open = isOpen(r)
 	local text = if not open
@@ -313,6 +345,26 @@ function AtlasController.init()
 	side.Parent = win.body
 
 	win.onOpen(AtlasController.render)
+	local player = Players.LocalPlayer
+	player:GetAttributeChangedSignal("WorldTier"):Connect(function()
+		if win.isOpen() then
+			AtlasController.render()
+		end
+	end)
+	local known = player:GetAttribute("WorldTierUnlocked")
+	player:GetAttributeChangedSignal("WorldTierUnlocked"):Connect(function()
+		local now = player:GetAttribute("WorldTierUnlocked")
+		if typeof(known) == "number" and typeof(now) == "number" and now > known then
+			QuestController.toast(
+				"World Tier " .. WorldTiers.get(now).name .. " unlocked",
+				C.GoldHi
+			)
+		end
+		known = now
+		if win.isOpen() then
+			AtlasController.render()
+		end
+	end)
 	AtlasController.render()
 end
 

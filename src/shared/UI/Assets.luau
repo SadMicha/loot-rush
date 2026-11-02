@@ -588,6 +588,16 @@ for name, c in CLASS do
 end
 Assets.Class = table.freeze(class)
 
+-- Held weapon meshes per class (Shared/Weapons, docs/WEAPONS.md). Paste the ids from
+-- assets/ui-asset-ids.csv after the upload: model = "weapon_<id>_model" (Model asset from the FBX),
+-- texture = "weapon_<id>_texture" (Image asset from Color.png). Empty = part-built fallback.
+Assets.Weapon = table.freeze({
+	warrior_sword = table.freeze({ model = "", texture = "" }),
+	ranger_bow = table.freeze({ model = "", texture = "" }),
+	mage_staff = table.freeze({ model = "", texture = "" }),
+	druid_scepter = table.freeze({ model = "", texture = "" }),
+} :: { [string]: { model: string, texture: string } })
+
 -- Looped ambience per place (Shared/Looks `ambience` key → sound id, AmbienceController).
 -- Any audio id from the Creator Store works (paste "rbxassetid://<id>"). Empty = silent.
 Assets.Sound = table.freeze({

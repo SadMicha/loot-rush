@@ -249,10 +249,9 @@ describe("Balancing depth 1–30", function()
 		end
 	end)
 
-	it("gets noticeably harder from the soft wall on (without Rebirth)", function()
-		local wall = Balance.P.wall_from
-		expect(rows[30].ttk).toBeGreaterThan(rows[wall].ttk * 1.8)
-		expect(rows[30].bossTime).toBeGreaterThan(rows[wall].bossTime * 1.8)
+	it("keeps deeper depths harder than depth 20 (World Tiers add the rest)", function()
+		expect(rows[30].ttk).toBeGreaterThan(rows[20].ttk)
+		expect(rows[30].bossTime).toBeGreaterThan(rows[20].bossTime)
 	end)
 
 	it("levels along (level at depth 30 between 25 and 70)", function()

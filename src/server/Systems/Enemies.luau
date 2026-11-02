@@ -19,6 +19,7 @@ local TweenService = game:GetService("TweenService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Balance = require(ReplicatedStorage.Shared.Balance)
+local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -54,7 +55,7 @@ type Enemy = {
 	kind: Kind,
 	damage: number,
 	depth: number,
-	wallShift: number, -- soft wall shifted (Rebirths)
+	tier: number, -- World Tier of the run (Shared/WorldTiers)
 	center: Vector3, -- center of the own arena (Rift slot)
 	run: number, -- Rift run the enemy belongs to (0 = none)
 	summoned: boolean,
@@ -460,22 +461,23 @@ local function clampArena(e: Enemy, p: Vector3): Vector3
 end
 
 -- Values of an enemy type at this depth (without region bonuses); also for tests/Balancing.
--- wallShift moves the soft wall (Rebirths of the Rift owner, Shared/Rebirth).
-function Enemies.stats(kindName: string, depth: number, wallShift: number?)
+-- tier = World Tier of the run (Shared/WorldTiers): tougher enemies, more gold and XP.
+function Enemies.stats(kindName: string, depth: number, tier: number?)
 	local kind = KINDS[kindName]
 	assert(kind, "unknown enemy type")
+	local t = WorldTiers.get(tier)
 	return {
-		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth, wallShift))),
-		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) + 0.5)),
-		xp = math.floor(kind.xp * Balance.xp(depth) + 0.5),
-		gold = kind.gold * Balance.gold(depth), -- unrounded: Loot rounds only after the region bonus
+		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth) * t.health)),
+		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) * t.damage + 0.5)),
+		xp = math.floor(kind.xp * Balance.xp(depth) * t.reward + 0.5),
+		gold = kind.gold * Balance.gold(depth) * t.reward, -- unrounded: Loot rounds only after the region bonus
 		boss = kind.boss,
 		cooldown = kind.cooldown,
 	}
 end
 
 export type SpawnOpts = {
-	wallShift: number?, -- soft wall shifted (Rebirths of the Rift owner)
+	tier: number?, -- World Tier of the run (Shared/WorldTiers), default 1
 	center: Vector3?, -- center of the arena (default: origin)
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
 }
@@ -483,13 +485,13 @@ export type SpawnOpts = {
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
 function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: SpawnOpts?): Model?
 	local o: SpawnOpts = opts or {}
-	local wallShift = o.wallShift
+	local tier = o.tier or 1
 	local kind = KINDS[kindName]
 	if not kind then
 		warn("[Enemies] unknown enemy type " .. tostring(kindName))
 		return nil
 	end
-	local st = Enemies.stats(kindName, depth, wallShift)
+	local st = Enemies.stats(kindName, depth, tier)
 	local health = st.health
 	local model = kind.build(kind.scale)
 	model.Name = kind.name
@@ -512,7 +514,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		kind = kind,
 		damage = st.damage,
 		depth = depth,
-		wallShift = wallShift or 0,
+		tier = tier,
 		center = o.center or Vector3.zero,
 		run = o.run or 0,
 		summoned = false,
@@ -717,7 +719,7 @@ local function summon(e: Enemy, around: Vector3, count: number)
 			addKind,
 			Vector3.new(at.X, 0, at.Z),
 			e.depth,
-			{ wallShift = e.wallShift, center = e.center, run = e.run }
+			{ tier = e.tier, center = e.center, run = e.run }
 		)
 		if m then
 			local region = e.model:GetAttribute("Region")

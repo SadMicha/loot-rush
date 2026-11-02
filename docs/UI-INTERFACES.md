@@ -12,26 +12,18 @@ modules in `ReplicatedStorage.Shared` and compute the same on client and server.
 | `Level`, `XP`, `XPNext` | level and experience |
 | `Gold`, `Soulstars` | currencies |
 | `Candy`, `Shards`, `Dust` | forge material |
-| `BestDepth` | best cleared depth across all regions (shop prices, rebirth) |
+| `BestDepth` | best cleared depth across all regions (shop prices) |
 | `AtlasBest_<region>` | best depth per region |
-| `Rebirths`, `RebirthNeed` | number of rebirths, best depth needed for the next one |
-| `BonusDamage`, `BonusLife`, `BonusGold`, `BonusXP`, `BonusItems` | sum of all permanent bonuses in % (rebirth, pets, game passes) |
+| `WorldTier`, `WorldTierUnlocked` | selected and highest unlocked World Tier (Shared/WorldTiers) |
+| `BonusDamage`, `BonusLife`, `BonusGold`, `BonusXP`, `BonusItems` | sum of all permanent bonuses in % (pets, game passes) |
 | `Stat*` | combat values from gear and stars (`Systems/Stats`) |
 | `Rift*` | Rift state (`src/shared/Types.luau`) |
 
-## Rebirth
+## World Tier (replaces Rebirth)
 
-- Send: `Net.Rebirth:FireServer()`
-- Reply: `Net.RebirthResult` → `{ ok: boolean, text: string, rebirths: number? }`
-- Display: `Shared/Rebirth` – `check(rebirths, best)` returns `(ok, reason)`, `bonus(n)` the percentages,
-  `reward(n)` the soulstars, `required(n)` the depth needed. Example:
-
-```lua
-local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
-local n = player:GetAttribute("Rebirths") or 0
-local ok, why = Rebirth.check(n, player:GetAttribute("BestDepth") or 0)
-local next = Rebirth.bonus(n + 1) -- { damage = 25, life = 10, gold = 20, xp = 20 } × (n+1)
-```
+- Attributes: `WorldTier` (selected, 1–4), `WorldTierUnlocked` (highest unlocked).
+- Choose: `Net.Rift:FireServer("tier", n)` (only between runs, only unlocked tiers).
+- Display: `Shared/WorldTiers` – `get(n)` gives name and factors; the Atlas window has the picker.
 
 ## Shop
 
@@ -61,7 +53,7 @@ local next = Rebirth.bonus(n + 1) -- { damage = 25, life = 10, gold = 20, xp = 2
 ## Stations in the Hub
 
 `HubController` opens windows via the prompt attribute `Window`. For stations without a window
-(`Pets` = pet stable, `Rebirth` = Soul Altar) `HubController.Requested(name)` fires:
+(`Pets` = pet stable) `HubController.Requested(name)` fires:
 
 ```lua
 HubController.Requested.Event:Connect(function(name)

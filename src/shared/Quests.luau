@@ -6,9 +6,10 @@
 --
 -- Goal kinds:
 --   count goals (counted by server actions): "rift" (enter a Rift), "kill", "pickup" (items),
---   "equip", "star" (allocate a star), "forge" (any Forge action), "salvage", "hatch", "rebirth"
+--   "equip", "star" (allocate a star), "forge" (any Forge action), "salvage", "hatch"
 --   state goals (checked against the player): "depth" (best cleared depth), "level"
--- Unlocks are saved once reached and never lock again (Rebirth lowers the best depth).
+-- Unlocks are saved once reached and never lock again.
+-- The save stores the chain index: only append new quests at the end, never insert or reorder.
 
 local Quests = {}
 
@@ -21,7 +22,6 @@ export type Goal =
 	| "forge"
 	| "salvage"
 	| "hatch"
-	| "rebirth"
 	| "depth"
 	| "level"
 
@@ -83,7 +83,6 @@ Quests.Chain = table.freeze({
 	{ id = "level_15", text = "Reach level 15", goal = "level", target = 15, gold = 500 },
 	{ id = "depth_15", text = "Clear depth 15", goal = "depth", target = 15, gold = 800 },
 	{ id = "depth_20", text = "Clear depth 20", goal = "depth", target = 20, gold = 1500 },
-	{ id = "rebirth", text = "Be reborn once", goal = "rebirth", target = 1, gold = 3000 },
 } :: { Quest })
 
 -- Windows behind an unlock: reached by level OR best depth (whatever comes first), or by

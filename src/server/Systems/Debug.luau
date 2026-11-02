@@ -14,15 +14,14 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
-local RebirthRules = require(ReplicatedStorage.Shared.Rebirth)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
-local Rebirth = require(script.Parent.Rebirth)
 local Rift = require(script.Parent.Rift)
 local Shop = require(script.Parent.Shop)
 
@@ -135,16 +134,16 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Net.PetResult:FireClient(player, { ok = ok, text = text, kind = "hatch", pet = petId })
 		end,
 	},
-	rebirth = {
+	tier = {
+		-- Unlocks the next World Tier (Shared/WorldTiers) and selects it
 		run = function(player)
-			-- Not in the middle of a run, and deep enough for the next rebirth (the wall moves with it)
-			if Rift.isRunning(player) then
-				Net.RebirthResult:FireClient(player, { ok = false, text = "Leave the Rift first" })
+			local profile = Data.get(player)
+			if not profile or Rift.isRunning(player) then
 				return
 			end
-			unlockAtlas(player, RebirthRules.required(Rift.rebirthsOf(player)))
-			local ok, text = Rebirth.perform(player)
-			Net.RebirthResult:FireClient(player, { ok = ok, text = text })
+			profile.tier.unlocked = math.min(profile.tier.unlocked + 1, WorldTiers.MAX)
+			profile.tier.selected = profile.tier.unlocked
+			Rift.publishBest(player)
 		end,
 	},
 	slay = {

@@ -1,7 +1,7 @@
 # Test run before the release (Studio + phone)
 
 Getting there fast: **Dbg** bottom left (always there in Studio) → "+10k Gold", "Level 50", "Unlock Areas",
-"Kill All Enemies", "+500 Soulstars", "Pet Egg", "Rebirth".
+"Kill All Enemies", "+500 Soulstars", "Pet Egg", "Next World Tier".
 
 | # | Where | What to do | What should happen |
 |---|---|---|---|
@@ -11,8 +11,8 @@ Getting there fast: **Dbg** bottom left (always there in Studio) → "+10k Gold"
 | 4 | Studio, *Test → 2 players* | Both enter a Rift | **Each** gets their own arena, enemies stay separate, each sees their own light |
 | 5 | Market (shop) | Dbg "Unlock Areas", open the shop | Gold prices are higher than before (grow with the best depth) |
 | 6 | Anywhere | (until the window exists) Dbg "Pet Egg" | Pet floats behind you, player attribute `BonusGold` or similar > 0 |
-| 7 | Hub | Dbg "Rebirth" (unlocks all regions first) | Level 1, gold 0, Atlas reset, `Rebirths` = 1, +50 Soulstars, noticeably more damage |
-| 8 | Saving | Quit the game, start again | Level, gold, pets, rebirths are still there |
+| 7 | Hub | Dbg "Next World Tier", open the Atlas | Atlas shows "World Tier: Veteran", the arrows switch tiers; a Rift on Veteran has tougher enemies and better loot |
+| 8 | Saving | Quit the game, start again | Level, gold, pets, World Tier are still there |
 | 9 | Phone (Studio device or app) | Use HUD, inventory, shop, Atlas | Everything reachable, nothing under the topbar |
 | 10 | Live test place | Join with a second account | No Dbg button visible (only for `DEV_USERS`) |
 
