@@ -32,6 +32,8 @@ local rng = Random.new()
 local partsOf: { [Model]: { BasePart } } = {}
 local pausedUntil = 0 -- hitstop (FeelController)
 local recent: { { pos: Vector3, t: number } } = {} -- last shatters, so the death Fx does not double up
+local moveParts: { BasePart } = {}
+local moveCFrames: { CFrame } = {}
 
 local function budget(): number
 	local ok, level = pcall(function()
@@ -220,8 +222,9 @@ local function step(dt: number)
 		end
 		return
 	end
-	local parts: { BasePart } = {}
-	local cfs: { CFrame } = {}
+	table.clear(moveParts) -- reused every frame: no garbage per Heartbeat
+	table.clear(moveCFrames)
+	local parts, cfs = moveParts, moveCFrames
 	local character = Players.LocalPlayer and Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local target = if root and root:IsA("BasePart") then root.Position else nil

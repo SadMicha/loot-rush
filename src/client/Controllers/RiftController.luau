@@ -9,8 +9,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
+local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local QuestController = require(script.Parent.QuestController)
 
 local RiftController = {}
 
@@ -44,6 +46,10 @@ local function refresh()
 	local depth = (player:GetAttribute("RiftDepth") or 1) :: number
 	local region = Atlas.ById[(player:GetAttribute("RiftRegion") or "") :: string]
 	local where = if region then region.name .. " · " else ""
+	local variant = RiftVariants.ById[(player:GetAttribute("RiftVariant") or "") :: string]
+	if variant then
+		where ..= variant.name .. " · "
+	end
 	banner.Visible = p ~= ""
 	bossBox.Visible = p == "boss"
 	choice.Visible = p == "clear"
@@ -132,6 +138,43 @@ function RiftController.start()
 	for _, attr in { "RiftPhase", "RiftRegion", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
+	-- Announce the variant of each new depth (name in the banner, rule as a toast). Keyed on
+	-- region + depth + variant and checked one frame later, so a repeated roll still toasts and
+	-- the attributes the server sets one after another are read together.
+	local announced = ""
+	local pending = false
+	local function announce()
+		pending = false
+		local p = phase()
+		if p == "" or p == "failed" or player:GetAttribute("RiftRegion") == nil then
+			announced = "" -- run over: the next run announces again
+			return
+		end
+		if p ~= "wave" then
+			return -- a depth always starts with its waves; boss/clear never announce
+		end
+		local id = (player:GetAttribute("RiftVariant") or "") :: string
+		local key = string.format(
+			"%s|%d|%s",
+			(player:GetAttribute("RiftRegion") or "") :: string,
+			(player:GetAttribute("RiftDepth") or 0) :: number,
+			id
+		)
+		local variant = RiftVariants.ById[id]
+		if key ~= announced and variant then
+			QuestController.toast(variant.name .. ": " .. variant.text, C.Gold)
+		end
+		announced = key
+	end
+	for _, attr in { "RiftVariant", "RiftDepth", "RiftRegion", "RiftPhase" } do
+		player:GetAttributeChangedSignal(attr):Connect(function()
+			if not pending then
+				pending = true
+				task.defer(announce)
+			end
+		end)
+	end
+	player:GetAttributeChangedSignal("RiftVariant"):Connect(refresh)
 	refresh()
 	while true do
 		if bossBox.Visible then

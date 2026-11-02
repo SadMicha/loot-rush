@@ -22,14 +22,20 @@ Everything the code can't take care of by itself. Order = suggestion.
   For the real place, point the secrets `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game
   or publish once manually from Studio.
 
+- [ ] **Sounds:** every id in `src/shared/Sounds.luau` and `Assets.Sound` (`src/shared/UI/Assets.luau`)
+  is still empty, so the game is silent apart from Roblox defaults. Pick sounds from the Creator Store
+  (or upload your own) and paste the ids; empty ids are skipped, nothing errors.
+- [ ] **Weapons/skill icons:** run the "Upload UI assets" workflow for anything new in `assets/`
+  and register the ids (`assets/ui-asset-ids.csv` → `Assets.luau`); missing ids fall back to parts/flat icons.
+
 ## 3. Test run before publishing
 
 See `docs/TEST-RELEASE.md` (Studio + phone, about 30 minutes).
 
 ## Deliberately not in yet
 
-- Windows for pets and gamepasses (Micha builds the UI; server and data are
-  done, interfaces in `docs/UI-INTERFACES.md`).
-- Leaderboard, daily rewards, offline income, trading between players.
+- Village, rebirth, offline income and idle systems: dropped (pure ARPG, `docs/DECISIONS.md`).
+- After 1.0 (`docs/DECISIONS.md` §6): master classes, world boss, party/co-op, seasons and
+  leaderboards, cosmetics, trading between players.
 - Movement checks against speed/teleport hacks: the server checks damage, loot and purchases,
   but not walking (Roblox default). Worst case: a cheater collects their own loot faster.
