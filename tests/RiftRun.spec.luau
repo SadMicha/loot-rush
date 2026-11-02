@@ -100,6 +100,12 @@ local goldStart = 0
 describe("Rift run in game", function()
 	it("clears depth 1, sends the interim state and saves the best value", function()
 		sim:boot({ seconds = 2 })
+		-- onboarding quests pay gold too: finish the chain so only Rift gold counts here
+		server(function(req, player)
+			local Quests = req("ReplicatedStorage.Shared.Quests")
+			req("ServerScriptService.Server.Systems.Data").get(player).quests.step = #Quests.Chain
+				+ 1
+		end)
 		goldStart = sim.player:GetAttribute("Gold") or 0
 		rift("enter", "green_plains")
 		expect(phase()).toBe("wave")
