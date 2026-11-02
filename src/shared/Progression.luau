@@ -6,6 +6,7 @@
 
 local Balance = require(script.Parent.Balance)
 local Skills = require(script.Parent.Skills)
+local SpellStones = require(script.Parent.SpellStones)
 local StarNet = require(script.Parent.StarNet)
 
 export type SkillProgress = {
@@ -17,6 +18,8 @@ export type Data = {
 	skills: { [string]: SkillProgress },
 	stars: { [string]: boolean }, -- allocated stars (without the heart)
 	bar: { string }, -- skill id per bar slot (Skills.SLOTS entries)
+	stones: { [string]: number }, -- owned spell stones by id (Shared/SpellStones)
+	sockets: { [string]: { string } }, -- skill id → socketed stone ids (up to SpellStones.SOCKETS)
 }
 export type Materials = { candy: number, shards: number, dust: number }
 
@@ -66,7 +69,13 @@ Progression.SpecialStats = table.freeze({
 
 -- ------------------------------------------------------------------ Save data
 function Progression.fresh(): Data
-	return { skills = {}, stars = {}, bar = table.clone(Skills.DefaultBar) }
+	return {
+		skills = {},
+		stars = {},
+		bar = table.clone(Skills.DefaultBar),
+		stones = {},
+		sockets = {},
+	}
 end
 
 function Progression.freshMaterials(): Materials
@@ -131,6 +140,36 @@ function Progression.reconcile(raw: any): Data
 			end
 		end
 		data.bar = bar :: { string }
+	end
+	if typeof(raw.stones) == "table" then
+		for id, n in raw.stones do
+			if typeof(id) == "string" and SpellStones.ById[id] and count(n) > 0 then
+				data.stones[id] = count(n)
+			end
+		end
+	end
+	if typeof(raw.sockets) == "table" then
+		local used: { [string]: number } = {}
+		for skillId, list in raw.sockets do
+			local skill = if typeof(skillId) == "string" then Skills.ById[skillId] else nil
+			if skill and typeof(list) == "table" then
+				local keep = {}
+				for _, stoneId in list do
+					if
+						#keep < SpellStones.SOCKETS
+						and typeof(stoneId) == "string"
+						and SpellStones.fits(stoneId, skill.kind)
+						and (used[stoneId] or 0) < (data.stones[stoneId] or 0)
+					then
+						used[stoneId] = (used[stoneId] or 0) + 1
+						table.insert(keep, stoneId)
+					end
+				end
+				if #keep > 0 then
+					data.sockets[skill.id] = keep
+				end
+			end
+		end
 	end
 	if typeof(raw.stars) == "table" then
 		for id, on in raw.stars do
@@ -345,6 +384,55 @@ function Progression.equip(
 	return true
 end
 
+-- ------------------------------------------------------------------ Spell stones
+-- How many copies of a stone are socketed anywhere
+function Progression.stonesUsed(data: Data, stoneId: string): number
+	local n = 0
+	for _, list in data.sockets do
+		for _, id in list do
+			if id == stoneId then
+				n += 1
+			end
+		end
+	end
+	return n
+end
+
+-- Puts a stone into socket `index` of a skill ("" empties it). Returns false if not allowed.
+function Progression.socket(data: Data, skillId: string, index: number, stoneId: string): boolean
+	local skill = Skills.ById[skillId]
+	if not skill or index ~= math.floor(index) or index < 1 or index > SpellStones.SOCKETS then
+		return false
+	end
+	local list = table.clone(data.sockets[skillId] or {})
+	if stoneId == "" then
+		if not list[index] then
+			return false
+		end
+		table.remove(list, index)
+	else
+		if not SpellStones.fits(stoneId, skill.kind) then
+			return false
+		end
+		local old = list[index]
+		local free = (data.stones[stoneId] or 0) - Progression.stonesUsed(data, stoneId)
+		if old == stoneId or free <= 0 then
+			return false
+		end
+		if old then
+			list[index] = stoneId
+		else
+			table.insert(list, stoneId)
+		end
+	end
+	if #list > 0 then
+		data.sockets[skillId] = list
+	else
+		data.sockets[skillId] = nil
+	end
+	return true
+end
+
 -- Makes the bar fit a class: skills of another class are replaced by the class's starting
 -- skills (on load and after a class change). Returns true if something changed.
 function Progression.fitBar(data: Data, classId: string): boolean
@@ -401,6 +489,17 @@ function Progression.effectiveSkill(
 			end
 		end
 	end
+	if onBar then
+		local socketed: { string } = data.sockets[skill.id] or {}
+		for _, stoneId in socketed do
+			local stone = SpellStones.ById[stoneId]
+			if stone and SpellStones.fits(stoneId, skill.kind) then
+				for stat, v in stone.add do
+					add[stat] = (add[stat] or 0) + v
+				end
+			end
+		end
+	end
 	for k, v in m do
 		local id, stat = string.match(k, "^([%w_]+)%.(%w+)$")
 		if id == skill.id and stat then
@@ -426,6 +525,13 @@ function Progression.effectiveSkill(
 	end
 	if skill.slowTime then
 		out.slowTime = skill.slowTime + (add.slowTime or 0)
+	end
+	if (add.count or 0) > 0 then
+		out.count = (skill.count or 1) + math.floor(add.count)
+		out.spread = skill.spread or 30
+	end
+	if skill.duration and (add.durationPct or 0) > 0 then
+		out.duration = skill.duration * (1 + add.durationPct)
 	end
 	for _, k in Progression.SpecialStats do
 		if (add[k] or 0) > 0 then

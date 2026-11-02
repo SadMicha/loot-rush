@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
@@ -383,23 +384,14 @@ local function renderDetail()
 		C.Muted,
 		Theme.Font.Body
 	)
+	xp.AutomaticSize = Enum.AutomaticSize.None
+	xp.Size = UDim2.fromOffset(w, 20)
+	xp.TextXAlignment = Enum.TextXAlignment.Left
 	xp.Position = UDim2.fromOffset(PAD, PAD + 514)
 	xp.Parent = detail
 	local ptsIcon = Kit.icon("star_net", 30)
 	ptsIcon.Position = UDim2.fromOffset(PAD, PAD + 350)
 	ptsIcon.Parent = detail
-	local info = Kit.label(
-		"Skills level up when they defeat enemies. Each level: +5% damage and a bloom point.",
-		15,
-		C.Muted,
-		Theme.Font.Body
-	)
-	info.AutomaticSize = Enum.AutomaticSize.Y
-	info.Size = UDim2.fromOffset(w, 0)
-	info.TextWrapped = true
-	info.TextXAlignment = Enum.TextXAlignment.Left
-	info.Position = UDim2.fromOffset(PAD, PAD + 404)
-	info.Parent = detail
 
 	-- Reset bloom (free)
 	local reset = Kit.button("Reset Bloom", C.Danger, Vector2.new(w, 50), "reroll")
@@ -412,6 +404,55 @@ local function renderDetail()
 		end
 	end)
 	reset.Parent = detail
+
+	-- Spell stone sockets (Shared/SpellStones): tap cycles through owned stones that fit.
+	-- (Skills level up by defeating enemies: +5% damage and a bloom point per level.)
+	local data = ProgressController.data()
+	local socketed: { string } = (data.sockets or {})[skill.id] or {}
+	local sw = (w - 2 * 8) / SpellStones.SOCKETS
+	for i = 1, SpellStones.SOCKETS do
+		local id = socketed[i]
+		local stone = if id then SpellStones.ById[id] else nil
+		local b = Kit.button(
+			if stone then stone.name else "Empty",
+			if stone then stone.color else C.Muted,
+			Vector2.new(sw, 40),
+			nil
+		)
+		b.Name = "Socket" .. i
+		b.Position = UDim2.fromOffset(PAD + (i - 1) * (sw + 8), PAD + 410) -- above the XP bar
+		local usable = i <= #socketed + 1
+		Kit.setEnabled(b, usable)
+		b.Activated:Connect(function()
+			if not b.Active then
+				return
+			end
+			-- next fitting stone with a free copy after the current one; "" after the last
+			local options: { string } = {}
+			for _, st in SpellStones.List do
+				local owned = ((data.stones or {})[st.id] or 0) :: number
+				local spare = owned - Progression.stonesUsed(data, st.id)
+				if SpellStones.fits(st.id, skill.kind) and (spare > 0 or st.id == id) then
+					table.insert(options, st.id)
+				end
+			end
+			local pick = ""
+			for k, optionId in options do
+				if optionId == id then
+					pick = options[k + 1] or ""
+					break
+				end
+			end
+			if not id then
+				pick = options[1] or ""
+			end
+			if pick ~= "" or id then
+				local args: { any } = { i, pick }
+				Net.Loadout:FireServer("socket", skill.id, args)
+			end
+		end)
+		b.Parent = detail
+	end
 
 	-- Selected node: spend a point. Otherwise: slot buttons to put the skill on Q/E/R/F.
 	local nodeKey = selectedNode
