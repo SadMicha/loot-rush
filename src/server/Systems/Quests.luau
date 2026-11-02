@@ -69,16 +69,22 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	local data = profile.quests
 	local level, depth = stateOf(player)
 	local stepBefore, countBefore = data.step, data.count
+	local had = table.clone(data.unlocks)
 	local finished = Rules.advance(data, goal, amount, level, depth)
-	local unlocked = Rules.refreshUnlocks(data, level, depth)
+	Rules.refreshUnlocks(data, level, depth)
+	-- only windows that were locked before this call (no repeated "New:" toast)
+	local unlocked = {}
+	for id in data.unlocks do
+		if not had[id] then
+			table.insert(unlocked, id)
+		end
+	end
+	table.sort(unlocked)
 	local doneTexts = {}
 	for i, q in finished do
 		Inventory.addGold(player, q.gold)
 		table.insert(doneTexts, q.text)
 		logStep(player, stepBefore + i - 1, q.id)
-		if q.unlocks and not table.find(unlocked, q.unlocks) then
-			table.insert(unlocked, q.unlocks)
-		end
 	end
 	if #finished > 0 or #unlocked > 0 or data.count ~= countBefore then
 		send(

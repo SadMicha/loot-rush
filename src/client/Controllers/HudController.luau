@@ -607,13 +607,17 @@ local function buildCalmPanels()
 	local function refreshQuest()
 		local q = QuestController.state()
 		local text, count, reward = QuestController.lines()
-		headText.Text = if q.text
-			then string.format("Quest %d / %d", q.step, q.total)
+		headText.Text = if not QuestController.ready()
+			then "Quest"
+			elseif q.text then string.format("Quest %d / %d", q.step, q.total)
 			else "Quests done"
 		questTitle.Text = text
 		questCount.Text = count
 		questReward.Text = reward
-		local ratio = if q.target > 0 then QuestController.count() / q.target else 1
+		local ratio = if not QuestController.ready()
+			then 0
+			elseif q.target > 0 then QuestController.count() / q.target
+			else 1
 		fill.Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1)
 		for _, entry in barButtons do
 			local locked = not QuestController.isOpen(entry.id)

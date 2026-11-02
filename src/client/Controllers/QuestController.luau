@@ -169,8 +169,16 @@ function QuestController.count(): number
 	return state.count
 end
 
+-- Has the first snapshot arrived?
+function QuestController.ready(): boolean
+	return received
+end
+
 -- Short line for the quest panel: "Defeat 10 enemies", "4 / 10", "+30 Gold"
 function QuestController.lines(): (string, string, string)
+	if not received then
+		return "", "", "" -- no snapshot yet: an empty panel, not "all done"
+	end
 	if not state.text then
 		local depth = (player:GetAttribute("BestDepth") or 0) :: number
 		return "Push deeper!", string.format("Best depth %d", depth), ""
