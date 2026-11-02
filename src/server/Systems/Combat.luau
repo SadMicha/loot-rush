@@ -34,6 +34,7 @@ local Combat = {
 	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?, gold), for Systems/Loot and Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), for Systems/Metrics
+	EnemyHit = Instance.new("BindableEvent"), -- (enemy, from: Vector3, crit), direct hits; knockback in Systems/Enemies
 }
 
 local states: { [Player]: PState } = {}
@@ -318,12 +319,23 @@ damageEnemy = function(
 	hp = math.max(0, hp - amount)
 	enemy:SetAttribute("Health", hp)
 	local pos = enemyPos(enemy)
+	local big = enemy:GetAttribute("Boss") == true or enemy:GetAttribute("Elite") == true
+	-- target/by/big drive the client juice (hit flash, chips, hitstop, shake: FeelController)
 	Net.Fx:FireAllClients("dmg", {
 		pos = pos + Vector3.new(0, 3.5, 0),
 		amount = amount,
 		crit = crit,
 		critTier = if crit then tier else nil,
+		target = enemy,
+		by = player.UserId,
+		big = big,
 	})
+	if not proc and hp > 0 then
+		local root = body(player)
+		if root then
+			Combat.EnemyHit:Fire(enemy, root.Position, crit)
+		end
+	end
 
 	if skill and not proc then
 		if skill.slow then
@@ -345,10 +357,12 @@ damageEnemy = function(
 
 	if hp <= 0 then
 		local color = enemy:GetAttribute("Color")
-		Net.Fx:FireAllClients(
-			"death",
-			{ pos = pos, color = if typeof(color) == "Color3" then color else Color3.new(1, 1, 1) }
-		)
+		Net.Fx:FireAllClients("death", {
+			pos = pos,
+			color = if typeof(color) == "Color3" then color else Color3.new(1, 1, 1),
+			by = player.UserId,
+			big = big,
+		})
 		local xp = math.floor(
 			((enemy:GetAttribute("XP") or 0) :: number) * (1 + num(player, "BonusXP") / 100) + 0.5
 		)
@@ -431,10 +445,12 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 	end
 	humanoid.Health -= amount
 	Combat.PlayerHurt:Fire(player, amount)
-	Net.Fx:FireAllClients(
-		"dmg",
-		{ pos = root.Position + Vector3.new(0, 3, 0), amount = amount, hurt = true }
-	)
+	Net.Fx:FireAllClients("dmg", {
+		pos = root.Position + Vector3.new(0, 3, 0),
+		amount = amount,
+		hurt = true,
+		who = player.UserId,
+	})
 	return true
 end
 

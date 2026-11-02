@@ -9,7 +9,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
+local BrickController = require(script.Parent.BrickController)
 
 local DashController = {}
 
@@ -18,6 +21,7 @@ local charges = Config.DASH_CHARGES
 local recharge = 0
 local dashUntil = 0
 local dashDir = Vector3.zero
+local nextTrail = 0
 
 local function maxCharges(): number
 	local bonus = player:GetAttribute("StatDash")
@@ -67,6 +71,20 @@ function DashController.dash()
 	Net.Dash:FireServer() -- Server counts its own charges and grants invulnerability
 end
 
+-- Dodge roll trail: studded bricks in the class color pop up behind the character (Stud VFX)
+local function trail(root: BasePart)
+	local weapon = Weapons.ByClass[tostring(player:GetAttribute("Class") or "")]
+	local color = if weapon then weapon.accent else Color3.new(1, 1, 1)
+	local at = root.Position - dashDir * 1.5 - Vector3.new(0, 2.4, 0)
+	BrickController.brick(
+		CFrame.new(at) * CFrame.Angles(0, math.random() * math.pi, 0),
+		Vector3.new(0.8, 0.5, 0.8),
+		color,
+		Vector3.new(0, 10 + math.random() * 6, 0) - dashDir * 6,
+		at.Y
+	)
+end
+
 local function onAction(
 	_name: string,
 	state: Enum.UserInputState,
@@ -105,12 +123,17 @@ function DashController.start()
 			charges = maxCharges()
 			publish()
 		end
-		if os.clock() < dashUntil then
+		local now = os.clock()
+		if now < dashUntil then
 			local _, root = parts()
 			if root then
 				local v = root.AssemblyLinearVelocity
 				root.AssemblyLinearVelocity =
 					Vector3.new(dashDir.X * Config.DASH_SPEED, v.Y, dashDir.Z * Config.DASH_SPEED)
+				if now >= nextTrail then
+					nextTrail = now + Feel.ROLL_TRAIL_EVERY
+					trail(root)
+				end
 			end
 		end
 	end)

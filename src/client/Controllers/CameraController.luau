@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local FeelController = require(script.Parent.FeelController)
 
 local CameraController = {}
 
@@ -63,7 +64,7 @@ local function step(dt: number)
 		return
 	end
 	local target = root.Position + Vector3.new(0, 2, 0)
-	local alpha = 1 - math.exp(-Config.CAMERA_SMOOTHING * dt)
+	local alpha = if FeelController.frozen() then 0 else 1 - math.exp(-Config.CAMERA_SMOOTHING * dt)
 	focus = if focus then focus:Lerp(target, alpha) else target
 	local f = focus :: Vector3
 	local offset = Vector3.new(
@@ -71,7 +72,7 @@ local function step(dt: number)
 		math.sin(pitch),
 		math.cos(yaw) * math.cos(pitch)
 	) * zoom
-	camera.CFrame = CFrame.lookAt(f + offset, f)
+	camera.CFrame = CFrame.lookAt(f + offset, f) * FeelController.shakeOffset(dt)
 end
 
 function CameraController.init()

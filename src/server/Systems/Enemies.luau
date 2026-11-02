@@ -22,6 +22,7 @@ local Balance = require(ReplicatedStorage.Shared.Balance)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
+local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
 
@@ -410,6 +411,8 @@ local KINDS: { [string]: Kind } = {
 
 local list: { Enemy } = {}
 local folder: Folder
+-- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
+local knock: { [Model]: Vector3 } = {}
 local rng = Random.new()
 
 local function flat(
@@ -747,6 +750,7 @@ local function step(dt: number)
 		local model = e.model
 		if not model.Parent then
 			clearTelegraph(e)
+			knock[model] = nil
 			table.remove(list, i)
 			continue
 		end
@@ -822,6 +826,19 @@ local function step(dt: number)
 			y = baseY + math.abs(math.sin(now * 3 + e.phase)) * 0.25 * kind.scale
 		end
 
+		local kv = knock[model]
+		if kv then
+			if e.dashEnd == 0 then -- a charge is not interrupted
+				pos = clampArena(e, pos + kv * dt)
+			end
+			local left: Vector3 = kv * math.exp(-Feel.KNOCKBACK_DECAY * dt)
+			if left.Magnitude > 0.5 then
+				knock[model] = left
+			else
+				knock[model] = nil
+			end
+		end
+
 		local here = Vector3.new(pos.X, y, pos.Z)
 		if dir.Magnitude > 0.01 then
 			model:PivotTo(CFrame.lookAt(here, here + dir.Unit))
@@ -837,8 +854,28 @@ function Enemies.init()
 	folder.Parent = workspace
 end
 
+-- Pushes an enemy away from `from` (direct hits, Combat.EnemyHit). Bosses and elites barely move.
+function Enemies.knockback(model: Model, from: Vector3, crit: boolean)
+	if not model.Parent then
+		return
+	end
+	local away = model:GetPivot().Position - from
+	away = Vector3.new(away.X, 0, away.Z)
+	if away.Magnitude < 0.01 then
+		return
+	end
+	local force = if crit then Feel.KNOCKBACK_CRIT else Feel.KNOCKBACK
+	if model:GetAttribute("Boss") == true or model:GetAttribute("Elite") == true then
+		force *= Feel.KNOCKBACK_BOSS
+	end
+	knock[model] = away.Unit * force
+end
+
 function Enemies.start()
 	RunService.Heartbeat:Connect(step)
+	Combat.EnemyHit.Event:Connect(function(model: Model, from: Vector3, crit: boolean)
+		Enemies.knockback(model, from, crit)
+	end)
 end
 
 return Enemies
