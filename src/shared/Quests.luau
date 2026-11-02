@@ -91,12 +91,14 @@ Quests.Unlocks = table.freeze({
 	star_net = { level = 5, caption = "Reach level 5" },
 	forge = { depth = 5, caption = "Clear depth 5" },
 	pets = { depth = 8, caption = "Clear depth 8" },
+	auto_salvage = { depth = 10, caption = "Clear depth 10" },
 } :: { [string]: { level: number?, depth: number?, caption: string } })
 
 Quests.Names = table.freeze({
 	star_net = "Star Web",
 	forge = "Forge",
 	pets = "Pets",
+	auto_salvage = "Auto-Salvage",
 } :: { [string]: string })
 
 function Quests.fresh(): Data

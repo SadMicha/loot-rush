@@ -55,6 +55,7 @@ return table.freeze({
 	RIFT_WAVE_STEP = 2, -- extra enemies per wave and per depth
 	RIFT_WAVE_MAX = 24, -- cap on enemies per wave (server/network load at high depth)
 	RIFT_WAVE_PAUSE = 1.5, -- seconds between waves
+	RIFT_ELITES = 2, -- elites per depth: one each in the last waves (spreadsheet: 3 per 150 enemies)
 	RIFT_SLOTS = 12, -- this many Rifts run at once on a server (one per player)
 	ARENA_SPACING = 400, -- studs between arena slots (along +X, slot 1 at the origin)
 

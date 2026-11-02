@@ -171,8 +171,16 @@ local function spawnPoint(r: Run): Vector3
 		+ Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 
-local function spawn(r: Run, kind: string, pos: Vector3)
-	mark(r, Enemies.spawn(kind, pos, r.depth, { tier = r.tier, center = r.center, run = r.id }))
+local function spawn(r: Run, kind: string, pos: Vector3, elite: boolean?)
+	mark(
+		r,
+		Enemies.spawn(
+			kind,
+			pos,
+			r.depth,
+			{ tier = r.tier, center = r.center, run = r.id, elite = elite }
+		)
+	)
 end
 
 -- Waits until all enemies are dead. false = run was aborted.
@@ -261,8 +269,10 @@ local function play(r: Run)
 			Config.RIFT_WAVE_MAX
 		)
 		local mix = r.region.enemies
-		for _ = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r))
+		-- the last RIFT_ELITES waves open with one elite each
+		local elite = wave > Config.RIFT_WAVES - Config.RIFT_ELITES
+		for i = 1, count do
+			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i == 1)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")

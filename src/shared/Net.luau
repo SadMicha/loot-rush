@@ -21,6 +21,7 @@
 --                    kind = "hatch" | "equip" | "unequip" (the request it answers)
 --   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
 --                    events: { done = { questText }, unlocked = { windowId } } on progress
+--   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,6 +48,7 @@ local NAMES = {
 	"Pets",
 	"PetResult",
 	"Quest",
+	"AutoSalvage",
 	"Debug",
 }
 
@@ -91,5 +93,6 @@ return table.freeze({
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),
 	Quest = get("Quest"),
+	AutoSalvage = get("AutoSalvage"),
 	Debug = get("Debug"),
 })

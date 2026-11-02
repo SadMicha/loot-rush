@@ -83,7 +83,7 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	label.TextStrokeColor3 = Theme.Color.Bg0
 	label.Parent = gui
 
-	if item and (item.rarity == "rare" or item.rarity == "epic") then
+	if item and (item.rarity == "rare" or item.rarity == "epic" or item.rarity == "unique") then
 		local beam = Instance.new("Part")
 		beam.Anchored = true
 		beam.CanCollide = false
@@ -119,7 +119,9 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 		goldMult = 1 + (bonus.gold or 0),
 		itemChance = math.min(1, Balance.P.drop_normal * (1 + (bonus.items or 0))),
 		bossItems = Balance.P.drops_boss,
+		eliteItems = Balance.P.drops_elite,
 		shift = Balance.rarityShift(d) + t.shift,
+		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (WORLD-TIERS.md)
 	}
 end
 
@@ -132,7 +134,8 @@ local function onKilled(
 	_xp: any,
 	depth: any,
 	region: any,
-	gold: any
+	gold: any,
+	elite: any
 )
 	if typeof(player) ~= "Instance" or typeof(pos) ~= "Vector3" then
 		return
@@ -163,13 +166,31 @@ local function onKilled(
 		end
 		-- Table: boss loot at least 1× Rare+
 		for i = 1, t.bossItems do
-			local opts = { shift = t.shift, min = if i == 1 then "rare" else nil }
+			local opts =
+				{ shift = t.shift, min = if i == 1 then "rare" else nil, uniques = t.uniques }
 			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, opts))
 		end
 		return
 	end
 	if total > 0 then
 		makeDrop(pos, owner, coin(total), nil)
+	end
+	if elite == true then
+		-- Table: elites drop a fixed number of items (at least Magic)
+		for _ = 1, t.eliteItems do
+			makeDrop(
+				pos,
+				owner,
+				0,
+				Items.roll(
+					t.ilvl,
+					rng,
+					nil,
+					{ shift = t.shift, min = "magic", uniques = t.uniques }
+				)
+			)
+		end
+		return
 	end
 	if rng:NextNumber() < itemChance then
 		makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, { shift = t.shift }))
@@ -183,10 +204,11 @@ local function pickup(d: Drop, at: Vector3?): boolean
 	local text: string
 	local color: Color3
 	if item then
-		if not Inventory.add(d.owner, item) then
+		local stored, salvaged = Inventory.add(d.owner, item, true)
+		if not stored then
 			return false
 		end
-		text = item.name
+		text = if salvaged then "Salvaged " .. item.name else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 	else
 		Inventory.addGold(d.owner, d.gold)

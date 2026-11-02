@@ -483,6 +483,7 @@ export type SpawnOpts = {
 	tier: number?, -- World Tier of the run (Shared/WorldTiers), default 1
 	center: Vector3?, -- center of the arena (default: origin)
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
+	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
 }
 
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
@@ -495,9 +496,27 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		return nil
 	end
 	local st = Enemies.stats(kindName, depth, tier)
+	local elite = o.elite == true and not kind.boss
+	if elite then
+		local P = Balance.P
+		st.health = math.floor(st.health * P.elite_hp)
+		st.damage = math.floor(st.damage * P.elite_dmg + 0.5)
+		st.xp = math.floor(st.xp * P.elite_loot + 0.5)
+		st.gold *= P.elite_loot
+	end
 	local health = st.health
 	local model = kind.build(kind.scale)
-	model.Name = kind.name
+	model.Name = if elite then "Elite " .. kind.name else kind.name
+	if elite then
+		model:SetAttribute("Elite", true)
+		local glow = Instance.new("Highlight")
+		glow.Name = "EliteGlow"
+		glow.FillTransparency = 1
+		glow.OutlineColor = Color3.fromRGB(255, 196, 64)
+		glow.OutlineTransparency = 0
+		glow.DepthMode = Enum.HighlightDepthMode.Occluded
+		glow.Parent = model
+	end
 	model:PivotTo(CFrame.new(pos.X, bodyY(kind), pos.Z))
 	model:SetAttribute("Health", health)
 	model:SetAttribute("MaxHealth", health)

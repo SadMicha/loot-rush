@@ -244,6 +244,7 @@ Theme.Flat = table.freeze({
 		magic = table.freeze({ halo = 1, tint = 0.86, pulse = false, spin = false }),
 		rare = table.freeze({ halo = 2, tint = 0.82, pulse = true, spin = false }),
 		epic = table.freeze({ halo = 3, tint = 0.78, pulse = true, spin = true }),
+		unique = table.freeze({ halo = 3, tint = 0.74, pulse = true, spin = true }),
 	} :: {
 		[string]: { halo: number, tint: number, pulse: boolean, spin: boolean },
 	}),

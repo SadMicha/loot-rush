@@ -367,6 +367,7 @@ damageEnemy = function(
 			((enemy:GetAttribute("XP") or 0) :: number) * (1 + num(player, "BonusXP") / 100) + 0.5
 		)
 		local boss = enemy:GetAttribute("Boss") == true
+		local elite = enemy:GetAttribute("Elite") == true
 		local depth = enemy:GetAttribute("Depth")
 		local region = enemy:GetAttribute("Region")
 		local gold = enemy:GetAttribute("Gold")
@@ -387,7 +388,8 @@ damageEnemy = function(
 				xp,
 				if typeof(depth) == "number" then depth else 1,
 				region,
-				if typeof(gold) == "number" then gold else 0
+				if typeof(gold) == "number" then gold else 0,
+				elite
 			)
 		end
 	end
