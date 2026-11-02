@@ -121,7 +121,7 @@ improve rules, atlas points, `fresh()` and `reconcile()` for the save block.
 mech.blueprints = {
 	stash = {}, -- { { id, kind, tier, rarity, mods } }, max 60
 	glue = 0,
-	atlas = {}, -- { [kind]: highest tier cleared }
+	atlas = {}, -- { [kind]: number } bit mask of cleared tiers (bit t − 1 = tier t cleared), so skipped tiers stay visible
 	nodes = {}, -- { nodeId } bought Atlas bonuses
 	bestTier = 0, -- also the Season Ladder stat
 	gift = false, -- first three Blueprints given
@@ -132,7 +132,7 @@ mech.blueprints = {
 and removes nodes the points do not cover. Ladder: `LootRush_Ladder_S1_<class>` (see SEASONS §6).
 
 **At season end** the S1 block merges into Legacy (stashes combined up to the cap, extra maps
-→ Glue, atlas keeps the higher tier per type). **If Blueprints are retired**: unused Blueprints and Glue convert to Forge
+→ Glue, atlas masks are OR-combined). **If Blueprints are retired**: unused Blueprints and Glue convert to Forge
 materials and gold; the Atlas tab stays visible as a trophy wall. **If promoted**: Blueprints become
 the permanent endgame after depth 20, Glue and atlas stay, future seasons add types and mods.
 

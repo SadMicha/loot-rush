@@ -123,6 +123,7 @@ first Legacy character), using the `MIGRATIONS` table that already exists in `Sh
 {
 	soulstars = 0, receipts = {}, passes = {}, pets = {}, -- moved up from the character (account-wide)
 	cosmetics = {}, -- { [cosmeticId]: true } titles, trails, portal colours
+	greatBuild = {}, -- { [seasonId]: { total, stages, day, dayAmount } } donor credit (§7)
 	characters = {}, -- { Character }, max 12 (Legacy + Season)
 	active = "", -- id of the character played this session
 	leagues = {}, -- { [leagueId]: League } per-league account data ("legacy", "S1", …)
@@ -153,15 +154,17 @@ first Legacy character), using the `MIGRATIONS` table that already exists in `Sh
   1. every character with `league = "S<n>"` gets `league = "legacy"`, `migratedFrom = "S<n>"`;
   2. `leagues["S<n>"].mech[id]` is merged into `leagues.legacy.mech[id]` by the mechanic's
      `merge` function (Blueprints: stashes are combined up to the cap, extra maps become Glue,
-     atlas keeps the higher tier per type);
+     atlas tier masks are OR-combined);
   3. Journey/ladder stats are summarized into `seasonHistory`, the league block is removed;
   4. if the mechanic is `retired`, its merged Legacy data runs once through `convert`.
   The migration is idempotent (a character already in `legacy` is skipped), runs inside the
   profile session lock, and is covered by Lune tests.
 - **Character cap**: 12 slots; migration may go over the cap (nothing is deleted), the player only
   cannot create new characters until they are under it again.
-- **Retire**: `convert` turns season currencies and unused consumables into gold and Forge
-  materials (popup "Your Season 1 items were converted"); the block is kept as `{ converted = true }`.
+- **Retire**: `convert` only turns season currencies and unused consumables (Blueprints: unused
+  maps and Glue) into gold and Forge materials (popup "Your Season 1 items were converted"). It
+  returns the block without those fields and sets `converted = true`; progress such as the
+  Blueprint Atlas stays as a trophy (nothing earned is deleted).
 - **Items** get an optional field `season: string?` (season id) for mechanic-specific items. It is
   display only ("Season 1" tag in the tooltip); stats never depend on it.
 - **Size**: each mechanic declares a hard cap (Blueprints: 60 stashed maps ≈ 6 KB). Budget: one
@@ -201,7 +204,7 @@ The finished monument stays in the hub until the next season builds a new one.
 | Read | Each server reads the cached record (total + `stageDoneAt`) every 30 s, falling back to the DataStore when the cache is empty, and tweens the bar; the client sees an attribute `GreatBuildTotal`. |
 | Stage complete | The `UpdateAsync` that crosses a stage threshold writes `stageDoneAt[stage] = os.time()` into the same DataStore entry (only one server can win the transform) and publishes a MessagingService message `GreatBuildStage` so all servers play the build animation within seconds. Servers that miss the message see it on the next 30 s read. |
 | Global buff | Time based, not message based: the buff is active while `now < stageDoneAt + 7200`. New servers and late joiners get it right. |
-| Top donors | Per-player stage donations in the profile (`mech.greatbuild`), plus **one OrderedDataStore per stage**, `LootRush_GreatBuildDonors_S<n>_<stage>` (key UserId, value = that player's donations in that stage), written on flush (max once per player per minute). Plaques read the top 5 of each stage's store; a season-wide `LootRush_GreatBuildDonors_S<n>` holds the overall ranking. |
+| Top donors | Per-player donations are **account-wide** at the account root, `greatBuild = { [seasonId]: { total, stages = { [stage]: n }, day, dayAmount } }` (outside `leagues`, so the season end migration never touches it; daily cap and milestones read it), plus **one OrderedDataStore per stage**, `LootRush_GreatBuildDonors_S<n>_<stage>` (key UserId, value = that player's donations in that stage), written on flush (max once per player per minute). Plaques read the top 5 of each stage's store; a season-wide `LootRush_GreatBuildDonors_S<n>` holds the overall ranking. |
 | Failure | Only the DataStore write can lose or duplicate donations, and the `seq` check makes its retries idempotent: a failed write keeps the batch (with its `seq`) in memory and retries with backoff; new donations go into the next batch. A failed MemoryStore set is simply skipped (next flush fixes the cache). On `BindToClose` the server flushes once more. Worst case a server loses ≤ 30 s of donations on a hard crash (the players' bricks are already spent; acceptable, mention in the patch notes). |
 | Testing | `Shared/GreatBuild.luau` pure (thresholds, stage from total, buff window); MemoryStore/DataStore wrapped so Lune tests use a fake. |
 
