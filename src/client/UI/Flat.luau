@@ -415,7 +415,7 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 		ic.Parent = b
 	end
 
-	if o.count then
+	if o.count ~= nil then
 		local n = Flat.text(tostring(o.count), 13, C.Text, Theme.Font.UI, Enum.TextXAlignment.Right)
 		n.AnchorPoint = Vector2.new(1, 1)
 		n.Position = UDim2.new(1, -6, 1, -3)

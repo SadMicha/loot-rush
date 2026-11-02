@@ -557,6 +557,7 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	b.AutoButtonColor = false
 	b.BorderSizePixel = 0
 	b.BackgroundColor3 = Color3.new(1, 1, 1)
+	b.BackgroundTransparency = 0
 	Kit.touchTarget(b)
 	Shape.corner(b, Theme.Flat.Radius.M)
 	Shape.gradient(b, top, bottom)

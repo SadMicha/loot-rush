@@ -252,6 +252,7 @@ function Shape.close(size: number): ImageButton
 	b.Image = ""
 	b.AutoButtonColor = false
 	b.BackgroundColor3 = F.Surface2
+	b.BackgroundTransparency = 0
 	b.BorderSizePixel = 0
 	b.Size = UDim2.fromOffset(size, size)
 	b:SetAttribute("TouchTarget", true)
