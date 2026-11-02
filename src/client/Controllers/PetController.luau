@@ -1,8 +1,7 @@
 --!strict
 -- Makes every player's equipped pets float behind them (visuals only, purely local).
 -- Which pets someone carries is stored in the player attribute "Pets" (comma-separated, Systems/Pets).
--- Model: ReplicatedStorage.Assets.Pet_<id> if Micha imported one, otherwise a small
--- placeholder from Shared/Models/Creatures (blueprint Pets.look).
+-- Model: a studded part model from Shared/Models/Creatures (blueprint Pets.look).
 -- For the pet window: PetController.state (latest Net.Pets state) and PetController.Changed.
 
 local Players = game:GetService("Players")
@@ -30,20 +29,6 @@ local folder: Folder
 local followers: { [Player]: { Follower } } = {}
 
 local function build(id: string): Model?
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local custom = assets and assets:FindFirstChild("Pet_" .. id)
-	if custom and custom:IsA("Model") then
-		local m = custom:Clone()
-		for _, d in m:GetDescendants() do
-			if d:IsA("BasePart") then
-				d.Anchored = true
-				d.CanCollide = false
-				d.CanTouch = false
-				d.CanQuery = false
-			end
-		end
-		return m
-	end
 	local pet = Pets.ById[id]
 	local maker = pet and (Creatures :: any)[pet.look]
 	if typeof(maker) ~= "function" then

@@ -20,6 +20,7 @@ end
 
 local function done(m: Model, body: BasePart): Model
 	body.Name = "Body"
+	Kit.Studs.applyTree(m) -- shapes set after Kit.block (balls, cylinders) get the stud texture too
 	for _, d in m:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.CanCollide = false

@@ -24,12 +24,13 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 | M7 | Rift run & regions | Atlas regions playable (own enemies/bosses, unlocking), arena per region, loot by depth, run summary `RiftResult`, death ends the run, loot collection (`docs/RIFT-RUN.md`) | 🔧 ready to test |
 | M8 | Combat depth | Armor, block, crit shards, Arcane Shield, all special nodes of the skill blooms, helpers with region XP | 🔧 ready to test |
 | M9 | Balancing per spreadsheet | Enemies, XP, gold, loot per depth (`docs/balancing.md`, `Shared/Balance`) | 🔧 ready to test (real runs against the spreadsheet open, see M5) |
-| M10 | Hub Lumenhaven | Own hub map with Blender models (`assets/models`, `Hub_*.fbx`), stations, distant scenery | 🔧 ready to test |
+| M10 | Hub Lumenhaven | Own hub map (parts with studs since M17), stations, distant scenery | 🔧 ready to test |
 | M11 | Rebirth | Rebirth from depth 20 (+5 per rebirth), permanent bonuses, scaling shop prices (`docs/REBIRTH.md`) | 🔧 ready to test |
 | M12 | Pets | Eggs at the stall, permanent bonuses, companion model, light per player hub vs. rift (`docs/PETS.md`, checklist `TEST-PETS`) | 🔧 ready to test (odds/egg/equip steps wait for the pet window, not built yet, or run via server command-bar steps in `TEST-PETS`) |
 | M13 | Monetization | Soulstar products, 3 gamepasses (VIP, pet slot, loot magnet), robust ProcessReceipt; **all IDs still placeholder `0`** (`docs/MONETIZATION.md`) | 🔧 ready to test (Robux IDs in Creator Hub missing) |
 | M14 | Hardening & multiplayer | Remote throttles (inventory, rift, skills, dash), ID length check, several rifts at once (arena per player, `RIFT_SLOTS = 12`) | 🔧 ready to test (multiplayer playtest with 2+ clients open) |
 | M15 | Tooling & publishing | `tools/check.sh` (format, lint, types, build, test, ui), Lune sandbox, headless UI check, asset check (`check-assets`), auto-publish to test place (Open Cloud), debug menu, checklist template | ✅ Runs in CI (workflows ci, check-assets, publish) |
+| M17 | Parts + studs world | Whole map from parts with the classic stud look (`Shared/Models/Studs`, `Kit` wedge/cylinder/truss, new town props), Blender models removed, Terrain water, Sky/Clouds/DepthOfField, smoke/spark particles, ambience sound slots (`docs/ASSETS-3D.md`) | 🔧 ready to test (stud texture upload for balls/cylinders and sound ids open) |
 | M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8; PR #42 HUD pass (terrain minimap, text shadows/outlines, icon shadows, orbs, skill arc/cooldown veil, dash diamonds, class icons, hub bar, safe area, Lumenhaven) | 🔧 ready to test (real phone open, with M5; checklist `TEST-HUD` open) |
 
 ## Next milestones (in order)
@@ -41,7 +42,7 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 | N3 | Fixes from N1/N2 | Collected bugs, small briefs per lane | backend-developer / frontend-developer | ⏳ |
 | N4 | Monetization live | Create products/passes in Creator Hub, enter IDs, purchase test (Studio + test place), policy check (random items) | Micha (IDs), backend-developer, code-reviewer | ⏳ |
 | N5 | Village & offline income | Make village house tiers productive, income on rejoin (none of it found in `src/`); spec needed | planner (spec) → backend-developer → ui-designer → frontend-developer | ⏳ |
-| N6 | Content & assets | Missing scene images/node icons (`Assets.Art`), pet models `Pet_<id>`, audio | ui-designer (prompts), Micha (images/Blender) | ⏳ |
+| N6 | Content & assets | Missing scene images/node icons (`Assets.Art`), ambience sound ids (`Assets.Sound`) | ui-designer (prompts), Micha (images, sound ids) | ⏳ |
 | N7 | Release preparation | Mobile performance budget, store page, live data/analytics, starting region polish | all | ⏳ |
 | N8 | Package tooling | Wally packages (`wally install` in setup/CI, Rojo mapping `Packages`/`ServerPackages`, package types, commit `wally.lock`); prerequisite for N9/N12. Starts only when no other agent edits `tools/`, `tests/`, `wally.toml`, `default.project.json`, `ci.yml` (`docs/specs/PLATFORM-STACK.md` §1) | backend-developer → code-reviewer | ⏳ |
 | N9 | ProfileStore saving | `lm-loleris/profilestore@1.0.3` behind the unchanged `Data` API, new store `LootRush_Profile_v3` (no migration), sandbox support, `Data*.spec` kept green, TEST-SAVING update; lands before the saving part of N1 (D6, §2) | backend-developer → code-reviewer → planner (checklist) → Micha | ✅ done, pending review (store `LootRush_Profile_v3`, own lock helpers removed) |

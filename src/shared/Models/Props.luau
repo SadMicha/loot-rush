@@ -125,6 +125,7 @@ function Props.portal(): Model
 	field.Transparency = 0.35
 	field.CanCollide = false
 	Kit.light(field, C.magic, 22, 2)
+	Kit.emit(field, "motes", C.crystal)
 	for _, x in { -6.2, 6.2 } do
 		block(
 			m,
@@ -335,6 +336,8 @@ function Props.chimney(s: number): Model
 		block(m, v(2.2, 0.4, 2.2) * s, CFrame.new(0, 8.8 * s, 0), C.fire, Enum.Material.Neon)
 	block(m, v(1.2, 1.2, 0.3) * s, CFrame.new(0, 2.4 * s, 2.05 * s), C.ember, Enum.Material.Neon)
 	Kit.light(glow, C.fire, 18 * s, 1.6)
+	Kit.emit(glow, "smoke", Color3.fromHex("#5A4440"))
+	Kit.emit(glow, "sparks")
 	return Kit.finish(m, false, 1)
 end
 
@@ -460,6 +463,164 @@ function Props.deadTree(s: number): Model
 		CFrame.new(-1 * s, 6 * s, 0) * CFrame.Angles(0.2, 0, 0.9),
 		C.woodDark
 	)
+	return Kit.finish(m, false, 1)
+end
+
+-- ------------------------------------------------------------------ Town props (Hub)
+-- Fir: trunk, three stacked tiers of wedge "skirts" (4 wedges each) and a corner-wedge tip.
+function Props.pine(s: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Pine"
+	Kit.cylinder(
+		m,
+		v(3, 0.9, 0.9) * s,
+		CFrame.new(0, 1.5 * s, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		C.woodDark
+	)
+	local y = 2.4
+	for i = 0, 2 do
+		local w = (5.4 - i * 1.4) * s
+		local h = 2.2 * s
+		local shade = if i % 2 == 0 then C.leafDark else Kit.shade(C.leafDark, 0.06)
+		block(m, v(w * 0.5, h, w * 0.5), CFrame.new(0, y * s + h / 2, 0), shade)
+		for k = 0, 3 do
+			-- each wedge rises from the outer edge toward the trunk
+			Kit.wedge(
+				m,
+				v(w, h, w * 0.25),
+				CFrame.Angles(0, math.rad(k * 90), 0)
+					* CFrame.new(0, y * s + h / 2, w * 0.375)
+					* CFrame.Angles(0, math.rad(180), 0),
+				shade
+			)
+		end
+		y += 1.9
+	end
+	block(m, v(0.8, 1.2, 0.8) * s, CFrame.new(0, (y + 0.9) * s, 0), C.leafDark)
+	return Kit.finish(m, false, 1)
+end
+
+-- Street lantern: post, arm, glowing cage with a warm light.
+function Props.lantern(): Model
+	local m = Instance.new("Model")
+	m.Name = "Lantern"
+	block(m, v(1.4, 0.6, 1.4), CFrame.new(0, 0.3, 0), C.stoneDark)
+	block(m, v(0.5, 6.4, 0.5), CFrame.new(0, 3.5, 0), C.woodDark)
+	block(m, v(1.8, 0.4, 0.4), CFrame.new(0.7, 6.4, 0), C.woodDark)
+	block(m, v(1.2, 0.3, 1.2), CFrame.new(1.3, 6.05, 0), C.metal)
+	local glow = block(m, v(0.8, 1, 0.8), CFrame.new(1.3, 5.35, 0), C.gold, Enum.Material.Neon)
+	glow.Name = "Light"
+	block(m, v(1.1, 0.25, 1.1), CFrame.new(1.3, 4.75, 0), C.metal)
+	Kit.light(glow, Color3.fromHex("#FFC86B"), 16, 1.4)
+	return Kit.finish(m, false, 1)
+end
+
+-- Banner on a pole (front +Z), gold rune diamond on the cloth, pointed tail.
+function Props.banner(cloth: Color3?): Model
+	local m = Instance.new("Model")
+	m.Name = "Banner"
+	local c = cloth or Color3.fromHex("#2448A8")
+	block(m, v(0.4, 7.4, 0.4), CFrame.new(0, 3.7, 0), C.woodDark)
+	block(m, v(2.4, 0.3, 0.3), CFrame.new(0, 7, 0.3), C.gold)
+	block(m, v(1.8, 3, 0.15), CFrame.new(0, 5.3, 0.3), c)
+	-- pointed tail: a diamond half hidden behind the cloth
+	block(m, v(1.27, 1.27, 0.15), CFrame.new(0, 3.8, 0.3) * CFrame.Angles(0, 0, math.rad(45)), c)
+	block(
+		m,
+		v(0.6, 0.6, 0.18),
+		CFrame.new(0, 5.5, 0.32) * CFrame.Angles(0, 0, math.rad(45)),
+		C.gold
+	)
+	return Kit.finish(m, true)
+end
+
+local BLOOMS = { Color3.fromHex("#FF6B8A"), C.gold, C.cream, Color3.fromHex("#B98CFF") }
+
+function Props.flowerBox(): Model
+	local m = Instance.new("Model")
+	m.Name = "FlowerBox"
+	block(m, v(4, 1.4, 1.6), CFrame.new(0, 0.7, 0), C.wood)
+	block(m, v(4.2, 0.3, 1.8), CFrame.new(0, 1.45, 0), C.woodDark)
+	block(m, v(3.6, 0.3, 1.2), CFrame.new(0, 1.55, 0), C.dirt)
+	for i = 0, 4 do
+		block(m, v(0.2, 0.6, 0.2), CFrame.new(-1.6 + i * 0.8, 1.9, 0), C.leafDark)
+		Kit.ball(m, 0.8, v(-1.6 + i * 0.8, 2.3, 0), BLOOMS[i % #BLOOMS + 1])
+	end
+	return Kit.finish(m, true)
+end
+
+-- Upright barrel: cylinder body with two metal hoops.
+function Props.barrel(): Model
+	local m = Instance.new("Model")
+	m.Name = "Barrel"
+	local up = CFrame.Angles(0, 0, math.rad(90))
+	Kit.cylinder(m, v(2.6, 2, 2), CFrame.new(0, 1.3, 0) * up, C.wood)
+	for _, y in { 0.5, 2.1 } do
+		Kit.cylinder(m, v(0.2, 2.1, 2.1), CFrame.new(0, y, 0) * up, C.metal)
+	end
+	Kit.cylinder(m, v(0.1, 1.7, 1.7), CFrame.new(0, 2.62, 0) * up, C.woodDark)
+	return Kit.finish(m, false)
+end
+
+-- Crate: box with frame planks on the edges.
+function Props.crate(): Model
+	local m = Instance.new("Model")
+	m.Name = "Crate"
+	block(m, v(2, 2, 2), CFrame.new(0, 1, 0), C.wood)
+	for _, y in { 0.1, 1.9 } do
+		block(m, v(2.1, 0.25, 2.1), CFrame.new(0, y, 0), C.woodDark)
+	end
+	for _, x in { -0.95, 0.95 } do
+		for _, z in { -0.95, 0.95 } do
+			block(m, v(0.25, 2, 0.25), CFrame.new(x, 1, z), C.woodDark)
+		end
+	end
+	return Kit.finish(m, false)
+end
+
+-- Well with a little wedge roof and a bucket (plaza deco)
+function Props.well(): Model
+	local m = Instance.new("Model")
+	m.Name = "Well"
+	local up = CFrame.Angles(0, 0, math.rad(90))
+	Kit.cylinder(m, v(2, 5, 5), CFrame.new(0, 1, 0) * up, C.stone)
+	local water =
+		Kit.cylinder(m, v(0.2, 4, 4), CFrame.new(0, 1.8, 0) * up, C.water, Enum.Material.Glass)
+	water.Transparency = 0.3
+	for _, x in { -2.1, 2.1 } do
+		block(m, v(0.4, 4.4, 0.4), CFrame.new(x, 3.2, 0), C.woodDark)
+	end
+	block(m, v(4.6, 0.3, 0.3), CFrame.new(0, 4.8, 0), C.woodDark)
+	for _, sz in { -1, 1 } do
+		Kit.wedge(
+			m,
+			v(5.4, 1.2, 1.8),
+			CFrame.new(0, 5.6, sz * 0.9) * CFrame.Angles(0, if sz > 0 then math.rad(180) else 0, 0),
+			C.roof
+		)
+	end
+	block(m, v(0.8, 0.7, 0.8), CFrame.new(0, 3.4, 0), C.wood)
+	return Kit.finish(m, false, 1)
+end
+
+-- Bench (two legs, seat, backrest)
+function Props.bench(): Model
+	local m = Instance.new("Model")
+	m.Name = "Bench"
+	for _, x in { -1.8, 1.8 } do
+		block(m, v(0.4, 1, 1.2), CFrame.new(x, 0.5, 0), C.stoneDark)
+	end
+	block(m, v(4.4, 0.3, 1.4), CFrame.new(0, 1.15, 0), C.wood)
+	block(m, v(4.4, 1, 0.25), CFrame.new(0, 1.9, -0.6), C.wood)
+	return Kit.finish(m, false, 1)
+end
+
+-- Scaffold: truss ladder with a plank platform on top (cliffs, mines)
+function Props.scaffold(h: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Scaffold"
+	Kit.truss(m, h, CFrame.new(0, h / 2, 0), C.woodDark)
+	block(m, v(4, 0.4, 4), CFrame.new(0, h + 0.2, 0), C.wood)
 	return Kit.finish(m, false, 1)
 end
 

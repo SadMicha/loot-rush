@@ -3,9 +3,9 @@
 -- brief, kept outside the repo; concept hub_lageplan_raster.png). 16 × 16 cells of 8 studs around
 -- Config.HUB_ORIGIN: spawn in the south, market square with compass, Rift Gate on the north terrace,
 -- Forge and market in the west, stash and pets in the east, cliffs, waterfalls, castle.
--- Floors, stairs and cliffs are built in code; buildings and props come from
--- ReplicatedStorage.Assets (Blender models, see ASSET). If a model is missing, a
--- placeholder made of parts stands in its place. Stations carry a ProximityPrompt with the
+-- Everything is built from parts with the classic stud look (Shared/Models: Kit, Studs, Props,
+-- Buildings): floors, stairs, cliffs, buildings and props. Water is Terrain water where a
+-- Terrain exists (glass parts otherwise). Stations carry a ProximityPrompt with the
 -- attribute "Window"; the HubController uses it to open the matching window.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,30 +19,10 @@ local C = Models.Kit.C
 local block = Models.Kit.block
 local Props = Models.Props
 
+local Buildings = Models.Buildings
+
 local T = 8 -- cell size (studs)
 local N = 16 -- cells per side
--- Rotation of the Blender models until their front faces +Z. After the 3D import
--- the Blender front (−Y) faces −Z, hence 180° (checked in Studio, 2026-10-29).
-local ASSET_YAW = 180
-
--- File names of the Blender models in assets/models (= instance names under
--- ReplicatedStorage.Assets). They are binary .rbxm files and keep their original names;
--- only code-side names are English.
-local ASSET = table.freeze({
-	riftGate = "Hub_RiftTor",
-	forge = "Hub_Schmiede",
-	lantern = "Hub_Laterne",
-	banner = "Hub_Banner",
-	flowerBox = "Hub_Blumenkasten",
-	market = "Hub_Markt",
-	barrel = "Hub_Fass",
-	crate = "Hub_Kiste",
-	stash = "Hub_Stash",
-	pets = "Hub_Haustiere",
-	fence = "Hub_Zaun",
-	tree = "Hub_Baum",
-	fir = "Hub_Tanne",
-})
 
 -- Site plan, row 16 (north) to 1 (south), columns A–P.
 -- G grass, g grass hill, K cliff, W water, C castle rock, S spawn path, P market square,
@@ -67,7 +47,6 @@ local PLAN = {
 }
 
 local H = { S = 0, Y = 0, P = 2, X = 2, T = 5, R = 8, G = 1, g = 4, W = -1, K = 16, C = 18 }
-local PAVED = { S = true, P = true, T = true, R = true }
 
 local COBBLE = { Color3.fromHex("#B7B0A0"), Color3.fromHex("#A9A291"), Color3.fromHex("#C4BDAC") }
 local TERRACE = { Color3.fromHex("#CFC8B6"), Color3.fromHex("#C2BBA8") }
@@ -116,16 +95,26 @@ local function tile(parent: Instance, col: number, row: number)
 	local p = cell(col, row)
 	local h = height(col, row)
 	if k == "W" then
-		local s = block(
-			parent,
-			Vector3.new(T, 0.4, T),
-			at(p + Vector3.new(0, h - 0.2, 0)),
-			WATER,
-			Enum.Material.Glass
-		)
-		s.Transparency = 0.25
-		s.CanCollide = false
-		block(parent, Vector3.new(T, 4, T), at(p + Vector3.new(0, h - 3, 0)), C.dirt)
+		-- studded riverbed, water above it (Terrain water, or a glass sheet without Terrain)
+		local terrain = workspace:FindFirstChildOfClass("Terrain")
+		if terrain then
+			terrain:FillBlock(
+				at(p + Vector3.new(0, h - 2, 0)),
+				Vector3.new(T, 4, T),
+				Enum.Material.Water
+			)
+		else
+			local s = block(
+				parent,
+				Vector3.new(T, 0.4, T),
+				at(p + Vector3.new(0, h - 0.2, 0)),
+				WATER,
+				Enum.Material.Glass
+			)
+			s.Transparency = 0.25
+			s.CanCollide = false
+		end
+		block(parent, Vector3.new(T, 4, T), at(p + Vector3.new(0, h - 6, 0)), C.dirt)
 		return
 	end
 	if k == "X" or k == "Y" then
@@ -139,13 +128,7 @@ local function tile(parent: Instance, col: number, row: number)
 			if (col + row) % 2 == 0 then C.grass else C.grass2,
 			rng:NextNumber(-0.03, 0.03)
 		)
-	block(
-		parent,
-		Vector3.new(T, 0.7, T),
-		at(p + Vector3.new(0, h - 0.35, 0)),
-		top,
-		if PAVED[k] then Enum.Material.Cobblestone else Enum.Material.SmoothPlastic
-	)
+	block(parent, Vector3.new(T, 0.7, T), at(p + Vector3.new(0, h - 0.35, 0)), top)
 	local base = h + 4
 	block(
 		parent,
@@ -175,8 +158,7 @@ local function stairs(parent: Instance, a: Vector3, b: Vector3, width: number)
 			parent,
 			Vector3.new(width, h, depth + 0.02),
 			at(Vector3.new(mid.X, top - h / 2, mid.Z)) * face.Rotation,
-			if i % 2 == 0 then C.stoneLight else C.stone,
-			Enum.Material.Slate
+			if i % 2 == 0 then C.stoneLight else C.stone
 		)
 	end
 	-- Side walls left and right
@@ -204,69 +186,18 @@ local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?)
 	return model
 end
 
--- Prepare a Blender model: anchor it, "_Neon" glows, "_Deko" (deco suffix baked into the
--- .rbxm part names) without collision
--- Glow color per model (Neon shows no texture, only the color)
-local GLOW: { [string]: Color3 } = {
-	[ASSET.riftGate] = Color3.fromHex("#4FD8F5"),
-	[ASSET.forge] = Color3.fromHex("#FF8A3D"),
-}
-local WARM = Color3.fromHex("#FFC86B")
-
-local function prepare(model: Model): Model
-	for _, d in model:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.Anchored = true
-			if string.sub(d.Name, -5) == "_Neon" then
-				local glow = GLOW[model.Name] or WARM
-				d.Material = Enum.Material.Neon
-				d.Color = glow
-				d.CastShadow = false
-				if d:IsA("MeshPart") then
-					d.TextureID = ""
-				end
-				Models.Kit.light(d, glow, 16, 1.4)
-			elseif string.sub(d.Name, -5) == "_Deko" then
-				d.CanCollide = false
-				d.CanQuery = false
-				d.CanTouch = false
-			end
-		end
-	end
-	return model
-end
-
--- Model from ReplicatedStorage.Assets, otherwise the placeholder
-local function asset(name: string, fallback: () -> Model): (Model, boolean)
-	local folder = ReplicatedStorage:FindFirstChild("Assets")
-	local found = folder and folder:FindFirstChild(name)
-	if found and found:IsA("Model") then
-		local m = prepare(found:Clone())
-		m.Name = name
-		return m, true
-	end
-	local m = fallback()
-	m.Name = name
-	return m, false
-end
-
--- Put an asset on the ground at (x, z); `face` = local point the front faces
+-- Put a model on the ground at (x, z); `face` = local point its front (+Z) faces
 local function put(
 	parent: Instance,
-	name: string,
-	fallback: () -> Model,
+	m: Model,
 	x: number,
 	z: number,
 	face: Vector3?,
 	y: number?
 ): Model
-	local m, real = asset(name, fallback)
 	local yaw = 0
 	if face then
 		yaw = math.deg(math.atan2(face.X - x, face.Z - z))
-	end
-	if real then
-		yaw += ASSET_YAW
 	end
 	return place(parent, m, Vector3.new(x, y or groundAt(x, z), z), yaw)
 end
@@ -291,117 +222,6 @@ local function station(
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute("Window", window)
 	prompt.Parent = p
-end
-
--- ------------------------------------------------------------------ Placeholders
--- Rough part shapes until the Blender models are in the game (sizes as in the asset list)
-local function stall(roofA: Color3, roofB: Color3, w: number, d: number): () -> Model
-	return function()
-		local m = Instance.new("Model")
-		block(m, Vector3.new(w, 2.4, d * 0.5), CFrame.new(0, 1.2, d * 0.2), C.wood)
-		for _, x in { -w / 2 + 0.4, w / 2 - 0.4 } do
-			for _, z in { -d / 2 + 0.4, d / 2 - 0.4 } do
-				block(m, Vector3.new(0.5, 6, 0.5), CFrame.new(x, 3, z), C.woodDark)
-			end
-		end
-		local stripes = math.floor(w / 1.6)
-		for i = 0, stripes - 1 do
-			block(
-				m,
-				Vector3.new(w / stripes, 0.3, d + 0.6),
-				CFrame.new(-w / 2 + (i + 0.5) * w / stripes, 6.4, 0)
-					* CFrame.Angles(math.rad(-12), 0, 0),
-				if i % 2 == 0 then roofA else roofB
-			)
-		end
-		return Models.Kit.finish(m, false, 1)
-	end
-end
-
-local function lantern(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(0.5, 6.4, 0.5), CFrame.new(0, 3.2, 0), C.woodDark)
-	block(m, Vector3.new(1.8, 0.4, 0.4), CFrame.new(0.7, 6.2, 0), C.woodDark)
-	local glow =
-		block(m, Vector3.new(0.9, 1.1, 0.9), CFrame.new(1.3, 5.4, 0), C.gold, Enum.Material.Neon)
-	glow.Name = "Light_Neon"
-	Models.Kit.light(glow, Color3.fromHex("#FFC86B"), 16, 1.4)
-	return Models.Kit.finish(m, false, 1)
-end
-
-local function banner(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(0.4, 7, 0.4), CFrame.new(0, 3.5, 0), C.woodDark)
-	block(m, Vector3.new(1.8, 3.6, 0.15), CFrame.new(0, 4.8, 0.3), Color3.fromHex("#2448A8"))
-	block(
-		m,
-		Vector3.new(0.6, 0.6, 0.18),
-		CFrame.new(0, 5.2, 0.32) * CFrame.Angles(0, 0, math.rad(45)),
-		C.gold
-	)
-	return Models.Kit.finish(m, true)
-end
-
-local function flowerBox(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(4, 1.4, 1.6), CFrame.new(0, 0.7, 0), C.wood)
-	for i = 0, 4 do
-		local c = ({ Color3.fromHex("#FF6B8A"), C.gold, C.cream, Color3.fromHex("#B98CFF") })[i % 4 + 1]
-		Models.Kit.ball(m, 0.9, Vector3.new(-1.6 + i * 0.8, 1.7, 0), c)
-	end
-	return Models.Kit.finish(m, true)
-end
-
-local function barrel(): Model
-	local m = Instance.new("Model")
-	local b = block(
-		m,
-		Vector3.new(2.6, 2, 2),
-		CFrame.new(0, 1.3, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		C.wood
-	)
-	b.Shape = Enum.PartType.Cylinder
-	return Models.Kit.finish(m, false)
-end
-
-local function crate(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(2, 2, 2), CFrame.new(0, 1, 0), C.wood)
-	block(m, Vector3.new(2.05, 0.3, 2.05), CFrame.new(0, 1, 0), C.woodDark)
-	return Models.Kit.finish(m, false)
-end
-
-local function fir(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(0.8, 3, 0.8), CFrame.new(0, 1.5, 0), C.woodDark)
-	for i = 0, 2 do
-		local w = 5 - i * 1.4
-		block(
-			m,
-			Vector3.new(w, 2.4, w),
-			CFrame.new(0, 3 + i * 2, 0) * CFrame.Angles(0, math.rad(45), 0),
-			C.leafDark
-		)
-	end
-	return Models.Kit.finish(m, false)
-end
-
-local function stashBox(): Model
-	local m = Instance.new("Model")
-	block(m, Vector3.new(8, 1, 6), CFrame.new(0, 0.5, 0), C.stone)
-	for _, x in { -3.6, 3.6 } do
-		block(m, Vector3.new(0.6, 6, 0.6), CFrame.new(x, 4, -2.4), C.woodDark)
-	end
-	block(
-		m,
-		Vector3.new(9, 0.6, 5),
-		CFrame.new(0, 7.2, -1) * CFrame.Angles(math.rad(-15), 0, 0),
-		C.roofDark
-	)
-	local chest = Props.chest()
-	chest:PivotTo(CFrame.new(0, 1, 0))
-	chest.Parent = m
-	return Models.Kit.finish(m, false, 1)
 end
 
 -- ------------------------------------------------------------------ Assembly
@@ -509,73 +329,64 @@ local function buildTown(parent: Instance)
 	compass(deco)
 
 	-- Rift Gate with banners and lanterns
-	put(deco, ASSET.riftGate, Props.portal, GATE.X, GATE.Z, PLAZA)
+	put(deco, Props.portal(), GATE.X, GATE.Z, PLAZA)
 	station(parent, GATE + Vector3.new(0, 0, 5), "Open Atlas", "Rift Gate", "Atlas")
 	station(parent, GATE + Vector3.new(10, 0, 6), "Rebirth", "Soul Altar", "Rebirth")
 	for _, s in { -1, 1 } do
-		put(deco, ASSET.banner, banner, s * 13, -36, PLAZA)
-		put(deco, ASSET.lantern, lantern, s * 10, -26, PLAZA)
-		put(deco, ASSET.lantern, lantern, s * 10, -6, PLAZA)
-		put(deco, ASSET.banner, banner, s * 12, 40, Vector3.new(0, 0, 60))
-		put(deco, ASSET.lantern, lantern, s * 10, 30, Vector3.new(0, 0, 60))
-		put(deco, ASSET.flowerBox, flowerBox, s * 14, -2, PLAZA)
-		put(deco, ASSET.flowerBox, flowerBox, s * 30, 18, PLAZA)
+		put(deco, Props.banner(), s * 13, -36, PLAZA)
+		put(deco, Props.lantern(), s * 10, -26, PLAZA)
+		put(deco, Props.lantern(), s * 10, -6, PLAZA)
+		put(deco, Props.banner(), s * 12, 40, Vector3.new(0, 0, 60))
+		put(deco, Props.lantern(), s * 10, 30, Vector3.new(0, 0, 60))
+		put(deco, Props.flowerBox(), s * 14, -2, PLAZA)
+		put(deco, Props.flowerBox(), s * 30, 18, PLAZA)
+		put(deco, Props.bench(), s * 18, 22, PLAZA)
 	end
+	put(deco, Props.well(), 36, 36, Vector3.new(0, 0, 36))
 
 	-- West: Glitter Forge and market
 	local forge = cell(3, 8.8)
-	put(deco, ASSET.forge, function()
-		return Models.Buildings.forge(2)
-	end, forge.X, forge.Z, PLAZA)
+	put(deco, Buildings.forge(2), forge.X, forge.Z, PLAZA)
 	station(parent, forge + Vector3.new(8, H.T, 2), "Forge", "Glitter Forge", "Forge")
 	local market = cell(6, 10)
-	put(deco, ASSET.market, stall(C.roof, C.cream, 8, 5), market.X, market.Z, PLAZA)
+	put(deco, Buildings.stall(C.roof, C.cream, 8, 5), market.X, market.Z, PLAZA)
 	station(parent, market + Vector3.new(2, H.T, 4), "Shop", "Market", "Shop")
-	put(deco, ASSET.barrel, barrel, -30, -8)
-	put(deco, ASSET.crate, crate, -28, -4, PLAZA)
-	put(deco, ASSET.barrel, barrel, -54, 8)
-	put(deco, ASSET.crate, crate, -52, 12)
+	put(deco, Props.barrel(), -30, -8)
+	put(deco, Props.crate(), -28, -4, PLAZA)
+	put(deco, Props.barrel(), -54, 8)
+	put(deco, Props.crate(), -52, 12)
 
 	-- East: stash and pets
 	local stash = cell(11, 10)
-	put(deco, ASSET.stash, stashBox, stash.X, stash.Z, PLAZA)
+	put(deco, Buildings.stash(Props.chest()), stash.X, stash.Z, PLAZA)
 	station(parent, stash + Vector3.new(-2, H.T, 4), "Open", "Stash", "Inventory")
 	local pets = cell(13.4, 8.6)
-	put(deco, ASSET.pets, stall(Color3.fromHex("#D94A4A"), C.cream, 10, 6), pets.X, pets.Z, PLAZA)
+	put(deco, Buildings.stall(Color3.fromHex("#D94A4A"), C.cream, 10, 6), pets.X, pets.Z, PLAZA)
 	station(parent, pets + Vector3.new(-2, H.T, 4), "Pets", "Pet Stable", "Pets")
-	put(deco, ASSET.barrel, barrel, 30, -8)
-	put(deco, ASSET.crate, crate, 54, 14, PLAZA)
+	put(deco, Props.barrel(), 30, -8)
+	put(deco, Props.crate(), 54, 14, PLAZA)
 
 	-- Fences on the terrace edges
 	for _, s in { -1, 1 } do
 		for k = 0, 2 do
-			put(
-				deco,
-				ASSET.fence,
-				Props.fence,
-				s * (36 + k * 8),
-				-26,
-				Vector3.new(s * (36 + k * 8), 0, 0)
-			)
+			put(deco, Props.fence(), s * (36 + k * 8), -26, Vector3.new(s * (36 + k * 8), 0, 0))
 		end
 		-- South edge of the market square next to the spawn stairs
-		put(deco, ASSET.fence, Props.fence, s * 24, 31, Vector3.new(s * 24, 0, 60))
+		put(deco, Props.fence(), s * 24, 31, Vector3.new(s * 24, 0, 60))
 	end
 
-	-- Trees on grass, firs on the cliffs
+	-- Trees on grass, firs on the hills and cliffs
 	for row = 1, N do
 		for col = 1, N do
 			local k = kind(col, row)
 			local p = cell(col, row)
 				+ Vector3.new(rng:NextNumber(-2.5, 2.5), 0, rng:NextNumber(-2.5, 2.5))
 			if k == "G" and rng:NextNumber() < 0.45 then
-				put(deco, ASSET.tree, function()
-					return Props.tree(rng:NextNumber(1.1, 1.6))
-				end, p.X, p.Z, nil)
+				put(deco, Props.tree(rng:NextNumber(1.1, 1.6)), p.X, p.Z, nil)
 			elseif
 				(k == "g" and rng:NextNumber() < 0.35) or (k == "K" and rng:NextNumber() < 0.3)
 			then
-				put(deco, ASSET.fir, fir, p.X, p.Z, nil)
+				put(deco, Props.pine(rng:NextNumber(0.9, 1.3)), p.X, p.Z, nil)
 			end
 		end
 	end
@@ -613,7 +424,6 @@ function Hub.init()
 	spawn.Size = Vector3.new(6, 0.4, 6)
 	spawn.CFrame = CFrame.new(Config.HUB_POS.X, origin.Y + H.S + 0.2, Config.HUB_POS.Z)
 	spawn.Color = C.stoneLight
-	spawn.Material = Enum.Material.SmoothPlastic
 	spawn.Neutral = true
 	spawn.Duration = 0
 	local decal = spawn:FindFirstChildOfClass("Decal")
@@ -621,6 +431,7 @@ function Hub.init()
 		decal:Destroy()
 	end
 	spawn.Parent = root
+	Models.Studs.applyTree(root) -- safety net: every part in the hub carries the stud look
 	root.Parent = workspace
 end
 

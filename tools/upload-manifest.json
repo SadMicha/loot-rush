@@ -675,6 +675,24 @@
     128
    ],
    "registry": "Assets.Class"
+  },
+  {
+   "key": "stud_color",
+   "file": "assets/world/Stud_Color.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.World"
+  },
+  {
+   "key": "stud_normal",
+   "file": "assets/world/Stud_Normal.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.World"
   }
  ]
 }

@@ -25,8 +25,7 @@ while they are equipped. Equipped pets float behind their player.
   give no bonus and can't be equipped (max. 100 entries).
 - All values are our own assumptions (`src/shared/Pets.luau`).
 
-**Models:** Until there are real ones, `PetController` builds small placeholders from the enemy blueprints.
-A model `Pet_<id>` (e.g. `Pet_rune_dragon.rbxm`) in `assets/models` replaces the placeholder
-automatically (facing −Z, pivot in the center).
+**Models:** `PetController` builds every pet from studded parts with the enemy blueprints
+(`Shared/Models/Creatures`, `Pets.look`), see `docs/ASSETS-3D.md`.
 
 Interface for the UI: `docs/UI-INTERFACES.md`. Playtest: `docs/TEST-PETS.md`.
