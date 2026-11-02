@@ -75,7 +75,7 @@ describe("Elites and auto-salvage in game", function()
 		end)
 		expect(eliteHp).toBe(math.floor(hp * Balance.P.elite_hp))
 		expect(isElite).toBe(true)
-		expect(string.sub(name, 1, 6)).toBe("Elite ")
+		expect(#name > #"Slime").toBe(true) -- modifier names in front (Shared/EliteMods)
 	end)
 
 	it("salvages loot on pickup up to the chosen rarity", function()
@@ -116,5 +116,102 @@ describe("Elites and auto-salvage in game", function()
 			return req("ServerScriptService.Server.Systems.Data").get(player).autoSalvage
 		end)
 		expect(setting).toBe("magic")
+	end)
+end)
+
+describe("Elite modifiers", function()
+	local EliteMods = require("ReplicatedStorage.Shared.EliteMods")
+
+	it("roll one modifier on Normal and one more per World Tier, never twice", function()
+		expect(EliteMods.count(1)).toBe(1)
+		expect(EliteMods.count(3)).toBe(3)
+		expect(EliteMods.count(99)).toBe(#EliteMods.List)
+		local rng = Random.new(7)
+		for tier = 1, 4 do
+			local ids = EliteMods.roll(rng, EliteMods.count(tier))
+			expect(#ids).toBe(tier)
+			local seen = {}
+			for _, id in ids do
+				expect(seen[id]).toBeNil()
+				expect(EliteMods.ById[id]).never.toBeNil()
+				seen[id] = true
+			end
+		end
+		expect(EliteMods.title({ "fast", "shielded" }, "Slime")).toBe("Fast Shielded Slime")
+	end)
+
+	local function spawnElite(req, player, mods)
+		local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+		local root = player.Character.HumanoidRootPart
+		local model = Enemies.spawn(
+			"slime",
+			root.Position + Vector3.new(0, 0, -14),
+			1,
+			{ center = root.Position, run = 66, elite = true, mods = mods }
+		)
+		model:SetAttribute("SlowUntil", os.clock() + 60)
+		model:SetAttribute("SlowFactor", 0)
+		return model
+	end
+
+	it("names the elite after its modifiers and shields it", function()
+		local name, shield, max, hpAfter, shieldAfter = server(function(req, player)
+			local m = spawnElite(req, player, { "shielded" })
+			local s = m:GetAttribute("Shield")
+			local hp = m:GetAttribute("Health")
+			req("ServerScriptService.Server.Systems.Combat").damageEnemy(m, 1, player, nil, true)
+			return m.Name, s, hp, m:GetAttribute("Health"), m:GetAttribute("Shield")
+		end)
+		expect(string.sub(name, 1, 9)).toBe("Shielded ")
+		expect(shield).toBe(math.floor(max * EliteMods.SHIELD))
+		expect(hpAfter).toBe(max) -- the shield took the hit
+		expect(shieldAfter < shield).toBe(true)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(66)
+		end)
+	end)
+
+	it("leaves a telegraphed blast when an exploding elite dies", function()
+		local before = server(function(_, player)
+			return player.Character.Humanoid.Health
+		end)
+		server(function(req, player)
+			local m = spawnElite(req, player, { "exploding" })
+			m:PivotTo(player.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3))
+			req("ServerScriptService.Server.Systems.Combat").slay(player, m)
+		end)
+		sim:run(EliteMods.BLAST_DELAY + 0.3)
+		local after = server(function(_, player)
+			return player.Character.Humanoid.Health
+		end)
+		expect(after < before).toBe(true)
+		server(function(_, player)
+			local h = player.Character.Humanoid
+			h.Health = h.MaxHealth
+		end)
+	end)
+
+	it("slows players inside a frozen aura", function()
+		local base = server(function(_, player)
+			return player.Character.Humanoid.WalkSpeed
+		end)
+		server(function(req, player)
+			local m = spawnElite(req, player, { "frozen_aura" })
+			m:PivotTo(player.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4))
+		end)
+		sim:run(0.6)
+		local slowed, chilled = server(function(_, player)
+			return player.Character.Humanoid.WalkSpeed, player:GetAttribute("Chilled")
+		end)
+		expect(slowed < base).toBe(true)
+		expect(chilled).toBe(true)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(66)
+		end)
+		sim:run(1.5)
+		local back = server(function(_, player)
+			return player.Character.Humanoid.WalkSpeed
+		end)
+		expect(back).toBe(base)
 	end)
 end)

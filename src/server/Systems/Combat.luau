@@ -24,6 +24,8 @@ type PState = {
 	dashStamp: number,
 	haste: number, -- Bloom "Storm Rider": % move speed until hasteUntil
 	hasteUntil: number,
+	chill: number, -- Frozen aura elites: % move speed lost until chillUntil
+	chillUntil: number,
 	armorBuff: number, -- Bloom "Ice Armor": % armor until armorUntil
 	armorUntil: number,
 	shield: number, -- Star "Arcane Shield": life points until shieldUntil
@@ -34,6 +36,7 @@ local Combat = {
 	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?, gold), for Systems/Loot and Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), for Systems/Metrics
+	EnemyDied = Instance.new("BindableEvent"), -- (enemy, pos) right before the model is destroyed
 	EnemyHit = Instance.new("BindableEvent"), -- (enemy, from: Vector3, crit), direct hits; knockback in Systems/Enemies
 }
 
@@ -147,8 +150,36 @@ local function applySpeed(player: Player)
 		return
 	end
 	local st = states[player]
-	local haste = if st and os.clock() < st.hasteUntil then st.haste else 0
-	humanoid.WalkSpeed = Config.WALK_SPEED * (1 + (num(player, "StatSpeed") + haste) / 100)
+	local now = os.clock()
+	local haste = if st and now < st.hasteUntil then st.haste else 0
+	local chill = if st and now < st.chillUntil then st.chill else 0
+	humanoid.WalkSpeed = Config.WALK_SPEED
+		* (1 + (num(player, "StatSpeed") + haste) / 100)
+		* (1 - math.clamp(chill, 0, 90) / 100)
+end
+
+-- Frozen aura (Systems/Enemies): slows the player by `pct` % until `untilT`; refreshing is cheap
+function Combat.chill(player: Player, untilT: number, pct: number)
+	local st = states[player]
+	if not st then
+		return
+	end
+	local fresh = os.clock() >= st.chillUntil
+	st.chill = pct
+	st.chillUntil = math.max(st.chillUntil, untilT)
+	if fresh then
+		applySpeed(player)
+		player:SetAttribute("Chilled", true)
+		task.spawn(function()
+			while states[player] == st and os.clock() < st.chillUntil do
+				task.wait(st.chillUntil - os.clock() + 0.05)
+			end
+			if player.Parent then
+				player:SetAttribute("Chilled", nil)
+				applySpeed(player)
+			end
+		end)
+	end
 end
 
 -- Call after changes to level/gear
@@ -316,7 +347,15 @@ damageEnemy = function(
 		critMult
 	)
 	amount = math.max(1, math.floor(amount + 0.5))
-	hp = math.max(0, hp - amount)
+	-- Shielded elites (Shared/EliteMods): the shield takes the damage first
+	local toLife = amount
+	local shield = enemy:GetAttribute("Shield")
+	if typeof(shield) == "number" and shield > 0 then
+		local absorbed = math.min(shield, toLife)
+		enemy:SetAttribute("Shield", shield - absorbed)
+		toLife -= absorbed
+	end
+	hp = math.max(0, hp - toLife)
 	enemy:SetAttribute("Health", hp)
 	local pos = enemyPos(enemy)
 	local big = enemy:GetAttribute("Boss") == true or enemy:GetAttribute("Elite") == true
@@ -373,6 +412,7 @@ damageEnemy = function(
 		local gold = enemy:GetAttribute("Gold")
 		local burst = shatterOn[enemy]
 		shatterOn[enemy] = nil
+		Combat.EnemyDied:Fire(enemy, pos)
 		enemy:Destroy()
 		if burst and os.clock() < burst.untilT and player.Parent then
 			shatter(pos, burst.amount, player, skill)
@@ -838,6 +878,8 @@ local function onPlayer(player: Player)
 		dashStamp = os.clock(),
 		haste = 0,
 		hasteUntil = 0,
+		chill = 0,
+		chillUntil = 0,
 		armorBuff = 0,
 		armorUntil = 0,
 		shield = 0,

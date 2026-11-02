@@ -269,10 +269,10 @@ local function play(r: Run)
 			Config.RIFT_WAVE_MAX
 		)
 		local mix = r.region.enemies
-		-- the last RIFT_ELITES waves open with one elite each
+		-- the last RIFT_ELITES waves open with elites: one, plus one per World Tier above Normal
 		local elite = wave > Config.RIFT_WAVES - Config.RIFT_ELITES
 		for i = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i == 1)
+			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i <= r.tier)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")

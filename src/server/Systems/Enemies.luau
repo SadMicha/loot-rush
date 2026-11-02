@@ -22,6 +22,7 @@ local Balance = require(ReplicatedStorage.Shared.Balance)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
+local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
@@ -71,6 +72,9 @@ type Enemy = {
 	dashFrom: Vector3,
 	dashTo: Vector3,
 	dashEnd: number, -- 0 = no charge
+	mods: { [string]: boolean }, -- elite modifiers (Shared/EliteMods)
+	windup: number, -- attack wind-up in seconds (kind.windup, shorter when Fast)
+	nextAura: number, -- Frozen aura: next slow pulse
 }
 
 local Enemies = {}
@@ -484,6 +488,7 @@ export type SpawnOpts = {
 	center: Vector3?, -- center of the arena (default: origin)
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
 	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
+	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
 }
 
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
@@ -506,9 +511,24 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	end
 	local health = st.health
 	local model = kind.build(kind.scale)
-	model.Name = if elite then "Elite " .. kind.name else kind.name
+	local modIds: { string } = if elite
+		then (o.mods or EliteMods.roll(rng, EliteMods.count(tier)))
+		else {}
+	local mods: { [string]: boolean } = {}
+	for _, id in modIds do
+		if EliteMods.ById[id] then
+			mods[id] = true
+		end
+	end
+	model.Name = if elite then EliteMods.title(modIds, kind.name) else kind.name
 	if elite then
 		model:SetAttribute("Elite", true)
+		model:SetAttribute("Mods", table.concat(modIds, ","))
+		if mods.shielded then
+			local shield = math.floor(health * EliteMods.SHIELD)
+			model:SetAttribute("Shield", shield)
+			model:SetAttribute("MaxShield", shield)
+		end
 		local glow = Instance.new("Highlight")
 		glow.Name = "EliteGlow"
 		glow.FillTransparency = 1
@@ -551,6 +571,9 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		dashFrom = pos,
 		dashTo = pos,
 		dashEnd = 0,
+		mods = mods,
+		windup = kind.windup * (if mods.fast then EliteMods.FAST_WINDUP else 1),
+		nextAura = now,
 	})
 	return model
 end
@@ -634,7 +657,7 @@ local function circle(e: Enemy, at: Vector3, radius: number)
 	inner.Shape = Enum.PartType.Cylinder
 	TweenService:Create(
 		inner,
-		TweenInfo.new(e.kind.windup, Enum.EasingStyle.Linear),
+		TweenInfo.new(e.windup, Enum.EasingStyle.Linear),
 		{ Size = Vector3.new(0.25, d, d) }
 	):Play()
 	table.insert(e.telegraphs, outer)
@@ -653,7 +676,7 @@ local function line(e: Enemy, from: Vector3, dir: Vector3)
 	)
 	local inner =
 		flat(base * CFrame.new(0, 0.05, -0.05), Vector3.new(w, 0.25, 0.1), DANGER_CORE, 0.45, outer)
-	TweenService:Create(inner, TweenInfo.new(e.kind.windup, Enum.EasingStyle.Linear), {
+	TweenService:Create(inner, TweenInfo.new(e.windup, Enum.EasingStyle.Linear), {
 		Size = Vector3.new(w, 0.25, CHARGE_LENGTH),
 		CFrame = base * CFrame.new(0, 0.05, -CHARGE_LENGTH / 2),
 	}):Play()
@@ -662,7 +685,7 @@ end
 
 local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: number)
 	local kind = e.kind
-	e.windupEnd = now + kind.windup
+	e.windupEnd = now + e.windup
 	table.clear(e.targets)
 	local ground = Vector3.new(pos.X, 0, pos.Z)
 	local goal = Vector3.new(targetPos.X, 0, targetPos.Z)
@@ -684,7 +707,7 @@ local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: numb
 			Net.Fx:FireAllClients("proj", {
 				from = pos,
 				to = at + Vector3.new(0, 0.5, 0),
-				time = kind.windup,
+				time = e.windup,
 				color = kind.color,
 				size = 0.8 * kind.scale,
 			})
@@ -693,6 +716,45 @@ local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: numb
 		table.insert(e.targets, ground)
 		circle(e, ground, kind.radius)
 	end
+end
+
+-- Vampiric: life back from damage dealt, capped at max life
+local function heal(e: Enemy, amount: number)
+	local model = e.model
+	local hp = (model:GetAttribute("Health") or 0) :: number
+	local max = (model:GetAttribute("MaxHealth") or 0) :: number
+	if hp > 0 and hp < max then
+		model:SetAttribute("Health", math.min(max, math.floor(hp + amount + 0.5)))
+	end
+end
+
+-- Exploding: a telegraphed blast where the elite died
+local function blast(at: Vector3, damage: number)
+	local r = EliteMods.BLAST_RADIUS
+	local d = r * 2
+	local outer =
+		flat(CFrame.new(at.X, 0.2, at.Z) * ROT, Vector3.new(0.2, d, d), DANGER, 0.6, folder)
+	outer.Shape = Enum.PartType.Cylinder
+	local inner =
+		flat(CFrame.new(at.X, 0.25, at.Z) * ROT, Vector3.new(0.25, 1, 1), DANGER_CORE, 0.4, outer)
+	inner.Shape = Enum.PartType.Cylinder
+	TweenService:Create(
+		inner,
+		TweenInfo.new(EliteMods.BLAST_DELAY, Enum.EasingStyle.Linear),
+		{ Size = Vector3.new(0.25, d, d) }
+	):Play()
+	task.delay(EliteMods.BLAST_DELAY, function()
+		outer:Destroy()
+		Net.Fx:FireAllClients(
+			"nova",
+			{ pos = Vector3.new(at.X, 0.5, at.Z), radius = r, color = DANGER }
+		)
+		eachPlayer(function(player, pos)
+			if (pos - Vector3.new(at.X, 0, at.Z)).Magnitude <= r then
+				Combat.hurtPlayer(player, damage)
+			end
+		end)
+	end)
 end
 
 local function resolveAttack(e: Enemy, now: number)
@@ -724,7 +786,9 @@ local function resolveAttack(e: Enemy, now: number)
 		end
 	end
 	for player in hit do
-		Combat.hurtPlayer(player, e.damage)
+		if Combat.hurtPlayer(player, e.damage) and e.mods.vampiric then
+			heal(e, e.damage * EliteMods.LEECH)
+		end
 	end
 end
 
@@ -813,8 +877,7 @@ local function step(dt: number)
 			end
 		elseif e.windupEnd > 0 then
 			-- Windup: stand still, squash
-			y = baseY
-				- 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / kind.windup) * math.pi)
+			y = baseY - 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / e.windup) * math.pi)
 			if kind.ai == "charge" then
 				dir = e.dir
 			end
@@ -832,7 +895,7 @@ local function step(dt: number)
 				move = -1
 			end
 			if move ~= 0 and dir.Magnitude > 0.01 then
-				local speed = kind.speed * move
+				local speed = kind.speed * move * (if e.mods.fast then EliteMods.FAST_SPEED else 1)
 				if now < ((model:GetAttribute("SlowUntil") or 0) :: number) then
 					speed *= (model:GetAttribute("SlowFactor") or 1) :: number
 				end
@@ -843,6 +906,15 @@ local function step(dt: number)
 			end
 		else
 			y = baseY + math.abs(math.sin(now * 3 + e.phase)) * 0.25 * kind.scale
+		end
+
+		if e.mods.frozen_aura and now >= e.nextAura then
+			e.nextAura = now + 0.5
+			eachPlayer(function(player, at)
+				if (at - Vector3.new(pos.X, 0, pos.Z)).Magnitude <= EliteMods.AURA_RADIUS then
+					Combat.chill(player, now + 0.7, EliteMods.AURA_SLOW)
+				end
+			end)
 		end
 
 		local kv = knock[model]
@@ -894,6 +966,16 @@ function Enemies.start()
 	RunService.Heartbeat:Connect(step)
 	Combat.EnemyHit.Event:Connect(function(model: Model, from: Vector3, crit: boolean)
 		Enemies.knockback(model, from, crit)
+	end)
+	Combat.EnemyDied.Event:Connect(function(model: Model, pos: Vector3)
+		for _, e in list do
+			if e.model == model then
+				if e.mods.exploding then
+					blast(pos, e.damage * EliteMods.BLAST_DAMAGE)
+				end
+				break
+			end
+		end
 	end)
 end
 
