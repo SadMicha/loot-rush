@@ -13,6 +13,7 @@ local Crit = require(ReplicatedStorage.Shared.Crit)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Classes = require(ReplicatedStorage.Shared.Classes)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
@@ -39,7 +40,7 @@ local Combat = {
 	-- (player, position, playerLevel, boss, skillId, xp, depth, regionId?, gold), for Systems/Loot and Systems/Progress
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), for Systems/Metrics
-	EnemyDied = Instance.new("BindableEvent"), -- (enemy, pos) right before the model is destroyed
+	EnemyDied = Instance.new("BindableEvent"), -- (enemy, pos, killer) right before the model is destroyed
 	EnemyHit = Instance.new("BindableEvent"), -- (enemy, from: Vector3, crit), direct hits; knockback in Systems/Enemies
 }
 
@@ -156,9 +157,15 @@ local function applySpeed(player: Player)
 	local now = os.clock()
 	local haste = if st and now < st.hasteUntil then st.haste else 0
 	local chill = if st and now < st.chillUntil then st.chill else 0
+	local rush = if player:GetAttribute("Rushing") == true then Rush.SPEED else 0
 	humanoid.WalkSpeed = Config.WALK_SPEED
-		* (1 + (num(player, "StatSpeed") + haste) / 100)
+		* (1 + (num(player, "StatSpeed") + haste + rush) / 100)
 		* (1 - math.clamp(chill, 0, 90) / 100)
+end
+
+-- Move speed changed from outside (Stud Rush start/end, Systems/Rush)
+function Combat.speedChanged(player: Player)
+	applySpeed(player)
 end
 
 -- Frozen aura (Systems/Enemies): slows the player by `pct` % until `untilT`; refreshing is cheap
@@ -411,6 +418,7 @@ damageEnemy = function(
 			color = if typeof(color) == "Color3" then color else Color3.new(1, 1, 1),
 			by = player.UserId,
 			big = big,
+			boss = enemy:GetAttribute("Boss") == true,
 		})
 		local xp = math.floor(
 			((enemy:GetAttribute("XP") or 0) :: number) * (1 + num(player, "BonusXP") / 100) + 0.5
@@ -422,7 +430,7 @@ damageEnemy = function(
 		local gold = enemy:GetAttribute("Gold")
 		local burst = shatterOn[enemy]
 		shatterOn[enemy] = nil
-		Combat.EnemyDied:Fire(enemy, pos)
+		Combat.EnemyDied:Fire(enemy, pos, player)
 		enemy:Destroy()
 		if burst and os.clock() < burst.untilT and player.Parent then
 			shatter(pos, burst.amount, player, skill)
@@ -1170,7 +1178,10 @@ function Combat.start()
 						end
 					end
 					if target then
-						st.basicUntil = now + basic.cooldown
+						local rushing = player:GetAttribute("Rushing") == true
+						st.basicUntil = now
+							+ basic.cooldown
+								/ (if rushing then 1 + Rush.ATTACK_SPEED / 100 else 1)
 						-- Star "Double Strike": chance for a double hit
 						if rng:NextNumber() < num(player, "StatDouble") / 100 then
 							local double = table.clone(basic)

@@ -34,4 +34,7 @@ return table.freeze({
 	KNOCKBACK_CRIT = 22, -- studs/s on a crit
 	KNOCKBACK_DECAY = 9, -- per second (exponential)
 	KNOCKBACK_BOSS = 0.15, -- factor for bosses and elites (they barely move)
+	-- Stud Rush studs (BrickController.stud): pop up, then fly to the own character
+	STUD_HOME_DELAY = 0.35, -- seconds before the stud is vacuumed in
+	STUD_HOME_SPEED = 45, -- studs/s
 })

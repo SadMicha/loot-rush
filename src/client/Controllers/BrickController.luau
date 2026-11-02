@@ -5,6 +5,7 @@
 -- anchored parts moved with one BulkMoveTo per frame, no physics, no network.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -20,6 +21,7 @@ type Brick = {
 	floor: number,
 	born: number,
 	life: number,
+	home: number?, -- Stud Rush: from this time (os.clock) the brick flies to the own character
 }
 
 local container: Folder
@@ -93,6 +95,20 @@ function BrickController.brick(
 		born = os.clock(),
 		life = Feel.BRICK_LIFE * rng:NextNumber(0.8, 1.2),
 	})
+end
+
+-- Stud Rush (Shared/Rush): a loose stud pops out of a kill and is vacuumed to the own character
+function BrickController.stud(pos: Vector3, color: Color3)
+	BrickController.brick(
+		CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, 6), 0),
+		Vector3.new(0.6, 0.4, 0.6),
+		color,
+		Vector3.new(rng:NextNumber(-6, 6), rng:NextNumber(14, 20), rng:NextNumber(-6, 6)),
+		pos.Y - 2.5
+	)
+	local b = active[#active]
+	b.home = os.clock() + Feel.STUD_HOME_DELAY
+	b.life = Feel.STUD_HOME_DELAY + 1.5
 end
 
 -- Burst of bricks from a point (hit chips, skill impacts)
@@ -206,12 +222,27 @@ local function step(dt: number)
 	end
 	local parts: { BasePart } = {}
 	local cfs: { CFrame } = {}
+	local character = Players.LocalPlayer and Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local target = if root and root:IsA("BasePart") then root.Position else nil
 	local i = 1
 	while i <= #active do
 		local b = active[i]
 		local age = now - b.born
-		if age >= b.life then
-			release(i)
+		local homing = b.home ~= nil and now >= b.home and target ~= nil
+		local collected = homing and target ~= nil and (target - b.part.Position).Magnitude < 2
+		if collected or age >= b.life then
+			release(i) -- collected by the character, or faded out
+		elseif homing and target then
+			local to = target - b.part.Position
+			b.vel = to.Unit * math.max(Feel.STUD_HOME_SPEED, b.vel.Magnitude)
+			table.insert(parts, b.part)
+			table.insert(
+				cfs,
+				CFrame.new(b.part.Position + b.vel * math.min(dt, to.Magnitude / b.vel.Magnitude))
+					* b.part.CFrame.Rotation
+			)
+			i += 1
 		else
 			b.vel -= Vector3.new(0, Feel.BRICK_GRAVITY * dt, 0)
 			local cf = b.part.CFrame
