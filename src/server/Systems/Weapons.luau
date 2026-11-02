@@ -165,8 +165,13 @@ function WeaponSystem.equip(player: Player)
 		return
 	end
 	local mesh = loadMesh(w) -- may yield (first load per server)
-	if player.Character ~= character or not character.Parent or not grip.Parent then
+	if player.Character ~= character or not character.Parent then
 		return -- respawned while loading: the new character equips itself
+	end
+	-- the avatar may have swapped its hand parts during the load: find the grip again
+	grip = hand(character) :: BasePart
+	if not grip then
+		return
 	end
 	old = character:FindFirstChild(NAME)
 	if old then
