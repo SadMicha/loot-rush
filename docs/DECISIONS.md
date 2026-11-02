@@ -79,7 +79,8 @@ can be overturned at any time. Where the concept already answers a question, the
 7. **Bosses with phases** (one per region; phase changes at 66 % / 33 %, adds, enrage) and **rift variants** (swarm, elite hunt, treasure goblin, timed).
 7b. **The Smoothing**: smooth studless enemy variant (`Shared/Models/Creatures`), save field `restored` per region, hub/minimap tint per region, one boss intro line per region (`Shared/Atlas`).
 8. **Spell stones** (support gems, up to 3 per skill).
-9. **Star Web to 100 nodes**, class start points, cross-class paths.
+9. **Star Web to 100 nodes**, class start points, cross-class paths (`docs/STAR-WEB.md`).
+9b. **Stud Rush** (owner 2026-11-02: in 1.0): kills pop studs, collecting them fills a meter, a full meter triggers a Rush burst (IDEAS.md).
 10. **Release pass**: performance, audio ids, RELEASE.md / TEST-RELEASE.md / ROADMAP.
 
 ## 6. After 1.0
