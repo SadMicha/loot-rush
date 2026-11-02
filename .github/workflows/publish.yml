@@ -3,10 +3,26 @@ name: Publish
 # Builds the game with Rojo and uploads it to the place via Open Cloud.
 # Secrets in the "Roblox" environment (Settings → Environments): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
 # Guide: docs/PUBLISH.md
+#
+# Fast path: the full Lune suite (~9 min) already runs in CI on every PR, so this workflow only
+# runs the second-long gates (format, lint, types, build) and then uploads. Toolchain and Wally
+# packages come from the Actions cache. Only pushes that change what goes into the place trigger it.
 
 on:
   push:
     branches: [main]
+    paths:
+      - src/**
+      - default.project.json
+      - wally.toml
+      - wally.lock
+      - rokit.toml
+      - selene.toml
+      - stylua.toml
+      - tools/publish.sh
+      - tools/packages.sh
+      - tools/setup.sh
+      - .github/workflows/publish.yml
   workflow_dispatch:
     inputs:
       versionType:
@@ -14,14 +30,20 @@ on:
         type: choice
         options: [Published, Saved]
         default: Published
+      fullTests:
+        description: "Also run the full Lune test suite before the upload (~9 min)"
+        type: boolean
+        default: false
 
+# Per branch, only the newest commit matters: a newer push cancels an older run of the same branch.
 concurrency:
-  group: publish
-  cancel-in-progress: false
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: Roblox
     env:
       ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
@@ -39,13 +61,30 @@ jobs:
             echo "::warning::Roblox secrets missing, publish skipped (docs/PUBLISH.md)."
           fi
 
+      - name: Cache toolchain and Wally packages
+        if: steps.secrets.outputs.ok == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bin
+            .tools/roblox
+            .tools/out/packages.stamp
+            Packages
+            ServerPackages
+            ~/.cache/selene
+          key: publish-tools-${{ runner.os }}-${{ hashFiles('rokit.toml', 'wally.toml', 'wally.lock') }}
+
       - name: Install tools and Wally packages
         if: steps.secrets.outputs.ok == 'true'
         run: bash tools/setup.sh
 
-      - name: Check (format, lint, types, build, test)
+      - name: Fast checks (format, lint, types, build)
         if: steps.secrets.outputs.ok == 'true'
-        run: bash tools/check.sh format lint types build test
+        run: bash tools/check.sh format lint types build
+
+      - name: Full test suite (optional)
+        if: steps.secrets.outputs.ok == 'true' && inputs.fullTests
+        run: bash tools/check.sh test
 
       - name: Upload to Roblox
         if: steps.secrets.outputs.ok == 'true'
