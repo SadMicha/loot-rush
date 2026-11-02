@@ -5,6 +5,7 @@
 --   right:  category tabs + search, item grid with rarity glow, footer with sort/filter and salvage mode
 -- Only shows the snapshot from the server (Net.Inv); every action is a request to the server.
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -1110,6 +1111,7 @@ function InventoryController.init()
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
 	end
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
 	arrange()
 
 	InventoryController.render()
