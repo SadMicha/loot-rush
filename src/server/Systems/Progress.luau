@@ -221,19 +221,20 @@ local function onStar(player: Player, action: any, starId: any)
 			return
 		end
 		if action == "alloc" then
-			if not Progression.canAllocate(profile.progress, starId, level) then
+			if not Progression.canAllocate(profile.progress, starId, level, profile.class) then
 				return
 			end
 			stars[starId] = true
 			Actions.fire(player, "star")
 		else
-			if not Progression.canRemove(profile.progress, starId) then
+			if not Progression.canRemove(profile.progress, starId, profile.class) then
 				return
 			end
 			stars[starId] = nil
 		end
 	elseif action == "reset" then
 		table.clear(stars)
+		Progression.fitStars(profile.progress, profile.class) -- the own start point stays
 	else
 		return
 	end
@@ -246,6 +247,9 @@ local function onPlayer(player: Player)
 	local profile = Data.waitFor(player)
 	if profile then
 		Progression.fitBar(profile.progress, profile.class)
+		if Progression.fitStars(profile.progress, profile.class) then
+			Stats.refresh(player, false)
+		end
 		send(player)
 	end
 end
@@ -255,6 +259,7 @@ function Progress.classChanged(player: Player)
 	local profile = Data.get(player)
 	if profile then
 		Progression.fitBar(profile.progress, profile.class)
+		Progression.fitStars(profile.progress, profile.class)
 		Stats.refresh(player, false)
 		send(player)
 	end

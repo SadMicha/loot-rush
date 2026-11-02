@@ -1,4 +1,5 @@
 -- Server systems behind the windows: Star Net, Skill Bloom and Forge via real remotes.
+local StarNet = require("ReplicatedStorage.Shared.StarNet")
 local function server(fn)
 	local out = {}
 	sim:runAs("server", function(req)
@@ -52,7 +53,7 @@ describe("Systems", function()
 		expect(stars.m4).toBe(true)
 		expect(stars.iron_skin).toBeNil()
 		expect(stars.f1).toBeNil()
-		expect(damage).toBeGreaterThanOrEqual(6)
+		expect(damage).toBeGreaterThanOrEqual(3) -- m1 (m2 and m4 give life)
 
 		client(function(_, Net)
 			Net.Star:FireServer("remove", "m1") -- m2/m4 hang on it
@@ -61,7 +62,12 @@ describe("Systems", function()
 		local after = server(function(req, player)
 			return req("ServerScriptService.Server.Systems.Data").get(player).progress.stars
 		end)
-		expect(next(after)).toBeNil()
+		local left = {}
+		for id in after do
+			table.insert(left, id)
+		end
+		expect(#left).toBe(1) -- only the free class start point stays
+		expect(left[1]).toBe(StarNet.startOf("mage"))
 	end)
 
 	it("grants Bloom Points only with skill levels", function()

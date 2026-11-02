@@ -1,11 +1,13 @@
 --!strict
--- Star Net window after the "Star Net" mockup (key N or menu button):
---   the net with stars and connections on the left, points, star details and actions on the right.
+-- Star Net window (key N or menu button): the 100-star web on the left in a scroll area that
+-- opens on the player's class start point (drag to pan, also on touch), points, star details
+-- and actions on the right.
 -- Allocations are validated and saved by the server (Systems/Progress); the window shows the snapshot
 -- from ProgressController and only sends requests (Net.Star).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
@@ -21,23 +23,39 @@ local C = Theme.Color
 local player = Players.LocalPlayer
 local PAD = 28
 local SIDE_W = 420
-local SIZE: { [string]: number } = { core = 100, small = 46, big = 78 }
+local SIZE: { [string]: number } = { core = 100, small = 46, big = 72, start = 64 }
 local BRANCH_COLOR: { [string]: Color3 } = {
 	might = Theme.Rarity.unique,
 	finesse = Theme.Rarity.magic,
 	wisdom = Theme.Rarity.epic,
+	nature = Theme.Rarity.legend,
 }
+local BRIDGE_COLOR = Theme.Rarity.rare
 
 local win: Window.Window
+local view: ScrollingFrame
 local net: Frame
 local side: Frame
 
 local allocated: { [string]: boolean } = { heart = true }
-local selected = "iron_skin"
+local selected = "heart"
 
--- Snapshot -> lookup table incl. Heart
+local function classId(): string?
+	local c = player:GetAttribute("Class")
+	return if typeof(c) == "string" then c else nil
+end
+
+local function colorOf(s: StarNet.Star): Color3
+	return if s.branch then BRANCH_COLOR[s.branch] else BRIDGE_COLOR
+end
+
+-- Snapshot -> lookup table incl. Heart and the own class start point
 local function refreshAllocated()
 	allocated = { heart = true }
+	local own = StarNet.startOf(classId())
+	if own then
+		allocated[own] = true
+	end
 	for id in ProgressController.data().stars do
 		allocated[id] = true
 	end
@@ -60,11 +78,11 @@ local function points(): number
 end
 
 local function canAllocate(s: StarNet.Star): boolean
-	return (Progression.canAllocate(ProgressController.data(), s.id, level()))
+	return (Progression.canAllocate(ProgressController.data(), s.id, level(), classId()))
 end
 
 local function canRemove(s: StarNet.Star): boolean
-	return (Progression.canRemove(ProgressController.data(), s.id))
+	return (Progression.canRemove(ProgressController.data(), s.id, classId()))
 end
 
 -- ------------------------------------------------------------------ Net
@@ -72,17 +90,18 @@ local function artName(s: StarNet.Star): string
 	if s.kind == "core" then
 		return "star_core"
 	end
-	return "star_" .. s.kind .. (if allocated[s.id] then "_active" else "")
+	local kind = if s.kind == "start" then "big" else s.kind
+	return "star_" .. kind .. (if allocated[s.id] then "_active" else "")
 end
 
 local function renderNet()
 	clear(net)
 	for _, s in StarNet.Stars do
-		if s.from then
-			local parent = StarNet.ById[s.from]
-			local color = BRANCH_COLOR[s.branch or "might"]
-			local l = Window.line(net, parent.pos, s.pos, color, if allocated[s.id] then 4 else 2)
-			l.BackgroundTransparency = if allocated[s.id] then 0 else 0.55
+		for _, id in s.links do
+			local other = StarNet.ById[id]
+			local on = allocated[s.id] == true and allocated[id] == true
+			local l = Window.line(net, other.pos, s.pos, colorOf(s), if on then 4 else 2)
+			l.BackgroundTransparency = if on then 0 else 0.55
 		end
 	end
 	for _, s in StarNet.Stars do
@@ -90,20 +109,20 @@ local function renderNet()
 		local size = SIZE[s.kind]
 		local b = Window.node(s.icon, size, s.pos, {
 			art = artName(s),
-			rarity = if s.kind == "core"
+			rarity = if s.kind == "core" or (on and not s.branch)
 				then "rare"
-				elseif on then StarNet.BranchRarity[s.branch or "might"]
+				elseif on and s.branch then StarNet.BranchRarity[s.branch]
 				else nil,
 			dim = not on,
 			selected = s.id == selected,
-			tint = if on and s.branch then BRANCH_COLOR[s.branch] else nil,
+			tint = if on and s.kind ~= "core" then colorOf(s) else nil,
 		})
 		b.Activated:Connect(function()
 			selected = s.id
 			StarNetController.render()
 		end)
 		b.Parent = net
-		if s.kind == "big" then
+		if s.kind == "big" or s.kind == "start" then
 			Window.caption(
 				net,
 				s.name,
@@ -155,10 +174,15 @@ local function renderSide()
 	-- Star card
 	local kindText = if s.kind == "core"
 		then "Heart"
+		elseif s.kind == "start" then "Start Point"
 		elseif s.kind == "big" then "Major Star"
 		else "Star"
-	local branchText = if s.branch then " · " .. StarNet.BranchName[s.branch] else ""
-	local kind = Kit.label(kindText .. branchText, 16, BRANCH_COLOR[s.branch or ""] or C.Gold)
+	local branchText = if s.branch
+		then " · " .. StarNet.BranchName[s.branch]
+		elseif s.kind ~= "core" then " · Bridge"
+		else ""
+	local kind =
+		Kit.label(kindText .. branchText, 16, if s.kind == "core" then C.Gold else colorOf(s))
 	kind.Position = UDim2.fromOffset(PAD, PAD + 100)
 	kind.Parent = side
 	local state = if allocated[s.id]
@@ -172,6 +196,7 @@ local function renderSide()
 
 	local big = Kit.itemSlot(104, s.icon, {
 		rarity = if s.branch then StarNet.BranchRarity[s.branch] else "rare",
+		tint = if s.kind ~= "core" then colorOf(s) else nil,
 	})
 	big.Active = false
 	big.Position = UDim2.fromOffset(PAD, PAD + 140)
@@ -209,7 +234,11 @@ local function renderSide()
 
 	-- Cost
 	local cost = StarNet.Cost[s.kind]
-	if cost > 0 then
+	if s.id == StarNet.startOf(classId()) then
+		local c = Kit.label("Free for your class", 16, C.GoldHi)
+		c.Position = UDim2.fromOffset(PAD, y)
+		c.Parent = side
+	elseif cost > 0 then
 		local c = Kit.label(
 			string.format("Cost: %d Point%s", cost, if cost == 1 then "" else "s"),
 			16,
@@ -220,7 +249,7 @@ local function renderSide()
 	end
 
 	local note = Kit.label(
-		"One point per level from level 2. Resetting refunds all points.",
+		"One point per level from level 2. Your class starts at its own start point; bridges lead into other sectors. Resetting refunds all points.",
 		14,
 		C.Muted,
 		Theme.Font.Body
@@ -256,7 +285,7 @@ local function renderSide()
 	local reset = Kit.button("Reset", C.Danger, Vector2.new(w, 50), "reroll")
 	reset.AnchorPoint = Vector2.new(0, 1)
 	reset.Position = UDim2.new(0, PAD, 1, -PAD)
-	Kit.setEnabled(reset, next(ProgressController.data().stars) ~= nil)
+	Kit.setEnabled(reset, Progression.starSpent(ProgressController.data()) > 0)
 	reset.Activated:Connect(function()
 		if reset.Active then
 			Net.Star:FireServer("reset")
@@ -286,27 +315,57 @@ function StarNetController.init()
 		background = "bg_starnet",
 	})
 
-	-- Center the net in the area left of the panel (by the outline of the stars, not the canvas)
-	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
-	for _, s in StarNet.Stars do
-		local r = SIZE[s.kind] / 2
-		x0, y0 = math.min(x0, s.pos.X - r), math.min(y0, s.pos.Y - r)
-		x1, y1 = math.max(x1, s.pos.X + r), math.max(y1, s.pos.Y + r + 28) -- caption
-	end
+	-- The web in a scroll area left of the panel (drag or swipe to pan)
 	local area = Vector2.new(Window.BODY.X - SIDE_W - 20, Window.BODY.Y)
-	local shift = area / 2 - Vector2.new(x0 + x1, y0 + y1) / 2
-	net = Window.frame(
-		UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y),
-		UDim2.fromOffset(shift.X, shift.Y)
-	)
-	net.Parent = win.body
+	view = Instance.new("ScrollingFrame")
+	view.Name = "Web"
+	view.BackgroundTransparency = 1
+	view.BorderSizePixel = 0
+	view.Size = UDim2.fromOffset(area.X, area.Y)
+	view.CanvasSize = UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y)
+	view.ScrollingDirection = Enum.ScrollingDirection.XY
+	view.ScrollBarThickness = 4
+	view.ScrollBarImageColor3 = C.Gold
+	view.ElasticBehavior = Enum.ElasticBehavior.Never
+	view.Parent = win.body
+	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y))
+	net.Parent = view
+	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively)
+	local dragging = false
+	view.InputBegan:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input: InputObject)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local d = input.Delta
+			local scale = view.AbsoluteSize.X / math.max(1, view.Size.X.Offset)
+			view.CanvasPosition -= Vector2.new(d.X, d.Y) / math.max(scale, 0.01)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
 
 	side = Kit.panel(Vector2.new(SIDE_W, Window.BODY.Y))
 	side.AnchorPoint = Vector2.new(1, 0)
 	side.Position = UDim2.fromScale(1, 0)
 	side.Parent = win.body
 
-	win.onOpen(StarNetController.render)
+	-- Opens on the own class start point (or the heart)
+	win.onOpen(function()
+		local focus = StarNet.ById[StarNet.startOf(classId()) or "heart"]
+		selected = focus.id
+		StarNetController.render()
+		local p = (focus.pos + StarNet.Center) / 2 - area / 2
+		view.CanvasPosition = Vector2.new(
+			math.clamp(p.X, 0, StarNet.Size.X - area.X),
+			math.clamp(p.Y, 0, StarNet.Size.Y - area.Y)
+		)
+	end)
 	local function refresh()
 		if win.isOpen() then
 			StarNetController.render()
