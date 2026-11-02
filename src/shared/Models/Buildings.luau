@@ -2,7 +2,7 @@
 -- Hub buildings from parts with upgrade levels 1–3 (concept: Forge, village buildings × 3 levels).
 -- Higher levels build on the lower one (same footprint, more parts), so an upgrade
 -- in game is simply "old model out, new one in". Pivot bottom center,
--- front faces +Z. Fire/windows are named "Ember" and "Window" (for later FX).
+-- front faces +Z. Fire/windows are named "Ember" and "Window"; embers carry sparks/smoke (Kit.emit).
 
 local Kit = require(script.Parent.Kit)
 
@@ -20,7 +20,7 @@ local function clampStage(stage: number?): number
 end
 
 -- Gable roof over an area w (X) × d (Z), eaves at height y, 30° pitch.
--- The gable triangles front/back are stepped (fits the blocky look).
+-- The gable triangles front/back are wedge parts.
 local function gable(m: Instance, w: number, d: number, y: number, color: Color3, wall: Color3)
 	local a = math.rad(30)
 	local o = 0.8
@@ -35,11 +35,14 @@ local function gable(m: Instance, w: number, d: number, y: number, color: Color3
 			if sx < 0 then color else Kit.shade(color, -0.08)
 		)
 	end
-	local steps = 3
-	for i = 1, steps do
-		local sw = w * (1 - i / steps) + 0.6
-		local sh = ridge / steps
-		block(m, v(sw, sh, d - 0.2), CFrame.new(0, y + sh * (i - 0.5), 0), wall)
+	-- Gable triangles: two wedges back to back (low side toward the eaves)
+	for _, sx in { -1, 1 } do
+		Kit.wedge(
+			m,
+			v(d - 0.2, ridge, w / 2),
+			CFrame.new(sx * w / 4, y + ridge / 2, 0) * CFrame.Angles(0, math.rad(-90 * sx), 0),
+			wall
+		)
 	end
 	block(
 		m,
@@ -63,6 +66,7 @@ local function chimney(m: Instance, pos: Vector3, h: number)
 	local glow =
 		block(m, v(1, 0.2, 1), CFrame.new(pos + v(0, h + 0.45, 0)), C.ember, Enum.Material.Neon)
 	glow.Name = "Ember"
+	Kit.emit(glow, "smoke")
 end
 
 -- Forge, footprint approx. 16 × 12.
@@ -86,6 +90,7 @@ function Buildings.forge(stage: number?): Model
 		block(m, v(3, 0.4, 2), CFrame.new(-4.5, floor + 2.9, -3), C.fire, Enum.Material.Neon)
 	ember.Name = "Ember"
 	Kit.light(ember, C.fire, 18, 2)
+	Kit.emit(ember, "sparks")
 
 	-- Anvil on a wooden block
 	block(m, v(1.6, 1.4, 1.6), CFrame.new(2, floor + 0.7, 1), C.woodDark)
@@ -289,6 +294,51 @@ function Buildings.house(stage: number?): Model
 	end
 
 	return Kit.finish(m, false, 1.5)
+end
+
+-- Market stall, w × d: counter, four posts, striped awning from wedges (front +Z, low edge in front).
+function Buildings.stall(roofA: Color3, roofB: Color3, w: number, d: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Stall"
+	block(m, v(w, 2.4, d * 0.5), CFrame.new(0, 1.2, d * 0.2), C.wood)
+	block(m, v(w + 0.2, 0.3, d * 0.5 + 0.2), CFrame.new(0, 2.55, d * 0.2), C.woodDark)
+	for _, x in { -w / 2 + 0.4, w / 2 - 0.4 } do
+		for _, z in { -d / 2 + 0.4, d / 2 - 0.4 } do
+			block(m, v(0.5, 6, 0.5), CFrame.new(x, 3, z), C.woodDark)
+		end
+	end
+	local stripes = math.max(math.floor(w / 1.6), 2)
+	for i = 0, stripes - 1 do
+		-- wedge: low side at -Z by default, turned 180° so the low edge hangs over the front
+		Kit.wedge(
+			m,
+			v(w / stripes, 1.4, d + 0.6),
+			CFrame.new(-w / 2 + (i + 0.5) * w / stripes, 6.7, 0)
+				* CFrame.Angles(0, math.rad(180), 0),
+			if i % 2 == 0 then roofA else roofB
+		)
+	end
+	-- goods on the counter
+	for i = 0, 2 do
+		Kit.ball(m, 0.7, v(-w / 4 + i * w / 4, 2.95, d * 0.2), if i == 1 then C.gold else C.ember)
+	end
+	return Kit.finish(m, false, 1)
+end
+
+-- Stash: stone plinth, two posts, slanted wedge roof, chest underneath (front +Z).
+function Buildings.stash(chest: Model): Model
+	local m = Instance.new("Model")
+	m.Name = "Stash"
+	block(m, v(8, 1, 6), CFrame.new(0, 0.5, 0), C.stone)
+	block(m, v(8.4, 0.3, 6.4), CFrame.new(0, 1.05, 0), C.stoneLight)
+	for _, x in { -3.6, 3.6 } do
+		block(m, v(0.6, 6.4, 0.6), CFrame.new(x, 4.2, -2.4), C.woodDark)
+		block(m, v(0.6, 4.4, 0.6), CFrame.new(x, 3.2, 2.2), C.woodDark)
+	end
+	Kit.wedge(m, v(9, 2, 6), CFrame.new(0, 6.4, 0) * CFrame.Angles(0, math.rad(180), 0), C.roofDark)
+	chest:PivotTo(CFrame.new(0, 1.2, 0))
+	chest.Parent = m
+	return Kit.finish(m, false, 1)
 end
 
 return Buildings

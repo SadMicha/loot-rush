@@ -14,16 +14,18 @@ export type Light = {
 	density: number?,
 	haze: number?,
 	tint: Color3?, -- color correction
+	clouds: number?, -- Terrain Clouds.Cover (0 = clear sky)
+	ambience: string?, -- key in Assets.Sound for the looped ambience (AmbienceController)
 }
 
 local Looks = {}
 
 -- Hub: base light from default.project.json (sunny, warm)
-Looks.Hub = table.freeze({} :: Light)
+Looks.Hub = table.freeze({ clouds = 0.55, ambience = "hub" } :: Light)
 
 -- Rift regions (key = Atlas ID)
 Looks.Regions = table.freeze({
-	green_plains = {},
+	green_plains = { clouds = 0.55, ambience = "meadow" },
 	crystal_caves = {
 		clock = 20.6,
 		brightness = 1.2,
@@ -34,6 +36,8 @@ Looks.Regions = table.freeze({
 		density = 0.45,
 		haze = 2,
 		tint = Color3.fromHex("#D6F2FF"),
+		clouds = 0.85,
+		ambience = "cave",
 	},
 	mushroom_swamp = {
 		clock = 18.2,
@@ -45,6 +49,8 @@ Looks.Regions = table.freeze({
 		density = 0.5,
 		haze = 2.5,
 		tint = Color3.fromHex("#F2E0FF"),
+		clouds = 0.75,
+		ambience = "swamp",
 	},
 	fire_desert = {
 		clock = 18.4,
@@ -56,6 +62,8 @@ Looks.Regions = table.freeze({
 		density = 0.4,
 		haze = 2.2,
 		tint = Color3.fromHex("#FFE2C8"),
+		clouds = 0.2,
+		ambience = "lava",
 	},
 	sky_islands = {
 		clock = 13,
@@ -67,6 +75,8 @@ Looks.Regions = table.freeze({
 		density = 0.28,
 		haze = 1,
 		tint = Color3.fromHex("#F4FBFF"),
+		clouds = 0.35,
+		ambience = "wind",
 	},
 	altered_world = {
 		clock = 0.5,
@@ -78,6 +88,8 @@ Looks.Regions = table.freeze({
 		density = 0.5,
 		haze = 2,
 		tint = Color3.fromHex("#FFD0F4"),
+		clouds = 0.9,
+		ambience = "rift",
 	},
 } :: { [string]: Light })
 

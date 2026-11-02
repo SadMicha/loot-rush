@@ -1,5 +1,6 @@
 --!strict
--- Part models built in code (Rojo-friendly, versionable, no .rbxm needed).
+-- Part models built in code (Rojo-friendly, versionable, no .rbxm needed). Every part gets the
+-- classic stud look through Kit/Studs, so new builders get studs automatically.
 -- Preview in Studio (edit mode, Rojo connected) via the command bar:
 --   require(game.ReplicatedStorage.Shared.Models).showcase()
 -- puts all models in a row into workspace.ModelPreview. If you like a model,
@@ -10,6 +11,7 @@ local Creatures = require(script.Creatures)
 local Kit = require(script.Kit)
 local Loot = require(script.Loot)
 local Props = require(script.Props)
+local Studs = require(script.Studs)
 
 local Models = {
 	Buildings = Buildings,
@@ -17,6 +19,7 @@ local Models = {
 	Kit = Kit,
 	Loot = Loot,
 	Props = Props,
+	Studs = Studs,
 }
 
 function Models.showcase(origin: Vector3?): Model
@@ -35,6 +38,17 @@ function Models.showcase(origin: Vector3?): Model
 		Props.chest(),
 		Props.fence(),
 		Props.portal(),
+		Props.pine(1),
+		Props.lantern(),
+		Props.banner(),
+		Props.flowerBox(),
+		Props.barrel(),
+		Props.crate(),
+		Props.well(),
+		Props.bench(),
+		Props.scaffold(8),
+		Buildings.stall(Kit.C.roof, Kit.C.cream, 8, 5),
+		Buildings.stash(Props.chest()),
 		Props.island(0.5, true),
 		Buildings.forge(1),
 		Buildings.forge(2),

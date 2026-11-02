@@ -588,4 +588,18 @@ for name, c in CLASS do
 end
 Assets.Class = table.freeze(class)
 
+-- Looped ambience per place (Shared/Looks `ambience` key → sound id, AmbienceController).
+-- Any audio id from the Creator Store works (paste "rbxassetid://<id>"). Empty = silent.
+Assets.Sound = table.freeze({
+	hub = "",
+	meadow = "",
+	cave = "",
+	swamp = "",
+	lava = "",
+	wind = "",
+	rift = "",
+	waterfall = "",
+	forge = "",
+})
+
 return table.freeze(Assets)

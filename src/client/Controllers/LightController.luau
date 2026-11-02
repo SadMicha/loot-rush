@@ -23,8 +23,14 @@ local defaults: Looks.Light = {}
 local mood: ColorCorrectionEffect
 local shown = ""
 
+local function cloudsOf(): Clouds?
+	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	return if terrain then terrain:FindFirstChildOfClass("Clouds") else nil
+end
+
 local function remember()
 	local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
+	local clouds = cloudsOf()
 	defaults = {
 		clock = Lighting.ClockTime,
 		brightness = Lighting.Brightness,
@@ -35,6 +41,7 @@ local function remember()
 		density = if atmo then atmo.Density else nil,
 		haze = if atmo then atmo.Haze else nil,
 		tint = Color3.new(1, 1, 1),
+		clouds = if clouds then clouds.Cover else nil,
 	}
 end
 
@@ -67,6 +74,11 @@ local function apply(l: Looks.Light, instant: boolean)
 		})
 	end
 	set(mood, { TintColor = pick(l.tint, defaults.tint) or Color3.new(1, 1, 1) })
+	local clouds = cloudsOf()
+	local cover = pick(l.clouds, defaults.clouds)
+	if clouds and cover then
+		set(clouds, { Cover = cover })
+	end
 end
 
 -- Which place applies right now? "hub" or the Atlas ID of the arena

@@ -10,7 +10,7 @@
 -- so enemy AI and the Rift work the same everywhere. Around the playfield lies a ring of
 -- environment tiles (slopes, cave walls, clouds …) with dense deco and a landmark
 -- behind the north edge, so every arena feels like a place and not like a board.
--- Props come from Shared/Models (part builders); placement stays here.
+-- Props come from Shared/Models (part builders with the classic stud look); placement stays here.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -40,7 +40,6 @@ type Look = {
 	edge: Color3, -- narrow edge below the top face
 	soil: Color3, -- base at ground level
 	cliff: Color3, -- base of the raised tiles
-	material: Enum.Material,
 	liquid: Liquid?,
 	pool: ((x: number, z: number) -> boolean)?, -- tile (grid coordinates) is liquid
 	particles: { color: Color3, rate: number, speed: number, size: number }?,
@@ -128,13 +127,7 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 		block(parent, Vector3.new(T, 3, T), CFrame.new(x * T, -2.5, z * T), look.soil)
 		return
 	end
-	block(
-		parent,
-		Vector3.new(T, 0.7, T),
-		CFrame.new(x * T, height - 0.35, z * T),
-		top,
-		look.material
-	)
+	block(parent, Vector3.new(T, 0.7, T), CFrame.new(x * T, height - 0.35, z * T), top)
 	if inside then
 		block(
 			parent,
@@ -513,9 +506,9 @@ local function sky(parent: Instance, r: Random)
 	castle.Name = "Castle"
 	castle.Parent = parent
 	local z0 = -maxZ - 40
-	block(castle, Vector3.new(90, 6, 36), CFrame.new(0, -3, z0), MARBLE, Enum.Material.Marble)
+	block(castle, Vector3.new(90, 6, 36), CFrame.new(0, -3, z0), MARBLE)
 	block(castle, Vector3.new(80, 14, 28), CFrame.new(0, -13, z0), Color3.fromHex("#9AA8BE"))
-	block(castle, Vector3.new(50, 12, 16), CFrame.new(0, 6, z0 - 4), MARBLE, Enum.Material.Marble)
+	block(castle, Vector3.new(50, 12, 16), CFrame.new(0, 6, z0 - 4), MARBLE)
 	for _, x in { -30, 0, 30 } do
 		place(
 			castle,
@@ -617,7 +610,6 @@ local LOOKS: { [string]: Look } = {
 		edge = C.grassDark,
 		soil = C.dirt,
 		cliff = C.stone,
-		material = Enum.Material.SmoothPlastic,
 		particles = { color = Color3.fromHex("#FFF3A0"), rate = 6, speed = 1, size = 0.25 },
 		ring = { step = 3, rough = 3 },
 		fill = meadowFill,
@@ -629,7 +621,6 @@ local LOOKS: { [string]: Look } = {
 		edge = Color3.fromHex("#2E3A58"),
 		soil = Color3.fromHex("#2A2F45"),
 		cliff = Color3.fromHex("#3A4462"),
-		material = Enum.Material.Slate,
 		liquid = {
 			color = Color3.fromHex("#4FD8F5"),
 			material = Enum.Material.Neon,
@@ -650,7 +641,6 @@ local LOOKS: { [string]: Look } = {
 		edge = Color3.fromHex("#3F5A2A"),
 		soil = Color3.fromHex("#4A3A2E"),
 		cliff = Color3.fromHex("#5A4A6A"),
-		material = Enum.Material.Grass,
 		liquid = {
 			color = Color3.fromHex("#5FBFA0"),
 			material = Enum.Material.Glass,
@@ -672,7 +662,6 @@ local LOOKS: { [string]: Look } = {
 		edge = Color3.fromHex("#A86A3A"),
 		soil = Color3.fromHex("#6B3A26"),
 		cliff = Color3.fromHex("#4A2E26"),
-		material = Enum.Material.Sand,
 		liquid = {
 			color = Color3.fromHex("#FF7A2A"),
 			material = Enum.Material.Neon,
@@ -695,7 +684,6 @@ local LOOKS: { [string]: Look } = {
 		edge = Color3.fromHex("#C9B98F"),
 		soil = Color3.fromHex("#B8C4D6"),
 		cliff = Color3.fromHex("#9AA8BE"),
-		material = Enum.Material.Marble,
 		particles = { color = Color3.new(1, 1, 1), rate = 10, speed = 3, size = 0.35 },
 		fill = skyFill,
 		detail = skyDetail,
@@ -706,7 +694,6 @@ local LOOKS: { [string]: Look } = {
 		edge = Color3.fromHex("#B98CFF"),
 		soil = Color3.fromHex("#1E1530"),
 		cliff = Color3.fromHex("#2A1E3E"),
-		material = Enum.Material.Slate,
 		liquid = {
 			color = Color3.fromHex("#FF5AD0"),
 			material = Enum.Material.Neon,
@@ -780,6 +767,7 @@ function World.build(region: Atlas.Region?, slot: number?)
 			end
 		end
 	end
+	Models.Studs.applyTree(folder) -- safety net: every part in the arena carries the stud look
 	folder:SetAttribute("Region", id) -- the client sets the light (LightController)
 	folder:SetAttribute("Center", center)
 	folder.Parent = arena
