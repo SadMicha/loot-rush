@@ -15,7 +15,7 @@ the button stays off, the server accepts nothing.
 | Gamepass | `magnet` | +8 studs pickup radius, +10% item chance | 149 |
 
 Soulstars are spent in the game: gold packs, Star Egg (pets). No pay-to-win pressure:
-everything except the passes is also available without Robux (soulstars also via rebirths).
+everything except the passes is also available without Robux (soulstars also from the in-game shop).
 
 ## Entering the IDs (Micha)
 

@@ -13,7 +13,7 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
-local Rebirth = require(script.Parent.Rebirth)
+local WorldTiers = require(script.Parent.WorldTiers)
 
 local Profile = {}
 
@@ -28,7 +28,7 @@ export type Data = {
 	atlas: { [string]: number }, -- region → highest Rift depth cleared (Shared/Atlas)
 	soulstars: number, -- Soulstars (shop, later also for Robux)
 	receipts: { string }, -- recently booked Robux purchases (PurchaseId), against double crediting
-	rebirths: number, -- number of Rebirths (Shared/Rebirth)
+	tier: WorldTiers.Data, -- World Tier unlocked/selected (Shared/WorldTiers)
 	pets: Pets.Data, -- pets (Shared/Pets)
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
@@ -57,7 +57,7 @@ local DEFAULTS: Data = {
 	atlas = {},
 	soulstars = 0,
 	receipts = {},
-	rebirths = 0,
+	tier = WorldTiers.fresh(),
 	pets = Pets.fresh(),
 	passes = {},
 	quests = Quests.fresh(),
@@ -169,7 +169,8 @@ function Profile.reconcile(raw: any): Data
 		table.remove(receipts, 1)
 	end
 	data.receipts = receipts
-	data.rebirths = math.min(whole(data.rebirths), Rebirth.MAX)
+	data.rebirths = nil -- Rebirth was removed (pure ARPG, 2026-11-02)
+	data.tier = WorldTiers.reconcile(data.tier)
 	data.pets = Pets.reconcile(data.pets)
 	-- Unknown pass keys (newer server) are kept; Systems/Monetization only reads
 	-- the known ones from Monetization.Passes. Capped so no junk gets saved.

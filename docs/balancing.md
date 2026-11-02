@@ -62,9 +62,10 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
   spreadsheet ~900 / ~120 / ~9).
 - **Elites** don't exist yet; their share of gold/XP is therefore missing.
 - **Boss damage:** factor per boss 1.2–1.7 (taken from the old values).
-- **Soft wall (Micha, 2026-10-29):** Rebirth should stay voluntary, but without it things should
-  get harder. From depth 20 (`wall_from`) enemy health additionally grows ×1.1 per depth
-  (`wall_growth`, depth 30: ×2.6). Damage stays per spreadsheet.
+- **Deep curve (2026-11-02, replaces the rebirth soft wall):** from depth 20 (`deep_from`) enemy
+  health additionally grows ×1.06 per depth (`deep_growth`, depth 30: ×1.8), so deeper depths stay
+  harder than gear progress. Damage stays per spreadsheet. Big difficulty steps come from the
+  **World Tiers** (`Shared/WorldTiers`, docs/WORLD-TIERS.md).
 - **Boss items** are 1 level (10 IP) above the depth.
 - **Damage per level:** +2% (before +10%). The spreadsheet scales damage only via the weapon; with
   +10% the player became far too strong from depth 15.
@@ -115,11 +116,10 @@ and 30% tier 2, damage `base * critMult^tier`). The simulation uses the average 
 - Jumps: Crystal Caves (from 6) have enemies twice as tough as the Green Plains (many tanks),
   Mushroom Swamp (from 11) deals more damage (charger ×1.6). Both stay within range.
 
-## Shop prices scale (since the rebirth PR)
+## Shop prices scale
 
 Gold prices in the shop and the gold packs (gold for soulstars) grow like kill gold with
 ×1.13 per depth – measured against the **best cleared depth** across all regions
 (`Balance.shopFactor`, `Shop.price`/`Shop.amount`). A shard pouch (50 shards) costs 150 gold at depth 1,
 at depth 20 ~1,500, at depth 30 ~5,200. Numbers are rounded to two significant digits. Soulstar prices
-and material amounts stay fixed. After a rebirth the best depth drops back, and so do
-the prices.
+and material amounts stay fixed.

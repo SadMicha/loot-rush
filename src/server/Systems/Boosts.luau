@@ -1,5 +1,5 @@
 --!strict
--- Permanent percent bonuses from several sources (Rebirth, pets, game passes) in one place.
+-- Permanent percent bonuses from several sources (pets, game passes) in one place.
 -- Every source registers via Boosts.source and returns { [stat]: percent }; the sum ends up as a
 -- player attribute read by combat, loot and UI:
 --   BonusDamage (damage %), BonusLife (max. life %), BonusGold (gold %), BonusXP (XP %),

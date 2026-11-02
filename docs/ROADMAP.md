@@ -25,7 +25,7 @@ As of: HEAD `1eebba7` (#38). ✅ only with a ticked-off checklist in `docs/TEST-
 | M8 | Combat depth | Armor, block, crit shards, Arcane Shield, all special nodes of the skill blooms, helpers with region XP | 🔧 ready to test |
 | M9 | Balancing per spreadsheet | Enemies, XP, gold, loot per depth (`docs/balancing.md`, `Shared/Balance`) | 🔧 ready to test (real runs against the spreadsheet open, see M5) |
 | M10 | Hub Lumenhaven | Own hub map (parts with studs since M17), stations, distant scenery | 🔧 ready to test |
-| M11 | Rebirth | Rebirth from depth 20 (+5 per rebirth), permanent bonuses, scaling shop prices (`docs/REBIRTH.md`) | 🔧 ready to test |
+| M11 | World Tiers | Rebirth removed (pure ARPG, 2026-11-02); four World Tiers with tougher enemies and better loot, scaling shop prices (`docs/WORLD-TIERS.md`) | 🔧 ready to test |
 | M12 | Pets | Eggs at the stall, permanent bonuses, companion model, light per player hub vs. rift (`docs/PETS.md`, checklist `TEST-PETS`) | 🔧 ready to test (odds/egg/equip steps wait for the pet window, not built yet, or run via server command-bar steps in `TEST-PETS`) |
 | M13 | Monetization | Soulstar products, 3 gamepasses (VIP, pet slot, loot magnet), robust ProcessReceipt; **all IDs still placeholder `0`** (`docs/MONETIZATION.md`) | 🔧 ready to test (Robux IDs in Creator Hub missing) |
 | M14 | Hardening & multiplayer | Remote throttles (inventory, rift, skills, dash), ID length check, several rifts at once (arena per player, `RIFT_SLOTS = 12`) | 🔧 ready to test (multiplayer playtest with 2+ clients open) |

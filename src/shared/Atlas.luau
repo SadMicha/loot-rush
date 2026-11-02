@@ -211,6 +211,17 @@ function Atlas.before(id: string): { string }
 end
 
 -- best(id) = highest depth cleared in region id (0 = never)
+-- Highest depth cleared across all regions (save field profile.atlas)
+function Atlas.bestDepth(atlas: { [string]: number }): number
+	local best = 0
+	for _, depth in atlas do
+		if depth > best then
+			best = depth
+		end
+	end
+	return best
+end
+
 function Atlas.isOpen(id: string, best: (string) -> number): boolean
 	local r = byId[id]
 	if not r then

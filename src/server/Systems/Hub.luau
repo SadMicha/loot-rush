@@ -337,7 +337,6 @@ local function buildTown(parent: Instance)
 	-- Rift Gate with banners and lanterns
 	put(deco, Props.portal(), GATE.X, GATE.Z, PLAZA)
 	station(parent, GATE + Vector3.new(0, 0, 5), "Open Atlas", "Rift Gate", "Atlas")
-	station(parent, GATE + Vector3.new(10, 0, 6), "Rebirth", "Soul Altar", "Rebirth")
 	for _, s in { -1, 1 } do
 		put(deco, Props.banner(), s * 13, -36, PLAZA)
 		put(deco, Props.lantern(), s * 10, -26, PLAZA)

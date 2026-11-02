@@ -13,6 +13,7 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
+local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -106,17 +107,19 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 end
 
 -- What an enemy drops at this depth in this region (pure, for tests)
-function Loot.forDepth(depth: number, regionId: string?, boss: boolean)
+-- tier = World Tier of the run (Shared/WorldTiers): higher item level and rarity shift
+function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: number?)
 	local region = if regionId then Atlas.ById[regionId] else nil
 	local bonus: Atlas.Bonus = if region then region.bonus else {}
 	local d = math.max(1, math.floor(depth))
-	local ilvl = Items.levelForDepth(d)
+	local t = WorldTiers.get(tier)
+	local ilvl = Items.levelForDepth(d) + t.ilvl
 	return {
 		ilvl = if boss then ilvl + Config.LOOT_BOSS_ILVL else ilvl,
 		goldMult = 1 + (bonus.gold or 0),
 		itemChance = math.min(1, Balance.P.drop_normal * (1 + (bonus.items or 0))),
 		bossItems = Balance.P.drops_boss,
-		shift = Balance.rarityShift(d),
+		shift = Balance.rarityShift(d) + t.shift,
 	}
 end
 
@@ -138,7 +141,8 @@ local function onKilled(
 	local t = Loot.forDepth(
 		if typeof(depth) == "number" then depth else 1,
 		if typeof(region) == "string" then region else nil,
-		boss == true
+		boss == true,
+		owner:GetAttribute("WorldTier") :: number?
 	)
 	-- Random rounding: small amounts (1.1 gold) still pay out the region bonus on average
 	local function coin(amount: number): number
@@ -150,7 +154,7 @@ local function onKilled(
 	end
 	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0)
 		* t.goldMult
-		* bonus("BonusGold") -- Rebirth, pet … (Systems/Boosts)
+		* bonus("BonusGold") -- pet, passes … (Systems/Boosts)
 	local itemChance = math.min(1, t.itemChance * bonus("BonusItems"))
 	if boss == true then
 		local coins = Config.LOOT_BOSS_GOLD_DROPS

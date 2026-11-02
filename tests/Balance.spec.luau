@@ -8,8 +8,8 @@ end
 describe("Balance", function()
 	it("computes enemies, gold and XP per depth like the table", function()
 		near(Balance.enemyHealth(1), 40)
-		near(Balance.enemyHealth(20), 928.577444210371) -- exactly the table up to the soft wall
-		near(Balance.enemyHealth(30), 4860.02164196364 * Balance.P.wall_growth ^ 10)
+		near(Balance.enemyHealth(20), 928.577444210371)
+		near(Balance.enemyHealth(30), 4860.02164196364 * Balance.P.deep_growth ^ 10) -- deep curve
 		near(Balance.enemyDamage(30), 160.499582790595)
 		near(Balance.gold(30), 69.2316778006046)
 		near(Balance.xp(30), 1110.12771864779)

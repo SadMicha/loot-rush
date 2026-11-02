@@ -15,8 +15,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
-local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
+local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
 local Data = require(script.Parent.Data)
@@ -35,7 +35,7 @@ type Run = {
 	center: Vector3, -- center of the arena
 	region: Atlas.Region,
 	depth: number, -- absolute depth (scales the enemies)
-	wallShift: number, -- soft wall shifted (the owner's Rebirths)
+	tier: number, -- World Tier (Shared/WorldTiers), chosen before the run
 	wave: number,
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
@@ -87,20 +87,36 @@ function Rift.publishBest(player: Player)
 		player:SetAttribute(Atlas.attr(region.id), if depth > 0 then depth else nil)
 	end
 	local profile = Data.get(player)
-	player:SetAttribute("BestDepth", if profile then Rebirth.bestDepth(profile.atlas) else 0)
+	player:SetAttribute("BestDepth", if profile then Atlas.bestDepth(profile.atlas) else 0)
+	-- World Tier: chosen and highest unlocked (the client shows the picker)
+	player:SetAttribute("WorldTier", if profile then profile.tier.selected else 1)
+	player:SetAttribute("WorldTierUnlocked", if profile then profile.tier.unlocked else 1)
 end
 
 local function record(r: Run)
 	local profile = Data.get(r.owner)
-	if profile and r.depth > (profile.atlas[r.region.id] or 0) then
-		profile.atlas[r.region.id] = r.depth
+	if not profile then
+		return
+	end
+	-- A new World Tier: the client toasts on the attribute change (AtlasController)
+	local unlocked = WorldTiers.unlockAfter(profile.tier, r.tier, r.depth)
+	if unlocked or r.depth > (profile.atlas[r.region.id] or 0) then
+		profile.atlas[r.region.id] = math.max(r.depth, profile.atlas[r.region.id] or 0)
 		Rift.publishBest(r.owner)
 	end
 end
 
-function Rift.rebirthsOf(player: Player): number
+-- Choose the World Tier for the next run (only between runs, only unlocked tiers)
+local function chooseTier(player: Player, n: any)
 	local profile = Data.get(player)
-	return if profile then profile.rebirths else 0
+	if not profile or runs[player] or typeof(n) ~= "number" or n ~= math.floor(n) then
+		return
+	end
+	if n < 1 or n > profile.tier.unlocked then
+		return
+	end
+	profile.tier.selected = n
+	Rift.publishBest(player)
 end
 
 -- Is a Rift of this player currently running?
@@ -156,15 +172,7 @@ local function spawnPoint(r: Run): Vector3
 end
 
 local function spawn(r: Run, kind: string, pos: Vector3)
-	mark(
-		r,
-		Enemies.spawn(
-			kind,
-			pos,
-			r.depth,
-			{ wallShift = r.wallShift, center = r.center, run = r.id }
-		)
-	)
+	mark(r, Enemies.spawn(kind, pos, r.depth, { tier = r.tier, center = r.center, run = r.id }))
 end
 
 -- Waits until all enemies are dead. false = run was aborted.
@@ -305,7 +313,7 @@ local function begin(player: Player, regionId: any)
 		owner = player,
 		region = region,
 		depth = region.depth,
-		wallShift = Rebirth.wallShift(Rift.rebirthsOf(player)),
+		tier = if Data.get(player) then (Data.get(player) :: any).tier.selected else 1,
 		wave = 0,
 		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
 	}
@@ -342,6 +350,8 @@ local function onAction(player: Player, action: any, regionId: any)
 		begin(player, regionId)
 	elseif action == "deeper" then
 		deeper(player)
+	elseif action == "tier" then
+		chooseTier(player, regionId)
 	elseif action == "leave" then
 		local r = runs[player]
 		if r then

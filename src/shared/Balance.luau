@@ -13,10 +13,10 @@ Balance.P = table.freeze({
 	dmg_base = 6,
 	dmg_growth = 1.12,
 	boss_hp = 40,
-	-- Soft wall (own assumption, Micha's spec): from this depth on, enemy life grows faster.
-	-- Without Rebirth it stays doable, but needs farming, the Forge and stars.
-	wall_from = 20,
-	wall_growth = 1.1,
+	-- Deep curve (own assumption): past this depth enemy life grows a bit faster, so deeper
+	-- depths stay harder than gear progress. Not a prestige wall: World Tiers carry the rest.
+	deep_from = 20,
+	deep_growth = 1.06,
 	-- Rewards
 	gold_base = 2,
 	gold_growth = 1.13,
@@ -58,10 +58,10 @@ local function steps(depth: number): number
 end
 
 -- Per depth (normal enemy, before archetype and boss factor).
--- wallShift: the soft wall sits this many depths further back (Rebirths, Shared/Rebirth)
-function Balance.enemyHealth(depth: number, wallShift: number?): number
-	local wall = math.max(0, math.floor(depth) - P.wall_from - (wallShift or 0))
-	return P.hp_base * P.hp_growth ^ steps(depth) * P.wall_growth ^ wall
+-- World Tier factors come on top (Shared/WorldTiers, Systems/Enemies).
+function Balance.enemyHealth(depth: number): number
+	local deep = math.max(0, math.floor(depth) - P.deep_from)
+	return P.hp_base * P.hp_growth ^ steps(depth) * P.deep_growth ^ deep
 end
 
 function Balance.enemyDamage(depth: number): number

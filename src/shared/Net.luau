@@ -5,7 +5,7 @@
 --   Fx        (S→C): kind: string, data: table (see Types.luau)
 --   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item } }
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
---   Rift      (C→S): action: "enter" | "deeper" | "leave" - state comes via player attributes (Types.luau)
+--   Rift      (C→S): action: "enter" | "deeper" | "leave" | "tier" (arg: World Tier number) - state comes via player attributes (Types.luau)
 --   RiftResult (S→C): RiftRun.Summary - after every boss (kind "clear") and at the end of the run (kind "end")
 --   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
 --   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill Bloom)
@@ -14,8 +14,6 @@
 --   ForgeResult (S→C): { ok, text, itemId?, used? } - Forge feedback
 --   Buy       (C→S): offerId: string - in-game purchase in the shop (Systems/Shop)
 --   ShopResult (S→C): { ok, text, offerId? } - shop feedback
---   Rebirth   (C→S): no arguments - Rebirth (Systems/Rebirth, rules Shared/Rebirth)
---   RebirthResult (S→C): { ok, text, rebirths? } - Rebirth feedback
 --   Pet       (C→S): action: "hatch" | "equip" | "unequip", id: string (egg or pet ID)
 --   Pets      (S→C): { owned, equipped, slots, odds } - pet state (Shared/Pets);
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
@@ -45,8 +43,6 @@ local NAMES = {
 	"ForgeResult",
 	"Buy",
 	"ShopResult",
-	"Rebirth",
-	"RebirthResult",
 	"Pet",
 	"Pets",
 	"PetResult",
@@ -91,8 +87,6 @@ return table.freeze({
 	ForgeResult = get("ForgeResult"),
 	Buy = get("Buy"),
 	ShopResult = get("ShopResult"),
-	Rebirth = get("Rebirth"),
-	RebirthResult = get("RebirthResult"),
 	Pet = get("Pet"),
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),

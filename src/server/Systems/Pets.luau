@@ -9,8 +9,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
+
 local Net = require(ReplicatedStorage.Shared.Net)
-local Rebirth = require(ReplicatedStorage.Shared.Rebirth)
 local Rules = require(ReplicatedStorage.Shared.Pets)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -83,7 +84,7 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	if not profile or not egg then
 		return false, "Unknown egg", nil
 	end
-	local price = Rules.eggPrice(egg, Rebirth.bestDepth(profile.atlas))
+	local price = Rules.eggPrice(egg, Atlas.bestDepth(profile.atlas))
 	local have = if egg.price.kind == "gold" then profile.gold else profile.soulstars
 	if have < price then
 		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil

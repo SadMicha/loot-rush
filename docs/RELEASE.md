@@ -28,7 +28,7 @@ See `docs/TEST-RELEASE.md` (Studio + phone, about 30 minutes).
 
 ## Deliberately not in yet
 
-- Windows for pets, rebirth and gamepasses (Micha builds the UI; server and data are
+- Windows for pets and gamepasses (Micha builds the UI; server and data are
   done, interfaces in `docs/UI-INTERFACES.md`).
 - Leaderboard, daily rewards, offline income, trading between players.
 - Movement checks against speed/teleport hacks: the server checks damage, loot and purchases,

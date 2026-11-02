@@ -133,7 +133,7 @@ local function applyLevelStats(player: Player, fill: boolean)
 	local bonus = (player:GetAttribute("StatLife") or 0) :: number
 	humanoid.MaxHealth = (Balance.life(level) + bonus)
 		* (1 + num(player, "StatLifePct") / 100)
-		* (1 + num(player, "BonusLife") / 100) -- Rebirth, pet … (Systems/Boosts)
+		* (1 + num(player, "BonusLife") / 100) -- pet, passes … (Systems/Boosts)
 	if fill then
 		humanoid.Health = humanoid.MaxHealth
 	end
@@ -186,7 +186,7 @@ local function addXP(player: Player, amount: number)
 	end
 end
 
--- Set level and XP directly (Rebirth, test commands); refills life
+-- Set level and XP directly (test commands); refills life
 function Combat.setLevel(player: Player, level: number, xp: number)
 	player:SetAttribute("Level", level)
 	player:SetAttribute("XP", xp)
@@ -310,7 +310,7 @@ damageEnemy = function(
 		base
 			* (if weapon > 0 then weapon else 1)
 			* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
-			* (1 + num(player, "BonusDamage") / 100), -- Rebirth, pet … (Systems/Boosts)
+			* (1 + num(player, "BonusDamage") / 100), -- pet, passes … (Systems/Boosts)
 		tier,
 		critMult
 	)
