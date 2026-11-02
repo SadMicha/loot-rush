@@ -546,6 +546,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		then "Treasure Goblin"
 		elseif elite then EliteMods.title(modIds, kind.name)
 		else kind.name
+	model:SetAttribute("BaseName", kind.name) -- the plain kind name; Name carries elite/Smooth prefixes
 	if o.smoothed and not o.goblin then
 		model.Name = "Smooth " .. model.Name
 		model:SetAttribute("Smoothed", true)

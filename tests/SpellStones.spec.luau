@@ -23,6 +23,17 @@ describe("Spell stone rules", function()
 		expect(#data.sockets.spark_ball).toBe(2)
 	end)
 
+	it("free stones of another class after a class change", function()
+		local data = Progression.fresh()
+		data.stones.power = 1
+		expect(Progression.socket(data, "spark_ball", 1, "power")).toBe(true)
+		local warrior = Skills.forClass("warrior").bar[1]
+		expect(Progression.socket(data, warrior, 1, "power")).toBe(false) -- still in the mage skill
+		Progression.fitBar(data, "warrior")
+		expect(data.sockets.spark_ball).toBeNil()
+		expect(Progression.socket(data, warrior, 1, "power")).toBe(true)
+	end)
+
 	it("change the skill", function()
 		local data = Progression.fresh()
 		data.stones.split = 1
