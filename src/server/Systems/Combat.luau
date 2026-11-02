@@ -492,10 +492,12 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		amount -= absorbed
 		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
 		if amount <= 0 then
-			Net.Fx:FireAllClients(
-				"dmg",
-				{ pos = root.Position + Vector3.new(0, 3, 0), text = "Shield", color = CRYSTAL }
-			)
+			Net.Fx:FireAllClients("dmg", {
+				pos = root.Position + Vector3.new(0, 3, 0),
+				text = "Shield",
+				color = CRYSTAL,
+				who = player.UserId,
+			})
 			return true
 		end
 	end
