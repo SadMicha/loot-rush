@@ -16,6 +16,7 @@ local Skills = require(ReplicatedStorage.Shared.Skills)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local ClassController = require(script.Parent.ClassController)
 local ProgressController = require(script.Parent.ProgressController)
 
 local AbilitiesController = {}
@@ -36,7 +37,7 @@ local hint: TextLabel
 
 local player = Players.LocalPlayer
 local ROW_H = 82 -- 8 rows must stay touchable on phones (Phone.spec)
-local selected = Skills.DefaultBar[1] -- skill id
+local selected = Skills.DefaultBar[1] -- skill id (kept inside the current class, see kit())
 local selectedNode: string? = nil -- bloom node, e.g. "trunk2"
 
 local function clear(parent: Instance)
@@ -57,6 +58,17 @@ end
 
 local function fmt(v: number): string
 	return if v == math.floor(v) then tostring(v) else string.format("%.1f", v)
+end
+
+-- Skills of the player's class; moves the selection into the class if it is outside
+local function kit(): Skills.ClassKit
+	local k = Skills.forClass(Kit.playerClass())
+	local s = Skills.ById[selected]
+	if not s or s.class ~= Kit.playerClass() then
+		selected = k.bar[1]
+		selectedNode = nil
+	end
+	return k
 end
 
 local function playerLevel(): number
@@ -80,14 +92,27 @@ local function renderList()
 	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
 	head.Position = UDim2.fromOffset(PAD, PAD - 6)
 	head.Parent = listPanel
+	-- Class change: hub only (the server refuses it inside a rift)
+	local change = Kit.button("Class", C.Gold, Vector2.new(110, 40), "crown")
+	change.Name = "ChangeClass"
+	change.AnchorPoint = Vector2.new(1, 0)
+	change.Position = UDim2.new(1, -PAD, 0, PAD - 10)
+	Kit.setEnabled(change, (player:GetAttribute("RiftPhase") or "") == "")
+	change.Activated:Connect(function()
+		if change.Active then
+			win.close()
+			ClassController.open()
+		end
+	end)
+	change.Parent = listPanel
 
 	local list = Window.frame(
-		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - 30),
-		UDim2.fromOffset(PAD, PAD + 30)
+		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - 44),
+		UDim2.fromOffset(PAD, PAD + 44)
 	)
 	Kit.list(list, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top)
 	local level = playerLevel()
-	for i, skill in Skills.list do
+	for i, skill in kit().list do
 		local on = skill.id == selected
 		local locked = level < (skill.unlock or 1)
 		local slot = slotOf(skill.id)
@@ -404,7 +429,7 @@ local function renderDetail()
 		b.Parent = detail
 		return
 	end
-	local okEquip, why = Progression.canEquip(skill.id, playerLevel())
+	local okEquip, why = Progression.canEquip(skill.id, playerLevel(), Kit.playerClass())
 	if not okEquip then
 		local b = Kit.button(why or "Locked", C.Muted, Vector2.new(w, 60), "lock")
 		Kit.setEnabled(b, false)
@@ -502,7 +527,7 @@ function AbilitiesController.init()
 	end
 	ProgressController.changed:Connect(refresh)
 	player:GetAttributeChangedSignal("Level"):Connect(refresh)
-	player:GetAttributeChangedSignal("Rebirths"):Connect(refresh)
+	player:GetAttributeChangedSignal("Class"):Connect(refresh)
 	AbilitiesController.render()
 end
 

@@ -301,11 +301,18 @@ function Progression.barSkill(data: Data, slot: number): Skills.Skill?
 	return if id then Skills.ById[id] else nil
 end
 
--- Can the skill go on the bar at this player level?
-function Progression.canEquip(skillId: string, playerLevel: number): (boolean, string?)
+-- Can the skill go on the bar at this player level (and, if given, for this class)?
+function Progression.canEquip(
+	skillId: string,
+	playerLevel: number,
+	classId: string?
+): (boolean, string?)
 	local skill = Skills.ById[skillId]
 	if not skill then
 		return false, "Unknown skill"
+	end
+	if classId and skill.class ~= classId then
+		return false, "Another class's skill"
 	end
 	if playerLevel < (skill.unlock or 1) then
 		return false, string.format("Unlocks at level %d", skill.unlock or 1)
@@ -315,11 +322,17 @@ end
 
 -- Puts a skill into a slot; if it already sits in another slot, the two swap places.
 -- Returns false if the move is not allowed (nothing changes then).
-function Progression.equip(data: Data, slot: number, skillId: string, playerLevel: number): boolean
+function Progression.equip(
+	data: Data,
+	slot: number,
+	skillId: string,
+	playerLevel: number,
+	classId: string?
+): boolean
 	if slot ~= math.floor(slot) or slot < 1 or slot > Skills.SLOTS then
 		return false
 	end
-	if not Progression.canEquip(skillId, playerLevel) then
+	if not Progression.canEquip(skillId, playerLevel, classId) then
 		return false
 	end
 	local old = data.bar[slot]
@@ -330,6 +343,39 @@ function Progression.equip(data: Data, slot: number, skillId: string, playerLeve
 	end
 	data.bar[slot] = skillId
 	return true
+end
+
+-- Makes the bar fit a class: skills of another class are replaced by the class's starting
+-- skills (on load and after a class change). Returns true if something changed.
+function Progression.fitBar(data: Data, classId: string): boolean
+	local kit = Skills.forClass(classId)
+	local used: { [string]: boolean } = {}
+	local keep: { string? } = {}
+	for slot = 1, Skills.SLOTS do
+		local id = data.bar[slot]
+		local skill = if id then Skills.ById[id] else nil
+		if skill and skill.class == classId and not used[skill.id] then
+			keep[slot] = skill.id
+			used[skill.id] = true
+		end
+	end
+	local changed = false
+	for slot = 1, Skills.SLOTS do
+		if not keep[slot] then
+			for _, id in kit.bar do
+				if not used[id] then
+					keep[slot] = id
+					used[id] = true
+					break
+				end
+			end
+		end
+		if keep[slot] ~= data.bar[slot] then
+			changed = true
+		end
+	end
+	data.bar = keep :: { string }
+	return changed
 end
 
 -- ------------------------------------------------------------------ Effect on skills

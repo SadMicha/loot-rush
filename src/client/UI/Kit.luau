@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
+local Skills = require(ReplicatedStorage.Shared.Skills)
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Shape = require(script.Parent.Shape)
@@ -372,8 +373,7 @@ function Kit.setIconTransparency(icon: GuiObject, transparency: number)
 end
 
 -- ------------------------------------------------------------------ Class art
--- Class of the local player. There is no class data yet, so this is Theme.Class.Default; a player
--- attribute "Class" is honored if it ever exists.
+-- Class of the local player (attribute "Class", Systems/ClassChoice); Theme.Class.Default before load.
 function Kit.playerClass(): string
 	local value = Players.LocalPlayer:GetAttribute("Class")
 	if typeof(value) == "string" and Theme.Class.SkillName[string.lower(value)] then
@@ -391,7 +391,8 @@ end
 
 -- Class art key of a skill ("dash" for the dash button) or nil without uploaded art
 function Kit.skillArt(skillId: string): string?
-	local pos = Theme.Class.SkillSlot[skillId]
+	local skill = Skills.ById[skillId]
+	local pos = Theme.Class.SkillSlot[skillId] or (if skill then skill.art else nil)
 	local class = Kit.playerClass()
 	local names = Theme.Class.SkillName[class]
 	if not pos or not names then

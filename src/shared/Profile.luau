@@ -33,6 +33,7 @@ export type Data = {
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
 	class: string, -- chosen class (Shared/Classes id)
+	classChosen: boolean, -- false until the first-join class choice is made
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
 }
 
@@ -63,6 +64,7 @@ local DEFAULTS: Data = {
 	passes = {},
 	quests = Quests.fresh(),
 	class = Classes.DEFAULT,
+	classChosen = false,
 	autoSalvage = "",
 }
 
@@ -198,6 +200,7 @@ function Profile.reconcile(raw: any): Data
 	data.passes = passes
 	data.quests = Quests.reconcile(data.quests)
 	data.class = Classes.valid(data.class)
+	data.classChosen = data.classChosen == true
 	if
 		data.autoSalvage ~= ""
 		and (Items.rank(data.autoSalvage) == 0 or data.autoSalvage == "unique")

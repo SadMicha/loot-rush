@@ -187,6 +187,34 @@ function handlers.nova(d)
 	end
 end
 
+-- Melee arc: a fan of bricks along the edge of the swing
+function handlers.arc(d)
+	local pos, dir, radius, arc, color = d.pos, d.dir, d.radius, d.arc, d.color
+	if
+		typeof(pos) ~= "Vector3"
+		or typeof(dir) ~= "Vector3"
+		or typeof(radius) ~= "number"
+		or typeof(arc) ~= "number"
+		or typeof(color) ~= "Color3"
+	then
+		return
+	end
+	local n = math.clamp(math.floor(arc / 25), 3, 8)
+	local base = math.atan2(dir.X, dir.Z)
+	local half = math.rad(arc) / 2
+	for i = 1, n do
+		local a = base - half + (i - 0.5) / n * half * 2
+		local out = Vector3.new(math.sin(a), 0, math.cos(a))
+		BrickController.brick(
+			CFrame.new(pos + out * radius * 0.8 + Vector3.new(0, 1, 0)),
+			Vector3.new(0.8, 0.5, 0.8),
+			color,
+			out * 10 + Vector3.new(0, 14, 0),
+			pos.Y
+		)
+	end
+end
+
 function handlers.proj(d)
 	local to, color, time = d.to, d.color, d.time
 	if typeof(to) ~= "Vector3" or typeof(color) ~= "Color3" or typeof(time) ~= "number" then

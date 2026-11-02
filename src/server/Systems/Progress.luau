@@ -155,7 +155,7 @@ local function onLoadout(player: Player, action: any, a: any, b: any)
 			return
 		end
 		local level = (player:GetAttribute("Level") or 1) :: number
-		if not Progression.equip(progress, a, b, level) then
+		if not Progression.equip(progress, a, b, level, profile.class) then
 			return
 		end
 	else
@@ -201,7 +201,19 @@ end
 
 -- ------------------------------------------------------------------ Lifecycle
 local function onPlayer(player: Player)
-	if Data.waitFor(player) then
+	local profile = Data.waitFor(player)
+	if profile then
+		Progression.fitBar(profile.progress, profile.class)
+		send(player)
+	end
+end
+
+-- After a class change (Systems/ClassChoice): bar to the new class, stats, snapshot
+function Progress.classChanged(player: Player)
+	local profile = Data.get(player)
+	if profile then
+		Progression.fitBar(profile.progress, profile.class)
+		Stats.refresh(player, false)
 		send(player)
 	end
 end

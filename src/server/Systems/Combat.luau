@@ -11,6 +11,7 @@ local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Crit = require(ReplicatedStorage.Shared.Crit)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Classes = require(ReplicatedStorage.Shared.Classes)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -30,6 +31,8 @@ type PState = {
 	armorUntil: number,
 	shield: number, -- Star "Arcane Shield": life points until shieldUntil
 	shieldUntil: number,
+	buffDamage: number, -- buff skills (Battle Cry): % damage until buffUntil
+	buffUntil: number,
 }
 
 local Combat = {
@@ -330,6 +333,10 @@ damageEnemy = function(
 	local level = (player:GetAttribute("Level") or 1) :: number
 	local critChance = Config.CRIT_CHANCE + ((player:GetAttribute("StatCrit") or 0) :: number) / 100
 	local bonus = ((player:GetAttribute("StatDamage") or 0) :: number) / 100
+	local pst = states[player]
+	if pst and os.clock() < pst.buffUntil then
+		bonus += pst.buffDamage / 100
+	end
 	local _, humanoid = body(player)
 	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
 		bonus += num(player, "StatLowLife") / 100
@@ -593,6 +600,179 @@ local function castProjectile(
 	return true
 end
 
+-- Arrow Volley and friends: `count` projectiles spread over `spread` degrees around the aim
+local function castFan(
+	player: Player,
+	root: BasePart,
+	skill: Skills.Skill,
+	aim: Vector3,
+	from: Vector3
+): boolean
+	local count = math.max(1, math.floor(skill.count or 1))
+	if count == 1 then
+		return castProjectile(player, root, skill, aim, from)
+	end
+	local dir = flat(aim - from)
+	if dir.Magnitude < 0.1 then
+		dir = flat(root.CFrame.LookVector)
+	end
+	local spread = math.rad(skill.spread or 30)
+	local one = table.clone(skill)
+	one.count = nil
+	local single = table.freeze(one) :: Skills.Skill
+	for i = 1, count do
+		local a = -spread / 2 + spread * (i - 1) / (count - 1)
+		local d = CFrame.Angles(0, a, 0):VectorToWorldSpace(dir.Unit)
+		castProjectile(player, root, single, from + d * skill.range, from)
+	end
+	return true
+end
+
+-- Melee arc: everything inside the cone toward the aim (sword swings, Shield Bash)
+local function castArc(player: Player, root: BasePart, skill: Skills.Skill, aim: Vector3): boolean
+	local from = root.Position
+	local dir = flat(aim - from)
+	if dir.Magnitude < 0.1 then
+		dir = flat(root.CFrame.LookVector)
+	end
+	dir = dir.Unit
+	local half = math.rad(skill.arc or 90) / 2
+	local reach = skill.range
+	Net.Fx:FireAllClients("arc", {
+		pos = ground(from),
+		dir = dir,
+		radius = reach,
+		arc = skill.arc or 90,
+		color = skill.color,
+	})
+	for _, e in enemiesNear(from, reach) do
+		local rel = flat(enemyPos(e) - from)
+		if
+			rel.Magnitude < BODY_RADIUS + 1
+			or math.acos(math.clamp(rel.Unit:Dot(dir), -1, 1)) <= half
+		then
+			damageEnemy(e, skill.damage, player, skill)
+			if skill.slow then
+				e:SetAttribute("SlowUntil", os.clock() + (skill.slowTime or 1))
+				e:SetAttribute("SlowFactor", skill.slow)
+			end
+		end
+	end
+	return true
+end
+
+-- Leap: jump to the aim (at most `range` away, inside the own arena) and hit around the landing
+local function castLeap(player: Player, root: BasePart, skill: Skills.Skill, aim: Vector3): boolean
+	local from = root.Position
+	local rel = flat(aim - from)
+	if rel.Magnitude > skill.range then
+		rel = rel.Unit * skill.range
+	end
+	local land = from + rel
+	-- never leap through walls: stop in front of the first obstacle
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { player.Character :: Model }
+	if rel.Magnitude > 0.5 then
+		local hit = workspace:Raycast(from, rel, params)
+		if hit then
+			land = hit.Position - rel.Unit * 2
+		end
+	end
+	root.CFrame = CFrame.new(Vector3.new(land.X, from.Y, land.Z)) * root.CFrame.Rotation
+	local st = states[player]
+	if st then -- short invulnerability while flying in
+		st.iframesUntil = math.max(st.iframesUntil, os.clock() + 0.25)
+	end
+	Net.Fx:FireAllClients(
+		"nova",
+		{ pos = ground(land), radius = skill.radius, color = skill.color }
+	)
+	for _, e in enemiesNear(land, skill.radius) do
+		damageEnemy(e, skill.damage, player, skill)
+	end
+	return true
+end
+
+-- Zone: ground area at the aim (or around you with range 0) that hits every `tick`
+local function castZone(player: Player, root: BasePart, skill: Skills.Skill, aim: Vector3): boolean
+	local follow = skill.range <= 0
+	local center = root.Position
+	if not follow then
+		local rel = flat(aim - center)
+		if rel.Magnitude > skill.range then
+			rel = rel.Unit * skill.range
+		end
+		center += rel
+	end
+	local duration = skill.duration or 3
+	local tick = math.max(0.2, skill.tick or 0.5)
+	task.spawn(function()
+		local t = 0
+		local n = 0
+		while t < duration and player.Parent do
+			local r = body(player)
+			if follow then
+				if not r then
+					return
+				end
+				center = r.Position
+			end
+			if n % 2 == 0 then
+				Net.Fx:FireAllClients(
+					"nova",
+					{ pos = ground(center), radius = skill.radius, color = skill.color }
+				)
+			end
+			for _, e in enemiesNear(center, skill.radius) do
+				if skill.slow then
+					local untilT = os.clock() + (skill.slowTime or tick * 2)
+					if ((e:GetAttribute("SlowUntil") or 0) :: number) < untilT then
+						e:SetAttribute("SlowUntil", untilT)
+						e:SetAttribute("SlowFactor", skill.slow)
+					end
+				end
+				damageEnemy(e, skill.damage, player, skill, n > 0)
+			end
+			n += 1
+			task.wait(tick)
+			t += tick
+		end
+	end)
+	return true
+end
+
+-- Buff: damage/armor/speed for a while, or an instant heal
+local function castBuff(player: Player, root: BasePart, skill: Skills.Skill): boolean
+	local st = states[player]
+	local _, humanoid = body(player)
+	if not st or not humanoid then
+		return false
+	end
+	local now = os.clock()
+	local duration = skill.duration or 0
+	if skill.buffDamage then
+		st.buffDamage = skill.buffDamage
+		st.buffUntil = now + duration
+	end
+	if skill.buffArmor then
+		st.armorBuff = skill.buffArmor
+		st.armorUntil = now + duration
+	end
+	if skill.buffHaste then
+		st.haste = skill.buffHaste
+		st.hasteUntil = now + duration
+		applySpeed(player)
+		task.delay(duration + 0.05, applySpeed, player)
+	end
+	if skill.heal then
+		humanoid.Health =
+			math.min(humanoid.MaxHealth, humanoid.Health + humanoid.MaxHealth * skill.heal)
+	end
+	Net.Fx:FireAllClients("nova", { pos = ground(root.Position), radius = 5, color = skill.color })
+	return true
+end
+
 local function castNova(player: Player, root: BasePart, skill: Skills.Skill): boolean
 	local center = root.Position
 	local st = states[player]
@@ -791,6 +971,9 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	if not base or not st or not root then
 		return false
 	end
+	if base.class ~= Classes.valid(profile and profile.class) then
+		return false -- a skill of another class (bar is refitted on class change)
+	end
 	local skill = effective(player, base)
 	local now = os.clock()
 	if now < (st.cdUntil[base.id] or 0) then
@@ -802,11 +985,19 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	end
 	local ok = false
 	if skill.kind == "projectile" then
-		ok = castProjectile(player, root, skill, aim, origin)
+		ok = castFan(player, root, skill, aim, origin)
 	elseif skill.kind == "nova" then
 		ok = castNova(player, root, skill)
 	elseif skill.kind == "chain" then
 		ok = castChain(player, root, skill, aim)
+	elseif skill.kind == "arc" then
+		ok = castArc(player, root, skill, aim)
+	elseif skill.kind == "leap" then
+		ok = castLeap(player, root, skill, aim)
+	elseif skill.kind == "zone" then
+		ok = castZone(player, root, skill, aim)
+	elseif skill.kind == "buff" then
+		ok = castBuff(player, root, skill)
 	end
 	if not ok then
 		return false
@@ -883,6 +1074,8 @@ local function onPlayer(player: Player)
 		hasteUntil = 0,
 		chill = 0,
 		chillUntil = 0,
+		buffDamage = 0,
+		buffUntil = 0,
 		armorBuff = 0,
 		armorUntil = 0,
 		shield = 0,
@@ -956,7 +1149,8 @@ function Combat.start()
 			if now >= st.basicUntil then
 				local root = body(player)
 				if root then
-					local basic = effective(player, Skills.basic)
+					local kit = Skills.forClass(Classes.valid(player:GetAttribute("Class")))
+					local basic = effective(player, kit.basic)
 					local target: Model? = nil
 					local best = basic.range
 					for _, e in pool do
@@ -974,7 +1168,11 @@ function Combat.start()
 							double.damage *= 2
 							basic = double
 						end
-						castProjectile(player, root, basic, enemyPos(target), root.Position)
+						if basic.kind == "arc" then
+							castArc(player, root, basic, enemyPos(target))
+						else
+							castProjectile(player, root, basic, enemyPos(target), root.Position)
+						end
 					end
 				end
 			end
