@@ -28,6 +28,25 @@ local function results(): { any }
 	return list
 end
 
+-- Gold paid by onboarding quests so far (Net.Quest snapshots list finished quest texts in `done`)
+local function questGold(): number
+	local Quests = require("ReplicatedStorage.Shared.Quests")
+	local sum = 0
+	for _, n in sim.netLog do
+		local snap = n.args and n.args[1]
+		if n.name == "Quest" and n.dir == "S→C" and type(snap) == "table" and snap.done then
+			for _, text in snap.done do
+				for _, q in Quests.Chain do
+					if q.text == text then
+						sum += q.gold
+					end
+				end
+			end
+		end
+	end
+	return sum
+end
+
 local function last(): any
 	local list = results()
 	return list[#list]
@@ -132,7 +151,8 @@ describe("Rift run in game", function()
 		expect(s.kind).toBe("end")
 		expect(s.reason).toBe("left")
 		expect(s.gold).toBeGreaterThan(0)
-		expect(sim.player:GetAttribute("Gold") - goldStart).toBe(s.gold) -- all gold of the run
+		-- all gold of the run (plus the onboarding quest rewards earned on the way)
+		expect(sim.player:GetAttribute("Gold") - goldStart - questGold()).toBe(s.gold)
 		expect(phase()).toBe("")
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
 		expect(hubDistance()).toBeLessThan(10)
