@@ -434,7 +434,8 @@ function Progression.socket(data: Data, skillId: string, index: number, stoneId:
 end
 
 -- Makes the bar fit a class: skills of another class are replaced by the class's starting
--- skills (on load and after a class change). Returns true if something changed.
+-- skills (on load and after a class change); stones socketed into other classes' skills are
+-- freed. Returns true if something changed.
 function Progression.fitBar(data: Data, classId: string): boolean
 	local kit = Skills.forClass(classId)
 	local used: { [string]: boolean } = {}
@@ -463,6 +464,14 @@ function Progression.fitBar(data: Data, classId: string): boolean
 		end
 	end
 	data.bar = keep :: { string }
+	-- Stones in another class's skills go back to the bag, so the new class can socket them
+	for skillId in table.clone(data.sockets) do
+		local skill = Skills.ById[skillId]
+		if not skill or skill.class ~= classId then
+			data.sockets[skillId] = nil
+			changed = true
+		end
+	end
 	return changed
 end
 
