@@ -23,7 +23,7 @@ All numbers live in `src/shared/Rush.luau`. Stud flight is set by `STUD_HOME_*` 
   - `Rushing`.
 - **Remote**: `Net.Rush("start")`, rate limited to 2/s with a burst of 4. It is refused unless the meter is full and no Rush is running.
 - **Effects**: Combat applies the speed in `applySpeed` and the attack speed in the basic attack loop.
-- **Death**: a new character (death or going to the hub) ends the Rush. The meter is kept.
+- **Limits**: a Rush starts only in a rift with a living character. It ends with the rift and with a new character. The meter is kept.
 
 ## Later hooks
 

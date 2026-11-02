@@ -4,7 +4,8 @@
 --   RushMeter (number 0..Rush.METER), RushUntil (server time, workspace:GetServerTimeNow()),
 --   Rushing (bool) are player attributes; Net.Rush("start") triggers a Rush with a full meter.
 -- During a Rush: more move speed (Combat.applySpeed), faster basic attacks (Combat basic loop),
--- kills add a little time (chain, capped), a glow on the character everyone sees.
+-- kills add a little time (chain, capped), a glow on the character everyone sees. Only in a rift;
+-- the Rush ends with the rift and with a new character.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local RushRules = require(ReplicatedStorage.Shared.Rush)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
+local Rift = require(script.Parent.Rift)
 
 local Rush = {}
 
@@ -87,11 +89,16 @@ local function stop(player: Player)
 	end
 end
 
--- Starts a Rush if the meter is full; false otherwise
+-- Starts a Rush if the meter is full, the character lives and a rift runs; false otherwise
 function Rush.trigger(player: Player): boolean
 	local st = state(player)
-	if Rush.isRushing(player) or st.meter < RushRules.METER then
+	if Rush.isRushing(player) or st.meter < RushRules.METER or not Rift.isRunning(player) then
 		return false
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return false -- a corpse waiting for the respawn would waste the meter
 	end
 	st.meter = 0
 	st.startedAt = now()
@@ -146,7 +153,8 @@ function Rush.start()
 			task.wait(0.1)
 			local t = now()
 			for player, st in states do
-				if st.untilT > 0 and t >= st.untilT then
+				-- ends on time, and when the rift is over (back in the hub)
+				if st.untilT > 0 and (t >= st.untilT or not Rift.isRunning(player)) then
 					stop(player)
 				end
 			end
