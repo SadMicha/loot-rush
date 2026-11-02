@@ -339,6 +339,7 @@ function Window.new(opts: Options): Window
 	body.Parent = root
 
 	local openFns: { () -> () } = {}
+	local restPos = body.Position -- resting place of the content (set by arrange)
 	local win: Window
 
 	local function close()
@@ -366,7 +367,7 @@ function Window.new(opts: Options): Window
 		Window.blur(true)
 		Shape.sound("ui_open")
 		-- Content rises into place
-		local final = body.Position
+		local final = restPos
 		Spring.snap(body, { Position = final + UDim2.fromOffset(0, Theme.Flat.OpenDrop) })
 		Spring.target(body, { Position = final }, "Snappy")
 		for _, fn in openFns do
@@ -421,7 +422,8 @@ function Window.new(opts: Options): Window
 		local availW, availH = view.X - 2 * MARGIN, view.Y - top - 16
 		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
 		bodyScale.Scale = k
-		Spring.snap(body, { Position = UDim2.fromOffset(view.X / 2, top + availH / 2) })
+		restPos = UDim2.fromOffset(view.X / 2, top + availH / 2)
+		Spring.snap(body, { Position = restPos })
 		Kit.refit(root)
 	end
 	arrange()
