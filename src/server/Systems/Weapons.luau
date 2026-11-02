@@ -19,6 +19,7 @@ local WeaponSystem = {}
 local NAME = "HeldWeapon"
 local meshCache: { [string]: BasePart } = {}
 local tried: { [string]: boolean } = {}
+local loading: { [string]: boolean } = {} -- LoadAsset in flight: other callers wait for it
 
 local function assetId(raw: string): number?
 	return tonumber(string.match(raw, "%d+$") or "")
@@ -26,6 +27,9 @@ end
 
 -- First MeshPart of the uploaded model, scaled to the weapon length, texture applied
 local function loadMesh(w: Weapons.Weapon): BasePart?
+	while loading[w.id] do
+		task.wait(0.1)
+	end
 	if tried[w.id] then
 		return meshCache[w.id]
 	end
@@ -35,9 +39,11 @@ local function loadMesh(w: Weapons.Weapon): BasePart?
 	if not ids or not id then
 		return nil
 	end
+	loading[w.id] = true
 	local ok, model = pcall(function()
 		return InsertService:LoadAsset(id)
 	end)
+	loading[w.id] = nil
 	if not ok or not model then
 		warn("[Weapons] could not load " .. w.id .. ": " .. tostring(model))
 		return nil
@@ -158,10 +164,17 @@ function WeaponSystem.equip(player: Player)
 	if not w then
 		return
 	end
+	local mesh = loadMesh(w) -- may yield (first load per server)
+	if player.Character ~= character or not character.Parent or not grip.Parent then
+		return -- respawned while loading: the new character equips itself
+	end
+	old = character:FindFirstChild(NAME)
+	if old then
+		old:Destroy()
+	end
 	local model = Instance.new("Model")
 	model.Name = NAME
 	model:SetAttribute("Weapon", w.id)
-	local mesh = loadMesh(w)
 	local root: BasePart
 	if mesh then
 		root = mesh:Clone()

@@ -341,8 +341,15 @@ local function deeper(player: Player)
 end
 
 local allow = RateLimit.new(1, 3) -- entering builds a whole arena: slow down spam
+local allowTier = RateLimit.new(4, 8) -- tier picker steps are cheap and must not eat the enter budget
 
 local function onAction(player: Player, action: any, regionId: any)
+	if action == "tier" then
+		if allowTier(player) then
+			chooseTier(player, regionId)
+		end
+		return
+	end
 	if not allow(player) then
 		return
 	end
@@ -350,8 +357,6 @@ local function onAction(player: Player, action: any, regionId: any)
 		begin(player, regionId)
 	elseif action == "deeper" then
 		deeper(player)
-	elseif action == "tier" then
-		chooseTier(player, regionId)
 	elseif action == "leave" then
 		local r = runs[player]
 		if r then
