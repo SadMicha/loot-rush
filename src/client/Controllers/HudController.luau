@@ -36,7 +36,6 @@ local AtlasController = require(script.Parent.AtlasController)
 local ShopController = require(script.Parent.ShopController)
 local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
-local VillageController = require(script.Parent.VillageController)
 
 local HudController = {}
 
@@ -62,7 +61,12 @@ local MENU_ACTION: { [string]: () -> () } = {
 	atlas = AtlasController.toggle,
 	shop = ShopController.toggle,
 	pets = PetWindowController.toggle,
-	village = VillageController.toggle,
+	-- "Hub": back to the hub while in a Rift (there is nothing to do when already there)
+	hub = function()
+		if RiftController.active() then
+			RiftController.toggle()
+		end
+	end,
 }
 
 local flies: { Fly } = {}

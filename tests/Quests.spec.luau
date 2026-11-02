@@ -47,7 +47,7 @@ describe("Quest rules", function()
 		expect(Quests.isOpen(d, "inventory", 1, 0)).toBe(true)
 		expect(Quests.isOpen(d, "forge", 1, 4)).toBe(false)
 		local new = Quests.refreshUnlocks(d, 5, 8)
-		expect(table.concat(new, ",")).toBe("forge,pets,star_net,village")
+		expect(table.concat(new, ",")).toBe("forge,pets,star_net")
 		expect(Quests.isOpen(d, "forge", 1, 0)).toBe(true) -- after a Rebirth
 	end)
 

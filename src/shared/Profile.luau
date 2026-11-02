@@ -12,7 +12,6 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
-local Village = require(script.Parent.Village)
 local Rebirth = require(script.Parent.Rebirth)
 
 local Profile = {}
@@ -32,7 +31,6 @@ export type Data = {
 	pets: Pets.Data, -- pets (Shared/Pets)
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
-	village: Village.Data, -- village building levels and production carry (Shared/Village)
 }
 
 -- The versioned save (stored as ProfileStore's profile.Data)
@@ -61,7 +59,6 @@ local DEFAULTS: Data = {
 	pets = Pets.fresh(),
 	passes = {},
 	quests = Quests.fresh(),
-	village = Village.fresh(),
 }
 
 -- MIGRATIONS[n] lifts a record from version n to n + 1
@@ -194,7 +191,6 @@ function Profile.reconcile(raw: any): Data
 	end
 	data.passes = passes
 	data.quests = Quests.reconcile(data.quests)
-	data.village = Village.reconcile(data.village)
 	return data :: Data
 end
 

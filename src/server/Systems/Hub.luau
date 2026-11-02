@@ -349,8 +349,6 @@ local function buildTown(parent: Instance)
 		put(deco, Props.bench(), s * 18, 22, PLAZA)
 	end
 	put(deco, Props.well(), 36, 36, Vector3.new(0, 0, 36))
-	-- Village ledger at the well (Systems/Village)
-	station(parent, Vector3.new(36, groundAt(36, 30), 30), "Village", "Village Ledger", "Village")
 
 	-- West: Glitter Forge and market
 	local forge = cell(3, 8.8)

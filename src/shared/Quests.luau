@@ -6,8 +6,7 @@
 --
 -- Goal kinds:
 --   count goals (counted by server actions): "rift" (enter a Rift), "kill", "pickup" (items),
---   "equip", "star" (allocate a star), "forge" (any Forge action), "village" (upgrade a building),
---   "salvage", "hatch", "rebirth"
+--   "equip", "star" (allocate a star), "forge" (any Forge action), "salvage", "hatch", "rebirth"
 --   state goals (checked against the player): "depth" (best cleared depth), "level"
 -- Unlocks are saved once reached and never lock again (Rebirth lowers the best depth).
 
@@ -20,7 +19,6 @@ export type Goal =
 	| "equip"
 	| "star"
 	| "forge"
-	| "village"
 	| "salvage"
 	| "hatch"
 	| "rebirth"
@@ -72,13 +70,6 @@ Quests.Chain = table.freeze({
 		unlocks = "forge",
 	},
 	{ id = "first_forge", text = "Use the Forge once", goal = "forge", target = 1, gold = 120 },
-	{
-		id = "village",
-		text = "Build the Bakery in the Village",
-		goal = "village",
-		target = 1,
-		gold = 100,
-	},
 	{ id = "salvage", text = "Salvage 5 items", goal = "salvage", target = 5, gold = 150 },
 	{
 		id = "depth_8",
@@ -100,14 +91,12 @@ Quests.Chain = table.freeze({
 Quests.Unlocks = table.freeze({
 	star_net = { level = 5, caption = "Reach level 5" },
 	forge = { depth = 5, caption = "Clear depth 5" },
-	village = { depth = 5, caption = "Clear depth 5" },
 	pets = { depth = 8, caption = "Clear depth 8" },
 } :: { [string]: { level: number?, depth: number?, caption: string } })
 
 Quests.Names = table.freeze({
 	star_net = "Star Web",
 	forge = "Forge",
-	village = "Village",
 	pets = "Pets",
 } :: { [string]: string })
 
