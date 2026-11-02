@@ -91,9 +91,24 @@ function Window.frame(size: UDim2, pos: UDim2?): Frame
 	return f
 end
 
--- Image from Assets.Art (fixed size, fitted) or nil while it is missing
+-- Drawn frame pieces from the old art packs: retired with the flat look (callers fall back to shapes).
+-- Scene pictures (backgrounds, islands, regions, anvil) stay.
+local FRAME_ART: { [string]: boolean } = {
+	node_ring = true,
+	node_ring_active = true,
+	node_ring_locked = true,
+	star_small = true,
+	star_small_active = true,
+	star_big = true,
+	star_big_active = true,
+	star_core = true,
+	plaque_region = true,
+	plaque_status = true,
+}
+
+-- Image from Assets.Art (fixed size, fitted) or nil while it is missing / a retired frame piece
 function Window.art(name: string, size: Vector2): ImageLabel?
-	local art = Assets.Art[name]
+	local art = if FRAME_ART[name] then nil else Assets.Art[name]
 	if not art then
 		return nil
 	end
@@ -148,7 +163,7 @@ export type NodeOptions = {
 
 -- Round tree node (skill bloom, Star Net), centered on `pos`
 function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOptions): ImageButton
-	local ring = if opts.art then Assets.Art[opts.art] else nil
+	local ring = if opts.art and not FRAME_ART[opts.art] then Assets.Art[opts.art] else nil
 	local b: ImageButton
 	if ring then
 		b = Instance.new("ImageButton")
@@ -167,10 +182,13 @@ function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOpt
 		end
 		ic.Parent = b
 	else
+		-- Flat round node: rarity (or branch tint) edge with glow
 		b = Kit.itemSlot(size, iconName, {
-			rarity = opts.rarity,
+			rarity = opts.rarity or (if opts.dim then nil else "magic"),
 			dim = opts.dim,
 			selected = opts.selected,
+			round = true,
+			tint = if opts.dim then nil else opts.tint,
 		})
 	end
 	b.Name = "Node"
@@ -227,6 +245,18 @@ function Window.new(opts: Options): Window
 		back.Image = art.id
 		back.ScaleType = Enum.ScaleType.Crop
 		back.BackgroundTransparency = 0
+		-- Dark shade over the scene so the flat cards stay readable (darker toward the bottom)
+		local shade = Instance.new("Frame")
+		shade.Name = "Shade"
+		shade.BackgroundColor3 = Theme.Flat.Surface0
+		shade.BorderSizePixel = 0
+		shade.Size = UDim2.fromScale(1, 1)
+		shade.Active = false
+		local g = Instance.new("UIGradient")
+		g.Rotation = 90
+		g.Transparency = NumberSequence.new(0.45, 0.2)
+		g.Parent = shade
+		shade.Parent = back
 	end
 	back.Parent = root
 

@@ -214,6 +214,55 @@ Theme.MiniMap = table.freeze({
 	Tint = 0.78, -- transparency of the dark tint over the terrain (pulls it into the UI palette)
 })
 
+-- Flat look (v4, from 2026-11): no drawn frames, buttons or slots. Every surface is a Roblox
+-- shape (Frame + UICorner/UIStroke/UIGradient); only the item/skill icons are images.
+-- Built by client/UI/Flat, animated by client/UI/Spring. Windows move over to this one by one.
+Theme.Flat = table.freeze({
+	-- Surfaces from back to front (window, card, cell, hover/raised)
+	Surface0 = hex("#080B18"),
+	Surface1 = hex("#0F1328"),
+	Surface2 = hex("#151A35"),
+	Surface3 = hex("#1D2346"),
+	Edge = hex("#252C55"), -- hairline around cards and cells
+	EdgeHi = hex("#3A4478"), -- hovered / focused edge
+	Faint = hex("#586089"), -- tertiary text, empty slot icons
+	Scrim = 0.25, -- transparency of the dark layer behind a window (the world stays readable)
+	CardTransparency = 0.06,
+	SheenTransparency = 0.92, -- white sheen at the top of a card (UIGradient)
+	Radius = table.freeze({ S = 6, M = 10, L = 14, Pill = 999 }),
+	Stroke = 1.5,
+	SelectStroke = 2.5,
+	-- Rarity glow: halo rings outside the cell edge (thickness, transparency) and its behavior.
+	-- pulse = halo breathes; spin = the edge carries a rotating highlight.
+	Halo = table.freeze({
+		table.freeze({ 2, 0.55 }),
+		table.freeze({ 5, 0.8 }),
+		table.freeze({ 10, 0.92 }),
+	}),
+	Glow = table.freeze({
+		normal = table.freeze({ halo = 0, tint = 0.94, pulse = false, spin = false }),
+		magic = table.freeze({ halo = 1, tint = 0.86, pulse = false, spin = false }),
+		rare = table.freeze({ halo = 2, tint = 0.82, pulse = true, spin = false }),
+		epic = table.freeze({ halo = 3, tint = 0.78, pulse = true, spin = true }),
+	} :: {
+		[string]: { halo: number, tint: number, pulse: boolean, spin: boolean },
+	}),
+	PulseSpeed = 2.2, -- radians per second of the halo breathing
+	PulseDepth = 0.12, -- transparency swing of the halo
+	SpinSpeed = 90, -- degrees per second of the rotating edge highlight
+	-- Springs: speed = angular frequency (rad/s), damping 1 = no overshoot, < 1 = bounce
+	Spring = table.freeze({
+		Snappy = table.freeze({ speed = 30, damping = 0.8 }),
+		Soft = table.freeze({ speed = 16, damping = 1 }),
+		Bouncy = table.freeze({ speed = 22, damping = 0.55 }),
+	}),
+	HoverScale = 1.06,
+	PressScale = 0.93,
+	SelectScale = 1.04,
+	OpenScale = 0.95, -- window starts this small and springs to 1
+	MaxFit = 1.25, -- windows grow up to this factor to fill small screens
+})
+
 -- Animation vocabulary: the same motions everywhere
 Theme.Tween = table.freeze({
 	FlyIn = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out),

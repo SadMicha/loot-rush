@@ -93,11 +93,11 @@ local function renderList()
 		row.BackgroundTransparency = 1
 		row.Size = UDim2.fromOffset(LEFT_W - 2 * PAD, 92)
 		row.LayoutOrder = i
-		Kit.skin(row, if i == selected then "btn_sort" else "stat_tile", 92, 0.5)
 		if i == selected then
-			Kit.stroke(row, C.Gold, 2)
 			Kit.corner(row, Theme.Radius.M)
+			Kit.stroke(row, C.Gold, 2)
 		end
+		Kit.skin(row, if i == selected then "btn_sort" else "stat_tile", 92, 0.5)
 		local ic = Kit.itemSlot(64, Kit.skillIcon(skill.id, skill.icon), { rarity = "normal" })
 		ic.Active = false
 		ic.AnchorPoint = Vector2.new(0, 0.5)

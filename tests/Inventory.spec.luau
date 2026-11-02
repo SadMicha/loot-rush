@@ -1,4 +1,13 @@
--- Detail view in the inventory: comparison chips only if something is equipped in the same slot.
+-- Comparison in the inventory: stat deltas only if something is equipped in the same slot.
+local function selectedColumn(inv)
+	for _, d in inv:GetDescendants() do
+		if d.Name == "Selected" and d:FindFirstAncestor("Compare") then
+			return d
+		end
+	end
+	return nil
+end
+
 local function texts(root)
 	local out = {}
 	for _, d in root:GetDescendants() do
@@ -9,20 +18,25 @@ local function texts(root)
 	return out
 end
 
-local function chips(root)
+local function deltas(root)
 	local n = 0
 	for _, d in root:GetDescendants() do
-		if d.Name == "Chip" then
+		if d.Name == "Delta" then
 			n += 1
 		end
 	end
 	return n
 end
 
+-- Item cells in the bag grid (empty cells are not named "Item")
 local function gridButtons(inv)
 	local out = {}
 	for _, d in inv:GetDescendants() do
-		if d:IsA("ImageButton") and d:FindFirstAncestorWhichIsA("ScrollingFrame") then
+		if
+			d:IsA("GuiButton")
+			and d.Name == "Item"
+			and d:FindFirstAncestorWhichIsA("ScrollingFrame")
+		then
 			table.insert(out, d)
 		end
 	end
@@ -31,8 +45,11 @@ end
 
 local function buttonWithText(inv, text)
 	for _, d in inv:GetDescendants() do
-		if d:IsA("TextLabel") and d.Text == text and d.Parent:IsA("GuiButton") then
-			return d.Parent
+		if d:IsA("TextLabel") and d.Text == text then
+			local b = d:FindFirstAncestorWhichIsA("GuiButton")
+			if b then
+				return b
+			end
 		end
 	end
 	return nil
@@ -64,11 +81,12 @@ describe("Inventory", function()
 		sim:click(grid[1])
 		sim:run(0.2)
 
-		local seen = texts(inv)
-		for _, a in first.affixes do
-			expect(seen[Items.affixText(a)]).toBe(1)
-		end
-		expect(chips(inv)).toBe(0)
+		local column = selectedColumn(inv)
+		expect(column).never.toBeNil()
+		local seen = texts(column)
+		expect(seen[first.name]).toBe(1)
+		expect(seen.NEW).toBe(1) -- nothing equipped: no percentage against an old piece
+		expect(deltas(inv)).toBe(0)
 	end)
 
 	it("compares with the equipped item", function()
@@ -86,7 +104,7 @@ describe("Inventory", function()
 		expect(#grid).toBe(1)
 		sim:click(grid[1])
 		sim:run(0.2)
-		expect(chips(inv)).toBeGreaterThan(0)
+		expect(deltas(inv)).toBeGreaterThan(0)
 	end)
 end)
 

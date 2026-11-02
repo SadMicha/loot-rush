@@ -153,7 +153,21 @@ local function fontCss(n): string
 	)
 end
 
-local function gradientCss(n, base): string?
+-- Value of a Color/NumberSequence at time t (linear between keypoints)
+local function seqAt(seq, t: number, lerp)
+	local kps = seq.Keypoints
+	for i = 1, #kps - 1 do
+		local a, b = kps[i], kps[i + 1]
+		if t >= a.Time and t <= b.Time then
+			local f = if b.Time > a.Time then (t - a.Time) / (b.Time - a.Time) else 0
+			return lerp(a.Value, b.Value, f)
+		end
+	end
+	return kps[#kps].Value
+end
+
+-- CSS gradient of a UIGradient (color and transparency); bgT = the object's own transparency
+local function gradientCss(n, base, bgT: number?): string?
 	local g = n:FindFirstChildOfClass("UIGradient")
 	if not g or not get(g, "Enabled", true) then
 		return nil
@@ -162,11 +176,40 @@ local function gradientCss(n, base): string?
 	if not seq then
 		return nil
 	end
-	local stops = {}
+	local tseq = get(g, "Transparency")
+	local times, seen = {}, {}
 	for _, k in seq.Keypoints do
-		local c = k.Value
+		if not seen[k.Time] then
+			seen[k.Time] = true
+			table.insert(times, k.Time)
+		end
+	end
+	if tseq then
+		for _, k in tseq.Keypoints do
+			if not seen[k.Time] then
+				seen[k.Time] = true
+				table.insert(times, k.Time)
+			end
+		end
+	end
+	table.sort(times)
+	local stops = {}
+	for _, t in times do
+		local c = seqAt(seq, t, function(a, b, f)
+			return roblox.Color3.new(
+				a.R + (b.R - a.R) * f,
+				a.G + (b.G - a.G) * f,
+				a.B + (b.B - a.B) * f
+			)
+		end)
+		local tr = if tseq
+			then seqAt(tseq, t, function(a, b, f)
+				return a + (b - a) * f
+			end)
+			else 0
 		local mixed = roblox.Color3.new(c.R * base.R, c.G * base.G, c.B * base.B)
-		table.insert(stops, rgba(mixed, 0) .. " " .. string.format("%.0f%%", k.Time * 100))
+		local alpha = 1 - (1 - (bgT or 0)) * (1 - tr)
+		table.insert(stops, rgba(mixed, alpha) .. " " .. string.format("%.0f%%", t * 100))
 	end
 	local angle = 90 + get(g, "Rotation", 0)
 	return string.format("linear-gradient(%ddeg,%s)", angle, table.concat(stops, ","))
@@ -399,14 +442,10 @@ local function nodeHtml(src: ImageSource, layout, n, parentRect, out: { string }
 	local bgT = get(n, "BackgroundTransparency", 0)
 	if bgT < 0.99 then
 		local bg = get(n, "BackgroundColor3", roblox.Color3.new(1, 1, 1))
-		local g = if not (n:IsA("TextLabel") or n:IsA("TextButton"))
-			then gradientCss(n, bg)
-			else nil
+		local texty = (n:IsA("TextLabel") or n:IsA("TextButton")) and get(n, "Text", "") ~= ""
+		local g = if not texty then gradientCss(n, bg, bgT) else nil
 		if g then
-			table.insert(
-				style,
-				"background-image:" .. g .. ";opacity:" .. string.format("%.3f", 1 - bgT) .. ";"
-			)
+			table.insert(style, "background-image:" .. g .. ";")
 		else
 			table.insert(style, "background-color:" .. rgba(bg, bgT) .. ";")
 		end

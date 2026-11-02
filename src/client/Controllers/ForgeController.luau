@@ -169,14 +169,13 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 		local on = selectedAffix == i
 		local row = Instance.new("ImageButton")
 		row.AutoButtonColor = false
-		row.BackgroundTransparency = 1
+		row.BackgroundColor3 = if on then Theme.Flat.Surface3 else Theme.Flat.Surface2
+		row.BackgroundTransparency = if on then 0 else 0.3
+		row.BorderSizePixel = 0
 		row.Size = UDim2.fromOffset(w, 56)
 		row.LayoutOrder = i
-		Kit.skin(row, if on then "btn_sort" else "stat_tile", 56, 0.4)
-		if on then
-			Kit.stroke(row, C.Gold, 2)
-			Kit.corner(row, Theme.Radius.M)
-		end
+		Kit.corner(row, Theme.Radius.M)
+		Kit.stroke(row, if on then C.Gold else Theme.Flat.Edge, if on then 2 else 1)
 		local t = Kit.label(Items.affixText(a), 17, if a.implicit then C.Gold else C.Text)
 		t.AnchorPoint = Vector2.new(0, 0.5)
 		t.Position = UDim2.new(0, 18, 0.5, 0)
