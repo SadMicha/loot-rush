@@ -1,7 +1,15 @@
 # Own ideas – how Loot Rush stops feeling like a clone
 
-As of 2026-11-02. Status: **proposal, nothing built**. Micha picks; then the chosen ideas get a spec
-in `docs/specs/` and a slot in `docs/DECISIONS.md` §4.
+As of 2026-11-02. Status: **decided (see below), nothing built yet**. The chosen ideas get a spec in
+`docs/specs/` and a slot in `docs/DECISIONS.md` §4.
+
+## Decision (owner, 2026-11-02)
+
+- **Take #1 Brick Break.**
+- **#3 class floor verbs: no** as a gameplay mechanic. Instead the stud style goes into the **skill
+  VFX** ("Stud VFX", below), so every skill has visual impact in the brick look.
+- **#4 Loot Tower: no** (opposite of the intended direction).
+- Everything else (#2, #5–#11, The Smoothing) stays a backlog idea, not decided.
 
 Context: Loot Rush is now a **pure ARPG** (no rebirth/idle/village), 4 classes at launch
 (Knight Brix, Ranger Fynn, Spark Mage Zap, Shaman Mora), the world is **studded parts**, mobile first,
@@ -220,7 +228,7 @@ first), good for short sessions.
 - **Fully physical destruction (unanchored parts everywhere)** – network and phone cost; #1 gets the
   feeling with client-side debris.
 
-## Recommendation: Top-3 package "The Brick World Fights Back"
+## Original recommendation (superseded by the decision at the top)
 
 1. **#1 Brick Break** – the base layer; cheap to see in every second of play, sets the identity.
 2. **#3 Classes that change the floor** – the real gameplay hook; start with Zap's *Circuit* because
@@ -236,7 +244,26 @@ What this package replaces or changes in `docs/DECISIONS.md`: the 1.0 build orde
 step "Brick Break + Smoothing look", step 5 "Skills to 8" becomes "Zap to 8 skills incl. Circuit",
 and the other classes are designed around their verb. Uniques/loot filter/star web stay as they are.
 
-## Implementation steps for the Top 3
+## Stud VFX (owner choice, replaces #3 as a visual layer)
+
+Every effect is built from studded bricks instead of generic particles, so the game has its own look:
+
+| Effect | Stud version |
+|---|---|
+| Spark Ball | cluster of yellow 1×1 bricks orbiting the core; on impact they scatter and pop |
+| Chain Lightning | a line of small bricks snapping in between targets, then crumbling |
+| Frost Nova | ring of blue floor tiles that pop up out of the ground and sink back |
+| Thunderstorm | bricks rain down and bounce off the floor on each strike |
+| Basic hit | 2–4 studs pop off the enemy in its own colours |
+| Level up | brick fountain around the player, studs fall and fade |
+| Loot beam | stacked translucent bricks in rarity colour instead of a smooth beam |
+| Dash | trail of brick outlines that fade |
+
+Rules: client-side only, shared part pool with Brick Break (one debris budget), colours from `Theme`,
+quality setting reduces brick counts on low-end phones. Future classes (Brix, Fynn, Mora) get their
+effects in the same style.
+
+## Implementation steps (decided scope)
 
 Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 
@@ -254,26 +281,15 @@ Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 2. Profile field `restored` + sanitize + tests; hub/minimap tint per region.
 3. Boss intro line (English) per region in `Shared/Atlas`.
 
-**Step 3 – Zap "Circuit" (M)**
-1. Spec `docs/specs/CLASS-VERBS.md` with all 4 verbs, tile size 4 studs, interaction table (#7).
-2. Server: `Systems/FloorGrid` (sparse tile map per run, cleared per depth, tile cap).
-3. Zap skills mark tiles/enemies as charged; chain lightning pathing over charged nodes; loop
-   detection → Overload (pure function, unit-tested).
-4. Client: charged-tile overlay (pooled), Overload FX.
-5. Fill Zap to 8 skills around Circuit (DECISIONS step 5).
+**Step 2 is optional** (only if The Smoothing is chosen later).
 
-**Step 4 – Loot Tower (M)**
-1. Server: unbanked loot per run in `Systems/Rift`, bank on `left`, halve on `failed` (keep the best
-   items), knock-off on big hits (rate-limited, server decides).
-2. `RiftResult` gets `banked`/`lost` fields (`docs/RIFT-RUN.md` update).
-3. Client: tower accessory (pooled bricks, rarity colours), visible to other players in rift and hub.
-4. Bank/Deeper choice screen shows the tower and what is at stake.
-
-**Step 5 – Brix "Build", then Fynn "Ricochet", Mora "Garden" (L, per class)** – after Zap is played
-and the grid feels right.
+**Step 3 – Stud VFX (M)**
+1. `Shared/StudFx.luau`: effect recipes (brick count, sizes, colours from `Theme`, lifetimes) in data.
+2. Client: extend `FxController` with the shared brick pool from Brick Break; one recipe per skill,
+   hit, level up, loot beam, dash.
+3. Quality setting + debris budget shared with Brick Break; UI check and a phone perf check.
 
 ## Open decisions for Micha
 
-1. Take the Top-3 package (+ Smoothing) as the identity of Loot Rush?
-2. Does Snap Crafting (#2) replace the current Forge before release, or after?
-3. Loot Tower: lose half on death (recommended) or nothing (softer)?
+1. The Smoothing story (#6): yes or later?
+2. Snap Crafting (#2): later idea or drop?
