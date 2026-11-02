@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Uploads the images from tools/upload-manifest.json via the Open Cloud Assets API.
+"""Uploads the images (and .fbx weapon meshes) from tools/upload-manifest.json via the Open Cloud Assets API.
 
   ROBLOX_API_KEY=... ROBLOX_CREATOR_USER_ID=... python3 tools/upload-assets.py [--only key,key] [--out assets/ui-asset-ids.csv]
 
@@ -34,7 +34,7 @@ def request(url: str, key: str, data: bytes | None = None, headers: dict | None 
         return e.code, {"error": body}
 
 
-def multipart(fields: dict, filename: str, content: bytes):
+def multipart(fields: dict, filename: str, content: bytes, content_type: str = "image/png"):
     boundary = uuid.uuid4().hex
     parts = []
     for name, value in fields.items():
@@ -44,7 +44,7 @@ def multipart(fields: dict, filename: str, content: bytes):
     parts.append(
         (
             f'--{boundary}\r\nContent-Disposition: form-data; name="fileContent"; '
-            f'filename="{filename}"\r\nContent-Type: image/png\r\n\r\n'
+            f'filename="{filename}"\r\nContent-Type: {content_type}\r\n\r\n'
         ).encode()
         + content
         + b"\r\n"
@@ -56,13 +56,20 @@ def multipart(fields: dict, filename: str, content: bytes):
 def upload(key: str, user_id: str, name: str, path: str):
     with open(path, "rb") as f:
         content = f.read()
+    # .fbx = Model asset (weapon meshes, Shared/Weapons), everything else = Image
+    is_model = path.lower().endswith(".fbx")
     meta = {
-        "assetType": "Image",
+        "assetType": "Model" if is_model else "Image",
         "displayName": name[:50],
-        "description": "Loot Rush UI",
+        "description": "Loot Rush weapon" if is_model else "Loot Rush UI",
         "creationContext": {"creator": {"userId": user_id}},
     }
-    body, headers = multipart({"request": json.dumps(meta)}, os.path.basename(path), content)
+    body, headers = multipart(
+        {"request": json.dumps(meta)},
+        os.path.basename(path),
+        content,
+        "model/fbx" if is_model else "image/png",
+    )
     status, res = request(f"{API}/assets", key, body, headers)
     if status != 200:
         return None, f"upload failed ({status}): {res.get('error', res)}"

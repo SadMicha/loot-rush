@@ -7,6 +7,7 @@
 -- Renaming/restructuring a field? Bump VERSION and add a step to MIGRATIONS.
 -- JSON-safe values only: numbers, strings, bools, lists and tables with string keys.
 
+local Classes = require(script.Parent.Classes)
 local Items = require(script.Parent.Items)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
@@ -31,6 +32,7 @@ export type Data = {
 	pets: Pets.Data, -- pets (Shared/Pets)
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
+	class: string, -- chosen class (Shared/Classes id)
 }
 
 -- The versioned save (stored as ProfileStore's profile.Data)
@@ -59,6 +61,7 @@ local DEFAULTS: Data = {
 	pets = Pets.fresh(),
 	passes = {},
 	quests = Quests.fresh(),
+	class = Classes.DEFAULT,
 }
 
 -- MIGRATIONS[n] lifts a record from version n to n + 1
@@ -191,6 +194,7 @@ function Profile.reconcile(raw: any): Data
 	end
 	data.passes = passes
 	data.quests = Quests.reconcile(data.quests)
+	data.class = Classes.valid(data.class)
 	return data :: Data
 end
 

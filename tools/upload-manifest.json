@@ -693,6 +693,62 @@
     256
    ],
    "registry": "Assets.World"
+  },
+  {
+   "key": "weapon_warrior_sword_model",
+   "file": "assets/weapons/Warrior_Sword/Standard.fbx",
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_warrior_sword_texture",
+   "file": "assets/weapons/Warrior_Sword/Color.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_ranger_bow_model",
+   "file": "assets/weapons/Ranger_Bow/Standard.fbx",
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_ranger_bow_texture",
+   "file": "assets/weapons/Ranger_Bow/Color.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_mage_staff_model",
+   "file": "assets/weapons/Mage_Staff/Standard.fbx",
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_mage_staff_texture",
+   "file": "assets/weapons/Mage_Staff/Color.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_druid_scepter_model",
+   "file": "assets/weapons/Druid_Scepter/Standard.fbx",
+   "registry": "Assets.Weapon"
+  },
+  {
+   "key": "weapon_druid_scepter_texture",
+   "file": "assets/weapons/Druid_Scepter/Color.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "registry": "Assets.Weapon"
   }
  ]
 }
