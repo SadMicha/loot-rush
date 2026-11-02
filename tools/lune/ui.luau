@@ -362,6 +362,9 @@ if args.clicks then
 			Progress.addMaterials(sb.player, { shards = 120 })
 			Progress.sync(sb.player)
 			Inventory.addGold(sb.player, 300) -- Shop: some things affordable, some too expensive
+			-- Past the onboarding: every window unlocked (otherwise locked ones only show a toast)
+			sb.player:SetAttribute("Level", 99)
+			sb.player:SetAttribute("BestDepth", 99)
 		end)
 		sb:run(0.5)
 		local open = nil

@@ -11,18 +11,20 @@ end
 local Theme = {}
 
 Theme.Color = table.freeze({
-	Bg0 = hex("#07091A"), -- app background
-	Bg1 = hex("#0C1024"), -- Panel
-	Bg2 = hex("#121734"), -- slot / raised surface
-	Bg3 = hex("#19204A"), -- active
-	Line = hex("#1E2550"),
-	Line2 = hex("#2C3668"),
-	Text = hex("#E8EBFA"),
-	Muted = hex("#8C93B8"),
-	Gold = hex("#E8B04A"),
-	GoldHi = hex("#FFD86B"), -- gradient top (primary button)
-	GoldLo = hex("#E09A2E"), -- gradient bottom
-	Cyan = hex("#4FD8F5"),
+	-- Look v5 "gilded ink": near-black graphite with a cold hint, warm white text, ONE main accent
+	-- (gold = action / important) and one secondary (rift cyan = magic / progress).
+	Bg0 = hex("#07080D"), -- app background
+	Bg1 = hex("#0D0F17"), -- Panel
+	Bg2 = hex("#141722"), -- slot / raised surface
+	Bg3 = hex("#1C2030"), -- active
+	Line = hex("#232838"),
+	Line2 = hex("#343A50"),
+	Text = hex("#F2EEE4"), -- warm white, easier on the eyes than pure blue-white
+	Muted = hex("#9B98A6"),
+	Gold = hex("#EBB54A"),
+	GoldHi = hex("#FFDC7E"), -- gradient top (primary button)
+	GoldLo = hex("#C07E22"), -- gradient bottom
+	Cyan = hex("#58E1F0"),
 	Danger = hex("#E8505A"),
 	Good = hex("#7FD96A"),
 	Life = hex("#D93A4A"),
@@ -145,15 +147,24 @@ Theme.Damage = table.freeze({
 	PopTime = 0.12, -- seconds of the pop-in scale tween
 })
 
-Theme.Radius = table.freeze({ S = 8, M = 12, L = 18 })
+Theme.Radius = table.freeze({ S = 2, M = 3, L = 4 })
 Theme.Stroke = 1
 
--- Roblox has no Cinzel; Merriweather is the closest built-in title font.
+-- Type hierarchy (Look v5): a tall condensed display face for titles and numbers, a geometric sans
+-- for UI labels and body text. No rounded "friendly" face: it made every window look generic.
+--   Title  = window titles, headings (uppercase)        Oswald Bold
+--   UI     = buttons, tabs, labels                      Montserrat Bold
+--   Body   = descriptions, captions                     Montserrat Medium
+--   Number = currencies, stats, damage, counters        Oswald SemiBold
 Theme.Font = table.freeze({
-	Title = Font.fromName("Merriweather", Enum.FontWeight.Bold),
-	UI = Font.fromName("Nunito", Enum.FontWeight.ExtraBold),
-	Body = Font.fromName("Nunito", Enum.FontWeight.Bold),
+	Title = Font.fromName("Oswald", Enum.FontWeight.Bold),
+	UI = Font.fromName("Montserrat", Enum.FontWeight.Bold),
+	Body = Font.fromName("Montserrat", Enum.FontWeight.Medium),
+	Number = Font.fromName("Oswald", Enum.FontWeight.SemiBold),
 })
+
+-- Spacing scale (design pixels): every gap/padding should be one of these
+Theme.Space = table.freeze({ XS = 4, S = 8, M = 12, L = 16, XL = 24, XXL = 32 })
 
 -- Images (9-slice frames, slots, icons) live in Shared.UI.Assets.
 
@@ -172,6 +183,7 @@ Theme.Hud = table.freeze({
 	BarIcon = 64, -- hub icon bar: icon edge
 	BarCaption = 16,
 	BarGap = 8,
+	DockPad = 12, -- inner padding of the dock plate behind the hub icon bar
 	RingCyan = Color3.fromRGB(150, 215, 255), -- tint of the silver ring for skill buttons
 	DashDiamond = 20, -- dash charge diamond edge
 	Veil = 0.35, -- cooldown veil transparency
@@ -219,47 +231,68 @@ Theme.MiniMap = table.freeze({
 -- Built by client/UI/Flat, animated by client/UI/Spring. Windows move over to this one by one.
 Theme.Flat = table.freeze({
 	-- Surfaces from back to front (window, card, cell, hover/raised)
-	Surface0 = hex("#080B18"),
-	Surface1 = hex("#0F1328"),
-	Surface2 = hex("#151A35"),
-	Surface3 = hex("#1D2346"),
-	Edge = hex("#252C55"), -- hairline around cards and cells
-	EdgeHi = hex("#3A4478"), -- hovered / focused edge
-	Faint = hex("#586089"), -- tertiary text, empty slot icons
+	Surface0 = hex("#08090F"),
+	Surface1 = hex("#0F1119"),
+	Surface2 = hex("#161925"),
+	Surface3 = hex("#202434"),
+	Edge = hex("#2A2F42"), -- hairline around cards and cells
+	EdgeHi = hex("#4A5170"), -- hovered / focused edge
+	Faint = hex("#5E6278"), -- tertiary text, empty slot icons
 	Scrim = 0.25, -- transparency of the dark layer behind a window (the world stays readable)
-	CardTransparency = 0.06,
-	SheenTransparency = 0.92, -- white sheen at the top of a card (UIGradient)
-	Radius = table.freeze({ S = 6, M = 10, L = 14, Pill = 999 }),
-	Stroke = 1.5,
+	CardTransparency = 0.04,
+	-- Light instead of shadows: surfaces are lit from above (gradient top -> bottom) and carry a thin
+	-- bright line along the top edge; the bottom edge is darker.
+	LightLift = 0.07, -- how much brighter the top of a surface is (Color3:Lerp toward white)
+	TopLine = 0.86, -- transparency of the 1 px highlight along the top edge
+	SheenTransparency = 0.92, -- (kept for old callers)
+	-- Sharp, cut shapes instead of uniform round cards
+	Radius = table.freeze({ S = 2, M = 3, L = 4, Pill = 999 }),
+	Stroke = 1.25,
 	SelectStroke = 2.5,
+	-- Corner brackets: L-shaped accents on two opposite corners of panels (asymmetric detail)
+	Bracket = table.freeze({ Size = 14, Thick = 2, MinPanel = 140, Transparency = 0.15 }),
+	-- Accent rule under titles: gold line that fades out to the right, with a small diamond
+	Accent = table.freeze({ Height = 2, Diamond = 7 }),
 	-- Rarity glow: halo rings outside the cell edge (thickness, transparency) and its behavior.
-	-- pulse = halo breathes; spin = the edge carries a rotating highlight.
+	-- pulse = halo breathes; spin = the edge carries a rotating highlight; shine = light sweep.
 	Halo = table.freeze({
 		table.freeze({ 2, 0.55 }),
 		table.freeze({ 5, 0.8 }),
 		table.freeze({ 10, 0.92 }),
 	}),
 	Glow = table.freeze({
-		normal = table.freeze({ halo = 0, tint = 0.94, pulse = false, spin = false }),
-		magic = table.freeze({ halo = 1, tint = 0.86, pulse = false, spin = false }),
-		rare = table.freeze({ halo = 2, tint = 0.82, pulse = true, spin = false }),
-		epic = table.freeze({ halo = 3, tint = 0.78, pulse = true, spin = true }),
+		normal = table.freeze({ halo = 0, tint = 0.94, pulse = false, spin = false, shine = false }),
+		magic = table.freeze({ halo = 1, tint = 0.84, pulse = false, spin = false, shine = false }),
+		rare = table.freeze({ halo = 2, tint = 0.78, pulse = true, spin = false, shine = false }),
+		epic = table.freeze({ halo = 3, tint = 0.72, pulse = true, spin = true, shine = true }),
+		unique = table.freeze({ halo = 3, tint = 0.7, pulse = true, spin = true, shine = true }),
+		legend = table.freeze({ halo = 3, tint = 0.7, pulse = true, spin = true, shine = true }),
 	} :: {
-		[string]: { halo: number, tint: number, pulse: boolean, spin: boolean },
+		[string]: { halo: number, tint: number, pulse: boolean, spin: boolean, shine: boolean },
 	}),
 	PulseSpeed = 2.2, -- radians per second of the halo breathing
 	PulseDepth = 0.12, -- transparency swing of the halo
 	SpinSpeed = 90, -- degrees per second of the rotating edge highlight
+	-- Light sweep across primary buttons and top-rarity items: a bright band crosses the shape every
+	-- Period seconds (each shape has its own phase), Duration = time of one crossing.
+	Shine = table.freeze({ Period = 4.5, Duration = 0.75, Peak = 0.55, Angle = 25 }),
+	-- Press ripple: circle from the touch point, grows to Grow x the button width and fades
+	Ripple = table.freeze({ Time = 0.45, Start = 0.7, Grow = 2.4 }),
+	-- Blur of the world behind fullscreen windows (Lighting BlurEffect)
+	Blur = table.freeze({ Size = 14, Time = 0.22 }),
+	-- Number ticker (currencies, rewards): counts toward the new value
+	Tick = table.freeze({ Time = 0.5 }),
 	-- Springs: speed = angular frequency (rad/s), damping 1 = no overshoot, < 1 = bounce
 	Spring = table.freeze({
 		Snappy = table.freeze({ speed = 30, damping = 0.8 }),
 		Soft = table.freeze({ speed = 16, damping = 1 }),
 		Bouncy = table.freeze({ speed = 22, damping = 0.55 }),
 	}),
-	HoverScale = 1.06,
-	PressScale = 0.93,
+	HoverScale = 1.04,
+	PressScale = 0.94,
 	SelectScale = 1.04,
-	OpenScale = 0.95, -- window starts this small and springs to 1
+	OpenScale = 0.96, -- window starts this small and springs to 1
+	OpenDrop = 18, -- and this many design pixels lower
 	MaxFit = 1.25, -- windows grow up to this factor to fill small screens
 })
 

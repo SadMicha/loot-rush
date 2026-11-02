@@ -536,14 +536,21 @@ end
 function Kit.setEnabled(b: ImageButton, enabled: boolean)
 	b.Active = enabled
 	b:SetAttribute("Enabled", enabled)
-	b.BackgroundTransparency = if enabled then 0 else 0.55
+	b.BackgroundTransparency = if enabled then 0 else 0.1
+	Shape.setDisabledLook(b, enabled)
 	local edge = b:FindFirstChild("Edge")
 	if edge and edge:IsA("UIStroke") then
-		edge.Transparency = if enabled then 0.25 else 0.7
+		edge.Transparency = if enabled then 0.25 else 0.3
 	end
 	local label = Kit.buttonLabel(b)
 	if label then
-		Kit.setTextTransparency(label, if enabled then 0 else 0.45)
+		local base = label:GetAttribute("BaseColor")
+		if typeof(base) ~= "Color3" then
+			label:SetAttribute("BaseColor", label.TextColor3)
+			base = label.TextColor3
+		end
+		label.TextColor3 = if enabled then base :: Color3 else Theme.Color.Muted
+		Kit.setTextTransparency(label, if enabled then 0 else 0.25)
 	end
 end
 
@@ -563,6 +570,12 @@ function Kit.button(text: string, color: Color3, size: Vector2, iconName: string
 	Shape.gradient(b, top, bottom)
 	local edge = Shape.stroke(b, edgeColor, Theme.Flat.Stroke, 0.25)
 	edge.Name = "Edge"
+	if color == Theme.Color.Gold then
+		Shape.topLine(b, 0.45)
+		Shape.shine(b, Theme.Flat.Radius.M)
+	else
+		Shape.topLine(b)
+	end
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -596,15 +609,16 @@ function Kit.bar(size: Vector2, color: Color3): (Frame, Frame)
 	back.BorderSizePixel = 0
 	back.BackgroundColor3 = Theme.Flat.Surface0
 	back.BackgroundTransparency = 0.1
-	Shape.corner(back, math.ceil(size.Y / 2))
+	Shape.corner(back, Theme.Flat.Radius.S)
 	Shape.stroke(back, Theme.Flat.Edge, 1)
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(1, 1)
 	fill.BorderSizePixel = 0
 	fill.BackgroundColor3 = Color3.new(1, 1, 1)
-	Shape.corner(fill, math.ceil(size.Y / 2))
+	Shape.corner(fill, Theme.Flat.Radius.S)
 	Shape.gradient(fill, color:Lerp(Color3.new(1, 1, 1), 0.25), color, 0, 0, 0)
+	Shape.topLine(fill, 0.55, 0)
 	fill.Parent = back
 	return back, fill
 end
@@ -860,6 +874,54 @@ function Kit.roundButton(
 	return b, update
 end
 
+-- Dock plate inside a container (hub bar): dark glass that gets denser toward the bottom, a gold
+-- hairline that glows in the middle and fades to the ends, light along the top. The plate is inset
+-- a little so its edge also shows inside a CanvasGroup. Returns the "Row" frame (inner padding
+-- `pad`) where the caller puts its layout and buttons.
+function Kit.dock(f: GuiObject, pad: number): Frame
+	local F = Theme.Flat
+	local plate = Instance.new("Frame")
+	plate.Name = "Plate"
+	plate.Active = false
+	plate.BorderSizePixel = 0
+	plate.BackgroundColor3 = F.Surface0
+	plate.AnchorPoint = Vector2.new(0.5, 0.5)
+	plate.Position = UDim2.fromScale(0.5, 0.5)
+	plate.Size = UDim2.new(1, -4, 1, -4)
+	plate.ZIndex = 0
+	Shape.corner(plate, F.Radius.L)
+	Shape.gradient(plate, F.Surface1, F.Surface0, 0.5, 0.1)
+	local edge = Shape.stroke(plate, Color3.new(1, 1, 1), 1.5, 0)
+	edge.Name = "Edge"
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, F.EdgeHi),
+		ColorSequenceKeypoint.new(0.5, Theme.Color.Gold),
+		ColorSequenceKeypoint.new(1, F.EdgeHi),
+	})
+	g.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.75),
+		NumberSequenceKeypoint.new(0.5, 0.3),
+		NumberSequenceKeypoint.new(1, 0.75),
+	})
+	g.Parent = edge
+	Shape.topLine(plate, 0.8)
+	plate.Parent = f
+	local row = Instance.new("Frame")
+	row.Name = "Row"
+	row.BackgroundTransparency = 1
+	row.BorderSizePixel = 0
+	row.Size = UDim2.fromScale(1, 1)
+	row.ZIndex = 1
+	local p = Instance.new("UIPadding")
+	p.PaddingLeft = UDim.new(0, pad)
+	p.PaddingRight = UDim.new(0, pad)
+	p.PaddingTop = UDim.new(0, pad)
+	p.Parent = row
+	row.Parent = f
+	return row
+end
+
 -- Bare icon button (hub bar, settings): no frame, caption below. artName = Assets.Hud key,
 -- fallbackIcon = atlas icon while the image is missing. Hit area = whole cell.
 function Kit.hudIconButton(
@@ -981,18 +1043,27 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	f.BackgroundColor3 = F.Surface1
 	f.BackgroundTransparency = 0.1
 	f.BorderSizePixel = 0
-	Shape.corner(f, PILL_HEIGHT // 2)
+	Shape.corner(f, F.Radius.M)
 	Shape.stroke(f, F.Edge)
-	-- Faint color wash from the icon side
+	-- Faint color wash from the icon side, a colored accent bar on the left edge and top light
 	local wash = Instance.new("Frame")
 	wash.Name = "Wash"
 	wash.BackgroundColor3 = c
 	wash.BorderSizePixel = 0
 	wash.Size = UDim2.fromScale(1, 1)
 	wash.Active = false
-	Shape.corner(wash, PILL_HEIGHT // 2)
-	Shape.gradient(wash, c, c, 0.8, 1, 0)
+	Shape.corner(wash, F.Radius.M)
+	Shape.gradient(wash, c, c, 0.78, 1, 0)
 	wash.Parent = f
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.BackgroundColor3 = c
+	accent.BorderSizePixel = 0
+	accent.Size = UDim2.new(0, 3, 1, -10)
+	accent.Position = UDim2.fromOffset(0, 5)
+	accent.Active = false
+	accent.Parent = f
+	Shape.topLine(f)
 	local ic = Kit.icon(iconName, math.floor(PILL_HEIGHT * 0.66), c)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.new(0, math.floor(PILL_HEIGHT * 0.5) + 2, 0.5, 0)
@@ -1019,8 +1090,9 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 	disc.BackgroundColor3 = Color3.new(1, 1, 1)
 	disc.BorderSizePixel = 0
 	disc.ZIndex = 3
-	Shape.corner(disc, PILL_PLUS // 2)
+	Shape.corner(disc, F.Radius.M)
 	Shape.gradient(disc, c:Lerp(Color3.new(1, 1, 1), 0.2), c:Lerp(F.Surface0, 0.25))
+	Shape.topLine(disc, 0.5, 0)
 	local glyph = Instance.new("TextLabel")
 	glyph.Name = "Glyph"
 	glyph.BackgroundTransparency = 1
@@ -1044,7 +1116,7 @@ function Kit.pill(iconName: string, text: string, color: Color3?): (Frame, TextL
 
 	local leftW = PILL_HEIGHT + 4
 	local rightW = PILL_PLUS + 10
-	local t = Kit.label(text, 16)
+	local t = Kit.label(text, 17, Theme.Color.Text, Theme.Font.Number)
 	t.AutomaticSize = Enum.AutomaticSize.None
 	t.Size = UDim2.new(1, -(leftW + rightW), 1, 0)
 	t.Position = UDim2.fromOffset(leftW, 0)

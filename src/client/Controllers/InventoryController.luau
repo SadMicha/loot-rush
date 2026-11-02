@@ -128,6 +128,8 @@ local searchText = "" -- lowercase
 local salvageMode = false
 local marked: { [string]: boolean } = {}
 local popId: string? = nil -- cell that gets a selection pop on the next render
+local seenIds: { [string]: boolean }? = nil -- item ids known so far (nil until the first snapshot)
+local freshIds: { [string]: boolean } = {} -- new loot that gets a reveal when its cell is shown
 local salvaging = false
 
 local function clear(parent: Instance)
@@ -229,6 +231,10 @@ end
 
 -- New render of a selected cell: small bounce so the choice is felt
 local function popIfSelected(cell: GuiButton, item: Items.Item)
+	if freshIds[item.id] and gui.Enabled then
+		freshIds[item.id] = nil
+		task.defer(Flat.reveal, cell)
+	end
 	if popId == item.id then
 		local motion = cell:FindFirstChild("Motion")
 		if motion and motion:IsA("UIScale") then
@@ -433,7 +439,7 @@ local function statRows(
 end
 
 local function caption(parent: Frame, text: string, color: Color3?)
-	local t = Flat.text(string.upper(text), 11, color or C.Muted)
+	local t = Flat.text(string.upper(text), 13, color or C.Gold, Theme.Font.Title)
 	t.Position = UDim2.fromOffset(0, 2)
 	t.Parent = parent
 end
@@ -961,7 +967,7 @@ local function buildHeader(parent: Frame)
 	count.BorderSizePixel = 0
 	count.AutomaticSize = Enum.AutomaticSize.X
 	count.Size = UDim2.fromOffset(0, 28)
-	Flat.corner(count, 14)
+	Flat.corner(count, F.Radius.M)
 	Flat.stroke(count, F.Edge)
 	local cp = Instance.new("UIPadding")
 	cp.PaddingLeft = UDim.new(0, 12)
@@ -1039,10 +1045,16 @@ function InventoryController.toggle()
 	gui.Enabled = not gui.Enabled
 	if gui.Enabled then
 		Window.closeCurrent() -- only one fullscreen window at a time
+		Window.blur(true)
+		Flat.sound("ui_open")
 		Flat.pop(window)
 		arrange()
 		refreshViewport()
 	else
+		Flat.sound("ui_close")
+		if not Window.anyOpen() then
+			Window.blur(false)
+		end
 		salvageMode = false
 		marked = {}
 		salvageToggle.set(false)
@@ -1125,6 +1137,29 @@ function InventoryController.start()
 		end
 		items = data.items or {}
 		equipped = data.equipped or {}
+		-- New loot since the last snapshot gets a reveal animation (not the first load)
+		local known = seenIds
+		local now: { [string]: boolean } = {}
+		for _, it in items do
+			if typeof(it) == "table" and typeof(it.id) == "string" then
+				now[it.id] = true
+				if known and not known[it.id] then
+					freshIds[it.id] = true
+				end
+			end
+		end
+		for id in equipped do
+			local it = equipped[id]
+			if typeof(it) == "table" and typeof(it.id) == "string" then
+				now[it.id] = true
+			end
+		end
+		for id in freshIds do
+			if not now[id] then
+				freshIds[id] = nil
+			end
+		end
+		seenIds = now
 		InventoryController.render()
 		changed:Fire()
 	end)
