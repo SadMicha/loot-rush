@@ -35,6 +35,7 @@ local ForgeController = require(script.Parent.ForgeController)
 local AtlasController = require(script.Parent.AtlasController)
 local ShopController = require(script.Parent.ShopController)
 local PetWindowController = require(script.Parent.PetWindowController)
+local QuestController = require(script.Parent.QuestController)
 
 local HudController = {}
 
@@ -458,6 +459,10 @@ local starText: TextLabel
 local resGroup: CanvasGroup
 local resList: UIListLayout
 local questGroup: CanvasGroup
+local questTitle: TextLabel
+local questCount: TextLabel
+local questReward: TextLabel
+local barButtons: { { id: string, button: ImageButton } } = {}
 local RES_WIDTH = 620 -- three capsules with spacing
 
 local function buildCalmPanels()
@@ -509,9 +514,18 @@ local function buildCalmPanels()
 		b.LayoutOrder = i
 		local open = MENU_ACTION[entry.id]
 		if open then
-			b.Activated:Connect(open)
+			local id = entry.id
+			b.Activated:Connect(function()
+				local hint = QuestController.lockHint(id)
+				if hint then
+					QuestController.toast("Locked · " .. hint, C.Muted)
+					return
+				end
+				open()
+			end)
 		end
 		b.Parent = bar
+		table.insert(barButtons, { id = entry.id, button = b })
 	end
 	addFly(
 		bar,
@@ -556,24 +570,69 @@ local function buildCalmPanels()
 	l.Padding = UDim.new(0, 6)
 	l.SortOrder = Enum.SortOrder.LayoutOrder
 	l.Parent = list
+	local headRow = Instance.new("Frame")
+	headRow.BackgroundTransparency = 1
+	headRow.Size = UDim2.new(1, 0, 0, 20)
+	headRow.LayoutOrder = 0
+	headRow.Parent = list
 	local head = Kit.icon("quest", 20, C.Muted)
-	head.LayoutOrder = 0
-	head.Parent = list
-	for i, q in
-		{
-			{ "Defeat 50 Crystal Slimes", 0.64 },
-			{ "Collect 20 Crystals", 0.25 },
-			{ "Reach the Ruins", 0.04 },
-		} :: { { any } }
-	do
-		local t = Kit.label(q[1] :: string, 13, C.Muted, Theme.Font.Body)
-		t.LayoutOrder = i * 2 - 1
-		t.Parent = list
-		local back, fill = Kit.bar(Vector2.new(232, 4), C.Gold)
-		fill.Size = UDim2.fromScale(q[2] :: number, 1)
-		back.LayoutOrder = i * 2
-		back.Parent = list
+	head.Parent = headRow
+	local headText = Kit.label("Quest", 12, C.Muted)
+	headText.Name = "Step"
+	headText.Position = UDim2.fromOffset(26, 2)
+	headText.Parent = headRow
+	questTitle = Kit.label("", 15, C.Text, Theme.Font.Body)
+	questTitle.Name = "QuestText"
+	questTitle.AutomaticSize = Enum.AutomaticSize.None
+	questTitle.Size = UDim2.new(1, 0, 0, 40)
+	questTitle.TextWrapped = true
+	questTitle.TextYAlignment = Enum.TextYAlignment.Top
+	questTitle.LayoutOrder = 1
+	questTitle.Parent = list
+	local back, fill = Kit.bar(Vector2.new(232, 6), C.Gold)
+	back.LayoutOrder = 2
+	back.Parent = list
+	local foot = Instance.new("Frame")
+	foot.BackgroundTransparency = 1
+	foot.Size = UDim2.new(1, 0, 0, 18)
+	foot.LayoutOrder = 3
+	foot.Parent = list
+	questCount = Kit.label("", 13, C.Muted, Theme.Font.Body)
+	questCount.Parent = foot
+	questReward = Kit.label("", 13, C.Gold, Theme.Font.Body)
+	questReward.AnchorPoint = Vector2.new(1, 0)
+	questReward.Position = UDim2.fromScale(1, 0)
+	questReward.TextXAlignment = Enum.TextXAlignment.Right
+	questReward.Parent = foot
+	local function refreshQuest()
+		local q = QuestController.state()
+		local text, count, reward = QuestController.lines()
+		headText.Text = if not QuestController.ready()
+			then "Quest"
+			elseif q.text then string.format("Quest %d / %d", q.step, q.total)
+			else "Quests done"
+		questTitle.Text = text
+		questCount.Text = count
+		questReward.Text = reward
+		local ratio = if not QuestController.ready()
+			then 0
+			elseif q.target > 0 then QuestController.count() / q.target
+			else 1
+		fill.Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1)
+		for _, entry in barButtons do
+			local locked = not QuestController.isOpen(entry.id)
+			entry.button:SetAttribute("Locked", locked)
+			for _, d in entry.button:GetDescendants() do
+				if d:IsA("ImageLabel") then
+					d.ImageTransparency = if locked then 0.65 else 0
+				elseif d:IsA("TextLabel") then
+					d.TextTransparency = if locked then 0.5 else 0
+				end
+			end
+		end
 	end
+	QuestController.changed:Connect(refreshQuest)
+	task.defer(refreshQuest)
 	addFly(
 		quests,
 		Vector2.new(1, 0),

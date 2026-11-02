@@ -25,6 +25,7 @@ export type Options = {
 	title: string,
 	icon: string?, -- Assets.Icon before the title
 	key: Enum.KeyCode?,
+	unlock: string?, -- onboarding unlock id (Shared/Quests): the hotkey does nothing while locked
 	background: string?, -- key in Assets.Art
 }
 
@@ -39,8 +40,14 @@ export type Window = {
 }
 
 local current: Window? = nil
+local gate: ((unlockId: string) -> boolean)? = nil -- true = locked (set by QuestController)
 local others: { () -> () } = {} -- further fullscreen windows (inventory) that close when one opens
 local otherOpen: { () -> boolean } = {} -- their "is open" probes
+
+-- Hotkey lock for windows with `unlock` (fn answers true when locked and may show a hint)
+function Window.setGate(fn: (unlockId: string) -> boolean)
+	gate = fn
+end
 
 -- Close the open window (e.g. when the inventory opens)
 function Window.closeCurrent()
@@ -367,6 +374,9 @@ function Window.new(opts: Options): Window
 		local key = opts.key
 		UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 			if not processed and input.KeyCode == key then
+				if opts.unlock and gate and not win.isOpen() and gate(opts.unlock) then
+					return
+				end
 				win.toggle()
 			end
 		end)

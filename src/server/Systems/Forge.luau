@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Forge)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -91,6 +92,7 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 			else string.format(" · −%d charge%s", used, if used == 1 then "" else "s")
 	end
 	reply(player, true, text, itemId, used)
+	Actions.fire(player, "forge")
 end
 
 function Forge.init()

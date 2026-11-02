@@ -14,6 +14,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local StarNet = require(ReplicatedStorage.Shared.StarNet)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
@@ -162,6 +163,7 @@ local function onStar(player: Player, action: any, starId: any)
 				return
 			end
 			stars[starId] = true
+			Actions.fire(player, "star")
 		else
 			if not Progression.canRemove(profile.progress, starId) then
 				return

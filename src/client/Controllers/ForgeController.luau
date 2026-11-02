@@ -439,6 +439,7 @@ function ForgeController.init()
 		title = "Sparkle Forge",
 		icon = "forge",
 		key = Enum.KeyCode.B,
+		unlock = "forge",
 		background = "bg_forge",
 	})
 

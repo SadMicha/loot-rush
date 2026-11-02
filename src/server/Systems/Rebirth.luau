@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Rebirth)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Boosts = require(script.Parent.Boosts)
 local Combat = require(script.Parent.Combat)
@@ -59,6 +60,7 @@ function Rebirth.perform(player: Player): (boolean, string)
 	Stats.refresh(player, true)
 	Progress.sync(player)
 	Data.saveNow(player)
+	Actions.fire(player, "rebirth")
 	return true, string.format("Rebirth %d! +%d Soulstars", n, Rules.reward(n))
 end
 

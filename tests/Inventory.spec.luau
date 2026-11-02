@@ -231,6 +231,10 @@ describe("Fullscreen windows", function()
 
 	it("inventory and Star Net are never open at the same time", function()
 		local pg = sim.player.PlayerGui
+		sim:runAs("server", function()
+			game:GetService("Players"):GetPlayers()[1]:SetAttribute("Level", 5) -- Star Web unlock
+		end)
+		sim:run(0.5)
 		pg.LootRushInventory.Enabled = false
 		sim:click(menuButton("inventory"))
 		sim:run(0.2)
