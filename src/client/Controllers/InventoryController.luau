@@ -23,6 +23,8 @@ local player = Players.LocalPlayer
 local MAX_ITEMS = 40 -- same as server (Systems/Inventory)
 local COLUMNS, CELL, GAP = 6, 76, 8
 local PAD = 28
+local WINDOW_TOP = 84 -- window top edge (design pixels), below the Roblox buttons
+local PANEL_H = 650 -- panel height: window ends above the HUD hub bar on a phone (844x390)
 local TAB_SIZE, TAB_GAP = 60, 8
 local TAB_ROW_WIDTH = 5 * TAB_SIZE + 4 * TAB_GAP + 48 -- five tabs plus room for the wider active tab
 local DOLL_SLOT, DOLL_STEP = 76, 80 -- equipment slot size and row pitch (five rows fit above the stat tiles)
@@ -201,7 +203,7 @@ local function renderEquip()
 end
 
 local function buildEquip(parent: Frame)
-	equipPanel = Kit.panel(Vector2.new(440, 760))
+	equipPanel = Kit.panel(Vector2.new(440, PANEL_H))
 	equipPanel.Parent = parent
 	title(equipPanel, "Equipment")
 
@@ -312,16 +314,18 @@ local function buildEquip(parent: Frame)
 	-- Resistances: bar per element. Values come from player attributes (0 to 100);
 	-- as long as there is no resistance system they stay empty.
 	for i, res in RESISTANCES do
-		local y = 556 + (i - 1) * 40
+		-- Two columns, two rows below the stat tiles
+		local cellX = PAD + ((i - 1) % 2) * 192
+		local y = 552 + ((i - 1) // 2) * 40
 		local resIcon = Kit.icon(res.icon, 28)
-		resIcon.Position = UDim2.fromOffset(PAD, y - 2)
+		resIcon.Position = UDim2.fromOffset(cellX, y - 2)
 		resIcon.Parent = equipPanel
-		local back, fill = Kit.bar(Vector2.new(250, 16), res.color)
-		back.Position = UDim2.fromOffset(PAD + 40, y + 4)
+		local back, fill = Kit.bar(Vector2.new(84, 16), res.color)
+		back.Position = UDim2.fromOffset(cellX + 36, y + 4)
 		back.Parent = equipPanel
 		local pct = Kit.label("0%", 16, C.Muted)
 		pct.AnchorPoint = Vector2.new(1, 0)
-		pct.Position = UDim2.fromOffset(440 - PAD, y)
+		pct.Position = UDim2.fromOffset(cellX + 176, y)
 		pct.Parent = equipPanel
 		local function refresh()
 			local v = math.clamp((player:GetAttribute(res.attr) or 0) :: number, 0, 100)
@@ -399,7 +403,7 @@ local function renderGrid()
 end
 
 local function buildGrid(parent: Frame)
-	local panel = Kit.panel(Vector2.new(560, 760))
+	local panel = Kit.panel(Vector2.new(560, PANEL_H))
 	panel.Parent = parent
 	title(panel, "Inventory")
 
@@ -473,7 +477,7 @@ local function buildGrid(parent: Frame)
 	gridFrame.BackgroundTransparency = 1
 	gridFrame.BorderSizePixel = 0
 	gridFrame.Position = UDim2.fromOffset(PAD, FILTER_Y + 44 + 14)
-	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, 760 - (FILTER_Y + 44 + 14) - PAD)
+	gridFrame.Size = UDim2.fromOffset(560 - 2 * PAD + 12, PANEL_H - (FILTER_Y + 44 + 14) - PAD)
 	gridFrame.ScrollBarThickness = 6
 	gridFrame.ScrollBarImageColor3 = C.Line2
 	gridFrame.ScrollingDirection = Enum.ScrollingDirection.Y
@@ -630,7 +634,7 @@ local function renderDetail()
 	list.Position = UDim2.fromOffset(PAD, PAD + 196 + extra)
 	list.Size = UDim2.fromOffset(420 - 2 * PAD, 300)
 	local ll = Instance.new("UIListLayout")
-	ll.Padding = UDim.new(0, 14)
+	ll.Padding = UDim.new(0, 8)
 	ll.SortOrder = Enum.SortOrder.LayoutOrder
 	ll.Parent = list
 	list.Parent = detail
@@ -701,7 +705,7 @@ local function renderDetail()
 end
 
 local function buildDetail(parent: Frame)
-	detail = Kit.panel(Vector2.new(420, 760))
+	detail = Kit.panel(Vector2.new(420, PANEL_H))
 	detail.Parent = parent
 end
 
@@ -758,9 +762,9 @@ function InventoryController.init()
 
 	local window = Instance.new("Frame")
 	window.BackgroundTransparency = 1
-	window.AnchorPoint = Vector2.new(0.5, 0.5)
-	window.Position = UDim2.new(0.5, 40, 0.5, 20)
-	window.Size = UDim2.fromOffset(440 + 560 + 420 + 2 * 16, 760)
+	window.AnchorPoint = Vector2.new(0.5, 0)
+	window.Position = UDim2.new(0.5, 40, 0, WINDOW_TOP)
+	window.Size = UDim2.fromOffset(440 + 560 + 420 + 2 * 16, PANEL_H)
 	local wl = Instance.new("UIListLayout")
 	wl.FillDirection = Enum.FillDirection.Horizontal
 	wl.Padding = UDim.new(0, 16)
