@@ -9,7 +9,8 @@ As of 2026-11-02. Status: **decided (see below), nothing built yet**. The chosen
 - **#3 class floor verbs: no** as a gameplay mechanic. Instead the stud style goes into the **skill
   VFX** ("Stud VFX", below), so every skill has visual impact in the brick look.
 - **#4 Loot Tower: no** (opposite of the intended direction).
-- Everything else (#2, #5–#11, The Smoothing) stays a backlog idea, not decided.
+- **#6 The Smoothing: yes** (story and world depth).
+- Everything else (#2, #5, #7–#11) stays a backlog idea, not decided.
 
 Context: Loot Rush is now a **pure ARPG** (no rebirth/idle/village), 4 classes at launch
 (Knight Brix, Ranger Fynn, Spark Mage Zap, Shaman Mora), the world is **studded parts**, mobile first,
@@ -281,8 +282,6 @@ Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 2. Profile field `restored` + sanitize + tests; hub/minimap tint per region.
 3. Boss intro line (English) per region in `Shared/Atlas`.
 
-**Step 2 is optional** (only if The Smoothing is chosen later).
-
 **Step 3 – Stud VFX (M)**
 1. `Shared/StudFx.luau`: effect recipes (brick count, sizes, colours from `Theme`, lifetimes) in data.
 2. Client: extend `FxController` with the shared brick pool from Brick Break; one recipe per skill,
@@ -291,5 +290,4 @@ Each step is one PR, `tools/check.sh` green, own spec in `docs/specs/`.
 
 ## Open decisions for Micha
 
-1. The Smoothing story (#6): yes or later?
-2. Snap Crafting (#2): later idea or drop?
+1. Snap Crafting (#2): later idea or drop?
