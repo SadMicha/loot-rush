@@ -1,4 +1,4 @@
--- Skill loadout (4 of 8 on the bar) and auto-cast: rules (pure) and the server via real remotes.
+-- Skill loadout (4 of 8 on the bar) rules (pure) and the server via real remotes.
 local Progression = require("ReplicatedStorage.Shared.Progression")
 local Skills = require("ReplicatedStorage.Shared.Skills")
 
@@ -14,7 +14,6 @@ describe("Loadout rules", function()
 	it("cleans up saved bars", function()
 		local data = Progression.reconcile({
 			bar = { "meteor", "meteor", "bogus", 7 },
-			auto = { meteor = true, nope = true, spark_ball = "yes" },
 		})
 		expect(data.bar[1]).toBe("meteor")
 		local seen = {}
@@ -24,9 +23,6 @@ describe("Loadout rules", function()
 			expect(seen[id]).toBeNil()
 			seen[id] = true
 		end
-		expect(data.auto.meteor).toBe(true)
-		expect(data.auto.nope).toBeNil()
-		expect(data.auto.spark_ball).toBeNil()
 	end)
 
 	it("swaps skills and respects the unlock level", function()
@@ -40,14 +36,6 @@ describe("Loadout rules", function()
 		expect(data.bar[1]).toBe(Skills.DefaultBar[3])
 		expect(Progression.equip(data, 5, "spark_ball", 99)).toBe(false)
 		expect(Progression.equip(data, 1.5, "spark_ball", 99)).toBe(false)
-	end)
-
-	it("allows auto-cast from skill level 5 or after a Rebirth", function()
-		local data = Progression.fresh()
-		expect(Progression.canAuto(data, "spark_ball", 0)).toBe(false)
-		expect(Progression.canAuto(data, "spark_ball", 1)).toBe(true)
-		Progression.skillMut(data, "spark_ball").level = Skills.AUTO_LEVEL
-		expect(Progression.canAuto(data, "spark_ball", 0)).toBe(true)
 	end)
 
 	it("adds bloom burn on top of a skill's own burn", function()
@@ -103,41 +91,6 @@ describe("Loadout in game", function()
 			)
 		end)
 		expect(bar).toBe("thunderstorm,meteor,chain_lightning,frost_nova")
-	end)
-
-	it("auto-casts an equipped skill at enemies in reach", function()
-		client(function(_, Net)
-			Net.Loadout:FireServer("auto", "thunderstorm", true) -- skill level 1: refused
-		end)
-		local refused = server(function(req, player)
-			return req("ServerScriptService.Server.Systems.Data").get(player).progress.auto.thunderstorm
-		end)
-		expect(refused).toBeNil()
-		server(function(req, player)
-			local p = req("ServerScriptService.Server.Systems.Data").get(player)
-			Progression.skillMut(p.progress, "thunderstorm").level = Skills.AUTO_LEVEL
-		end)
-		client(function(_, Net)
-			Net.Loadout:FireServer("auto", "thunderstorm", true)
-		end)
-		local before = sent("SkillCast")
-		local hpBefore = server(function(req, player)
-			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
-			local root = player.Character.HumanoidRootPart.Position
-			local e = Enemies.spawn("slime", root + Vector3.new(4, 0, 0), 40, { run = 777 })
-			return e:GetAttribute("Health")
-		end)
-		sim:run(1)
-		expect(sent("SkillCast")).toBeGreaterThan(before)
-		local hpAfter = server(function(req)
-			local total = 0
-			for _, e in game:GetService("CollectionService"):GetTagged("Enemy") do
-				total += e:GetAttribute("Health") or 0
-			end
-			req("ServerScriptService.Server.Systems.Enemies").clear(777)
-			return total
-		end)
-		expect(hpAfter).toBeLessThan(hpBefore)
 	end)
 
 	it("runs without runtime errors", function()

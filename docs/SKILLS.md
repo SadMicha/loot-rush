@@ -1,4 +1,4 @@
-# Spark Mage skills, loadout and auto-cast
+# Spark Mage skills and loadout
 
 Decided in `docs/DECISIONS.md` §4 step 5. Definitions: `src/shared/Skills.luau`; rules:
 `src/shared/Progression.luau` (`equip`, `canEquip`, `canAuto`, `barSkill`).
@@ -24,13 +24,8 @@ skill on a key (an equipped skill moving to another key swaps places). Saved as
 `profile.progress.bar`; cooldowns are tracked per skill, so swapping does not reset them.
 Remote `Net.Loadout` ("equip", slot, id); the server checks the unlock level.
 
-## Auto-cast
-- Per skill switch in the Abilities window, available from skill level 5
-  (`Skills.AUTO_LEVEL`), for every skill after the first Rebirth (stands in for the soul-tree
-  node "Auto-Cast", there is no soul tree in 1.0).
-- The server fires equipped auto skills at the nearest enemy in reach (novas: 90% of the radius),
-  checked every 0.25 s. Saved as `profile.progress.auto`. Remote `Net.Loadout` ("auto", id, bool).
-- `Net.SkillCast` (S→C) reports every cast with the real cooldown; the HUD veils use it and
-  show an "AUTO" tag on auto-casting slots.
+## No auto-cast
+Skills are always cast by hand (pure ARPG, `docs/DECISIONS.md`); only the basic attack is
+automatic. `Net.SkillCast` (S→C) reports every cast with the real cooldown for the HUD veils.
 
 Not changed: the balancing simulation still counts the 4 starting skills.

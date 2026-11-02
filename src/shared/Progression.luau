@@ -17,7 +17,6 @@ export type Data = {
 	skills: { [string]: SkillProgress },
 	stars: { [string]: boolean }, -- allocated stars (without the heart)
 	bar: { string }, -- skill id per bar slot (Skills.SLOTS entries)
-	auto: { [string]: boolean }, -- auto-cast switched on per skill
 }
 export type Materials = { candy: number, shards: number, dust: number }
 
@@ -67,7 +66,7 @@ Progression.SpecialStats = table.freeze({
 
 -- ------------------------------------------------------------------ Save data
 function Progression.fresh(): Data
-	return { skills = {}, stars = {}, bar = table.clone(Skills.DefaultBar), auto = {} }
+	return { skills = {}, stars = {}, bar = table.clone(Skills.DefaultBar) }
 end
 
 function Progression.freshMaterials(): Materials
@@ -132,13 +131,6 @@ function Progression.reconcile(raw: any): Data
 			end
 		end
 		data.bar = bar :: { string }
-	end
-	if typeof(raw.auto) == "table" then
-		for id, on in raw.auto do
-			if typeof(id) == "string" and Skills.ById[id] and on == true then
-				data.auto[id] = true
-			end
-		end
 	end
 	if typeof(raw.stars) == "table" then
 		for id, on in raw.stars do
@@ -302,7 +294,7 @@ function Progression.starMods(data: Data): { [string]: number }
 	return sum
 end
 
--- ------------------------------------------------------------------ Bar and auto-cast
+-- ------------------------------------------------------------------ Bar
 -- Skill in a bar slot (nil for an invalid slot)
 function Progression.barSkill(data: Data, slot: number): Skills.Skill?
 	local id = data.bar[slot]
@@ -338,14 +330,6 @@ function Progression.equip(data: Data, slot: number, skillId: string, playerLeve
 	end
 	data.bar[slot] = skillId
 	return true
-end
-
--- Auto-cast may be switched on from skill level AUTO_LEVEL, or for every skill after a Rebirth
-function Progression.canAuto(data: Data, skillId: string, rebirths: number): boolean
-	if not Skills.ById[skillId] then
-		return false
-	end
-	return rebirths > 0 or Progression.skill(data, skillId).level >= Skills.AUTO_LEVEL
 end
 
 -- ------------------------------------------------------------------ Effect on skills

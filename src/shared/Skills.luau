@@ -4,7 +4,6 @@
 -- New skill = new entry; the effect comes solely from `kind` and the numbers.
 -- 8 skills (Skills.list), 4 of them on the bar (Q/E/R/F, chosen in the Abilities window;
 -- Skills.bar = the starting loadout). Skills 5-8 unlock with the player level (`unlock`).
--- Auto-cast: per skill from skill level AUTO_LEVEL, for all skills after the first Rebirth.
 
 export type Kind = "projectile" | "nova" | "chain"
 
@@ -202,7 +201,6 @@ Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
 Skills.MaxLevel = 20
 Skills.DamagePerLevel = 0.05 -- +5% damage per skill level above 1
 Skills.SLOTS = 4 -- skills on the bar
-Skills.AUTO_LEVEL = 5 -- skill level that unlocks auto-cast for this skill
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)

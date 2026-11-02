@@ -1,7 +1,7 @@
 --!strict
 -- Abilities window after the "Abilities" mockup (key K or menu button):
 --   left: skill bar Q/E/R/F and all 8 skills, center: skill bloom, right: details with the
---   slot buttons (equip a skill to Q/E/R/F) and the auto-cast switch.
+--   slot buttons (equip a skill to Q/E/R/F).
 -- Values come from Shared.Skills, combined with level, bloom and stars (Progression.effectiveSkill).
 -- Levels and bloom points are kept by the server (Systems/Progress); the window only sends requests
 -- (Net.Bloom, Net.Loadout).
@@ -134,11 +134,8 @@ local function renderList()
 		sub.Position = UDim2.fromOffset(84, 46)
 		sub.ZIndex = 2
 		sub.Parent = row
-		-- Right side: bar key if equipped, lock if locked, "AUTO" if auto-casting
+		-- Right side: bar key if equipped
 		local tagText = if locked then "" elseif slot then KEYS[slot] else ""
-		if ProgressController.data().auto[skill.id] then
-			tagText = if tagText ~= "" then tagText .. " · AUTO" else "AUTO"
-		end
 		local key = Kit.label(tagText, 15, if slot then C.GoldHi else C.Cyan)
 		key.AnchorPoint = Vector2.new(1, 0.5)
 		key.Position = UDim2.new(1, -14, 0.5, 0)
@@ -390,31 +387,6 @@ local function renderDetail()
 		end
 	end)
 	reset.Parent = detail
-
-	-- Auto-cast switch: from skill level AUTO_LEVEL (all skills after the first Rebirth)
-	local data = ProgressController.data()
-	local rebirths = (player:GetAttribute("Rebirths") or 0) :: number
-	local autoOn = data.auto[skill.id] == true
-	local canAuto = Progression.canAuto(data, skill.id, rebirths)
-	local auto = Kit.button(
-		if autoOn
-			then "Auto-cast: On"
-			elseif canAuto then "Auto-cast: Off"
-			else string.format("Auto-cast at skill level %d", Skills.AUTO_LEVEL),
-		if autoOn then C.Cyan else C.Muted,
-		Vector2.new(w, 50),
-		"timer"
-	)
-	auto.Name = "AutoCast"
-	auto.AnchorPoint = Vector2.new(0, 1)
-	auto.Position = UDim2.new(0, PAD, 1, -PAD - 148)
-	Kit.setEnabled(auto, canAuto or autoOn)
-	auto.Activated:Connect(function()
-		if auto.Active then
-			Net.Loadout:FireServer("auto", skill.id, not autoOn)
-		end
-	end)
-	auto.Parent = detail
 
 	-- Selected node: spend a point. Otherwise: slot buttons to put the skill on Q/E/R/F.
 	local nodeKey = selectedNode

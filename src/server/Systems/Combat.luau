@@ -18,7 +18,6 @@ local Data = require(script.Parent.Data)
 
 type PState = {
 	cdUntil: { [string]: number }, -- per skill id (swapping the bar does not reset cooldowns)
-	autoAt: number, -- next auto-cast check
 	basicUntil: number,
 	iframesUntil: number,
 	dashCharges: number,
@@ -847,45 +846,6 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	return true
 end
 
--- Auto-cast: equipped skills with auto-cast on fire at the nearest enemy in reach
-local AUTO_EVERY = 0.25
-local function autoCast(player: Player, st: PState, now: number, pool: { Model })
-	if now < st.autoAt then
-		return
-	end
-	st.autoAt = now + AUTO_EVERY
-	local profile = Data.get(player)
-	local root = body(player)
-	if not profile or not root or next(profile.progress.auto) == nil or #pool == 0 then
-		return
-	end
-	local progress = profile.progress
-	for slot = 1, Skills.SLOTS do
-		local base = Progression.barSkill(progress, slot)
-		if
-			base
-			and progress.auto[base.id]
-			and now >= (st.cdUntil[base.id] or 0)
-			and Progression.canAuto(progress, base.id, profile.rebirths)
-		then
-			local skill = effective(player, base)
-			local reach = if skill.kind == "nova" then skill.radius * 0.9 else skill.range
-			local target: Model? = nil
-			local best = reach
-			for _, e in pool do
-				local d = flat(enemyPos(e) - root.Position).Magnitude
-				if d <= best then
-					best = d
-					target = e
-				end
-			end
-			if target then
-				cast(player, slot, enemyPos(target), root.Position)
-			end
-		end
-	end
-end
-
 -- ------------------------------------------------------------------ Dash
 local function dash(player: Player)
 	local st = states[player]
@@ -915,7 +875,6 @@ end
 local function onPlayer(player: Player)
 	states[player] = {
 		cdUntil = {},
-		autoAt = 0,
 		basicUntil = 0,
 		iframesUntil = 0,
 		dashCharges = Config.DASH_CHARGES,
@@ -994,7 +953,6 @@ function Combat.start()
 		local now = os.clock()
 		local pool = aliveEnemies()
 		for player, st in states do
-			autoCast(player, st, now, pool)
 			if now >= st.basicUntil then
 				local root = body(player)
 				if root then

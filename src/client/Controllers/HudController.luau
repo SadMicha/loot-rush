@@ -398,18 +398,13 @@ local skillButtons: { ImageButton } = {}
 local shownSkills: { string } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
 
--- Loadout or auto-cast changed: new icons, "AUTO" tag on auto-casting slots
+-- Loadout changed: new icons
 local function refreshSkillButtons()
-	local data = ProgressController.data()
 	for i, btn in skillButtons do
 		local skill = SkillController.skill(i)
 		if skill and shownSkills[i] ~= skill.id then
 			shownSkills[i] = skill.id
 			Kit.setRoundIcon(btn, Kit.skillArt(skill.id) or H.SkillArt[skill.id], skill.icon)
-		end
-		local tag = btn:FindFirstChild("Auto")
-		if tag and tag:IsA("TextLabel") then
-			tag.Visible = skill ~= nil and data.auto[skill.id] == true
 		end
 	end
 end
@@ -453,14 +448,6 @@ local function buildSkills()
 		)
 		btn.Name = "Skill" .. i
 		shownSkills[i] = skill.id
-		local tag = Kit.label("AUTO", 10, Theme.Color.Cyan)
-		tag.Name = "Auto"
-		tag.AnchorPoint = Vector2.new(0.5, 0)
-		tag.Position = UDim2.new(0.5, 0, 0, 2)
-		tag.ZIndex = 6
-		tag.Visible = false
-		Kit.textOutline(tag, 0.3)
-		tag.Parent = btn
 		skillButtons[i] = btn
 		btn.AnchorPoint = Vector2.new(0.5, 0.5)
 		btn.Position = UDim2.fromOffset(cx + R * math.cos(angle), cy - R * math.sin(angle))

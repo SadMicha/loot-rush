@@ -140,7 +140,7 @@ local function onBloom(player: Player, action: any, skillId: any, key: any)
 	send(player)
 end
 
--- Bar loadout and auto-cast switches (Abilities window)
+-- Bar loadout (Abilities window)
 local function onLoadout(player: Player, action: any, a: any, b: any)
 	if not allow(player) or typeof(action) ~= "string" then
 		return
@@ -157,18 +157,6 @@ local function onLoadout(player: Player, action: any, a: any, b: any)
 		local level = (player:GetAttribute("Level") or 1) :: number
 		if not Progression.equip(progress, a, b, level) then
 			return
-		end
-	elseif action == "auto" then
-		if typeof(a) ~= "string" or typeof(b) ~= "boolean" then
-			return
-		end
-		if b then
-			if not Progression.canAuto(progress, a, profile.rebirths) then
-				return
-			end
-			progress.auto[a] = true
-		else
-			progress.auto[a] = nil
 		end
 	else
 		return
