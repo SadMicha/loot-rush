@@ -4,8 +4,8 @@
 -- (bottom left, Knight) and Nature (top left, Mushroom Shaman). 100 stars plus the heart.
 -- * Every sector has the same shape (`TEMPLATE`): two stars on the heart, three lanes outwards,
 --   six major stars, a keystone and the class start point in its middle.
--- * The class start point is free and allocated for its own class, so every class begins deep in
---   its own sector; other classes can buy it like a normal star.
+-- * The class start point is free (cost 0) and always allocated for its own class, so every class
+--   begins deep in its own sector; other classes can take it for free once a path reaches it.
 -- * Bridges between neighbouring sectors make cross-class builds possible.
 -- Links are undirected: a star can be allocated next to any allocated star (or a root).
 -- `pos` in design pixels of the web canvas (StarNet.Size). The server checks and saves allocation
@@ -31,7 +31,7 @@ local StarNet = {}
 
 StarNet.Size = Vector2.new(1760, 1760)
 StarNet.Center = Vector2.new(880, 880)
-StarNet.Cost = table.freeze({ core = 0, small = 1, big = 2, start = 1 } :: { [string]: number })
+StarNet.Cost = table.freeze({ core = 0, small = 1, big = 2, start = 0 } :: { [string]: number })
 StarNet.BranchName = table.freeze({
 	might = "Might",
 	finesse = "Finesse",

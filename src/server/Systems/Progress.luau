@@ -234,6 +234,7 @@ local function onStar(player: Player, action: any, starId: any)
 		end
 	elseif action == "reset" then
 		table.clear(stars)
+		Progression.fitStars(profile.progress, profile.class) -- the own start point stays
 	else
 		return
 	end

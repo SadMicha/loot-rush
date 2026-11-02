@@ -352,6 +352,9 @@ function Progression.canRemove(data: Data, id: string, classId: string?): (boole
 	if not data.stars[id] then
 		return false, "Not allocated"
 	end
+	if id == StarNet.startOf(classId) then
+		return false, "Your class start point"
+	end
 	local seen = reachable(data, classId, id)
 	for other in data.stars do
 		if other ~= id and not seen[other] then
@@ -361,13 +364,14 @@ function Progression.canRemove(data: Data, id: string, classId: string?): (boole
 	return true, nil
 end
 
--- Makes the stars fit a class (on load and after a class change): the own start point is free,
--- stars cut off from the heart and the start point are refunded. Returns true if something changed.
+-- Makes the stars fit a class (on load, after a class change and a reset): the own start point is
+-- allocated (free, so its effect counts in starMods), stars cut off from the heart and the start
+-- point are refunded. Returns true if something changed.
 function Progression.fitStars(data: Data, classId: string?): boolean
 	local changed = false
 	local own = StarNet.startOf(classId)
-	if own and data.stars[own] then
-		data.stars[own] = nil
+	if own and not data.stars[own] then
+		data.stars[own] = true
 		changed = true
 	end
 	local seen = reachable(data, classId, nil)

@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
@@ -329,6 +330,25 @@ function StarNetController.init()
 	view.Parent = win.body
 	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y))
 	net.Parent = view
+	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively)
+	local dragging = false
+	view.InputBegan:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input: InputObject)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local d = input.Delta
+			local scale = view.AbsoluteSize.X / math.max(1, view.Size.X.Offset)
+			view.CanvasPosition -= Vector2.new(d.X, d.Y) / math.max(scale, 0.01)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
 
 	side = Kit.panel(Vector2.new(SIDE_W, Window.BODY.Y))
 	side.AnchorPoint = Vector2.new(1, 0)

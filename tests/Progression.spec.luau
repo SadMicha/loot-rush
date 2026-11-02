@@ -194,6 +194,10 @@ describe("Star Net", function()
 			expect(Progression.fitStars(data, "mage")).toBe(true)
 			expect(data.stars[next1]).toBeNil() -- hung on the warrior start point
 			expect(data.stars.w1).toBe(true)
+			local mageStart = StarNet.startOf("mage") :: string
+			expect(data.stars[mageStart]).toBe(true) -- free and counted in the effects
+			expect(Progression.starMods(data).skillDamage).toBe(3 + 5)
+			expect((Progression.canRemove(data, mageStart, "mage"))).toBe(false)
 		end
 	)
 

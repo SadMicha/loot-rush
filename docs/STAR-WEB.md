@@ -21,10 +21,10 @@ The passive tree: the Star Heart plus **100 stars** (`src/shared/StarNet.luau`).
 
 - **Roots** are the heart and the start point of the player's own class.
   - The own start point is free and always counts as allocated.
-  - Other classes can buy a start point for 1 point once they reach it.
+  - Other classes can take a start point for free once a path reaches it.
 - **Cost**:
   - Small star: 1 point.
-  - Start point: 1 point.
+  - Start point: free.
   - Major star: 2 points.
   - The player gets 1 point per level from level 2.
 - **Removing** a star is allowed only if every other allocated star stays connected to a root.
