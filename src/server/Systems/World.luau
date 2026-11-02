@@ -23,6 +23,7 @@ local World = {}
 local C = Models.Kit.C
 local block = Models.Kit.block
 local Props = Models.Props
+local Biomes = Models.Biomes
 
 local T = Config.TILE_SIZE
 local HX = math.floor(Config.ARENA_TILES_X / 2)
@@ -42,9 +43,13 @@ type Look = {
 	cliff: Color3, -- base of the raised tiles
 	liquid: Liquid?,
 	pool: ((x: number, z: number) -> boolean)?, -- tile (grid coordinates) is liquid
+	patches: boolean?, -- top colors in soft noise patches instead of a checkerboard
+	-- Detail on top of a single tile (thin deco without collision); nil = nothing on this tile
+	accent: ((r: Random, wet: boolean) -> Model?)?,
 	particles: { color: Color3, rate: number, speed: number, size: number }?,
 	-- Environment ring: height per ring step + random; nil = no ring (abyss, e.g. Sky Islands)
-	ring: { step: number, rough: number }?,
+	-- terrace = heights snap to this step (mesas), marsh = share of low ring tiles turned to liquid
+	ring: { step: number, rough: number, terrace: number?, marsh: number? }?,
 	fill: (r: Random, i: number) -> Model, -- dense deco in the ring and at the edge
 	detail: (r: Random, i: number) -> Model, -- small ground details without collision
 	deco: (parent: Instance, rng: Random) -> (), -- fixed placements, obstacles, landmark
@@ -55,6 +60,7 @@ local arena: Folder
 local current: { [number]: Folder } = {} -- slot → arena
 local currentId: { [number]: string } = {}
 local heights: { [number]: number } = {} -- ground height per tile (key x * 1000 + z)
+local marsh: { [number]: boolean } = {} -- environment tiles that are liquid (key as heights)
 
 -- ------------------------------------------------------------------ Building blocks
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
@@ -78,6 +84,7 @@ end
 -- Heights of all tiles: playfield (north edge/sides raised) and environment ring
 local function layout(look: Look, r: Random)
 	heights = {}
+	marsh = {}
 	local ring = look.ring
 	local ext = if ring then RING else 0
 	for x = -HX - ext, HX + ext do
@@ -94,7 +101,14 @@ local function layout(look: Look, r: Random)
 					-- sides lower toward the front so they do not block the camera
 					local front = math.clamp((HZ - z) / (2 * HZ), 0.35, 1)
 					local h = RIM + (d * ring.step + r:NextNumber(0, ring.rough)) * front
+					if ring.terrace then
+						h = math.max(RIM, math.floor(h / ring.terrace + 0.5) * ring.terrace)
+					end
 					heights[x * 1000 + z] = math.floor(h + 0.5)
+					if ring.marsh and d <= 2 and r:NextNumber() < ring.marsh then
+						heights[x * 1000 + z] = 0
+						marsh[x * 1000 + z] = true
+					end
 				end
 			end
 		end
@@ -109,8 +123,15 @@ end
 local function tile(parent: Instance, look: Look, x: number, z: number, height: number)
 	local inside = math.abs(x) <= HX and math.abs(z) <= HZ
 	local liquid = look.liquid
-	local wet = inside and liquid ~= nil and height == 0 and look.pool ~= nil and look.pool(x, z)
-	local top = look.top[(x + z) % #look.top + 1]
+	local wet = liquid ~= nil
+		and height == 0
+		and ((inside and look.pool ~= nil and look.pool(x, z)) or marsh[x * 1000 + z] == true)
+	local pick = (x + z) % #look.top + 1
+	if look.patches then
+		local n = math.noise(x * 0.31, z * 0.31, #look.top * 3.7)
+		pick = math.clamp(math.floor((n + 0.5) * #look.top) + 1, 1, #look.top)
+	end
+	local top = look.top[pick]
 	top = Models.Kit.shade(top, rng:NextNumber(-0.03, 0.03))
 	if wet and liquid then
 		local surface = block(
@@ -125,6 +146,11 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 			Models.Kit.light(surface, liquid.color, 14, 0.8)
 		end
 		block(parent, Vector3.new(T, 3, T), CFrame.new(x * T, -2.5, z * T), look.soil)
+		local deco = if look.accent then look.accent(rng, true) else nil
+		if deco then
+			deco:PivotTo(CFrame.new(x * T, -0.6, z * T) * CFrame.Angles(0, rng:NextNumber(0, 6), 0))
+			deco.Parent = parent
+		end
 		return
 	end
 	block(parent, Vector3.new(T, 0.7, T), CFrame.new(x * T, height - 0.35, z * T), top)
@@ -135,6 +161,14 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 			CFrame.new(x * T, height - 0.8, z * T),
 			look.edge
 		)
+	end
+	local deco = if look.accent and (inside or height <= RIM) then look.accent(rng, false) else nil
+	if deco then
+		deco:PivotTo(
+			CFrame.new(x * T + rng:NextNumber(-1.5, 1.5), height, z * T + rng:NextNumber(-1.5, 1.5))
+				* CFrame.Angles(0, math.rad(rng:NextInteger(0, 3) * 90), 0)
+		)
+		deco.Parent = parent
 	end
 	local baseH = height + 3
 	block(
@@ -242,7 +276,7 @@ local function scatter(parent: Instance, look: Look, r: Random)
 		local x = math.floor((key + 500) / 1000)
 		local z = key - x * 1000
 		local inside = math.abs(x) <= HX and math.abs(z) <= HZ
-		if not inside and z <= HZ and r:NextNumber() < 0.75 then
+		if not inside and z <= HZ and not marsh[key] and r:NextNumber() < 0.75 then
 			i += 1
 			local pos =
 				Vector3.new(x * T + r:NextNumber(-2.5, 2.5), h, z * T + r:NextNumber(-2.5, 2.5))
@@ -265,6 +299,154 @@ local function scatter(parent: Instance, look: Look, r: Random)
 			)
 		end
 	end
+end
+
+-- ------------------------------------------------------------------ Tile accents
+-- Small details on single tiles (no collision), so the floor of every region reads differently.
+local function accentModel(name: string): Model
+	local m = Instance.new("Model")
+	m.Name = name
+	return m
+end
+
+-- Green Plains: tufts of tall grass
+local function grassTuft(r: Random, wet: boolean): Model?
+	if wet or r:NextNumber() > 0.35 then
+		return nil
+	end
+	local m = accentModel("GrassTuft")
+	for _ = 1, r:NextInteger(3, 5) do
+		local h = r:NextNumber(0.8, 1.6)
+		block(
+			m,
+			Vector3.new(0.3, h, 0.3),
+			CFrame.new(r:NextNumber(-1, 1), h / 2, r:NextNumber(-1, 1))
+				* CFrame.Angles(r:NextNumber(-0.3, 0.3), 0, r:NextNumber(-0.3, 0.3)),
+			Models.Kit.shade(C.grassDark, r:NextNumber(-0.05, 0.08))
+		)
+	end
+	return Models.Kit.finish(m, true, 99)
+end
+
+-- Crystal Caves: glowing crack across the tile
+local function crystalCrack(r: Random, wet: boolean): Model?
+	if wet or r:NextNumber() > 0.18 then
+		return nil
+	end
+	local m = accentModel("CrystalCrack")
+	local len = r:NextNumber(3, 6)
+	block(m, Vector3.new(0.3, 0.12, len), CFrame.new(0, 0.04, 0), C.crystal, Enum.Material.Neon)
+	block(
+		m,
+		Vector3.new(0.25, 0.12, len * 0.5),
+		CFrame.new(0.6, 0.04, len * 0.3) * CFrame.Angles(0, 0.6, 0),
+		C.crystal,
+		Enum.Material.Neon
+	)
+	return Models.Kit.finish(m, true, 99)
+end
+
+-- Mushroom Swamp: moss carpets on land, lily pads on water
+local function swampAccent(r: Random, wet: boolean): Model?
+	if wet then
+		return if r:NextNumber() < 0.55 then Biomes.lilyPad(r:NextInteger(1, 999)) else nil
+	end
+	if r:NextNumber() > 0.3 then
+		return nil
+	end
+	local m = accentModel("Moss")
+	for _ = 1, 3 do
+		block(
+			m,
+			Vector3.new(r:NextNumber(1.5, 3), 0.2, r:NextNumber(1.5, 3)),
+			CFrame.new(r:NextNumber(-1.5, 1.5), 0.05, r:NextNumber(-1.5, 1.5)),
+			Color3.fromHex("#6E8E3A")
+		)
+	end
+	return Models.Kit.finish(m, true, 99)
+end
+
+-- Fire Desert: glowing ember cracks and crust flakes
+local function emberCrack(r: Random, wet: boolean): Model?
+	local k = r:NextNumber()
+	if wet or k > 0.32 then
+		return nil
+	end
+	local m = accentModel("EmberCrack")
+	if k < 0.16 then
+		for i = 0, 2 do
+			block(
+				m,
+				Vector3.new(0.25, 0.12, r:NextNumber(1.5, 3)),
+				CFrame.new(i * 0.7 - 0.7, 0.04, i * 0.8 - 0.8)
+					* CFrame.Angles(0, r:NextNumber(-0.8, 0.8), 0),
+				C.ember,
+				Enum.Material.Neon
+			)
+		end
+	else
+		for _ = 1, 3 do
+			block(
+				m,
+				Vector3.new(r:NextNumber(0.8, 1.6), 0.25, r:NextNumber(0.8, 1.6)),
+				CFrame.new(r:NextNumber(-2, 2), 0.1, r:NextNumber(-2, 2))
+					* CFrame.Angles(0, r:NextNumber(0, 3), 0),
+				Color3.fromHex("#B07A48")
+			)
+		end
+	end
+	return Models.Kit.finish(m, true, 99)
+end
+
+-- Sky Islands: gold inlay frame on a marble tile
+local function goldInlay(r: Random, wet: boolean): Model?
+	if wet or r:NextNumber() > 0.14 then
+		return nil
+	end
+	local m = accentModel("GoldInlay")
+	local e = T / 2 - 0.9
+	for _, side in { 0, 90, 180, 270 } do
+		block(
+			m,
+			Vector3.new(T - 1.6, 0.1, 0.3),
+			CFrame.Angles(0, math.rad(side), 0) * CFrame.new(0, 0.03, e),
+			C.gold
+		)
+	end
+	block(
+		m,
+		Vector3.new(1.2, 0.1, 1.2),
+		CFrame.new(0, 0.04, 0) * CFrame.Angles(0, math.rad(45), 0),
+		C.gold
+	)
+	return Models.Kit.finish(m, true, 99)
+end
+
+-- Altered World: tile chips floating above the floor with a neon seam
+local function floatingChip(r: Random, wet: boolean): Model?
+	if wet or r:NextNumber() > 0.16 then
+		return nil
+	end
+	local m = accentModel("FloatingChip")
+	local d = r:NextNumber(1.5, 3)
+	local y = r:NextNumber(3, 6)
+	local tilt = CFrame.Angles(r:NextNumber(-0.4, 0.4), r:NextNumber(0, 3), r:NextNumber(-0.4, 0.4))
+	block(m, Vector3.new(d, 0.6, d), CFrame.new(0, y, 0) * tilt, Color3.fromHex("#3A2A52"))
+	block(
+		m,
+		Vector3.new(d + 0.1, 0.12, d + 0.1),
+		CFrame.new(0, y - 0.3, 0) * tilt,
+		Color3.fromHex("#FF5AD0"),
+		Enum.Material.Neon
+	)
+	block(
+		m,
+		Vector3.new(d * 0.8, 0.1, 0.25),
+		CFrame.new(0, 0.04, 0),
+		Color3.fromHex("#FF5AD0"),
+		Enum.Material.Neon
+	)
+	return Models.Kit.finish(m, true, 99)
 end
 
 -- ------------------------------------------------------------------ Regions
@@ -304,6 +486,16 @@ local function meadow(parent: Instance, _r: Random)
 		put(parent, Props.fence(), -22 - k * 8, maxZ - 1)
 	end
 
+	-- Farm corner and camp: windmill on the hill, hay, campfire, signpost, ruined walls
+	landmark(parent, Biomes.windmill(1.4), 46, 20)
+	put(parent, Biomes.campfire(), -44, 32)
+	for i, p in { Vector3.new(46, 0, 36), Vector3.new(52, 0, 30), Vector3.new(-54, 0, -32) } do
+		put(parent, Biomes.hayBale(), p.X, p.Z, i * 40)
+	end
+	put(parent, Biomes.signpost(), 9, maxZ - 10, 20)
+	put(parent, Biomes.ruinWall(41), -56, -8, 90)
+	put(parent, Biomes.ruinWall(42), 50, -44, 10)
+
 	-- Landmark: giant tree with crystals, ruins next to it
 	landmark(parent, Props.tree(3.4), -8)
 	landmark(parent, Props.crystalCluster(2.6, 14), 14, 30)
@@ -321,8 +513,10 @@ end
 
 local function meadowFill(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.65 then
+	if k < 0.55 then
 		return Props.tree(r:NextNumber(1.1, 1.9))
+	elseif k < 0.65 then
+		return if k < 0.6 then Biomes.hayBale() else Biomes.ruinWall(i)
 	elseif k < 0.8 then
 		return Props.rock(r:NextNumber(0.9, 1.6), i, C.stone)
 	elseif k < 0.9 then
@@ -357,6 +551,19 @@ local function caves(parent: Instance, _r: Random)
 			p.Z
 		)
 	end
+	-- Old mine along both side edges: rails, carts with crystal ore, support frames
+	put(parent, Biomes.rails(maxZ * 2 - 12), -maxX + 8, 0)
+	put(parent, Biomes.mineCart(), -maxX + 8, 14)
+	put(parent, Biomes.mineCart(C.magic), -maxX + 8, -30)
+	put(parent, Biomes.rails(40), maxX - 8, -18)
+	put(parent, Biomes.mineCart(), maxX - 8, -8, 180)
+	for _, z in { -36, -4, 28 } do
+		put(parent, Biomes.supportFrame(), -maxX + 8, z)
+	end
+	for _, z in { -32, 0 } do
+		put(parent, Biomes.supportFrame(), maxX - 8, z)
+	end
+
 	-- Landmark: crystal heart of the cave
 	landmark(parent, Props.crystalCluster(4.5, 21), 0)
 	landmark(parent, Props.crystalCluster(3, 22, C.magic), -26, 40)
@@ -380,7 +587,10 @@ local function cavesFill(r: Random, i: number): Model
 end
 
 local function cavesDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.4 then
+	local k = r:NextNumber()
+	if k < 0.3 then
+		return Biomes.glowShrooms(i, if k < 0.15 then C.crystal else C.magic)
+	elseif k < 0.55 then
 		return Props.pebbles(i, C.crystal, true)
 	end
 	return Props.pebbles(i, Color3.fromHex("#5A6788"))
@@ -408,6 +618,12 @@ local function swamp(parent: Instance, r: Random)
 	do
 		put(parent, Props.mushroom(1.4, CAPS[i % #CAPS + 1], i), p.X, p.Z)
 	end
+	-- Swamp village: huts on stilts at the edges, sunken logs
+	put(parent, Biomes.stiltHut(1), -50, -38, 30)
+	put(parent, Biomes.stiltHut(0.9), 52, 30, -120)
+	put(parent, Biomes.log(1), 34, 44, 70)
+	put(parent, Biomes.log(0.8), -46, 20, -20)
+
 	-- Landmark: Spore Mother mushroom and mushroom forest behind it
 	landmark(parent, Props.mushroom(4.2, CAPS[1], 31), 0)
 	landmark(parent, Props.mushroom(3, CAPS[2], 32), -30)
@@ -418,8 +634,10 @@ end
 
 local function swampFill(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.5 then
+	if k < 0.4 then
 		return Props.mushroom(r:NextNumber(1.2, 2.6), CAPS[i % #CAPS + 1], i)
+	elseif k < 0.6 then
+		return Biomes.willow(r:NextNumber(0.9, 1.4), i)
 	elseif k < 0.75 then
 		return Props.deadTree(r:NextNumber(0.9, 1.5))
 	end
@@ -454,8 +672,14 @@ local function desert(parent: Instance, r: Random)
 	landmark(parent, Props.chimney(3.4), 0)
 	landmark(parent, Props.chimney(2.2), -24, 20)
 	landmark(parent, Props.chimney(2.4), 26, -15)
-	landmark(parent, Props.rock(4, 510, BASALT), -48)
-	landmark(parent, Props.rock(3.6, 511, BASALT), 50)
+	landmark(parent, Biomes.breadLoaf(2.2), -48, 15)
+	landmark(parent, Biomes.rollingPin(2), 50, -20)
+	-- Bakery yard at the edges: loaves, cookie slabs, cacti, bones
+	put(parent, Biomes.breadLoaf(1), -48, 36, 20)
+	put(parent, Biomes.breadLoaf(0.8), 52, -40, -30)
+	put(parent, Biomes.cookie(520), 44, 34)
+	put(parent, Biomes.cookie(521), -54, -18)
+	put(parent, Biomes.bones(522), 30, 44)
 	local far = Instance.new("Folder")
 	far.Name = "Backdrop"
 	far.Parent = parent
@@ -473,8 +697,12 @@ end
 
 local function desertFill(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.45 then
+	if k < 0.3 then
 		return Props.rock(r:NextNumber(1.4, 2.8), i, BASALT)
+	elseif k < 0.45 then
+		return if k < 0.38
+			then Biomes.cactus(r:NextNumber(0.8, 1.3))
+			else Biomes.breadLoaf(r:NextNumber(0.6, 1))
 	elseif k < 0.65 then
 		return Props.chimney(r:NextNumber(0.8, 1.3))
 	elseif k < 0.85 then
@@ -484,22 +712,32 @@ local function desertFill(r: Random, i: number): Model
 end
 
 local function desertDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.25 then
+	local k = r:NextNumber()
+	if k < 0.12 then
+		return Biomes.bones(i)
+	elseif k < 0.35 then
 		return Props.pebbles(i, C.ember, true)
 	end
 	return Props.pebbles(i, Color3.fromHex("#8A5A3A"))
 end
 
 -- Sky Islands: marble plateau above the sea of clouds, archways, castle in the background
-local MARBLE = Color3.fromHex("#E8E2D2")
+local MARBLE = Color3.fromHex("#D4CCBA")
 local function sky(parent: Instance, r: Random)
 	path(parent, Color3.fromHex("#D9C38A"), maxZ - 6, -6)
 	for _, x in { -30, 30 } do
 		put(parent, Props.arch(1.1, MARBLE), x, -22, 90)
 	end
 	put(parent, Props.arch(1.4, MARBLE), 0, -50)
-	for _, p in { Vector3.new(-20, 0, 6), Vector3.new(22, 0, -2), Vector3.new(-8, 0, -36) } do
-		put(parent, Props.pillar(1.5), p.X, p.Z)
+	for i, p in { Vector3.new(-20, 0, 6), Vector3.new(22, 0, -2), Vector3.new(-8, 0, -36) } do
+		put(parent, Biomes.brokenColumn(700 + i, MARBLE), p.X, p.Z, i * 70)
+	end
+	-- Guardians and wind banners along the edges
+	for _, sx in { -1, 1 } do
+		put(parent, Biomes.statue(1.2, MARBLE), sx * 52, -30, sx * -90)
+		put(parent, Biomes.statue(1, MARBLE), sx * 50, 36, sx * -90)
+		put(parent, Biomes.windBanner(Color3.fromHex("#5FA8FF")), sx * 58, -50)
+		put(parent, Biomes.windBanner(C.gold), sx * 58, 48)
 	end
 	-- Landmark: the Cloud Queen's castle on its own island behind the north edge
 	local castle = Instance.new("Folder")
@@ -536,6 +774,16 @@ local function sky(parent: Instance, r: Random)
 			Vector3.new(math.cos(a) * d, r:NextNumber(-24, -6), math.sin(a) * d)
 		)
 	end
+	-- Hovering rocks just beyond the edge of the plateau
+	for i = 1, 12 do
+		local a = i / 12 * math.pi * 2
+		local d = r:NextNumber(maxX + 6, maxX + 26)
+		place(
+			far,
+			Biomes.hoverRock(940 + i, r:NextNumber(2, 10)),
+			Vector3.new(math.cos(a) * d, 0, math.sin(a) * d)
+		)
+	end
 	place(far, Props.island(2.4, true), Vector3.new(-130, 30, -150))
 	place(far, Props.island(3, false), Vector3.new(120, 46, -190))
 	place(far, Props.island(1.8, true), Vector3.new(180, 24, -40))
@@ -545,7 +793,7 @@ end
 local function skyFill(r: Random, i: number): Model
 	local k = r:NextNumber()
 	if k < 0.4 then
-		return Props.pillar(r:NextNumber(1.1, 1.8))
+		return Biomes.brokenColumn(i, MARBLE)
 	elseif k < 0.7 then
 		return Props.crystalCluster(r:NextNumber(0.8, 1.3), i, Color3.fromHex("#9CE5FF"))
 	end
@@ -577,6 +825,23 @@ local function rift(parent: Instance, r: Random)
 	landmark(parent, Props.riftShard(3.5, 1291, C.crystal), 28)
 	landmark(parent, Props.crystalCluster(3.2, 1292, RIFT_GLOW), -50)
 	landmark(parent, Props.crystalCluster(3, 1293, C.magic), 52)
+	-- Watching monoliths, stairs into nothing, upside-down trees over the ring
+	for _, sx in { -1, 1 } do
+		put(parent, Biomes.eyeMonolith(1, RIFT_GLOW), sx * 52, -44, sx * -20)
+		put(parent, Biomes.brokenStairs(1400 + sx, Color3.fromHex("#4A3A66")), sx * 50, 34, sx * 90)
+	end
+	for i = 1, 6 do
+		place(
+			parent,
+			Biomes.invertedTree(r:NextNumber(0.9, 1.4), if i % 2 == 0 then RIFT_GLOW else C.magic),
+			Vector3.new(
+				r:NextNumber(-maxX, maxX),
+				r:NextNumber(16, 24),
+				-maxZ - r:NextNumber(10, 22)
+			)
+		)
+	end
+
 	-- Floating shards above the combat zone (high enough not to get in the way)
 	for i = 1, 10 do
 		place(
@@ -589,7 +854,9 @@ end
 
 local function riftFill(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.5 then
+	if k < 0.15 then
+		return Biomes.glitchCubes(i, if k < 0.08 then RIFT_GLOW else C.crystal)
+	elseif k < 0.5 then
 		return Props.riftShard(r:NextNumber(1, 2.4), i, if k < 0.25 then RIFT_GLOW else C.crystal)
 	elseif k < 0.8 then
 		return Props.crystalCluster(r:NextNumber(1, 2), i, if k < 0.65 then RIFT_GLOW else C.magic)
@@ -612,6 +879,8 @@ local LOOKS: { [string]: Look } = {
 		cliff = C.stone,
 		particles = { color = Color3.fromHex("#FFF3A0"), rate = 6, speed = 1, size = 0.25 },
 		ring = { step = 3, rough = 3 },
+		patches = true,
+		accent = grassTuft,
 		fill = meadowFill,
 		detail = meadowDetail,
 		deco = meadow,
@@ -632,6 +901,8 @@ local LOOKS: { [string]: Look } = {
 		end,
 		particles = { color = Color3.fromHex("#9FE6FF"), rate = 14, speed = 0.6, size = 0.2 },
 		ring = { step = 7, rough = 6 },
+		patches = true,
+		accent = crystalCrack,
 		fill = cavesFill,
 		detail = cavesDetail,
 		deco = caves,
@@ -652,7 +923,9 @@ local LOOKS: { [string]: Look } = {
 			return n > 0.22 and not (math.abs(x) <= 1 and z >= 0)
 		end,
 		particles = { color = Color3.fromHex("#D7FF8A"), rate = 18, speed = 0.8, size = 0.3 },
-		ring = { step = 2, rough = 2 },
+		ring = { step = 2, rough = 2, marsh = 0.45 },
+		patches = true,
+		accent = swampAccent,
 		fill = swampFill,
 		detail = swampDetail,
 		deco = swamp,
@@ -674,17 +947,20 @@ local LOOKS: { [string]: Look } = {
 			return z == river and math.abs(x) >= 2
 		end,
 		particles = { color = Color3.fromHex("#FFB04A"), rate = 22, speed = 2, size = 0.25 },
-		ring = { step = 4, rough = 5 },
+		ring = { step = 4, rough = 5, terrace = 4 },
+		patches = true,
+		accent = emberCrack,
 		fill = desertFill,
 		detail = desertDetail,
 		deco = desert,
 	},
 	sky_islands = {
-		top = { Color3.fromHex("#EDE6D6"), Color3.fromHex("#E2DACA") },
-		edge = Color3.fromHex("#C9B98F"),
+		top = { Color3.fromHex("#D6CEBD"), Color3.fromHex("#CBC2B0") },
+		edge = Color3.fromHex("#B8A57A"),
 		soil = Color3.fromHex("#B8C4D6"),
 		cliff = Color3.fromHex("#9AA8BE"),
 		particles = { color = Color3.new(1, 1, 1), rate = 10, speed = 3, size = 0.35 },
+		accent = goldInlay,
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
@@ -706,6 +982,7 @@ local LOOKS: { [string]: Look } = {
 		end,
 		particles = { color = Color3.fromHex("#FF8AE0"), rate = 20, speed = 1.5, size = 0.3 },
 		ring = { step = 5, rough = 8 },
+		accent = floatingChip,
 		fill = riftFill,
 		detail = riftDetail,
 		deco = rift,

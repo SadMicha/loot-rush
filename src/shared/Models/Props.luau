@@ -312,7 +312,7 @@ function Props.cloud(s: number, seed: number): Model
 	end
 	for _, d in m:GetChildren() do
 		if d:IsA("BasePart") then
-			d.Color = Color3.new(1, 1, 1)
+			d.Color = Color3.fromHex("#E6ECF4") -- not pure white: no glare under bright light
 			d.Transparency = 0.1
 		end
 	end

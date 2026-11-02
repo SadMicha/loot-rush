@@ -32,6 +32,16 @@ maps, so the code cannot create the variant itself.
    `MaterialService` entry to `default.project.json` (Rojo then syncs it; needs your OK for the
    config change). `Studs.apply` uses it automatically once it exists.
 
+## Region identity (Shared/Models/Biomes, Systems/World)
+
+Every arena has its own signature props and floor details, not just recolored rocks:
+Green Plains windmill, hay, campfire, ruin walls, grass tufts; Crystal Caves mine rails, carts,
+support frames, glow shrooms, crystal cracks; Mushroom Swamp stilt huts, willows, logs, lily pads,
+marsh water in the ring; Fire Desert bread loaves, rolling pin, cookies, cacti, bones, ember cracks,
+terraced mesas; Sky Islands guardian statues, broken columns, wind banners, hovering rocks, gold
+inlays; Altered World eye monoliths, broken stairs, upside-down trees, glitch cubes, floating chips.
+Look fields per region: `patches`, `accent`, `ring.terrace`, `ring.marsh`.
+
 ## What else Roblox gives the map
 
 - Lighting: Future, Atmosphere, Bloom, SunRays, ColorCorrection (`default.project.json`);

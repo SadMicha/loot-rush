@@ -6,6 +6,7 @@
 -- puts all models in a row into workspace.ModelPreview. If you like a model,
 -- you can touch it up there by hand and save it as a package/.rbxm.
 
+local Biomes = require(script.Biomes)
 local Buildings = require(script.Buildings)
 local Creatures = require(script.Creatures)
 local Kit = require(script.Kit)
@@ -14,6 +15,7 @@ local Props = require(script.Props)
 local Studs = require(script.Studs)
 
 local Models = {
+	Biomes = Biomes,
 	Buildings = Buildings,
 	Creatures = Creatures,
 	Kit = Kit,
@@ -49,6 +51,32 @@ function Models.showcase(origin: Vector3?): Model
 		Props.scaffold(8),
 		Buildings.stall(Kit.C.roof, Kit.C.cream, 8, 5),
 		Buildings.stash(Props.chest()),
+		Biomes.windmill(1),
+		Biomes.hayBale(),
+		Biomes.campfire(),
+		Biomes.signpost(),
+		Biomes.ruinWall(1),
+		Biomes.rails(12),
+		Biomes.mineCart(),
+		Biomes.supportFrame(),
+		Biomes.glowShrooms(1, Kit.C.crystal),
+		Biomes.stiltHut(1),
+		Biomes.lilyPad(1),
+		Biomes.willow(1, 1),
+		Biomes.log(1),
+		Biomes.breadLoaf(1),
+		Biomes.rollingPin(1),
+		Biomes.cookie(1),
+		Biomes.cactus(1),
+		Biomes.bones(1),
+		Biomes.statue(1, Kit.C.stoneLight),
+		Biomes.brokenColumn(1, Kit.C.stoneLight),
+		Biomes.windBanner(Kit.C.crystalDeep),
+		Biomes.hoverRock(1, 4),
+		Biomes.invertedTree(1, Kit.C.magic),
+		Biomes.glitchCubes(1, Kit.C.magic),
+		Biomes.eyeMonolith(1, Kit.C.magic),
+		Biomes.brokenStairs(1, Kit.C.stoneDark),
 		Props.island(0.5, true),
 		Buildings.forge(1),
 		Buildings.forge(2),
