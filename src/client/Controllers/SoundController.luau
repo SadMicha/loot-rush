@@ -55,6 +55,17 @@ function SoundController.play(name: string): boolean
 	return true
 end
 
+local PHASE_HEAR = 150 -- studs: a boss phase further away belongs to someone else's rift
+
+local function near(pos: any): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return typeof(pos) == "Vector3"
+		and root ~= nil
+		and root:IsA("BasePart")
+		and (root.Position - pos).Magnitude <= PHASE_HEAR
+end
+
 local function onFx(kind: string, d: any)
 	if typeof(d) ~= "table" then
 		return
@@ -65,16 +76,24 @@ local function onFx(kind: string, d: any)
 				SoundController.play("hurt")
 			end
 		elseif d.amount == nil then
-			SoundController.play("blocked")
+			if d.who == player.UserId then -- own "Blocked!" / "Dodged", not loot or skill toasts
+				SoundController.play("blocked")
+			end
 		elseif d.by == player.UserId then
 			SoundController.play(if d.crit then "crit" else "hit")
 		end
 	elseif kind == "death" then
-		SoundController.play(if d.big then "kill_big" else "kill")
+		if d.by == player.UserId then
+			SoundController.play(if d.big then "kill_big" else "kill")
+		end
 	elseif kind == "levelup" then
-		SoundController.play("level_up")
+		if d.who == player.UserId then
+			SoundController.play("level_up")
+		end
 	elseif kind == "phase" then
-		SoundController.play("boss_phase")
+		if near(d.pos) then -- bosses of other players' rifts stay silent
+			SoundController.play("boss_phase")
+		end
 	elseif kind == "intro" then
 		SoundController.play("boss_intro")
 	end
