@@ -42,7 +42,7 @@ local DOLL_H = 334
 local CMP_Y = BODY_Y + DOLL_H + 10
 local CMP_H = WIN_H - CMP_Y
 local PAD = 14
-local DOLL_CELL, DOLL_STEP = 56, 64
+local DOLL_CELL, DOLL_STEP = 60, 64
 local COLS, CELL, GAP = 9, 80, 8
 local GRID_PAD = 10 -- room for the glow of edge cells inside the scrolling frame
 local TAB_H = 40
@@ -422,6 +422,7 @@ local function statRows(
 					Theme.Font.UI,
 					Enum.TextXAlignment.Right
 				)
+				delta.Name = "Delta"
 				delta.AnchorPoint = Vector2.new(1, 0)
 				delta.Position = UDim2.fromOffset(COL_W, y)
 				delta.Parent = parent
@@ -505,7 +506,7 @@ local function renderCompare()
 		big.AnchorPoint = Vector2.new(1, 0)
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
-		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else {}, color)
+		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, 40), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)
@@ -881,28 +882,40 @@ local titleRow: Frame
 local stage: Frame
 local fit: UIScale
 local guiRoot: Frame
+local closeButton: GuiButton
+local CLOSE_SIZE = 48 -- same as Window (top right of the screen, outside the scaled stage)
 
 -- Fit the window into the screen (phones: grows over the hub bar, the window is modal anyway) and keep
 -- the title clear of the Roblox buttons at the top left
 local function arrange()
 	local rootScale = guiRoot:FindFirstChildOfClass("UIScale")
 	local s = if rootScale then rootScale.Scale else 1
-	if s <= 0 or guiRoot.AbsoluteSize.X <= 0 then
+	local camera = workspace.CurrentCamera
+	if s <= 0 or not camera or camera.ViewportSize.X <= 0 then
 		return
 	end
-	local view = guiRoot.AbsoluteSize / s -- design pixels
-	local k = math.min((view.X - 40) / WIN_W, (view.Y - WINDOW_TOP - 12) / WIN_H, F.MaxFit)
+	local screen = camera.ViewportSize -- the root covers the whole screen (IgnoreGuiInset)
+	local view = screen / s -- design pixels
+	local barRight, barH = Window.topbar()
+	-- Close button like in every Window: right edge, vertically centered on the Roblox bar;
+	-- the window starts below it
+	local mid = math.max(40 + CLOSE_SIZE / 2 - 16, barH / s / 2)
+	closeButton.Position = UDim2.new(1, -28, 0, mid)
+	local closeH = math.max(CLOSE_SIZE, closeButton.Size.Y.Offset) -- grows on touch screens
+	local stageTop = math.max(WINDOW_TOP, mid + closeH / 2 + 8)
+	stage.Position = UDim2.new(0.5, 0, 0, stageTop)
+
+	local k = math.min((view.X - 40) / WIN_W, (view.Y - stageTop - 12) / WIN_H, F.MaxFit)
 	k = math.max(k, 0.5)
 	if math.abs(fit.Scale - k) > 0.001 then
 		fit.Scale = k
 		Kit.refit(guiRoot)
 	end
-	local barRight, barH = Window.topbar()
 	local unit = s * k -- screen pixels per window design pixel
 	local indent = 0
 	-- Computed, not read back: the layout of the new scale only lands next frame
-	local top = guiRoot.AbsolutePosition.Y + WINDOW_TOP * s
-	local left = guiRoot.AbsolutePosition.X + guiRoot.AbsoluteSize.X / 2 - WIN_W * unit / 2
+	local top = stageTop * s
+	local left = screen.X / 2 - WIN_W * unit / 2
 	if top < barH and left < barRight + 12 then
 		indent = (barRight + 12 - left) / unit
 	end
@@ -982,12 +995,6 @@ local function buildHeader(parent: Frame)
 	currency(1, "gold", C.GoldHi, "Gold")
 	currency(2, "crystal", C.Cyan, "Shards")
 	currency(3, "soulstar", Theme.Rarity.epic, "Soulstars")
-	local close = Flat.close(48)
-	close.LayoutOrder = 4
-	close.Activated:Connect(function()
-		InventoryController.toggle()
-	end)
-	close.Parent = right
 	right.Parent = head
 end
 
@@ -1078,6 +1085,14 @@ function InventoryController.init()
 	window.Name = "Window"
 	window.Parent = stage
 
+	closeButton = Flat.close(CLOSE_SIZE)
+	closeButton.AnchorPoint = Vector2.new(1, 0.5)
+	closeButton.ZIndex = 5
+	closeButton.Activated:Connect(function()
+		InventoryController.toggle()
+	end)
+	closeButton.Parent = root
+
 	buildHeader(window)
 	buildDoll(window)
 	cmpCard = Flat.card(UDim2.fromOffset(LEFT_W, CMP_H))
@@ -1087,6 +1102,14 @@ function InventoryController.init()
 	buildGrid(window)
 	tabs.select(category)
 	guiRoot:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange)
+	local rootScale = root:FindFirstChildOfClass("UIScale")
+	if rootScale then
+		rootScale:GetPropertyChangedSignal("Scale"):Connect(arrange)
+	end
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
+	end
 	arrange()
 
 	InventoryController.render()
