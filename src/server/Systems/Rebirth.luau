@@ -20,6 +20,7 @@ local Progress = require(script.Parent.Progress)
 local Rift = require(script.Parent.Rift)
 local Shop = require(script.Parent.Shop)
 local Stats = require(script.Parent.Stats)
+local Village = require(script.Parent.Village)
 
 local Rebirth = {}
 
@@ -53,7 +54,9 @@ function Rebirth.perform(player: Player): (boolean, string)
 	profile.progress.stars = {} -- star points come from the level
 	Inventory.addGold(player, -profile.gold)
 	Combat.setLevel(player, 1, 0)
-	Shop.grant(player, "soulstars", Rules.reward(n))
+	-- Observatory (Village): +5 % Soulstars per level
+	local stars = math.floor(Rules.reward(n) * (1 + Village.soulstarBonus(player) / 100))
+	Shop.grant(player, "soulstars", stars)
 	publish(player, n)
 	Rift.publishBest(player)
 	Boosts.refresh(player) -- new life bonus first, so the refill includes it
@@ -61,7 +64,7 @@ function Rebirth.perform(player: Player): (boolean, string)
 	Progress.sync(player)
 	Data.saveNow(player)
 	Actions.fire(player, "rebirth")
-	return true, string.format("Rebirth %d! +%d Soulstars", n, Rules.reward(n))
+	return true, string.format("Rebirth %d! +%d Soulstars", n, stars)
 end
 
 local function onRebirth(player: Player)

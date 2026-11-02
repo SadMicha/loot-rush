@@ -187,10 +187,10 @@ Theme.Hud = table.freeze({
 		{ id = "inventory", art = "menu_inventory", icon = "inventory", caption = "Inventory" },
 		{ id = "star_net", art = "menu_star_net", icon = "star_net", caption = "Stars" },
 		{ id = "skills", art = "menu_skills", icon = "skills", caption = "Skills" },
-		{ id = "hub", art = "menu_hub", icon = "hub", caption = "Hub" },
 		{ id = "atlas", art = "menu_atlas", icon = "atlas", caption = "Atlas" },
 		{ id = "forge", art = "menu_forge", icon = "forge", caption = "Forge" },
 		{ id = "pets", art = "menu_pets", icon = "companion", caption = "Pets" },
+		{ id = "village", art = "menu_hub", icon = "hub", caption = "Village" },
 		{ id = "shop", art = "menu_shop", icon = "pouch", caption = "Shop" },
 	}),
 })

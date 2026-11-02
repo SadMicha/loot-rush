@@ -54,6 +54,15 @@ local PASSES: { Pass } = {
 		icon = "chest",
 		bonus = { magnet = 8, items = 10 },
 	},
+	{
+		key = "offline_2x",
+		id = 0,
+		name = "Night Shift",
+		text = "Your Village keeps working twice as long while you are away (16 h).",
+		robux = 99,
+		icon = "candy",
+		bonus = {},
+	},
 }
 
 local byKey: { [string]: Pass } = {}
