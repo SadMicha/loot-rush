@@ -197,6 +197,19 @@ local function onKilled(
 	end
 end
 
+-- Bonus items (rift variant "Against the Clock"): `count` items of Rare or better at `pos`
+function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string?, count: number)
+	local t = Loot.forDepth(depth, regionId, true, owner:GetAttribute("WorldTier") :: number?)
+	for _ = 1, count do
+		makeDrop(
+			pos,
+			owner,
+			0,
+			Items.roll(t.ilvl, rng, nil, { shift = t.shift, min = "rare", uniques = t.uniques })
+		)
+	end
+end
+
 -- Picks up a drop for its owner. false = inventory full, the item stays on the ground.
 -- at = position for the text popup; without at silent and without the Picked signal (Loot.collect).
 local function pickup(d: Drop, at: Vector3?): boolean
