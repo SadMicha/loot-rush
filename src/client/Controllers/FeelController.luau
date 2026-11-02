@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local BrickController = require(script.Parent.BrickController)
+local QuestController = require(script.Parent.QuestController)
 
 local FeelController = {}
 
@@ -184,6 +185,14 @@ function handlers.nova(d)
 		and typeof(d.color) == "Color3"
 	then
 		BrickController.ring(d.pos, d.radius, d.color)
+	end
+end
+
+-- Boss intro line (The Smoothing, Shared/Smoothing): a toast and a small rumble
+function handlers.intro(d)
+	if typeof(d.text) == "string" then
+		QuestController.toast(d.text, if typeof(d.color) == "Color3" then d.color else nil)
+		FeelController.shake(0.25)
 	end
 end
 

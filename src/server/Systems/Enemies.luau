@@ -25,6 +25,8 @@ local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
 local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
+local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
+local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
@@ -496,6 +498,7 @@ export type SpawnOpts = {
 	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
 	healthMult: number?, -- life factor (rift variant Swarm)
 	goblin: boolean?, -- Treasure Goblin (rift variant): flees, never attacks, escapes after a while
+	smoothed: boolean?, -- creature of the Smoothing: studless grey plastic, tougher, pays more
 }
 
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
@@ -520,6 +523,11 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		st.health = math.floor(st.health * RiftVariants.GOBLIN_HEALTH)
 		st.gold *= RiftVariants.GOBLIN_GOLD
 	end
+	if o.smoothed then
+		st.health = math.floor(st.health * Smoothing.HEALTH)
+		st.xp = math.floor(st.xp * Smoothing.REWARD + 0.5)
+		st.gold *= Smoothing.REWARD
+	end
 	if o.healthMult then
 		st.health = math.max(1, math.floor(st.health * math.clamp(o.healthMult, 0.05, 10)))
 	end
@@ -538,6 +546,20 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		then "Treasure Goblin"
 		elseif elite then EliteMods.title(modIds, kind.name)
 		else kind.name
+	if o.smoothed and not o.goblin then
+		model.Name = "Smooth " .. model.Name
+		model:SetAttribute("Smoothed", true)
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and not Studs.keeps(d) then
+				d:SetAttribute("NoStuds", true)
+				d.Material = Enum.Material.SmoothPlastic
+				d.MaterialVariant = ""
+				d.TopSurface = Enum.SurfaceType.Smooth
+				d.BottomSurface = Enum.SurfaceType.Smooth
+				d.Color = Smoothing.fade(d.Color)
+			end
+		end
+	end
 	if o.goblin then
 		model:SetAttribute("Goblin", true)
 		model:ScaleTo(0.8)
