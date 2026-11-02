@@ -907,6 +907,7 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 	end
 	e.summoned = true
 	summon(e, pos, Bosses.ADDS)
+	Net.Fx:FireAllClients("phase", { pos = pos, stage = stage })
 	Net.Fx:FireAllClients("nova", {
 		pos = Vector3.new(pos.X, 0.5, pos.Z),
 		radius = 14 * e.kind.scale / 2,

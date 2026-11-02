@@ -30,5 +30,10 @@ Build order step 4 (`docs/DECISIONS.md`). All tuning lives in `src/shared/Feel.l
 
 ## Not yet (later PRs)
 
-Telegraph polish for bosses with phases, sound hooks (`Shared/Sounds`), cancel windows into the
-dodge roll once the class skills land.
+Cancel windows into the dodge roll.
+
+## Sound hooks
+`src/shared/Sounds.luau` lists every combat moment (hit, crit, kill, big kill, hurt, dodge, blocked,
+one cast sound per skill kind, level up, boss phase, boss intro). Paste a Creator Store audio id into
+`id`; empty ids stay silent. `SoundController` plays them with a small pool per sound and random
+pitch variation.
