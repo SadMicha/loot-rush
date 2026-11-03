@@ -30,6 +30,23 @@ local Characters = {}
 
 local allow = RateLimit.new(2, 4)
 local switching: { [Player]: boolean } = {}
+-- One setup/create/play at a time per player: the name filter yields, a second request must not
+-- pass the same checks meanwhile (double tap → two heroes)
+local busy: { [Player]: boolean } = {}
+
+local function exclusive(player: Player, fn: () -> (boolean, string?)): (boolean, string?)
+	if busy[player] then
+		return false, "One moment …"
+	end
+	busy[player] = true
+	local ok, a, b = pcall(fn)
+	busy[player] = nil
+	if not ok then
+		warn("[Characters] request failed:", a)
+		return false, "Not possible right now"
+	end
+	return a, b
+end
 
 -- Roblox text filter for a name others may see. Refuses on a filter error, except in Studio
 -- (no filter service there / in the test sandbox), where the checked name is used as is.
@@ -89,7 +106,7 @@ function Characters.setup(player: Player, name: any, classId: any): (boolean, st
 		return false, "Name: 3-16 letters or digits"
 	end
 	if Rift.isRunning(player) then
-		return false, "Not inside a rift"
+		return false, "Leave the rift first"
 	end
 	local clean = filterName(player, valid)
 	if not clean or Data.get(player) ~= profile or profile.setupDone then
@@ -144,6 +161,7 @@ function Characters.play(player: Player, id: any): (boolean, string?)
 		return false, "Finish your hero first"
 	end
 	account.active = target.id
+	switching[player] = true -- set before anything yields: no second switch or create
 	task.spawn(rejoin, player, if target.name ~= "" then target.name else "your hero")
 	return true, nil
 end
@@ -175,6 +193,9 @@ function Characters.create(player: Player, name: any, classId: any): (boolean, s
 	if not clean then
 		return false, "Please pick another name"
 	end
+	if switching[player] or Data.account(player) ~= account then
+		return false, "Already switching"
+	end
 	local char = Profile.newCharacter(account, clean, classId, os.time())
 	if not char then
 		return false, "All character slots are used"
@@ -203,11 +224,17 @@ function Characters.init()
 			Characters.sync(player)
 			return
 		elseif action == "setup" then
-			ok, why = Characters.setup(player, a, b)
+			ok, why = exclusive(player, function()
+				return Characters.setup(player, a, b)
+			end)
 		elseif action == "create" then
-			ok, why = Characters.create(player, a, b)
+			ok, why = exclusive(player, function()
+				return Characters.create(player, a, b)
+			end)
 		elseif action == "play" then
-			ok, why = Characters.play(player, a)
+			ok, why = exclusive(player, function()
+				return Characters.play(player, a)
+			end)
 		else
 			return
 		end
@@ -215,6 +242,7 @@ function Characters.init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		switching[player] = nil
+		busy[player] = nil
 	end)
 end
 

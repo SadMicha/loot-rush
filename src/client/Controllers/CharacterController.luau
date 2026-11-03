@@ -25,10 +25,11 @@ type Entry = { id: string, name: string, class: string, level: number, league: s
 local C = Theme.Color
 local player = Players.LocalPlayer
 local win: Window.Window
-local heroes: Frame
+local heroes: ScrollingFrame
 local cards: Frame
 local nameBox: TextBox
 local status: TextLabel
+local waiting = false -- a request is out: no second tap until the server answers
 
 local GAP = 24
 local HEROES_H = 120
@@ -60,6 +61,7 @@ end
 
 local function renderHeroes()
 	clear(heroes)
+	heroes.CanvasSize = UDim2.fromOffset(0, 0)
 	if setupPending() then
 		local hint = Kit.label(
 			"Name your hero and pick a class. The class stays with this hero - "
@@ -108,9 +110,10 @@ local function renderHeroes()
 		b.AnchorPoint = Vector2.new(0.5, 1)
 		b.Position = UDim2.new(0.5, 0, 1, -10)
 		local inRift = (player:GetAttribute("RiftPhase") or "") ~= ""
-		Kit.setEnabled(b, not mine and not inRift)
+		Kit.setEnabled(b, not mine and not inRift and not waiting)
 		b.Activated:Connect(function()
-			if b.Active then
+			if b.Active and not waiting then
+				waiting = true
 				Kit.setEnabled(b, false)
 				say("Switching to " .. entry.name .. " …", C.Text)
 				Net.Character:FireServer("play", entry.id)
@@ -172,9 +175,9 @@ local function renderCards()
 		b.Name = "Choose"
 		b.AnchorPoint = Vector2.new(0.5, 1)
 		b.Position = UDim2.new(0.5, 0, 1, -20)
-		Kit.setEnabled(b, not full)
+		Kit.setEnabled(b, not full and not waiting)
 		b.Activated:Connect(function()
-			if not b.Active then
+			if not b.Active or waiting then
 				return
 			end
 			local name = Profile.validName(nameBox.Text)
@@ -190,7 +193,9 @@ local function renderCards()
 				return
 			end
 			say("Creating " .. name .. " …", C.Text)
+			waiting = true
 			Net.Character:FireServer(if setupPending() then "setup" else "create", name, class.id)
+			renderCards() -- every create button off until the answer
 		end)
 		b.Parent = card
 		card.Parent = cards
@@ -220,12 +225,24 @@ end
 function CharacterController.init()
 	win = Window.new({ name = "Heroes", title = "Your heroes", icon = "crown" })
 
-	heroes = Window.frame(UDim2.fromOffset(Window.BODY.X, HEROES_H))
-	local row = Kit.list(heroes, Enum.FillDirection.Horizontal, 12)
+	-- Up to 12 heroes: a sideways scrolling row (6 fit at once)
+	local strip = Instance.new("ScrollingFrame")
+	strip.Name = "Heroes"
+	strip.BackgroundTransparency = 1
+	strip.BorderSizePixel = 0
+	strip.Size = UDim2.fromOffset(Window.BODY.X, HEROES_H + 10)
+	strip.ScrollingDirection = Enum.ScrollingDirection.X
+	strip.AutomaticCanvasSize = Enum.AutomaticSize.X
+	strip.CanvasSize = UDim2.fromOffset(0, 0)
+	strip.ScrollBarThickness = 6
+	strip.ScrollBarImageColor3 = C.Gold
+	strip.HorizontalScrollBarInset = Enum.ScrollBarInset.Always
+	strip.ElasticBehavior = Enum.ElasticBehavior.Never
+	local row = Kit.list(strip, Enum.FillDirection.Horizontal, 12)
 	row.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	row.Wraps = false
-	heroes.ClipsDescendants = true
-	heroes.Parent = win.body
+	row.VerticalAlignment = Enum.VerticalAlignment.Top
+	strip.Parent = win.body
+	heroes = strip
 
 	local box, input = Kit.textBox(Vector2.new(420, NAME_H), "Hero name")
 	box.Position = UDim2.fromOffset(0, NAME_Y)
@@ -260,6 +277,7 @@ function CharacterController.init()
 		if typeof(msg) ~= "table" then
 			return
 		end
+		waiting = false
 		if msg.ok then
 			if msg.action == "setup" then
 				win.close()
