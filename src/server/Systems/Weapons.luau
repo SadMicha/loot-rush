@@ -171,6 +171,7 @@ local function waitForAppearance(player: Player)
 end
 
 local watched: { [Model]: boolean } = {}
+local generation: { [Player]: number } = {} -- newest equip call per player; older ones give up
 
 -- Re-equip when the hand the weapon hangs on is replaced (avatar loading, HumanoidDescription)
 local function watch(player: Player, character: Model)
@@ -224,8 +225,13 @@ function WeaponSystem.equip(player: Player)
 	if not w then
 		return
 	end
+	local gen = (generation[player] or 0) + 1
+	generation[player] = gen
 	waitForAppearance(player) -- may yield (avatar still loading)
 	local mesh = loadMesh(w) -- may yield (first load per server)
+	if generation[player] ~= gen then
+		return -- a newer equip (class change, respawn) started while this one waited
+	end
 	if player.Character ~= character or not character.Parent then
 		return -- respawned while loading: the new character equips itself
 	end
@@ -298,6 +304,9 @@ function WeaponSystem.start()
 	end
 	Players.PlayerAdded:Connect(function(player: Player)
 		task.spawn(onPlayer, player)
+	end)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		generation[player] = nil
 	end)
 end
 
