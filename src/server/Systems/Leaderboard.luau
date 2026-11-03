@@ -56,8 +56,10 @@ local function storeOf(boardId: string): OrderedDataStore?
 end
 
 -- Pending improvements of the running run: boardId → { value, known (account best before) }.
--- The account best is raised at once (so the save never misses it, even when the player leaves
--- and Data ends the session first); the OrderedDataStore write waits for the run end.
+-- The account best is raised at once and marked unsent (account.unsent), so the save never misses
+-- it even when the player leaves and Data ends the session first. The OrderedDataStore write
+-- waits for the run end; a write that is not confirmed in a saved session is retried on the next
+-- join (UpdateAsync keeps the higher value, so a repeated write is harmless).
 type Pending = { account: Data.Account, boards: { [string]: { value: number, known: number } } }
 
 -- Remembers a cleared depth of the running run (called by Rift after every boss)
@@ -84,6 +86,7 @@ function Leaderboard.note(
 			local entry = p.boards[id]
 			p.boards[id] = { value = value, known = if entry then entry.known else known }
 			account.boards[id] = value
+			account.unsent[id] = value
 		end
 	end
 end
@@ -99,6 +102,9 @@ function Leaderboard.taint(player: Player)
 	for id, entry in p.boards do
 		if p.account.boards[id] == entry.value then
 			p.account.boards[id] = if entry.known > 0 then entry.known else nil :: any
+		end
+		if p.account.unsent[id] == entry.value then
+			p.account.unsent[id] = nil
 		end
 	end
 end
@@ -139,13 +145,25 @@ function Leaderboard.flush(player: Player)
 	local userId = player.UserId
 	for boardId, entry in p.boards do
 		task.spawn(function()
-			if
-				not write(userId, boardId, entry.value)
-				and p.account.boards[boardId] == entry.value
-			then
-				p.account.boards[boardId] = if entry.known > 0 then entry.known else nil :: any
+			-- Failed: stays in account.unsent, the next join retries it
+			if write(userId, boardId, entry.value) and p.account.unsent[boardId] == entry.value then
+				p.account.unsent[boardId] = nil
 			end
 		end)
+	end
+end
+
+-- Retries board writes a previous session could not confirm (on join)
+local function resend(player: Player)
+	local account = Data.waitForAccount(player)
+	if not account or not player.Parent then
+		return
+	end
+	local userId = player.UserId
+	for boardId, value in table.clone(account.unsent) do
+		if write(userId, boardId, value) and account.unsent[boardId] == value then
+			account.unsent[boardId] = nil
+		end
 	end
 end
 
@@ -286,6 +304,15 @@ function Leaderboard.init()
 	end)
 	Movement.Struck.Event:Connect(function(player: Player)
 		Leaderboard.taint(player)
+	end)
+end
+
+function Leaderboard.start()
+	for _, player in Players:GetPlayers() do
+		task.spawn(resend, player)
+	end
+	Players.PlayerAdded:Connect(function(player: Player)
+		task.spawn(resend, player)
 	end)
 end
 

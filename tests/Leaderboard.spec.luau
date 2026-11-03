@@ -52,6 +52,9 @@ describe("Leaderboard rules", function()
 		expect(account.boards.t1_mage).toBeNil()
 		expect(account.boards.nope).toBeNil()
 		expect(account.boards.t1_ranger).toBeNil()
+		local unsent = Profile.reconcileAccount({ unsent = { t1_mage = 50000, bogus = 3 } }).unsent
+		expect(unsent.t1_mage).toBe(50000)
+		expect(unsent.bogus).toBeNil()
 		expect(Profile.fresh().debugged).toBe(false)
 	end)
 end)
@@ -97,6 +100,10 @@ describe("Leaderboard server", function()
 			return req("ServerScriptService.Server.Systems.Data").account(player).boards.t2_ranger
 		end)
 		expect(best).toBeNil()
+		local unsent = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").account(player).unsent.t2_ranger
+		end)
+		expect(unsent).toBeNil()
 	end)
 
 	it("a test command marks the hero as debugged", function()
