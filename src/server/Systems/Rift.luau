@@ -172,10 +172,11 @@ local function mark(r: Run, model: Model?)
 	end
 end
 
-local function spawnPoint(r: Run, at: Vector3?, spread: number?): Vector3
+local function spawnPoint(r: Run): Vector3
 	local angle = rng:NextNumber(0, math.pi * 2)
-	local radius = rng:NextNumber(0, spread or Config.ENEMY_ZONE_RADIUS)
-	return (at or (r.center + Config.ENEMY_ZONE))
+	local radius = rng:NextNumber(0, Config.ENEMY_ZONE_RADIUS)
+	return r.center
+		+ Config.ENEMY_ZONE
 		+ Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 

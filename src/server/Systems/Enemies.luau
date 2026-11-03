@@ -1133,6 +1133,7 @@ local function step(dt: number)
 			target
 			and targetPos
 			and (e.mods.mortar or (kind.boss and e.stage >= 2))
+			and dist <= Config.COMBAT_RADIUS -- only once the fight is on (combat HUD, on camera)
 			and now >= e.nextMortar
 		then
 			mortar(e, targetPos, vel, now)
