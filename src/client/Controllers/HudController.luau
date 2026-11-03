@@ -989,7 +989,7 @@ local function buildCalmPanels()
 		gearGroup,
 		Vector2.new(1, 1),
 		UDim2.new(1, gearX, 1, gearY),
-		UDim2.new(1, gearX + 200, 1, gearY),
+		UDim2.new(1, 3 * cellW + 10, 1, gearY), -- fully off the right edge
 		3,
 		false
 	)

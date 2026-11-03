@@ -39,6 +39,7 @@ local win: Window.Window
 local pages: { [string]: Rules.Page } = {}
 local tier = 0 -- 0 = overall ladder
 local class = ""
+local autoClass = "" -- class picked from the hero (not by a click): follows the hero until a click
 local list: ScrollingFrame
 local mineRow: Frame
 local status: TextLabel
@@ -160,6 +161,16 @@ local function show()
 	request(boardId())
 end
 
+-- Opening: the class tab follows the hero (setup may pick the class after init) until a click
+local function opened()
+	local hero = Kit.playerClass()
+	if class == autoClass and Classes.ById[hero] and hero ~= class then
+		class, autoClass = hero, hero
+		classTabs.select(hero)
+	end
+	show()
+end
+
 local function build()
 	local body = Window.BODY
 	local panel = Kit.panel(body)
@@ -232,14 +243,15 @@ local function build()
 	if not Classes.ById[class] then
 		class = Classes.DEFAULT
 	end
+	autoClass = class
 	classTabs.select(class)
 end
 
 -- ------------------------------------------------------------------ Board in the hub
 local function renderHub()
 	local rows, st = hubRows, hubStatus
-	if not rows or not st then
-		return
+	if not rows or not st or not rows:IsDescendantOf(workspace) then
+		return -- no board, or its part streamed out (rebuilt when it streams back in)
 	end
 	clear(rows)
 	local page = pages[Rules.OVERALL]
@@ -305,11 +317,19 @@ local function buildHubBoard(screen: BasePart)
 	renderHub()
 end
 
+-- The screen part can stream out and back in (StreamingEnabled): a new part gets a new board
+local function bindScreen(screen: Instance)
+	if screen.Name == "LeaderboardScreen" and screen:IsA("BasePart") then
+		buildHubBoard(screen)
+	end
+end
+
 local function watchHub()
+	workspace.DescendantAdded:Connect(bindScreen)
 	local hub = workspace:WaitForChild("Lumenhaven", 60)
 	local screen = hub and hub:FindFirstChild("LeaderboardScreen", true)
-	if screen and screen:IsA("BasePart") then
-		buildHubBoard(screen)
+	if screen and not (hubRows and hubRows:IsDescendantOf(screen)) then
+		bindScreen(screen)
 	end
 	while true do
 		request(Rules.OVERALL)
@@ -334,7 +354,7 @@ end
 function LeaderboardController.init()
 	win = Window.new({ name = "Leaderboard", title = "Leaderboard", icon = "trophy" })
 	build()
-	win.onOpen(show)
+	win.onOpen(opened)
 	Net.BoardData.OnClientEvent:Connect(function(page: any)
 		if
 			typeof(page) ~= "table"
