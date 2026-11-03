@@ -1,6 +1,10 @@
 --!strict
 -- Held weapons per class, from the owner's weapon pack (assets/weapons/<Folder>/Standard.fbx +
--- Color.png, 2026-11-02). Systems/Weapons puts the weapon into the character's right hand.
+-- Color.png, 2026-11-02). Systems/Weapons puts the weapon into the character's hand.
+--
+-- How a weapon is held (docs/WEAPONS.md "Holding"): sword, staff and scepter in the right hand
+-- with the arm raised forward (Roblox's own "hold a tool" arm pose, HOLD_ANIM), blade/head up;
+-- the bow in the left hand with the arm down, limbs vertical, string toward the body.
 --
 -- The 3D models need two Roblox ids each (see docs/WEAPONS.md): the mesh (Model asset from the
 -- FBX) and the texture (Image asset from Color.png). Both live in Assets.Weapon. While an id is
@@ -14,14 +18,26 @@ export type Weapon = {
 	length: number, -- studs: longest side once held (the mesh is scaled to it)
 	-- Where the hand holds the weapon: share of the length from the butt (measured on the FBX).
 	gripAt: number,
-	-- Pose in the hand frame (hand +Y = up the arm, -Z = forward). Weapon space: the grip point is
-	-- the origin and the head/tip points to +Y. Identity = held upright beside the body.
+	-- Bounding-box center of the mesh relative to the grip point across the long axis (X, Z in
+	-- weapon space), as share of the length; measured on the FBX like gripAt.
+	offset: Vector2,
+	hand: string, -- "right" | "left"
+	ready: boolean, -- true = arm raised forward (HOLD_ANIM); false = arm hangs down
+	-- Pose in the hand frame (hand +Y = up the arm, -Z = forward while the arm hangs). Weapon
+	-- space: the grip point is the origin and the head/tip points to +Y. With the arm raised
+	-- forward (ready) the hand's -Z points up, so CFrame.Angles(-90°, 0, 0) holds a weapon upright.
 	grip: CFrame,
 	color: Color3, -- main color of the part fallback
 	accent: Color3, -- glow/accent color of the part fallback
 }
 
 local Weapons = {}
+
+-- Roblox's default "toolnone" animations (arm raised forward, like holding any Roblox tool)
+Weapons.HOLD_ANIM = table.freeze({
+	R15 = "rbxassetid://507768375",
+	R6 = "rbxassetid://182393478",
+})
 
 Weapons.List = table.freeze({
 	table.freeze({
@@ -30,8 +46,12 @@ Weapons.List = table.freeze({
 		class = "warrior",
 		folder = "Warrior_Sword",
 		length = 4.2,
-		gripAt = 0.07,
-		grip = CFrame.Angles(math.rad(-70), 0, 0),
+		gripAt = 0.19, -- middle of the handle, between pommel and guard
+		offset = Vector2.new(-0.038, 0), -- knuckle guard on one side
+		hand = "right",
+		ready = true,
+		-- blade up, tipped 15° forward, edges (and knuckle guard) facing forward
+		grip = CFrame.Angles(math.rad(-105), 0, 0) * CFrame.Angles(0, math.rad(-90), 0),
 		color = Color3.fromHex("#C9D2DE"),
 		accent = Color3.fromHex("#E8B04A"),
 	}),
@@ -41,8 +61,12 @@ Weapons.List = table.freeze({
 		class = "ranger",
 		folder = "Ranger_Bow",
 		length = 4.4,
-		gripAt = 0.45,
-		grip = CFrame.Angles(0, math.rad(90), 0),
+		gripAt = 0.405, -- narrow handle below the arrow shelf
+		offset = Vector2.new(-0.034, 0),
+		hand = "left",
+		ready = false,
+		-- limbs vertical, tipped slightly forward; riser (+X) outward, string toward the body
+		grip = CFrame.Angles(math.rad(-8), 0, 0) * CFrame.Angles(0, math.rad(180), 0),
 		color = Color3.fromHex("#8A5A34"),
 		accent = Color3.fromHex("#7FD27A"),
 	}),
@@ -53,7 +77,10 @@ Weapons.List = table.freeze({
 		folder = "Mage_Staff",
 		length = 5.2,
 		gripAt = 0.29,
-		grip = CFrame.Angles(math.rad(-8), 0, 0),
+		offset = Vector2.new(0.013, 0.013),
+		hand = "right",
+		ready = true,
+		grip = CFrame.Angles(math.rad(-100), 0, 0), -- upright, head tipped 10° forward
 		color = Color3.fromHex("#6B4A8E"),
 		accent = Color3.fromHex("#4FD8F5"),
 	}),
@@ -63,8 +90,11 @@ Weapons.List = table.freeze({
 		class = "mushroom",
 		folder = "Druid_Scepter",
 		length = 3.6,
-		gripAt = 0.25,
-		grip = CFrame.Angles(math.rad(-8), 0, 0),
+		gripAt = 0.16, -- middle of the shaft, below the mushroom head
+		offset = Vector2.new(-0.03, 0),
+		hand = "right",
+		ready = true,
+		grip = CFrame.Angles(math.rad(-100), 0, 0),
 		color = Color3.fromHex("#5E7A3A"),
 		accent = Color3.fromHex("#E86FB5"),
 	}),

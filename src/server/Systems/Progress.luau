@@ -254,7 +254,7 @@ local function onPlayer(player: Player)
 	end
 end
 
--- After a class change (Systems/ClassChoice): bar to the new class, stats, snapshot
+-- After the class was set (Systems/Characters setup): bar to the class, stats, snapshot
 function Progress.classChanged(player: Player)
 	local profile = Data.get(player)
 	if profile then

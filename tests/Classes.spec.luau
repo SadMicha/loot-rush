@@ -54,11 +54,24 @@ local function server(fn)
 	return table.unpack(out, 1, out.n)
 end
 
-local function choose(id: string)
+-- First-join hero setup through the real remote (name + class)
+local function setup(id: string)
 	sim:runAs("client", function(req)
-		req("ReplicatedStorage.Shared.Net").Class:FireServer("choose", id)
+		req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Tester Hero", id)
 	end)
 	sim:run(1.2)
+end
+
+-- Plays the class like a new hero of that class would (switching heroes rejoins the game, which
+-- the sandbox cannot do): class on the active character, then the same refresh as the setup
+local function asClass(id: string)
+	server(function(req, player)
+		req("ServerScriptService.Server.Systems.Data").get(player).class = id
+		player:SetAttribute("Class", id)
+		req("ServerScriptService.Server.Systems.Progress").classChanged(player)
+		req("ServerScriptService.Server.Systems.Weapons").equip(player)
+	end)
+	sim:run(0.5)
 end
 
 -- A slime in front of the player that cannot walk (slow factor 0)
@@ -85,25 +98,48 @@ local function cast(slot: number, aim: Vector3)
 end
 
 describe("Classes in game", function()
-	it("asks new players for a class and switches bar and weapon on choice", function()
+	it("asks new players for name + class, then locks the class", function()
 		sim:boot({ seconds = 2 })
-		local chosen = server(function(_, player)
-			return player:GetAttribute("ClassChosen")
+		local pending = server(function(_, player)
+			return player:GetAttribute("SetupDone")
 		end)
-		expect(chosen).toBe(false)
-		choose("warrior")
-		local class, now, bar1, weapon = server(function(req, player)
+		expect(pending).toBe(false)
+		setup("warrior")
+		local class, now, bar1, weapon, name = server(function(req, player)
 			local p = req("ServerScriptService.Server.Systems.Data").get(player)
 			local held = player.Character:FindFirstChild("HeldWeapon")
 			return player:GetAttribute("Class"),
-				player:GetAttribute("ClassChosen"),
+				player:GetAttribute("SetupDone"),
 				p.progress.bar[1],
-				if held then held:GetAttribute("Weapon") else nil
+				if held then held:GetAttribute("Weapon") else nil,
+				p.name
 		end)
 		expect(class).toBe("warrior")
 		expect(now).toBe(true)
 		expect(bar1).toBe(Skills.forClass("warrior").bar[1])
 		expect(weapon).toBe("warrior_sword")
+		expect(name).toBe("Tester Hero")
+		-- a second setup (class change) is refused
+		setup("ranger")
+		local still = server(function(_, player)
+			return player:GetAttribute("Class")
+		end)
+		expect(still).toBe("warrior")
+	end)
+
+	it("creates a new hero in a free slot and refuses bad names", function()
+		local count, active = server(function(req, player)
+			local Characters = req("ServerScriptService.Server.Systems.Characters")
+			local bad = Characters.create(player, "x", "mage")
+			assert(bad == false, "short name accepted")
+			local Profile = req("ReplicatedStorage.Shared.Profile")
+			local account = req("ServerScriptService.Server.Systems.Data").account(player)
+			-- the slot itself (create = add + switch; the switch rejoins, not possible here)
+			local c = Profile.newCharacter(account, "Zap Two", "mage", os.time())
+			return #account.characters, account.active, c and c.class
+		end)
+		expect(count).toBe(2)
+		expect(active).toBe("c1")
 	end)
 
 	it("hits enemies in front with a melee arc, not behind", function()
@@ -144,7 +180,7 @@ describe("Classes in game", function()
 	end)
 
 	it("refuses another class's skills after a switch and ticks ranger zones", function()
-		choose("ranger")
+		asClass("ranger")
 		local target = slime(Vector3.new(0, 0, -10))
 		sim:run(0.2)
 		local hp0 = server(function()

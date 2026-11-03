@@ -38,21 +38,21 @@ end
 
 -- More equipped than there are slots (game pass gone)? Drop the extras - only on a
 -- player action, not on load (game pass ownership may arrive later)
-local function trim(player: Player, profile: Data.Profile)
-	local list = profile.pets.equipped
+local function trim(player: Player, account: Data.Account)
+	local list = account.pets.equipped
 	while #list > Pets.slots(player) do
 		table.remove(list)
 	end
 end
 
 function Pets.sync(player: Player)
-	local profile = Data.get(player)
-	if not profile then
+	local account = Data.account(player) -- pets are account-wide (all characters)
+	if not account then
 		return
 	end
 	local slots = Pets.slots(player)
 	local shown = {}
-	for i, id in profile.pets.equipped do
+	for i, id in account.pets.equipped do
 		if i <= slots then
 			table.insert(shown, id)
 		end
@@ -60,8 +60,8 @@ function Pets.sync(player: Player)
 	player:SetAttribute("PetSlots", slots)
 	player:SetAttribute("Pets", table.concat(shown, ","))
 	Net.Pets:FireClient(player, {
-		owned = Rules.knownOwned(profile.pets), -- unknown ones (newer server) are not shown
-		equipped = profile.pets.equipped,
+		owned = Rules.knownOwned(account.pets), -- unknown ones (newer server) are not shown
+		equipped = account.pets.equipped,
 		slots = slots,
 		odds = eggOdds,
 	})
@@ -80,26 +80,27 @@ end
 -- Hatch an egg. Returns (ok, text, pet ID?) (also for tests)
 function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	local profile = Data.get(player)
+	local account = Data.account(player)
 	local egg = Rules.EggById[eggId]
-	if not profile or not egg then
+	if not profile or not account or not egg then
 		return false, "Unknown egg", nil
 	end
 	local price = Rules.eggPrice(egg, Atlas.bestDepth(profile.atlas))
-	local have = if egg.price.kind == "gold" then profile.gold else profile.soulstars
+	local have = if egg.price.kind == "gold" then profile.gold else account.soulstars
 	if have < price then
 		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil
 	end
 	Shop.grant(player, egg.price.kind, -price)
 	local pet = Rules.roll(egg, rng)
-	local level, shards = Rules.hatchResult(profile.pets, pet.id)
-	local fresh = profile.pets.owned[pet.id] == nil
-	profile.pets.owned[pet.id] = level
+	local level, shards = Rules.hatchResult(account.pets, pet.id)
+	local fresh = account.pets.owned[pet.id] == nil
+	account.pets.owned[pet.id] = level
 	if shards > 0 then
 		Shop.grant(player, "shards", shards)
 	end
 	-- equip the first pet right away if a slot is free
-	if fresh and #profile.pets.equipped < Pets.slots(player) then
-		table.insert(profile.pets.equipped, pet.id)
+	if fresh and #account.pets.equipped < Pets.slots(player) then
+		table.insert(account.pets.equipped, pet.id)
 	end
 	Boosts.refresh(player)
 	Pets.sync(player)
@@ -116,13 +117,13 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 end
 
 function Pets.equip(player: Player, petId: string): (boolean, string)
-	local profile = Data.get(player)
+	local account = Data.account(player)
 	local pet = Rules.ById[petId]
-	if not profile or not pet or not profile.pets.owned[petId] then
+	if not account or not pet or not account.pets.owned[petId] then
 		return false, "Pet missing"
 	end
-	trim(player, profile)
-	local list = profile.pets.equipped
+	trim(player, account)
+	local list = account.pets.equipped
 	if table.find(list, petId) then
 		return false, "Already equipped"
 	end
@@ -136,12 +137,12 @@ function Pets.equip(player: Player, petId: string): (boolean, string)
 end
 
 function Pets.unequip(player: Player, petId: string): (boolean, string)
-	local profile = Data.get(player)
-	local index = if profile then table.find(profile.pets.equipped, petId) else nil
-	if not profile or not index then
+	local account = Data.account(player)
+	local index = if account then table.find(account.pets.equipped, petId) else nil
+	if not account or not index then
 		return false, "Not equipped"
 	end
-	table.remove(profile.pets.equipped, index)
+	table.remove(account.pets.equipped, index)
 	Boosts.refresh(player)
 	Pets.sync(player)
 	local pet = Rules.ById[petId]
@@ -154,11 +155,11 @@ local function onPet(player: Player, action: any, id: any)
 	end
 	if action == "hatch" then
 		local ok, text, petId = Pets.hatch(player, id)
-		local profile = Data.get(player)
+		local account = Data.account(player)
 		reply(player, ok, text, {
 			kind = "hatch",
 			pet = petId,
-			level = if petId and profile then profile.pets.owned[petId] else nil,
+			level = if petId and account then account.pets.owned[petId] else nil,
 		})
 	elseif action == "equip" then
 		local ok, text = Pets.equip(player, id)
@@ -171,8 +172,9 @@ end
 
 function Pets.init()
 	Net.Pet.OnServerEvent:Connect(onPet)
-	Boosts.source("pets", function(player, profile)
-		return Rules.total(profile.pets, Pets.slots(player))
+	Boosts.source("pets", function(player)
+		local account = Data.account(player)
+		return if account then Rules.total(account.pets, Pets.slots(player)) else {}
 	end)
 end
 

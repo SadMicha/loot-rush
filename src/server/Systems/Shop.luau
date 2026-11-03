@@ -35,12 +35,13 @@ end
 -- Stocks for Shared.Shop.check
 function Shop.wallet(player: Player): Rules.Wallet?
 	local profile = Data.get(player)
-	if not profile then
+	local account = Data.account(player)
+	if not profile or not account then
 		return nil
 	end
 	return {
 		gold = profile.gold,
-		soulstars = profile.soulstars,
+		soulstars = account.soulstars, -- account-wide
 		candy = profile.materials.candy,
 		shards = profile.materials.shards,
 		dust = profile.materials.dust,
@@ -50,7 +51,8 @@ end
 -- Change stock (negative = deduct, never below 0) and show it to the client
 function Shop.grant(player: Player, kind: string, amount: number)
 	local profile = Data.get(player)
-	if not profile then
+	local account = Data.account(player)
+	if not profile or not account then
 		return
 	end
 	if kind == "gold" then
@@ -59,8 +61,8 @@ function Shop.grant(player: Player, kind: string, amount: number)
 		Progress.addMaterials(player, { [kind] = amount })
 		Progress.sync(player)
 	elseif kind == "soulstars" then
-		profile.soulstars = math.max(0, profile.soulstars + math.floor(amount))
-		player:SetAttribute("Soulstars", profile.soulstars)
+		account.soulstars = math.max(0, account.soulstars + math.floor(amount))
+		player:SetAttribute("Soulstars", account.soulstars)
 	end
 end
 
@@ -88,9 +90,9 @@ local function onBuy(player: Player, offerId: any)
 end
 
 local function onPlayer(player: Player)
-	local profile = Data.waitFor(player)
-	if profile then
-		player:SetAttribute("Soulstars", profile.soulstars)
+	local account = Data.waitForAccount(player)
+	if account then
+		player:SetAttribute("Soulstars", account.soulstars)
 	end
 end
 

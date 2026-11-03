@@ -11,8 +11,23 @@ per class. Stored in `assets/weapons/<Folder>/Standard.fbx` and `Color.png` (tex
 | Spark Mage Zap (`mage`) | Spark Staff (`mage_staff`) | `Mage_Staff` |
 | Mushroom Shaman Mora (`mushroom`) | Spore Scepter (`druid_scepter`) | `Druid_Scepter` |
 
-`Systems/Weapons` sets the player attribute `Class` from the save (`profile.class`, default `mage`
-until class choice exists) and welds the class weapon into the right hand after every spawn.
+`Systems/Weapons` sets the player attribute `Class` from the active hero and welds the class weapon
+into its hand after every spawn.
+
+## Holding
+
+Measured on the FBX files (grip point = middle of the handle, `gripAt`, `offset` in
+`Shared/Weapons`):
+
+| Weapon | Hand | Arm | Pose |
+|---|---|---|---|
+| Sword | right | raised forward (Roblox's "hold a tool" animation) | blade up, 15° forward, edges and knuckle guard facing forward |
+| Staff, Scepter | right | raised forward | upright, head 10° forward |
+| Bow | left | hanging | limbs vertical, string toward the body |
+
+The arm pose is Roblox's default `toolnone` animation (`Weapons.HOLD_ANIM`), played by the server
+(replicates) and again on the inventory figure. Tune `grip` per weapon in Studio if a mesh still
+sits off.
 
 ## Getting the real meshes into the game
 

@@ -70,6 +70,11 @@ end
 describe("Phone layout", function()
 	it("HUD", function()
 		sim:boot({ seconds = 2 })
+		-- finish the first-join hero setup, otherwise its screen keeps coming back over every window
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Tester Hero", "mage")
+		end)
+		sim:run(1)
 		-- items and materials so the Forge & co. show real content
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]

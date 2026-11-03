@@ -495,6 +495,10 @@ local function buildSkills()
 	dash.Name = "Dash"
 	dashButton = dash
 	onTap(dash, DashController.dash)
+	-- Sprint art of the played class (each class has its own); the class arrives after the HUD
+	player:GetAttributeChangedSignal("Class"):Connect(function()
+		Kit.setRoundIcon(dash, Kit.skillArt("dash") or "skill_dash", "skill_dash")
+	end)
 	-- One diamond per maximum charge above the button: cyan = available, dark = spent
 	local pips, setPips = Kit.chargePips(H.DashDiamond)
 	pips.AnchorPoint = Vector2.new(0.5, 0.5)

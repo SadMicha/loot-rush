@@ -17,7 +17,7 @@ local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
-local ClassController = require(script.Parent.ClassController)
+local CharacterController = require(script.Parent.CharacterController)
 local ProgressController = require(script.Parent.ProgressController)
 
 local AbilitiesController = {}
@@ -93,17 +93,14 @@ local function renderList()
 	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
 	head.Position = UDim2.fromOffset(PAD, PAD - 6)
 	head.Parent = listPanel
-	-- Class change: hub only (the server refuses it inside a rift)
-	local change = Kit.button("Class", C.Gold, Vector2.new(110, 40), "crown")
-	change.Name = "ChangeClass"
+	-- Heroes: the class belongs to the hero; another class = another hero (switch outside rifts)
+	local change = Kit.button("Heroes", C.Gold, Vector2.new(124, 40), "crown")
+	change.Name = "Heroes"
 	change.AnchorPoint = Vector2.new(1, 0)
 	change.Position = UDim2.new(1, -PAD, 0, PAD - 10)
-	Kit.setEnabled(change, (player:GetAttribute("RiftPhase") or "") == "")
 	change.Activated:Connect(function()
-		if change.Active then
-			win.close()
-			ClassController.open()
-		end
+		win.close()
+		CharacterController.open()
 	end)
 	change.Parent = listPanel
 

@@ -5,6 +5,11 @@ local function rec()
 	return sim.datastores[STORE].p_1
 end
 
+-- The stored (only) character of the account
+local function hero()
+	return rec().Data.data.characters[1]
+end
+
 describe("Data", function()
 	it("loads a v1 save and starts a session", function()
 		-- ProfileStore raw value with an old v1 record in Data
@@ -33,10 +38,10 @@ describe("Data", function()
 			p.level, p.xp = 7, 12
 		end)
 		sim:run(130) -- Data sets ProfileStore's AUTO_SAVE_PERIOD to 120 s
-		expect(rec().Data.v).toBe(3)
-		expect(rec().Data.data.level).toBe(7)
-		expect(rec().Data.data.xp).toBe(12)
-		expect(rec().Data.data.gold).toBe(50)
+		expect(rec().Data.v).toBe(4)
+		expect(hero().level).toBe(7)
+		expect(hero().xp).toBe(12)
+		expect(hero().gold).toBe(50)
 		expect(rec().Data.lock).toBeNil()
 		expect(rec().UserIds[1]).toBe(1)
 	end)
@@ -52,8 +57,8 @@ describe("Data", function()
 		end)
 		sim:run(1)
 		expect(saved).toBe(true)
-		expect(rec().Data.data.level).toBe(9)
-		expect(rec().Data.data.gold == rec().Data.data.gold).toBe(true)
+		expect(hero().level).toBe(9)
+		expect(hero().gold == hero().gold).toBe(true)
 	end)
 
 	it("saveNow returns true only after the save is stored", function()
@@ -66,11 +71,11 @@ describe("Data", function()
 		end)
 		-- Same moment: saveNow is still waiting for the DataStore
 		expect(done).toBe(false)
-		expect(rec().Data.data.level).toBe(9)
+		expect(hero().level).toBe(9)
 		sim:run(1)
 		expect(done).toBe(true)
 		expect(saved).toBe(true)
-		expect(rec().Data.data.level).toBe(11)
+		expect(hero().level).toBe(11)
 	end)
 
 	it("saveNow returns false when the save fails and true again afterwards", function()
@@ -84,14 +89,14 @@ describe("Data", function()
 		sim:run(1)
 		sim.datastoreAccess = true
 		expect(saved).toBe(false)
-		expect(rec().Data.data.level).toBe(11)
+		expect(hero().level).toBe(11)
 		-- The failed save is settled: the next saveNow waits for its own result
 		sim:runAs("server", function(require)
 			saved = require("ServerScriptService.Server.Systems.Data").saveNow(sim.player)
 		end)
 		sim:run(1)
 		expect(saved).toBe(true)
-		expect(rec().Data.data.level).toBe(13)
+		expect(hero().level).toBe(13)
 	end)
 
 	it("releases the session on server shutdown", function()
@@ -103,6 +108,6 @@ describe("Data", function()
 		end)
 		sim:run(2)
 		expect(rec().MetaData.ActiveSession).toBeNil()
-		expect(rec().Data.data.level).toBe(12)
+		expect(hero().level).toBe(12)
 	end)
 end)

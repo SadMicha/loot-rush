@@ -16,6 +16,7 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Spring = require(script.Parent.Parent.UI.Spring)
@@ -207,6 +208,23 @@ local function refreshViewport()
 	world.Parent = viewport
 	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
+	-- Clones carry no playing animations: raise the weapon arm like in game (Systems/Weapons)
+	local held = clone:FindFirstChild("HeldWeapon")
+	local weapon = held and Weapons.ById[tostring(held:GetAttribute("Weapon") or "")]
+	local humanoid = clone:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if weapon and weapon.ready and humanoid and animator then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = if humanoid.RigType == Enum.HumanoidRigType.R6
+			then Weapons.HOLD_ANIM.R6
+			else Weapons.HOLD_ANIM.R15
+		pcall(function()
+			local track = animator:LoadAnimation(anim)
+			track.Priority = Enum.AnimationPriority.Action
+			track.Looped = true
+			track:Play(0)
+		end)
+	end
 	-- Idle: gentle swaying and breathing while the window is open
 	local base = clone:GetPivot()
 	local t0 = os.clock()

@@ -383,7 +383,7 @@ function Kit.setIconTransparency(icon: GuiObject, transparency: number)
 end
 
 -- ------------------------------------------------------------------ Class art
--- Class of the local player (attribute "Class", Systems/ClassChoice); Theme.Class.Default before load.
+-- Class of the local player (attribute "Class", Systems/Characters); Theme.Class.Default before load.
 function Kit.playerClass(): string
 	local value = Players.LocalPlayer:GetAttribute("Class")
 	if typeof(value) == "string" and Theme.Class.SkillName[string.lower(value)] then

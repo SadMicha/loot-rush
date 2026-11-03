@@ -50,12 +50,15 @@ describe("Held weapon in game", function()
 		expect(class).toBe("mage")
 		expect(weapon).toBe("mage_staff")
 		expect(welded).toBeGreaterThan(0)
-		-- held upright: the staff's center sits above the grip point, close to the hand
-		local up, side = server(function(_, player)
+		-- the staff's center lies along its long axis from the grip point (head up in the pose)
+		local staff = Weapons.ById.mage_staff
+		local along, side = server(function(_, player)
 			local joint = player.Character.HeldWeapon.Grip
-			return joint.C0.Position.Y, math.abs(joint.C0.Position.X)
+			local p = joint.C0.Position
+			local axis = staff.grip.UpVector
+			return p:Dot(axis), (p - axis * p:Dot(axis)).Magnitude
 		end)
-		expect(up).toBeGreaterThan(0.5)
+		expect(along).toBeGreaterThan(0.5)
 		expect(side).toBeLessThan(0.5)
 		local after, count = server(function(req, player)
 			player:SetAttribute("Class", "warrior")
@@ -76,5 +79,23 @@ describe("Held weapon in game", function()
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")
 		end
+	end)
+end)
+
+describe("Weapon grips", function()
+	it("holds every weapon by a hand with a sane grip point and pose", function()
+		for _, w in Weapons.List do
+			expect(w.hand == "right" or w.hand == "left").toBe(true)
+			expect(w.gripAt > 0 and w.gripAt < 0.5).toBe(true)
+			expect(math.abs(w.offset.X) < 0.1 and math.abs(w.offset.Y) < 0.1).toBe(true)
+			if w.ready then
+				-- arm raised forward: the hand's -Z points up, the head must point that way
+				expect(w.grip.UpVector:Dot(Vector3.new(0, 0, -1))).toBeGreaterThan(0.9)
+			else
+				expect(w.grip.UpVector.Y).toBeGreaterThan(0.9) -- arm down: weapon upright
+			end
+		end
+		expect(Weapons.ByClass.ranger.hand).toBe("left")
+		expect(Weapons.ByClass.warrior.hand).toBe("right")
 	end)
 end)

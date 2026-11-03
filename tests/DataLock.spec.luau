@@ -38,9 +38,10 @@ describe("Data session lock", function()
 	it("waits for the other server's session and loads its last save", function()
 		sim:runAs("server", function()
 			local other = sim:requireFresh(PACKAGE, { jobId = "other-server" })
-			otherStore = other.New(STORE_NAME, { v = Profile.VERSION, data = Profile.fresh() })
+			otherStore =
+				other.New(STORE_NAME, { v = Profile.VERSION, data = Profile.freshAccount() })
 			otherProfile = otherStore:StartSessionAsync("p_1", {})
-			otherProfile.Data.data.gold = 99 -- not saved yet, only on session end
+			otherProfile.Data.data.characters[1].gold = 99 -- not saved yet, only on session end
 		end)
 		sim:run(7) -- ProfileStore ignores session messages while os.clock() < 6
 		expect(otherProfile:IsActive()).toBe(true)
@@ -78,14 +79,14 @@ describe("Data session lock", function()
 		expect(kicks[1]).toMatch("opened on another server")
 		expect(taken).never.toBeNil()
 		expect(taken:IsActive()).toBe(true)
-		expect(taken.Data.data.gold).toBe(123) -- this server's last save went through first
+		expect(taken.Data.data.characters[1].gold).toBe(123) -- this server's last save went through first
 		expect(raw("p_1").MetaData.ActiveSession[2]).toBe("other-server")
 	end)
 
 	it("does not load a save held by a silent server until ProfileStore gives up on it", function()
 		-- Raw value with a session of a server that never answers (crashed / hung)
 		sim.datastores[STORE].p_2 = {
-			Data = { v = Profile.VERSION, data = { gold = 77 } },
+			Data = { v = Profile.VERSION, data = { characters = { { id = "c1", gold = 77 } } } },
 			MetaData = {
 				ProfileCreateTime = 0,
 				SessionLoadCount = 5,

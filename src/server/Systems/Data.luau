@@ -1,5 +1,6 @@
 --!strict
--- Save data: the only place that touches DataStores. Gameplay only changes the table from Data.get.
+-- Save data: the only place that touches DataStores. Gameplay only changes the table from Data.get
+-- (the active character) or Data.account (account-wide values: Soulstars, receipts, passes, pets).
 --  • ProfileStore (ServerPackages) owns the session lock, autosave (every 2 min), retries and
 --    BindToClose. Only one server owns a save at a time: a second server asks the owner to end
 --    its session (MessagingService) and loads only after that last save went through.
@@ -16,7 +17,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ProfileSchema = require(ReplicatedStorage.Shared.Profile)
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 
-export type Profile = ProfileSchema.Data
+export type Profile = ProfileSchema.Data -- one character
+export type Account = ProfileSchema.Account
 
 -- New name for the ProfileStore format: saves from LootRush_Profile_v2 (own lock format) are ignored
 local STORE_NAME = "LootRush_Profile_v3"
@@ -37,13 +39,14 @@ local KICK = table.freeze({
 
 local store = ProfileStore.New(STORE_NAME, {
 	v = ProfileSchema.VERSION,
-	data = ProfileSchema.fresh(),
+	data = ProfileSchema.freshAccount(),
 })
 type StoreProfile = typeof(assert(store:StartSessionAsync("", {})))
 
 type Session = {
 	profile: StoreProfile,
-	data: Profile,
+	account: Account,
+	data: Profile, -- active character (fixed for the session; switching = rejoin)
 	mock: boolean, -- Studio without API access: never really stored
 	leaving: boolean, -- we end the session ourselves (player left)
 	-- Saves of one key run one after another (ProfileStore update queue), each one ends with
@@ -93,7 +96,7 @@ local function watch(player: Player, session: Session)
 	local profile = session.profile
 	profile.OnSave:Connect(function()
 		session.started += 1
-		local fixed = ProfileSchema.sanitize(session.data)
+		local fixed = ProfileSchema.sanitize(session.account)
 		if fixed > 0 then
 			warn(`[LootRush] repaired {fixed} invalid values in save:`, player.UserId)
 		end
@@ -161,7 +164,8 @@ local function open(player: Player)
 
 	local session: Session = {
 		profile = profile,
-		data = record.data,
+		account = record.data,
+		data = ProfileSchema.active(record.data),
 		mock = not live,
 		leaving = false,
 		started = 0,
@@ -191,9 +195,16 @@ local function load(player: Player)
 	end
 end
 
+-- Active character of the player (nil while the save loads)
 function Data.get(player: Player): Profile?
 	local session = sessions[player]
 	return session and session.data
+end
+
+-- Account of the player: account-wide values and the character list
+function Data.account(player: Player): Account?
+	local session = sessions[player]
+	return session and session.account
 end
 
 -- Save immediately. true only once this save is stored in the DataStore (Robux purchases are
@@ -223,6 +234,11 @@ function Data.waitFor(player: Player): Profile?
 		task.wait(0.1)
 	end
 	return Data.get(player)
+end
+
+function Data.waitForAccount(player: Player): Account?
+	Data.waitFor(player)
+	return Data.account(player)
 end
 
 function Data.init()

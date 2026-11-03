@@ -61,6 +61,11 @@ describe("Inventory", function()
 
 	it("shows an item's stats only once when nothing is equipped", function()
 		sim:boot({ seconds = 1 })
+		-- finish the first-join hero setup, otherwise its screen keeps coming back over every window
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Tester Hero", "mage")
+		end)
+		sim:run(1)
 		local rng = Random.new(7)
 		first = Items.roll(5, rng)
 		while #first.affixes == 0 do
