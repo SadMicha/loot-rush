@@ -23,6 +23,11 @@ return table.freeze({
 	DASH_DURATION = 0.2,
 	DASH_CHARGES = 2,
 	DASH_RECHARGE = 2.5, -- seconds per charge
+	-- Server movement check (Systems/Movement): speed/teleport hacks get pulled back
+	MOVE_SAMPLE = 0.25, -- seconds between position samples
+	MOVE_SLACK = 1.35, -- walk speed factor allowed (lag, slopes, knockback)
+	MOVE_GRACE = 4, -- studs per sample on top (replication jitter)
+	MOVE_BURST = 40, -- studs of extra distance banked for dashes (refills over DASH_RECHARGE)
 
 	-- World
 	TILE_SIZE = 8,
