@@ -456,7 +456,7 @@ end
 
 -- Icon from the atlas image (Assets.Icon), otherwise a neutral placeholder
 function Kit.icon(name: string, size: number, color: Color3?): GuiObject
-	local classArt = Assets.Class[name]
+	local classArt = Assets.Class[name] or Assets.IconImage[name]
 	if classArt then
 		local img = Instance.new("ImageLabel")
 		img.Name = "Icon_" .. name

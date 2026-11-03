@@ -15,7 +15,7 @@ describe("Icons", function()
 
 	it("catalogs only use existing icons", function()
 		local function check(where: string, key: string)
-			if Assets.Icon[key] == nil then
+			if Assets.Icon[key] == nil and Assets.IconImage[key] == nil then
 				error(`{where}: unknown icon "{key}"`)
 			end
 		end
