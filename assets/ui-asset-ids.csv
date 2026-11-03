@@ -107,3 +107,7 @@ pass_vip,137405036075950,assets/ui/icons/store/pass_vip.png
 pass_magnet,83134635006465,assets/ui/icons/store/pass_magnet.png
 pass_pet_slot,113670167155375,assets/ui/icons/store/pass_pet_slot.png
 pack_ember,115660814935673,assets/ui/icons/store/pack_ember.png
+vfx_trail_gilded,112657872833926,assets/vfx/trail_gilded.png
+vfx_trail_ember,97154003089217,assets/vfx/trail_ember.png
+vfx_trail_frost,133044313718164,assets/vfx/trail_frost.png
+vfx_trail_void,137876026395589,assets/vfx/trail_void.png
