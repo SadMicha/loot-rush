@@ -28,6 +28,7 @@ local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Feel = require(ReplicatedStorage.Shared.Feel)
+local Anim = require(ReplicatedStorage.Shared.Anim)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
 
@@ -83,6 +84,8 @@ type Enemy = {
 	windup: number, -- attack wind-up in seconds (kind.windup, shorter when Fast)
 	nextAura: number, -- Frozen aura: next slow pulse
 	goblinUntil: number, -- Treasure Goblin: escapes at this time (0 = no goblin)
+	lungeAt: number, -- when the last attack landed (body language, Shared/Anim)
+	facing: Vector3, -- last walking/attack direction (flat); the tilt is added on top
 }
 
 local Enemies = {}
@@ -424,6 +427,7 @@ local list: { Enemy } = {}
 local folder: Folder
 -- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
 local knock: { [Model]: Vector3 } = {}
+local hitAt: { [Model]: number } = {} -- last direct hit (recoil tilt)
 local rng = Random.new()
 
 local function flat(
@@ -622,6 +626,8 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		goblinUntil = if o.goblin then now + RiftVariants.GOBLIN_TIME else 0,
 		windup = kind.windup * (if mods.fast then EliteMods.FAST_WINDUP else 1),
 		nextAura = now,
+		lungeAt = -1,
+		facing = Vector3.new(0, 0, -1),
 	})
 	return model
 end
@@ -808,6 +814,7 @@ end
 local function resolveAttack(e: Enemy, now: number)
 	clearTelegraph(e)
 	e.windupEnd = 0
+	e.lungeAt = now
 	e.nextAttack = now + e.kind.cooldown * e.cdMult
 	local kind = e.kind
 	local hit: { [Player]: boolean } = {}
@@ -926,6 +933,7 @@ local function step(dt: number)
 		if not model.Parent then
 			clearTelegraph(e)
 			knock[model] = nil
+			hitAt[model] = nil
 			table.remove(list, i)
 			continue
 		end
@@ -936,6 +944,7 @@ local function step(dt: number)
 		local target, targetPos, dist = nearestPlayer(pos)
 		local y = baseY
 		local dir = Vector3.zero
+		local walking = false
 
 		if kind.boss then
 			phaseCheck(e, pos)
@@ -973,6 +982,7 @@ local function step(dt: number)
 				local step3 = dir * kind.speed * RiftVariants.GOBLIN_SPEED * dt
 				pos = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 9 + e.phase)) * 0.8 * kind.scale
+				walking = true
 			end
 		elseif e.dashEnd > 0 then
 			-- Charge along the telegraph line
@@ -1014,6 +1024,7 @@ local function step(dt: number)
 				local np = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 7 + e.phase)) * 0.8 * kind.scale
 				pos = np
+				walking = true
 			end
 		else
 			y = baseY + math.abs(math.sin(now * 3 + e.phase)) * 0.25 * kind.scale
@@ -1041,12 +1052,24 @@ local function step(dt: number)
 			end
 		end
 
-		local here = Vector3.new(pos.X, y, pos.Z)
-		if dir.Magnitude > 0.01 then
-			model:PivotTo(CFrame.lookAt(here, here + dir.Unit))
-		else
-			model:PivotTo(CFrame.new(here) * model:GetPivot().Rotation)
+		-- Body language: lean back while winding up, snap forward when the attack lands, lean
+		-- into a charge, recoil from direct hits, waddle while walking (Shared/Anim)
+		local windup = if e.windupEnd > 0 then 1 - (e.windupEnd - now) / e.windup else nil
+		local pitch = Anim.enemyPitch(windup, now - e.lungeAt, now - (hitAt[model] or -10))
+		if e.dashEnd > 0 then
+			pitch -= Anim.ENEMY_LUNGE * 0.6
 		end
+		local roll = if walking
+			then math.sin(now * Anim.ENEMY_WALK_RATE + e.phase) * Anim.ENEMY_WADDLE
+			else 0
+		local here = Vector3.new(pos.X, y, pos.Z)
+		local flatDir = Vector3.new(dir.X, 0, dir.Z)
+		if flatDir.Magnitude > 0.01 then
+			e.facing = flatDir.Unit
+		end
+		model:PivotTo(
+			CFrame.lookAt(here, here + e.facing) * CFrame.Angles(math.rad(pitch), 0, math.rad(roll))
+		)
 	end
 end
 
@@ -1071,6 +1094,7 @@ function Enemies.knockback(model: Model, from: Vector3, crit: boolean)
 		force *= Feel.KNOCKBACK_BOSS
 	end
 	knock[model] = away.Unit * force
+	hitAt[model] = os.clock()
 end
 
 function Enemies.start()
