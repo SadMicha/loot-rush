@@ -212,7 +212,7 @@ local ATLAS = {
 
 -- Icons in the atlas images: ImageRectOffset = offset, ImageRectSize = IconSize.
 -- Unassigned icons keep their sheet code (A11 ... K44), see Icon_Zuordnung.csv.
-Assets.Icon = table.freeze({
+local icon: { [string]: Icon } = {
 	inventory = { id = ATLAS.icons_01, offset = Vector2.new(0, 0) },
 	star_net = { id = ATLAS.icons_01, offset = Vector2.new(256, 0) },
 	skills = { id = ATLAS.icons_01, offset = Vector2.new(512, 0) },
@@ -361,7 +361,30 @@ Assets.Icon = table.freeze({
 	K34 = { id = ATLAS.icons_10, offset = Vector2.new(256, 0) },
 	K41 = { id = ATLAS.icons_10, offset = Vector2.new(512, 0) },
 	K42 = { id = ATLAS.icons_10, offset = Vector2.new(768, 0) },
-} :: { [string]: Icon })
+}
+-- Readable names for library icons that have a job in the game (same atlas cell as the code)
+local ICON_ALIAS: { [string]: string } = {
+	trail_gilded = "H11", -- golden star trail
+	trail_frost = "K41", -- ice streak
+	aura_ember = "G44", -- ring of fire
+	aura_frost = "G43", -- frost ring
+	pet_shroomling = "F13",
+	pet_spark_fox = "F11",
+	gold_sack = "J24", -- coin sack (gold pouch offers)
+	gold_hoard = "E13", -- gold burst (gold hoard offers)
+	buff_damage = "G22", -- crossed swords medallion
+	buff_armor = "G12", -- shield medallion
+	buff_haste = "G23", -- winged boot medallion
+	buff_shield = "G33", -- hex shield medallion
+	leaderboard = "F41", -- golden podium
+	shards_big = "J34", -- crystal shard (market card)
+	candy_big = "J41", -- rune candy (market card)
+	dust_big = "J42", -- glitter bottle (market card)
+}
+for name, code in ICON_ALIAS do
+	icon[name] = icon[code]
+end
+Assets.Icon = table.freeze(icon)
 
 -- Scene images and nodes of the Abilities, Star Net, Forge, Atlas and Shop windows
 -- (upload package LootRush_Upload_v8_Fenster). Entries without an ID are ignored; the windows

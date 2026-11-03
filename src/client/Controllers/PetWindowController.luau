@@ -364,7 +364,7 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 	local col = Theme.Rarity[pet.rarity] or C.Text
 	local inner = w - 2 * CARD_PAD
 
-	local big = Kit.itemSlot(ART, "companion", { rarity = pet.rarity })
+	local big = Kit.itemSlot(ART, Pets.iconOf(pet), { rarity = pet.rarity })
 	big.Active = false
 	big.Position = UDim2.fromOffset(CARD_PAD, CARD_PAD)
 	big.ZIndex = 2
@@ -462,7 +462,7 @@ end
 local function petCell(pet: Pets.Pet, level: number, equipped: boolean, selected: boolean): Frame
 	local cell = Window.frame(UDim2.fromOffset(CELL_W, CELL_H))
 	cell.Name = "Pet_" .. pet.id
-	local slot = Kit.itemSlot(SLOT, "companion", { rarity = pet.rarity, selected = selected })
+	local slot = Kit.itemSlot(SLOT, Pets.iconOf(pet), { rarity = pet.rarity, selected = selected })
 	slot.Name = "PetSlot"
 	slot.AnchorPoint = Vector2.new(0.5, 0)
 	slot.Position = UDim2.new(0.5, 0, 0, 6)

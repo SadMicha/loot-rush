@@ -22,6 +22,7 @@ export type Pet = {
 	look: string, -- blueprint in PetController (Creatures.*) until there is a "Pet_<id>" model
 	color: Color3,
 	glow: Color3,
+	icon: string?, -- Assets.Icon key for the Pet window; nil = the generic companion icon
 }
 export type Egg = {
 	id: string,
@@ -80,6 +81,7 @@ local LIST: { Pet } = {
 	{
 		id = "shroomling",
 		name = "Shroomling",
+		icon = "pet_shroomling",
 		rarity = "magic",
 		text = "A tough companion that makes you tougher.",
 		bonus = { life = 10 },
@@ -90,6 +92,7 @@ local LIST: { Pet } = {
 	{
 		id = "spark_fox",
 		name = "Spark Fox",
+		icon = "pet_spark_fox",
 		rarity = "rare",
 		text = "Its sparks hit harder.",
 		bonus = { damage = 10 },
@@ -176,6 +179,11 @@ Pets.EggById = table.freeze(eggById)
 
 -- Price of an egg for a player with this best depth (gold grows like in the shop,
 -- Soulstars stay fixed). Systems/Pets charges exactly this; the UI shows it.
+-- Icon for a pet in the UI (falls back to the generic companion icon)
+function Pets.iconOf(pet: Pet): string
+	return pet.icon or "companion"
+end
+
 function Pets.eggPrice(egg: Egg, bestDepth: number): number
 	if egg.price.kind ~= "gold" then
 		return egg.price.amount
