@@ -767,6 +767,42 @@
     395
    ],
    "registry": "Assets.Hud"
+  },
+  {
+   "key": "soulstars_s",
+   "file": "assets/ui/icons/store/soulstars_s.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_m",
+   "file": "assets/ui/icons/store/soulstars_m.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_l",
+   "file": "assets/ui/icons/store/soulstars_l.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_xl",
+   "file": "assets/ui/icons/store/soulstars_xl.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
