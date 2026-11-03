@@ -48,6 +48,7 @@ local currentName: string? = nil -- opts.name of `current`
 local reserve = 0 -- screen pixels kept free at the bottom (menu dock over open windows)
 local reserveLeft = 0 -- screen pixels kept free at the left (phones: the dock stands there)
 local arrangers: { () -> () } = {} -- relayout of every window when the reserve changes
+local exempt: { [string]: boolean } = {} -- windows the dock never shows over (full screen always)
 local gate: ((unlockId: string) -> boolean)? = nil -- true = locked (set by QuestController)
 local others: { () -> () } = {} -- further fullscreen windows (inventory) that close when one opens
 local otherOpen: { () -> boolean } = {} -- their "is open" probes
@@ -105,6 +106,11 @@ end
 
 function Window.reserve(): (number, number)
 	return reserve, reserveLeft
+end
+
+-- Window (Options.name) that the menu dock is never shown over: it ignores the reserve
+function Window.exempt(name: string)
+	exempt[name] = true
 end
 
 -- Relayout hook for windows outside this module (inventory)
@@ -465,8 +471,10 @@ function Window.new(opts: Options): Window
 		x.Position = UDim2.new(1, -28, 0, mid)
 
 		local top = math.max(mid + HEAD / 2 + 16, barH + 8)
-		local leftFree = reserveLeft / s
-		local availW, availH = view.X - 2 * MARGIN - leftFree, view.Y - top - 12 - reserve / s
+		local free = not exempt[opts.name]
+		local leftFree = if free then reserveLeft / s else 0
+		local bottomFree = if free then reserve / s else 0
+		local availW, availH = view.X - 2 * MARGIN - leftFree, view.Y - top - 12 - bottomFree
 		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
 		bodyScale.Scale = k
 		restPos = UDim2.fromOffset((view.X + leftFree) / 2, top + availH / 2)

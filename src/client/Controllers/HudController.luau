@@ -820,6 +820,9 @@ local function buildMenuDock()
 	end, true)
 	gui.Enabled = false
 	menuGui = gui
+	for name in NO_DOCK do
+		Window.exempt(name) -- no dock there, so no room kept for it either
+	end
 	local first = #barButtons
 	local bar, barH = buildBar()
 	bar.Name = "MenuDock"
@@ -854,17 +857,6 @@ local function buildMenuDock()
 end
 
 -- Every frame (cheap): show the dock while a window is open, move the marker to the open one
--- Windows keep clear of the dock only while it can show: the class picker (NO_DOCK) gets the full screen
-local dockReserve = Vector2.zero -- (bottom, left) screen pixels, from layoutHud
-local function applyReserve()
-	local name = Window.openName()
-	if name and NO_DOCK[name] then
-		Window.setReserve(0, 0)
-	else
-		Window.setReserve(dockReserve.X, dockReserve.Y)
-	end
-end
-
 local function updateMenuDock()
 	local name = Window.openName()
 	local show = name ~= nil and not NO_DOCK[name :: string]
@@ -873,7 +865,6 @@ local function updateMenuDock()
 	end
 	if name ~= menuShown then
 		menuShown = name
-		applyReserve()
 		for id, mark in menuMarks do
 			mark.Visible = name ~= nil and WINDOW_OF[id] == name
 		end
@@ -1164,13 +1155,12 @@ local function layoutHud()
 		end
 		if vertical then
 			local safeLeft = math.max(0, hudGui.AbsolutePosition.X)
-			dockReserve = Vector2.new(0, safeLeft + (H.Margin + colW * dockScale + 6) * s)
+			Window.setReserve(0, safeLeft + (H.Margin + colW * dockScale + 6) * s)
 		else
 			local safeBottom = hudGui.AbsolutePosition.Y + hudGui.AbsoluteSize.Y
 			local below = math.max(0, camera.ViewportSize.Y - safeBottom)
-			dockReserve = Vector2.new(below + (H.Margin + menuBarH + 6) * s, 0)
+			Window.setReserve(below + (H.Margin + menuBarH + 6) * s, 0)
 		end
-		applyReserve()
 	end
 end
 
