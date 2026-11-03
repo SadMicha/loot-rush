@@ -106,6 +106,10 @@ def list_existing(url: str, key: str, id_names: tuple) -> dict:
     for _ in range(50):
         sep = "&" if "?" in url else "?"
         status, body = request("GET", f"{url}{sep}pageSize=50" + (f"&pageToken={token}" if token else ""), key)
+        if status == 403:
+            # Key without the read scope: rely on the IDs already in Monetization.luau instead.
+            print(f"WARN   cannot list {url} (HTTP 403, no read scope); duplicate guard = Monetization.luau only")
+            return out
         if status != 200:
             print(f"ERROR listing {url}: HTTP {status} {body}")
             sys.exit(1)
