@@ -17,6 +17,7 @@ local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
+local Movement = require(script.Parent.Movement)
 local Status = require(script.Parent.Status)
 
 type PState = {
@@ -714,6 +715,7 @@ local function castLeap(player: Player, root: BasePart, skill: Skills.Skill, aim
 			land = hit.Position - rel.Unit * 2
 		end
 	end
+	Movement.teleported(player)
 	root.CFrame = CFrame.new(Vector3.new(land.X, from.Y, land.Z)) * root.CFrame.Rotation
 	local st = states[player]
 	if st then -- short invulnerability while flying in

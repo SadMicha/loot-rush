@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Bounds = require(ReplicatedStorage.Shared.Util.Bounds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Rift = require(script.Parent.Rift)
+local Movement = require(script.Parent.Movement)
 local World = require(script.Parent.World)
 
 local FallGuard = {
@@ -66,6 +67,7 @@ local function check(player: Player)
 	if not spot then
 		return
 	end
+	Movement.teleported(player)
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
 	model:PivotTo(CFrame.new(spot) * root.CFrame.Rotation)
