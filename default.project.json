@@ -15,6 +15,15 @@
         "Client": { "$path": "src/client" }
       }
     },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingIntegrityMode": "MinimumRadiusPause",
+        "StreamingMinRadius": 128,
+        "StreamingTargetRadius": 1024,
+        "StreamOutBehavior": "Opportunistic"
+      }
+    },
     "Lighting": {
       "$properties": {
         "Technology": "Future",

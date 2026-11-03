@@ -129,7 +129,7 @@ Bigger maps also make **StreamingEnabled** worth turning on (place setting, owne
 3. **StreamingEnabled**: **decided (Micha, 2026-11-03): on.** Code side: enemy and loot models
    stream `Atomic` (the client always gets the whole body), every server teleport (Rift start,
    Deeper, revive, back to the Hub) calls `RequestStreamAroundAsync` first, the client clamp and
-   the minimap read folder attributes / spatial queries only. Place side: `Workspace.StreamingEnabled`
+   the minimap read folder attributes / spatial queries only. Place side (`default.project.json`, Micha OK 2026-11-03): `Workspace.StreamingEnabled`
    with target radius 1024 (covers a whole trail plus its horizon), min radius 128 and
    `MinimumRadiusPause` (nobody runs into unloaded ground), `StreamOutBehavior` Opportunistic
    (the other 11 rift slots and the Hub leave a phone's memory).
