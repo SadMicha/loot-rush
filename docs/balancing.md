@@ -17,10 +17,10 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 
 | What | Target |
 |---|---|
-| Depth 30 on Normal (end of the region path) | ~3-4 hours of real play; sim 1.5-5 h of pure run time without Star Web/Forge (now ~3 h) |
-| Max level 100 | not on the first pass (sim: ~level 70 at depth 30); World Tiers carry the rest |
+| Depth 30 on Normal (end of the region path) | ~3-4 hours of real play; sim 1.5-5 h of pure run time without Star Web/Forge (now ~3.4 h) |
+| Max level 100 | not on the first pass (sim: ~level 65-70 at depth 30); World Tiers carry the rest |
 | World Tiers Veteran → Mythic | several more hours each (unchanged factors, `docs/WORLD-TIERS.md`) |
-| One run (4 waves + boss) | 1-1.5 minutes, fits a phone session |
+| One run (Rift Trail: 3 clearings + boss) | 1-1.5 minutes, fits a phone session |
 | Farming | the next depth is "ready" when a normal enemy dies in ≤ 1 s, the player survives ≥ 5 hits and the boss takes ≤ 40 s; until then the sim farms the depth before. Some farming from region 2 on, more in the Altered World |
 
 **Per-depth difficulty (sim, on arrival, Normal)**
@@ -44,16 +44,13 @@ Hits are a ceiling: the real danger is that several enemies now attack at once a
 | Enemy damage | 6 × 1.12^(d−1) | 12 × 1.12^(d−1) (depth 1 now hurts) |
 | Level XP | 100 × L^1.6 | 100 × L^1.9 |
 | Item chance per normal kill | 12 % | 8 % |
-| Waves per depth | 3 | 4 (`Config.RIFT_WAVES`) |
 | Enemy walk speed | 9.2 base | 11.5 base, up to ×1.2 deeper (`Balance.enemySpeed`) |
 | Wind-up / cooldown | fixed per type | × `Balance.tempo(depth)`: 1 at depth 1, toward 0.7 (never lower) |
-| Aggro radius | 45 studs | 75 (the whole arena hunts you) |
+| Aggro radius | 45 studs | 75 (a clearing's pack closes in as soon as you show up) |
 | Charge line | 18 studs | 22 studs |
 
-**Enemy pressure (Systems/Enemies, Systems/Rift)**
+**Enemy pressure (Systems/Enemies)**
 
-- **Packs from several sides:** a wave spawns as 2-3 packs (3 from 12 enemies) around the arena,
-  never on top of the player, instead of one blob you nuke at once.
 - **Surround:** melee enemies approach at their own angle and spread around the player.
 - **Gap closers:** slimes, sporelings and the slam bosses leap at the player from range; the red
   circle sits where they will land (wind-up × 1.15 so it stays readable).
@@ -120,7 +117,7 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 
 ## Our own assumptions (not in the spreadsheet)
 
-- **Rift length:** 4 waves of 6–24 enemies (3 before 2026-11-03) + boss instead of 150 enemies + 3 elites. Per minute,
+- **Rift length:** 3 Rift Trail clearings of 6–24 enemies + boss instead of 150 enemies + 3 elites. Per minute,
   XP, gold and items still come close to the spreadsheet (depth 1: ~800 XP, ~100 gold, ~7 items per minute;
   spreadsheet ~900 / ~120 / ~9).
 - **Elites** exist since the loot PR (see `docs/LOOT.md`); the simulation table above does not count them yet.
@@ -143,7 +140,7 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 
 ## Simulation result (farming until ready, without stars/forge)
 
-Regenerated 2026-11-03 from `tests/Balancing.spec.luau`. TTK1/Hits1 = on arrival at the depth,
+Regenerated 2026-11-03 from `tests/Balancing.spec.luau` (Rift Trail: 3 clearings, 10 s walk/pause each). TTK1/Hits1 = on arrival at the depth,
 TTK/Hits = after farming. Farm = extra runs of the depth before. Min = minutes since the start.
 The simulated player fills all nine slots (best piece per slot), crit uncapped with overcrit
 (`Shared/Crit`, the sim uses `Crit.expectedMult`).
@@ -151,17 +148,15 @@ The simulated player fills all nine slots (best piece per slot), crit uncapped w
 | Depth | Level | TTK1 | Boss s | Hits1 | Boss hits | Farm | Min |
 |---|---|---|---|---|---|---|---|
 | 1 | 1 | 0.64 | 38.3 | 10.0 | 6.2 | 0 | 1 |
-| 5 | 5 | 0.41 | 24.5 | 20.3 | 12.8 | 0 | 6 |
-| 7 | 8 | 1.11 | 24.7 | 18.0 | 10.7 | 3 | 11 |
-| 10 | 10 | 0.98 | 30.0 | 17.9 | 8.8 | 0 | 15 |
-| 15 | 15 | 1.08 | 38.5 | 7.9 | 9.6 | 3 | 25 |
-| 18 | 20 | 1.18 | 29.0 | 9.7 | 6.5 | 3 | 35 |
-| 20 | 27 | 1.09 | 25.0 | 8.3 | 6.3 | 7 | 47 |
-| 23 | 32 | 1.14 | 28.6 | 7.5 | 5.7 | 6 | 57 |
-| 25 | 35 | 0.97 | 28.2 | 7.2 | 5.1 | 0 | 64 |
-| 27 | 49 | 1.14 | 34.1 | 6.0 | 4.2 | 29 | 104 |
-| 28 | 58 | 1.09 | 38.9 | 6.2 | 4.2 | 27 | 138 |
-| 30 | 70 | 1.10 | 38.8 | 5.8 | 3.7 | 16 | 179 |
+| 5 | 5 | 0.49 | 29.5 | 17.2 | 10.8 | 0 | 6 |
+| 6 | 8 | 1.20 | 29.2 | 16.5 | 9.6 | 5 | 12 |
+| 10 | 10 | 0.90 | 27.5 | 14.2 | 7.0 | 0 | 17 |
+| 15 | 14 | 0.99 | 40.0 | 7.0 | 8.1 | 1 | 27 |
+| 20 | 24 | 1.16 | 32.6 | 7.9 | 5.6 | 5 | 50 |
+| 24 | 32 | 1.18 | 24.4 | 7.0 | 5.7 | 8 | 72 |
+| 26 | 43 | 1.21 | 38.8 | 6.7 | 4.4 | 13 | 98 |
+| 27 | 50 | 1.24 | 39.6 | 6.5 | 4.2 | 30 | 135 |
+| 30 | 67 | 1.13 | 35.1 | 5.2 | 3.7 | 30 | 204 |
 
 - Real play is slower than the sim (dodging, walking, menus; the old sim said 24 minutes, the
   playtest took 30-40), while Star Web and Forge make the player stronger than the sim. Together

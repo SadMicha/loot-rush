@@ -34,8 +34,10 @@ See `docs/TEST-RELEASE.md` (Studio + phone, about 30 minutes).
 
 ## Deliberately not in yet
 
+Now in 1.0 (owner, 2026-11-03): leaderboard, daily rewards, Beta Season (`docs/ROADMAP-1.0.md`).
+
 - Village, rebirth, offline income and idle systems: dropped (pure ARPG, `docs/DECISIONS.md`).
-- After 1.0 (`docs/DECISIONS.md` §6): master classes, world boss, party/co-op, seasons and
-  leaderboards, cosmetics, trading between players.
+- After 1.0 (`docs/DECISIONS.md` §6): master classes, world boss, party/co-op, Season 1 and later seasons,
+  cosmetics, trading between players.
 - Movement checks against speed/teleport hacks: the server checks damage, loot and purchases,
   but not walking (Roblox default). Worst case: a cheater collects their own loot faster.

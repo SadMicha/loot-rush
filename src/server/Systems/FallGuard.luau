@@ -1,14 +1,16 @@
 --!strict
--- Second line of defence against falling off a map (the first are the invisible walls from
--- Util/Fence). Every Config.FALL_TICK the server checks each living character: in a Rift it must
--- stay inside its arena, otherwise inside the Hub (or an arena slot). Anyone below the floor or outside the walls is
--- put back on a safe spot (arena start or Hub spawn) with no damage and no run penalty.
+-- Server-side defence against leaving a map (the first are the invisible walls from Util/Fence and
+-- the client clamp in BoundsController). Every Config.FALL_TICK the server checks each living
+-- character: in a Rift it must stay on its own Rift Trail map, otherwise inside the Hub (or a map
+-- slot). Anyone a little past a wall is pushed back to the edge; anyone below the floor or far
+-- outside is put back on a safe spot (last lit waypoint / start pad, or Hub spawn). No damage, no
+-- run penalty.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Bounds = require(ReplicatedStorage.Shared.Util.Bounds)
 local Config = require(ReplicatedStorage.Shared.Config)
-local Fence = require(script.Parent.Parent.Util.Fence)
 local Rift = require(script.Parent.Rift)
 local World = require(script.Parent.World)
 
@@ -16,23 +18,40 @@ local FallGuard = {
 	Rescued = Instance.new("BindableEvent"), -- (player, from) after a rescue (tests, metrics)
 }
 
--- Is the player standing somewhere safe? In a Rift only their own arena counts; outside a Rift
--- the Hub or any arena slot (slot 1 always holds the Green Plains). Returns the rescue spot if not.
+local function rect(center: Vector3, halfX: number, halfZ: number): Bounds.Rect
+	return { center = center, halfX = halfX, halfZ = halfZ }
+end
+
+-- The rectangles the player may stand in: in a Rift only their own map (rescue: last lit waypoint
+-- or the start pad); outside a Rift the Hub or any built map slot (slot 1 always holds the Green
+-- Plains). Also returns the full-rescue spot.
+local function allowed(player: Player): ({ Bounds.Rect }, Vector3)
+	local slot = Rift.slotOf(player)
+	if slot then
+		return World.areasOf(slot), Rift.safeSpot(player) or World.startOf(slot)
+	end
+	local rects = { rect(Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF) }
+	for i = 1, Config.RIFT_SLOTS do
+		for _, r in World.areasOf(i) do
+			table.insert(rects, r)
+		end
+	end
+	return rects, Config.HUB_POS
+end
+
+-- nil if the player is standing somewhere safe; a point just inside the edge if they slipped a
+-- little past a wall (sprint, slope, lag); the safe spot if they fell or are far away.
 local function rescueSpot(player: Player, pos: Vector3): Vector3?
-	local hx, hz = Fence.arenaHalf()
-	local center = Rift.centerOf(player)
-	if center then
-		return if Fence.inside(pos, center, hx, hz) then nil else center + Config.RIFT_START
-	end
-	if Fence.inside(pos, Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF) then
-		return nil
-	end
-	for slot = 1, Config.RIFT_SLOTS do
-		if Fence.inside(pos, World.center(slot), hx, hz) then
+	local rects, safe = allowed(player)
+	for _, r in rects do
+		if
+			Bounds.outside(pos, r) <= Config.FALL_MARGIN
+			and pos.Y >= r.center.Y - Config.FALL_DEPTH
+		then
 			return nil
 		end
 	end
-	return Config.HUB_POS
+	return Bounds.pushBack(pos, rects) or safe
 end
 
 local function check(player: Player)
@@ -49,7 +68,7 @@ local function check(player: Player)
 	end
 	root.AssemblyLinearVelocity = Vector3.zero
 	root.AssemblyAngularVelocity = Vector3.zero
-	model:PivotTo(CFrame.new(spot))
+	model:PivotTo(CFrame.new(spot) * root.CFrame.Rotation)
 	FallGuard.Rescued:Fire(player, pos)
 end
 

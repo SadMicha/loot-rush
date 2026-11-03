@@ -32,6 +32,7 @@ local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Feel = require(ReplicatedStorage.Shared.Feel)
+local Anim = require(ReplicatedStorage.Shared.Anim)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
 
@@ -69,6 +70,7 @@ type Enemy = {
 	depth: number,
 	tier: number, -- World Tier of the run (Shared/WorldTiers)
 	center: Vector3, -- center of the own arena (Rift slot)
+	bounds: { min: Vector3, max: Vector3 }?, -- leash area (a trail clearing); nil = the arena
 	run: number, -- Rift run the enemy belongs to (0 = none)
 	summoned: boolean,
 	stage: number, -- boss phase 1-3 (Shared/Bosses)
@@ -93,6 +95,8 @@ type Enemy = {
 	moveMult: number, -- move speed factor of the depth (Balance.enemySpeed)
 	leaping: boolean, -- the current windup is a jump from dashFrom to dashTo
 	nextMortar: number, -- Mortar elites / bosses from phase 2: next shell volley
+	lungeAt: number, -- when the last attack landed (body language, Shared/Anim)
+	facing: Vector3, -- last walking/attack direction (flat); the tilt is added on top
 }
 
 type Pool = {
@@ -463,6 +467,7 @@ local folder: Folder
 -- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
 local knock: { [Model]: Vector3 } = {}
 local pools: { Pool } = {}
+local hitAt: { [Model]: number } = {} -- last direct hit (recoil tilt)
 local rng = Random.new()
 
 local function flat(
@@ -505,6 +510,14 @@ end
 
 -- Keeps a point inside the enemy's arena (every Rift has its own slot, e.center)
 local function clampArena(e: Enemy, p: Vector3): Vector3
+	local b = e.bounds
+	if b then
+		return Vector3.new(
+			math.clamp(p.X, b.min.X + 2, b.max.X - 2),
+			p.Y,
+			math.clamp(p.Z, b.min.Z + 2, b.max.Z - 2)
+		)
+	end
 	local c = e.center
 	return Vector3.new(
 		math.clamp(p.X, c.X - MAX_X, c.X + MAX_X),
@@ -532,6 +545,7 @@ end
 export type SpawnOpts = {
 	tier: number?, -- World Tier of the run (Shared/WorldTiers), default 1
 	center: Vector3?, -- center of the arena (default: origin)
+	bounds: { min: Vector3, max: Vector3 }?, -- leash area (Rift Trail clearing), default the arena
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
 	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
 	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
@@ -642,6 +656,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		depth = depth,
 		tier = tier,
 		center = o.center or Vector3.zero,
+		bounds = o.bounds,
 		run = o.run or 0,
 		summoned = false,
 		stage = 1,
@@ -666,6 +681,8 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		moveMult = Balance.enemySpeed(depth),
 		leaping = false,
 		nextMortar = now + EliteMods.MORTAR_EVERY * rng:NextNumber(0.5, 1),
+		lungeAt = -1,
+		facing = Vector3.new(0, 0, -1),
 	})
 	return model
 end
@@ -951,6 +968,7 @@ end
 local function resolveAttack(e: Enemy, now: number)
 	clearTelegraph(e)
 	e.windupEnd = 0
+	e.lungeAt = now
 	e.nextAttack = now + e.kind.cooldown * e.cdMult * e.tempo
 	local kind = e.kind
 	local hit: { [Player]: boolean } = {}
@@ -1009,7 +1027,7 @@ local function summon(e: Enemy, around: Vector3, count: number)
 			addKind,
 			Vector3.new(at.X, 0, at.Z),
 			e.depth,
-			{ tier = e.tier, center = e.center, run = e.run }
+			{ tier = e.tier, center = e.center, bounds = e.bounds, run = e.run }
 		)
 		if m then
 			local region = e.model:GetAttribute("Region")
@@ -1083,6 +1101,7 @@ local function step(dt: number)
 		if not model.Parent then
 			clearTelegraph(e)
 			knock[model] = nil
+			hitAt[model] = nil
 			table.remove(list, i)
 			continue
 		end
@@ -1093,6 +1112,7 @@ local function step(dt: number)
 		local target, targetPos, dist, vel = nearestPlayer(pos)
 		local y = baseY
 		local dir = Vector3.zero
+		local walking = false
 
 		if kind.boss then
 			phaseCheck(e, pos)
@@ -1139,6 +1159,7 @@ local function step(dt: number)
 				local step3 = dir * kind.speed * RiftVariants.GOBLIN_SPEED * dt
 				pos = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 9 + e.phase)) * 0.8 * kind.scale
+				walking = true
 			end
 		elseif e.dashEnd > 0 then
 			-- Charge along the telegraph line
@@ -1221,6 +1242,7 @@ local function step(dt: number)
 				local np = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 7 + e.phase)) * 0.8 * kind.scale
 				pos = np
+				walking = true
 			end
 		else
 			y = baseY + math.abs(math.sin(now * 3 + e.phase)) * 0.25 * kind.scale
@@ -1248,12 +1270,24 @@ local function step(dt: number)
 			end
 		end
 
-		local here = Vector3.new(pos.X, y, pos.Z)
-		if dir.Magnitude > 0.01 then
-			model:PivotTo(CFrame.lookAt(here, here + dir.Unit))
-		else
-			model:PivotTo(CFrame.new(here) * model:GetPivot().Rotation)
+		-- Body language: lean back while winding up, snap forward when the attack lands, lean
+		-- into a charge, recoil from direct hits, waddle while walking (Shared/Anim)
+		local windup = if e.windupEnd > 0 then 1 - (e.windupEnd - now) / e.windup else nil
+		local pitch = Anim.enemyPitch(windup, now - e.lungeAt, now - (hitAt[model] or -10))
+		if e.dashEnd > 0 then
+			pitch -= Anim.ENEMY_LUNGE * 0.6
 		end
+		local roll = if walking
+			then math.sin(now * Anim.ENEMY_WALK_RATE + e.phase) * Anim.ENEMY_WADDLE
+			else 0
+		local here = Vector3.new(pos.X, y, pos.Z)
+		local flatDir = Vector3.new(dir.X, 0, dir.Z)
+		if flatDir.Magnitude > 0.01 then
+			e.facing = flatDir.Unit
+		end
+		model:PivotTo(
+			CFrame.lookAt(here, here + e.facing) * CFrame.Angles(math.rad(pitch), 0, math.rad(roll))
+		)
 	end
 end
 
@@ -1278,6 +1312,7 @@ function Enemies.knockback(model: Model, from: Vector3, crit: boolean)
 		force *= Feel.KNOCKBACK_BOSS
 	end
 	knock[model] = away.Unit * force
+	hitAt[model] = os.clock()
 end
 
 function Enemies.start()

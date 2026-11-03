@@ -36,7 +36,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 | M20 | Spell stones (#54, fixes #58) | Support stones, up to 3 per skill (`docs/SPELL-STONES.md`) | 🔧 ready to test |
 | M21 | Star Web 100 (#60) | 100 nodes, class start points, cross-class paths, connected allocation (`docs/STAR-WEB.md`) | 🔧 ready to test |
 | M22 | Stud Rush (#61) | Kills pop studs, meter, Rush starts by itself when full; HUD Rush meter + buff/debuff bar (`docs/STUD-RUSH.md`) | 🔧 ready to test |
-| M23 | Difficulty & pacing pass | Enemy pressure (packs from several sides, leaps, leading shots, burning ground, Mortar elites, boss shells from phase 2, faster deeper), retuned curves: depth 30 on Normal ~3-4 h instead of 30-40 min (`docs/balancing.md` "Pacing") | 🔧 ready to test |
+| M23 | Difficulty & pacing pass | Enemy pressure (packs surround you, leaps, leading shots, burning ground, Mortar elites, boss shells from phase 2, faster deeper), retuned curves: depth 30 on Normal ~3-4 h instead of 30-40 min (`docs/balancing.md` "Pacing") | 🔧 ready to test |
 | M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8; PR #42 HUD pass (terrain minimap, text shadows/outlines, icon shadows, orbs, skill arc/cooldown veil, dash diamonds, class icons, hub bar, safe area, Lumenhaven) | 🔧 ready to test (real phone open, with M5; checklist `TEST-HUD` open) |
 
 ## Next milestones (in order)
@@ -63,5 +63,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 Platform stack order (decisions D1-D6 made by the user on 2026-11-01, see `docs/specs/PLATFORM-STACK.md`): N8 → N9 → N11 → N13; N10 can run before/alongside N8 (no package); N12 runs in the UI lane after N8. N9 must land before the TEST-SAVING part of N1.
 
 Build order for 1.0: `docs/DECISIONS.md` §5, steps 1–10 all merged (#50–#61 and the release pass). Rebirth and the village are gone; World Tiers replace rebirth.
+
+Plan to 1.0 after the review of 2026-11-03 (phases F0–F5, leaderboard, daily rewards, Beta Season): `docs/ROADMAP-1.0.md`.
 
 Release steps: `docs/RELEASE.md` (debug tools for developers only, release checklist, test commands, from #39).

@@ -28,11 +28,21 @@ return table.freeze({
 	TILE_SIZE = 8,
 	ARENA_TILES_X = 17, -- tiles per region arena (same grid in all regions)
 	ARENA_TILES_Z = 15,
+	-- Rift Trail (Shared/Trail): start → corridor → clearings with packs → boss arena
+	TRAIL_CLEARINGS = 3, -- clearings per depth, one enemy pack each (shown as "Area 1/3")
+	TRAIL_CLEARING = 8, -- tiles per clearing side
+	TRAIL_CORRIDOR = 3, -- tiles of corridor between two clearings
+	TRAIL_CORRIDOR_WIDTH = 3, -- tiles across a corridor
+	TRAIL_SWAY = 3, -- tiles a clearing may shift sideways (winding path)
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
-	BOUNDARY_HEIGHT = 80, -- studs of invisible wall, starting FALL_DEPTH below the floor
+	BOUNDARY_HEIGHT = 200, -- studs of invisible wall, starting FALL_DEPTH below the floor
+	BOUNDARY_THICK = 8, -- studs; thick enough that no dash or physics step tunnels through
 	FALL_DEPTH = 20, -- this far below the map floor = fallen, back to a safe spot
-	FALL_MARGIN = 6, -- studs outside the walls before the guard steps in
+	FALL_MARGIN = 3, -- studs outside the walls before the server guard steps in
+	BOUNDS_REACH = 40, -- up to this far outside a map the player is pushed back to the edge
+	BOUNDS_PAD = 1.5, -- studs inside the edge where a pushed-back player lands
+	BOUNDS_DROP = 6, -- push back only down to this far below map level (river, pools); lower = full rescue
 	FALL_TICK = 0.25, -- seconds between guard checks
 
 	-- Combat (player)
@@ -47,9 +57,7 @@ return table.freeze({
 	-- Enemies
 	ENEMY_ZONE = Vector3.new(0, 0, -20), -- center of the spawn area
 	ENEMY_ZONE_RADIUS = 16,
-	AGGRO_RADIUS = 75, -- whole arena: a wave hunts the player instead of waiting to be picked off
-	PACK_RADIUS = 7, -- studs: a wave spawns as packs this wide (Systems/Rift)
-	PACK_DISTANCE = 28, -- studs from the arena center to each pack
+	AGGRO_RADIUS = 75, -- a pack notices the player early and closes in (was 45, docs/balancing.md)
 
 	-- Metrics (M5): debug overlay with F3 or the "Dbg" button bottom left
 	DEBUG_OVERLAY = true,
@@ -58,7 +66,7 @@ return table.freeze({
 	RIFT_START = Vector3.new(0, 4, 16), -- the player lands here on entering
 	HUB_ORIGIN = Vector3.new(-1200, 0, 0), -- center of the Hub map "Lumenhaven" (far from every arena)
 	HUB_POS = Vector3.new(-1200, 4, 60), -- spawn in the Hub and return from the Rift
-	RIFT_WAVES = 4, -- waves before the boss (was 3, docs/balancing.md "Pacing")
+	RIFT_WAVES = 3, -- waves before the boss
 	RIFT_WAVE_BASE = 6, -- enemies in wave 1 at depth 1
 	RIFT_WAVE_STEP = 2, -- extra enemies per wave and per depth
 	RIFT_WAVE_MAX = 24, -- cap on enemies per wave (server/network load at high depth)

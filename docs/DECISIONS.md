@@ -32,7 +32,7 @@ can be overturned at any time. Where the concept already answers a question, the
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
 | Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. **Stud Rush** (owner, 2026-11-02: in 1.0): kills and broken props pop studs that fill a Rush meter; full meter = 8 s Rush burst. Other new ideas (Rebuilding Bosses, Colour Match …) in `docs/IDEAS.md`. |
-| Seasons | **After 1.0** (owner, 2026-11-02): PoE-style leagues: fresh season characters, moved into the permanent **Legacy** league at season end; every season trials one new mechanic, well-received ones stay in Legacy (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
+| Seasons | **Beta Season in 1.0, Season 1 after** (owner, 2026-11-03): the first season is a "Beta Season" that tests the game itself, with leaderboard and daily rewards also in 1.0 (`docs/ROADMAP-1.0.md`). Then (owner, 2026-11-02): PoE-style leagues: fresh season characters, moved into the permanent **Legacy** league at season end; every season trials one new mechanic, well-received ones stay in Legacy (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
 
 ## 2. What changes in the existing code
 
@@ -85,6 +85,8 @@ can be overturned at any time. Where the concept already answers a question, the
 10. **Release pass**: performance, audio ids, RELEASE.md / TEST-RELEASE.md / ROADMAP.
 
 ## 6. After 1.0
+
+Update 2026-11-03 (owner): leaderboard, daily rewards and a Beta Season move into 1.0; plan in `docs/ROADMAP-1.0.md`.
 
 Master classes · Worldboss · party/co-op · **season framework + Season 1 Blueprints** (replaces the
 dream-map atlas; `docs/specs/SEASONS.md`) · time labyrinth · season ladders per class · cosmetics shop, hat slot · Legendary fusing · cross-server ticker.

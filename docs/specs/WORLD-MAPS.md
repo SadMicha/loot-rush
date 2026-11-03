@@ -1,6 +1,6 @@
 # World maps: new hub, endless horizon, walkable rift maps
 
-Status: proposal + slice 1 built (2026-11-03). Owner ask (Micha): redesign the hub as a whole,
+Status: slice 1 (hub + horizon, PR #71) and slice 2 (Rift Trail, first version) built (2026-11-03). Owner ask (Micha): redesign the hub as a whole,
 every map should feel infinite (never see the world edge), never fall off a map, and rifts should
 be maps you play through instead of arenas.
 
@@ -20,6 +20,14 @@ be maps you play through instead of arenas.
 Invisible walls (`Util/Fence`) around every walkable area, plus `Systems/FallGuard`, which puts
 anyone below the floor or outside the walls back on a safe spot (no damage, the run keeps going).
 The walls stay as a safety net even where the new natural barriers already block the way.
+
+Hardened after "you can sprint over the hub fence": the walls are 200 studs tall and 8 thick
+(`Config.BOUNDARY_HEIGHT/THICK`), each `Bounds` folder is tagged `MapBounds` with its walkable
+rectangle, the client (`BoundsController`) clamps its own character back to the nearest edge every
+frame (the client owns its physics), and FallGuard does the same push-back on the server. Only a
+player who fell below the floor or is far outside gets the full rescue to the safe spot.
+Rift Trail maps have irregular walls (`Fence.cells`); their `Bounds` folder holds one tagged
+`Area` per rectangle (arena, corridors, clearings, start pad), and the clamp uses their union.
 
 ## 2. Hiding the world edge (slice 1, this PR)
 
@@ -59,7 +67,29 @@ so a phone player never fights stairs on the way to a station:
 Station windows, the `Window` prompt attribute and the spawn rule stay the same, so no client
 change is needed.
 
-## 4. Rifts as maps you walk through (proposal, needs Micha's call)
+## 4. Rifts as maps you walk through (decided: Rift Trail)
+
+**Built in slice 2** (`Shared/Trail`, `World.build(region, slot, seed)`, `Rift.play`):
+
+- Layout per depth (`Trail.layout(Trail.seed(region, depth))`): start pad with the entry portal →
+  3 clearings of 8×8 tiles, swaying sideways by up to 3 tiles, linked by 3-tile corridors → the
+  region's arena as the boss arena in the north. ~370 studs from start to arena. A new trail is
+  built for every depth ("Deeper" rebuilds the map and puts you back on the start pad).
+- **Packs instead of waves**: one pack per clearing, leashed to it (`Enemies` `bounds`). The next
+  pack spawns when the last one is down and waits in its clearing (aggro radius) until you arrive,
+  so at most one pack per player is active, same server cost as the old waves. The HUD says
+  "Area 1/3". Elites, swarm, elite hunt and treasure goblin work per pack; the boss still
+  spawns in the arena after the last pack.
+- **Waypoint shrines**: a dark crystal pylon per clearing lights up in the region colour when its
+  pack is down. It is the FallGuard safe spot for the rest of the depth. Death still ends the
+  run (decision 2 below is open).
+- **Edges**: one ring of low cliff tiles around the path (none over the Sky Islands abyss), invisible
+  walls on every edge of the walkable tiles (`Fence.cells`), the horizon around the whole map.
+- Part budget: every region map stays under 4,500 instances (`tests/Regions.spec.luau`).
+
+Not built yet: side pockets (chests, shrines), death → last waypoint, minimap path hint.
+
+Original proposal:
 
 **Recommended shape: a "Rift Trail" per depth.** Each depth is one generated path map built from
 biome chunks (like Diablo/PoE zones, but short and mobile-sized):

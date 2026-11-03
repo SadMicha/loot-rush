@@ -8,7 +8,7 @@
 --   • kill XP is split evenly across the 4 skills on the bar (skill levels)
 --   • without Star Net and Forge (= lower bound of player strength)
 --   • all nine gear slots (Items.Slots), best piece per slot by score; crit uncapped with overcrit (Shared/Crit)
---   • walk/pause time per wave WAVE_OVERHEAD seconds
+--   • walk/pause time per clearing of the Rift Trail WAVE_OVERHEAD seconds
 local Atlas = require("ReplicatedStorage.Shared.Atlas")
 local Crit = require("ReplicatedStorage.Shared.Crit")
 local Balance = require("ReplicatedStorage.Shared.Balance")
@@ -18,7 +18,7 @@ local Progression = require("ReplicatedStorage.Shared.Progression")
 local Skills = require("ReplicatedStorage.Shared.Skills")
 
 local TARGETS = { nova = 3, projectile = 2.5, chain = 4 }
-local WAVE_OVERHEAD = 6
+local WAVE_OVERHEAD = 10 -- walking the trail to the next clearing + pause
 local MAX_DEPTH = 30
 
 local function server(fn)
@@ -113,7 +113,7 @@ local function simulate()
 		local hp, dmg, kxp, kgold, n = 0, 0, 0, 0, 0
 		local mixN = #region.enemies
 		local waveHp = 0
-		for wave = 1, Config.RIFT_WAVES do
+		for wave = 1, Config.TRAIL_CLEARINGS do
 			local count = math.min(
 				Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + since),
 				Config.RIFT_WAVE_MAX
@@ -143,7 +143,7 @@ local function simulate()
 			dps = single,
 			ttk = hp / single,
 			bossTime = bossTime,
-			riftTime = waveHp / aoe + Config.RIFT_WAVES * WAVE_OVERHEAD + bossTime,
+			riftTime = waveHp / aoe + Config.TRAIL_CLEARINGS * WAVE_OVERHEAD + bossTime,
 			hits = maxHp / dmg,
 			bossHits = maxHp / boss.damage,
 			xp = (n * kxp + boss.xp) * xpMult,
@@ -278,7 +278,15 @@ describe("Balancing depth 1–30", function()
 	end)
 
 	it("keeps deeper depths harder than depth 20 (World Tiers add the rest)", function()
-		expect(rows[30].ttk).toBeGreaterThan(rows[20].ttk)
+		-- TTK after farming is gated (≈ GATE_TTK everywhere), so "harder" shows as more farming
+		local function farm(from: number, to: number): number
+			local n = 0
+			for d = from, to do
+				n += rows[d].farm
+			end
+			return n
+		end
+		expect(farm(26, 30)).toBeGreaterThan(farm(16, 20))
 		expect(rows[30].bossTime).toBeGreaterThan(rows[20].bossTime)
 	end)
 
