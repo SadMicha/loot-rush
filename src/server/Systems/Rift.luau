@@ -27,7 +27,9 @@ local CombatState = require(script.Parent.CombatState)
 local Data = require(script.Parent.Data)
 local Loot = require(script.Parent.Loot)
 local Metrics = require(script.Parent.Metrics)
+local Movement = require(script.Parent.Movement)
 local Enemies = require(script.Parent.Enemies)
+local Leaderboard = require(script.Parent.Leaderboard)
 local Progress = require(script.Parent.Progress)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -50,6 +52,7 @@ type Run = {
 	revives: number, -- revives left in this depth (Config.RIFT_REVIVES)
 	downed: boolean, -- dead and waiting for the respawn; the run keeps going
 	checkpoint: Vector3?, -- last lit waypoint shrine (FallGuard puts the player back there)
+	strikes: number, -- Movement strikes at run start: a run with a new strike never reaches a leaderboard
 }
 
 type EndReason = "left" | "abandoned" | "failed" | "gone"
@@ -119,6 +122,11 @@ local function record(r: Run)
 	if unlocked or r.depth > (profile.atlas[r.region.id] or 0) then
 		profile.atlas[r.region.id] = math.max(r.depth, profile.atlas[r.region.id] or 0)
 		Rift.publishBest(r.owner)
+	end
+	-- Leaderboards: the run's best goes out once at the run end (Leaderboard.flush). Runs with a
+	-- movement strike (speed/teleport hack, Systems/Movement) are left out.
+	if Movement.strikes(r.owner) == r.strikes then
+		Leaderboard.note(r.owner, r.tier, profile.class, r.depth, os.clock() - r.tally.startedAt)
 	end
 end
 
@@ -248,6 +256,7 @@ local function returnToHub(player: Player)
 	local model = character(player)
 	if model then
 		streamAround(player, Config.HUB_POS)
+		Movement.teleported(player)
 		model:PivotTo(CFrame.new(Config.HUB_POS))
 		Combat.refreshStats(player, true)
 		CombatState.reset(player)
@@ -274,6 +283,7 @@ local function finish(r: Run, reason: EndReason)
 		string.format("Depth %d %s", r.depth, if failed then "failed" else "left")
 	)
 	local owner = r.owner
+	Leaderboard.flush(owner)
 	if reason ~= "gone" then
 		local gold, items = Loot.collect(owner)
 		r.tally.gold += gold
@@ -352,6 +362,7 @@ local function revive(r: Run, model: Model)
 		return
 	end
 	root.AssemblyLinearVelocity = Vector3.zero
+	Movement.teleported(r.owner)
 	model:PivotTo(CFrame.new(spot))
 	Combat.refreshStats(r.owner, true)
 	CombatState.reset(r.owner)
@@ -500,6 +511,7 @@ local function begin(player: Player, regionId: any)
 		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
 		revives = Config.RIFT_REVIVES,
 		downed = false,
+		strikes = Movement.strikes(player),
 	}
 	runs[player] = r
 	slots[slot] = r
@@ -513,6 +525,7 @@ local function begin(player: Player, regionId: any)
 	if runs[player] ~= r then
 		return -- left or died while the map streamed in
 	end
+	Movement.teleported(player)
 	model:PivotTo(CFrame.new(World.startOf(slot)))
 	task.spawn(play, r)
 	Actions.fire(player, "rift")
@@ -537,6 +550,7 @@ local function deeper(player: Player)
 	end
 	local model = character(player)
 	if model then
+		Movement.teleported(player)
 		model:PivotTo(CFrame.new(World.startOf(r.slot)))
 	end
 	Combat.refreshStats(player, true)

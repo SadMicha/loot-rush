@@ -9,6 +9,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local AtlasController = require(script.Parent.AtlasController)
 local ForgeController = require(script.Parent.ForgeController)
 local InventoryController = require(script.Parent.InventoryController)
+local LeaderboardController = require(script.Parent.LeaderboardController)
 local MarketController = require(script.Parent.MarketController)
 local QuestController = require(script.Parent.QuestController)
 
@@ -28,6 +29,7 @@ local OPEN: { [string]: () -> () } = {
 		end
 	end,
 	Inventory = InventoryController.toggle,
+	Leaderboard = LeaderboardController.open,
 	Shop = function() -- the Market station (stable attribute name)
 		MarketController.open()
 	end,

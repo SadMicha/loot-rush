@@ -17,7 +17,9 @@
 
 local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
+local Daily = require(script.Parent.Daily)
 local Items = require(script.Parent.Items)
+local Leaderboard = require(script.Parent.Leaderboard)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
@@ -47,6 +49,7 @@ export type Data = {
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
 	class: string, -- class of this character (Shared/Classes id), locked after setup
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
+	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
 }
 
 -- The whole save of one Roblox account
@@ -59,6 +62,9 @@ export type Account = {
 	cosmetics: { [string]: boolean }, -- owned cosmetics (Shared/Cosmetics ids)
 	wear: { [string]: string }, -- slot → worn cosmetic id ("" = none)
 	bought: { [string]: boolean }, -- one-time Robux products already bought (Monetization once)
+	daily: Daily.Data, -- daily reward calendar (Shared/Daily)
+	boards: { [string]: number }, -- best value per leaderboard (Shared/Leaderboard ids)
+	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -97,6 +103,7 @@ local DEFAULTS: Data = {
 	quests = Quests.fresh(),
 	class = Classes.DEFAULT,
 	autoSalvage = "",
+	debugged = false,
 }
 
 local ACCOUNT_DEFAULTS = {
@@ -108,6 +115,9 @@ local ACCOUNT_DEFAULTS = {
 	cosmetics = {},
 	wear = { trail = "", aura = "" },
 	bought = {},
+	daily = Daily.fresh(), -- contents checked by Daily.reconcile
+	boards = {},
+	unsent = {},
 	characters = {},
 	active = "",
 }
@@ -326,6 +336,26 @@ function Profile.reconcileAccount(raw: any): Account
 			else ""
 	end
 	data.wear = wear
+	data.daily = Daily.reconcile(data.daily)
+	-- Leaderboard bests and unsent writes: only known boards, whole numbers
+	local function boardValues(input: any): { [string]: number }
+		local out = {}
+		for id, value in input do
+			if
+				typeof(id) == "string"
+				and Leaderboard.ById[id]
+				and typeof(value) == "number"
+				and value == value
+				and value > 0
+				and value < 1e12
+			then
+				out[id] = math.floor(value)
+			end
+		end
+		return out
+	end
+	data.boards = boardValues(data.boards)
+	data.unsent = boardValues(data.unsent)
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}

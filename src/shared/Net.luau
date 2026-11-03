@@ -33,6 +33,11 @@
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
 --   Setting   (C→S): key: string, value: number | boolean | string - one setting (Shared/Settings)
 --   Settings  (S→C): Settings.Data - the saved settings of the account, sent once after loading
+--   Daily     (C→S): "claim" - claim today's daily reward (Systems/Daily; the server picks the day)
+--   DailyState (S→C): { claimed, index, canClaim, secondsLeft, rewards = { Daily.Reward × 7 },
+--                    paid? } - calendar state; paid = calendar index just claimed
+--   Board     (C→S): boardId: string - ask for one leaderboard page (Shared/Leaderboard ids)
+--   BoardData (S→C): Leaderboard.Page - top entries + the asking player's own best
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -69,6 +74,10 @@ local NAMES = {
 	"SkillCast",
 	"Setting",
 	"Settings",
+	"Daily",
+	"DailyState",
+	"Board",
+	"BoardData",
 	"Debug",
 }
 
@@ -123,5 +132,9 @@ return table.freeze({
 	SkillCast = get("SkillCast"),
 	Setting = get("Setting"),
 	Settings = get("Settings"),
+	Daily = get("Daily"),
+	DailyState = get("DailyState"),
+	Board = get("Board"),
+	BoardData = get("BoardData"),
 	Debug = get("Debug"),
 })

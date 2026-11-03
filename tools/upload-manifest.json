@@ -767,6 +767,87 @@
     395
    ],
    "registry": "Assets.Hud"
+  },
+  {
+   "key": "soulstars_s",
+   "file": "assets/ui/icons/store/soulstars_s.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_m",
+   "file": "assets/ui/icons/store/soulstars_m.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_l",
+   "file": "assets/ui/icons/store/soulstars_l.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "soulstars_xl",
+   "file": "assets/ui/icons/store/soulstars_xl.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "starter_pack",
+   "file": "assets/ui/icons/store/starter_pack.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pass_vip",
+   "file": "assets/ui/icons/store/pass_vip.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pass_magnet",
+   "file": "assets/ui/icons/store/pass_magnet.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pass_pet_slot",
+   "file": "assets/ui/icons/store/pass_pet_slot.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_ember",
+   "file": "assets/ui/icons/store/pack_ember.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }

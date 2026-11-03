@@ -155,4 +155,21 @@ function Balance.rarityOdds(shift: number, uniques: boolean?): { [string]: numbe
 	return out
 end
 
+-- Daily rewards (docs/ROADMAP-1.0.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
+-- with Balance.shopFactor(best depth) like shop prices, so it stays worth claiming. Missing a day
+-- never resets the cycle (no loss mechanics). Day 7 is the big one, then the cycle repeats.
+--   gold      base gold before the depth factor
+--   candy / shards / dust   Forge materials
+--   stones    random spell stones
+--   soulstars account-wide premium currency (small, earnable by playing anyway)
+Balance.Daily = table.freeze({
+	table.freeze({ gold = 150, candy = 0, shards = 10, dust = 0, stones = 0, soulstars = 0 }),
+	table.freeze({ gold = 200, candy = 3, shards = 0, dust = 0, stones = 0, soulstars = 0 }),
+	table.freeze({ gold = 250, candy = 0, shards = 20, dust = 1, stones = 0, soulstars = 0 }),
+	table.freeze({ gold = 300, candy = 0, shards = 0, dust = 0, stones = 1, soulstars = 0 }),
+	table.freeze({ gold = 400, candy = 5, shards = 25, dust = 0, stones = 0, soulstars = 0 }),
+	table.freeze({ gold = 500, candy = 0, shards = 0, dust = 2, stones = 0, soulstars = 0 }),
+	table.freeze({ gold = 1000, candy = 8, shards = 40, dust = 3, stones = 1, soulstars = 15 }),
+})
+
 return table.freeze(Balance)

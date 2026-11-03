@@ -436,11 +436,12 @@ function Kit.equipIcon(slot: string, fallback: string): string
 	return if Assets.Class[key] then key else fallback
 end
 
--- Class art key of a skill ("dash" for the dash button) or nil without uploaded art
-function Kit.skillArt(skillId: string): string?
+-- Class art key of a skill ("dash" for the dash button) or nil without uploaded art. `classId`
+-- defaults to the local player's class (the heroes screen shows the art of every class).
+function Kit.skillArt(skillId: string, classId: string?): string?
 	local skill = Skills.ById[skillId]
 	local pos = Theme.Class.SkillSlot[skillId] or (if skill then skill.art else nil)
-	local class = Kit.playerClass()
+	local class = classId or Kit.playerClass()
 	local names = Theme.Class.SkillName[class]
 	if not pos or not names then
 		return nil
@@ -450,13 +451,13 @@ function Kit.skillArt(skillId: string): string?
 end
 
 -- Icon name of a skill for Kit.icon / Kit.itemSlot: class art if uploaded, otherwise the atlas icon
-function Kit.skillIcon(skillId: string, fallback: string): string
-	return Kit.skillArt(skillId) or fallback
+function Kit.skillIcon(skillId: string, fallback: string, classId: string?): string
+	return Kit.skillArt(skillId, classId) or fallback
 end
 
 -- Icon from the atlas image (Assets.Icon), otherwise a neutral placeholder
 function Kit.icon(name: string, size: number, color: Color3?): GuiObject
-	local classArt = Assets.Class[name]
+	local classArt = Assets.Class[name] or Assets.IconImage[name]
 	if classArt then
 		local img = Instance.new("ImageLabel")
 		img.Name = "Icon_" .. name

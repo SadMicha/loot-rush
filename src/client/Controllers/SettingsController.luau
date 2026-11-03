@@ -15,6 +15,7 @@ local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
+local CharacterController = require(script.Parent.CharacterController)
 
 local SettingsController = {}
 
@@ -24,6 +25,7 @@ local F = Theme.Flat
 local GAP = 24
 local PAD = 28
 local FOOT_H = 96 -- About strip at the bottom
+local FOOT_BUTTONS_W = 760 -- Switch Hero, Defaults, Roblox Menu
 local ROW_H = 80
 local LABEL_W = 250
 
@@ -66,24 +68,48 @@ local function card(title: string, size: Vector2, pos: UDim2): (Frame, Frame)
 end
 
 -- One row: caption (and optional hint below it) on the left, control on the right
+-- The texts end before the control (truncated, never under it). Phones grow touch controls and text
+-- to their minimum sizes, so the text width follows the control's real width.
 local function row(parent: Frame, order: number, caption: string, hint: string?, control: GuiObject)
 	local width = parent.Size.X.Offset
 	local r = Flat.frame(UDim2.fromOffset(width, ROW_H))
 	r.Name = "Row_" .. order
 	r.LayoutOrder = order
+	local texts: { TextLabel } = {}
+	local function fit(t: TextLabel)
+		t.AutomaticSize = Enum.AutomaticSize.Y
+		t.TextTruncate = Enum.TextTruncate.AtEnd
+		table.insert(texts, t)
+	end
 	local text = Flat.text(caption, 17, C.Text, Theme.Font.UI)
-	text.AnchorPoint = Vector2.new(0, 0.5)
-	text.Position = UDim2.new(0, 0, 0.5, if hint then -11 else 0)
+	fit(text)
+	text.AnchorPoint = Vector2.new(0, if hint then 1 else 0.5)
+	text.Position = UDim2.new(0, 0, 0.5, if hint then 2 else 0)
 	text.Parent = r
 	if hint then
 		local h = Flat.text(hint, 13, C.Muted, Theme.Font.Body)
-		h.AnchorPoint = Vector2.new(0, 0.5)
-		h.Position = UDim2.new(0, 0, 0.5, 15)
+		fit(h)
+		h.AnchorPoint = Vector2.new(0, 0)
+		h.Position = UDim2.new(0, 0, 0.5, 4)
 		h.Parent = r
 	end
+	local function sync()
+		local rw = r.AbsoluteSize.X
+		local cw = control.AbsoluteSize.X
+		local controlW = if rw > 0 and cw > 0
+			then cw * width / rw -- screen px → design px of this row
+			else control.Size.X.Offset
+		local textW = math.max(80, width - controlW - 16)
+		for _, t in texts do
+			t.Size = UDim2.fromOffset(textW, 0)
+		end
+	end
+	control:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
+	r:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
 	control.AnchorPoint = Vector2.new(1, 0.5)
 	control.Position = UDim2.fromScale(1, 0.5)
 	control.Parent = r
+	sync()
 	if order > 1 then
 		local line = Flat.rule(width, F.Edge)
 		line.BackgroundTransparency = 0.5
@@ -183,7 +209,7 @@ local function build()
 		{ id = "high", text = "High", value = "high" },
 	}, 86)
 	switchRow(play, 4, "minimap", "Minimap", nil)
-	choiceRow(play, 5, "hudScale", "HUD size", "Scales the whole HUD", {
+	choiceRow(play, 5, "hudScale", "HUD size", "Scales the HUD", {
 		{ id = "s80", text = "XS", value = 0.8 },
 		{ id = "s90", text = "S", value = 0.9 },
 		{ id = "s100", text = "M", value = 1 },
@@ -215,7 +241,8 @@ local function build()
 	local foot = Kit.panel(Vector2.new(body.X, FOOT_H))
 	foot.Name = "About"
 	foot.Position = UDim2.fromOffset(0, body.Y - FOOT_H)
-	local info = Flat.frame(UDim2.fromOffset(body.X - 560, FOOT_H), UDim2.fromOffset(PAD, 0))
+	local info =
+		Flat.frame(UDim2.fromOffset(body.X - FOOT_BUTTONS_W - 40, FOOT_H), UDim2.fromOffset(PAD, 0))
 	local il = Kit.list(info, Enum.FillDirection.Vertical, 4)
 	il.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local buildNo = if game.PlaceVersion > 0 then ` · Build {game.PlaceVersion}` else ""
@@ -223,7 +250,7 @@ local function build()
 	title.LayoutOrder = 1
 	title.Parent = info
 	local credits = Flat.text(
-		`{Settings.CREDITS} · The game language follows your Roblox language setting.`,
+		Settings.CREDITS, -- short: the Switch Hero button needs the room on phones
 		13,
 		C.Muted,
 		Theme.Font.Body
@@ -232,12 +259,21 @@ local function build()
 	credits.Parent = info
 	info.Parent = foot
 
-	local buttons = Flat.frame(UDim2.fromOffset(520, FOOT_H))
+	local buttons = Flat.frame(UDim2.fromOffset(FOOT_BUTTONS_W, FOOT_H))
 	buttons.Name = "Buttons"
 	buttons.AnchorPoint = Vector2.new(1, 0)
 	buttons.Position = UDim2.new(1, -PAD, 0, 0)
 	local bl = Kit.list(buttons, Enum.FillDirection.Horizontal, 12)
 	bl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	-- Heroes: switch to another hero or create a new one (the class belongs to the hero)
+	local heroes = Flat.button("Switch Hero", "primary", Vector2.new(240, 56), "crown")
+	heroes.Name = "SwitchHero"
+	heroes.LayoutOrder = 0
+	heroes.Activated:Connect(function()
+		win.close()
+		CharacterController.open()
+	end)
+	heroes.Parent = buttons
 	local reset = Flat.button("Defaults", "ghost", Vector2.new(190, 56))
 	reset.Name = "Reset"
 	reset.LayoutOrder = 1
