@@ -1174,7 +1174,17 @@ local function step(dt: number)
 			local walk = dir -- where to step (dir stays the facing)
 			local move = 0
 			local ready = kind.ai ~= "summon" and now >= e.nextAttack
-			if ready and kind.leap and dist > kind.attackRange and dist <= kind.leap then
+			local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
+			-- only leap when the player stands where an enemy can land (else it lands short, loops)
+			local reachable = (clampArena(e, flatTarget) - flatTarget).Magnitude
+				<= kind.radius * 0.5
+			if
+				ready
+				and kind.leap
+				and reachable
+				and dist > kind.attackRange
+				and dist <= kind.leap
+			then
 				beginWindup(e, pos, targetPos, vel, now, true)
 			elseif dist > kind.attackRange then
 				move = 1

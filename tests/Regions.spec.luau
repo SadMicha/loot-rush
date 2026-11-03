@@ -123,6 +123,13 @@ describe("Regions in game", function()
 			expect(allowed[name]).toBe(true)
 		end
 		expect(count).toBeGreaterThan(0)
+		-- this test is about the arena swap: a fresh level 1 hero standing still at depth 6 would
+		-- now die to the packs within 4 s (then the arena swaps only after the respawn)
+		server(function(_, player)
+			local humanoid = player.Character.Humanoid
+			humanoid.MaxHealth = 1e6
+			humanoid.Health = 1e6
+		end)
 		sim:run(4) -- AI attacks (telegraph, projectiles)
 		leave()
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()

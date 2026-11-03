@@ -183,16 +183,20 @@ local function packCenters(r: Run, count: number): { Vector3 }
 	local _, root = character(r.owner)
 	local player = if root then Vector3.new(root.Position.X, 0, root.Position.Z) else nil
 	local packs = if count >= 12 then 3 else 2
-	local start = rng:NextNumber(0, math.pi * 2)
+	local step = math.pi * 2 / packs
+	-- packs sit between the player's direction and its opposite, so none lands on the player
+	-- (2 packs: left and right of the player, 3 packs: 60° off it and behind the center)
+	local rel = if player then player - r.center else Vector3.zero
+	local start = if rel.Magnitude > 1
+		then math.atan2(rel.Z, rel.X) + step / 2
+		else rng:NextNumber(0, math.pi * 2)
 	local out = {}
 	for i = 1, packs do
-		local a = start + (i - 1) * (math.pi * 2 / packs)
-		local offset = Vector3.new(math.cos(a), 0, math.sin(a)) * Config.PACK_DISTANCE
-		local at = r.center + offset
-		if player and (at - player).Magnitude < Config.PACK_DISTANCE * 0.6 then
-			at = r.center - offset -- too close to the player: come from the other side
-		end
-		table.insert(out, at)
+		local a = start + (i - 1) * step
+		table.insert(
+			out,
+			r.center + Vector3.new(math.cos(a), 0, math.sin(a)) * Config.PACK_DISTANCE
+		)
 	end
 	return out
 end
