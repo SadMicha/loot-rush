@@ -639,7 +639,7 @@ function Hub.init()
 	buildGround(root)
 	buildTown(root)
 	buildCountry(root)
-	Fence.build(root, origin, Config.HUB_HALF, Config.HUB_HALF) -- nobody walks off the Hub
+	Fence.build(root, origin, Config.HUB_HALF, Config.HUB_HALF, Config.HUB_TOP) -- nobody walks off the Hub
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Anchored = true

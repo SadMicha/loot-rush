@@ -10,13 +10,20 @@ local Bounds = {
 	TAG = "MapBounds",
 }
 
-export type Rect = { center: Vector3, halfX: number, halfZ: number }
+-- `top`: optional ceiling (studs above center.Y) for the root; higher = glitched onto a roof or cliff
+export type Rect = { center: Vector3, halfX: number, halfZ: number, top: number? }
 
 -- Horizontal distance from `pos` to the rectangle (0 when inside)
 function Bounds.outside(pos: Vector3, rect: Rect): number
 	local dx = math.max(math.abs(pos.X - rect.center.X) - rect.halfX, 0)
 	local dz = math.max(math.abs(pos.Z - rect.center.Z) - rect.halfZ, 0)
 	return math.sqrt(dx * dx + dz * dz)
+end
+
+-- Is `pos` above the rectangle's ceiling (only rectangles with a `top`)?
+function Bounds.above(pos: Vector3, rect: Rect): boolean
+	local top = rect.top
+	return top ~= nil and pos.Y > rect.center.Y + top
 end
 
 -- `pos` moved inside the rectangle, Config.BOUNDS_PAD studs from the edge (Y unchanged)
@@ -36,7 +43,13 @@ function Bounds.read(folder: Instance): Rect?
 	local c, hx, hz =
 		folder:GetAttribute("Center"), folder:GetAttribute("HalfX"), folder:GetAttribute("HalfZ")
 	if typeof(c) == "Vector3" and typeof(hx) == "number" and typeof(hz) == "number" then
-		return { center = c, halfX = hx, halfZ = hz }
+		local top = folder:GetAttribute("Top")
+		return {
+			center = c,
+			halfX = hx,
+			halfZ = hz,
+			top = if typeof(top) == "number" then top else nil,
+		}
 	end
 	return nil
 end
