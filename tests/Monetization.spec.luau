@@ -47,7 +47,7 @@ describe("Monetization in game", function()
 			local player = game:GetService("Players"):GetPlayers()[1]
 			decision =
 				M.processReceipt({ ProductId = 12345, PlayerId = player.UserId, PurchaseId = "x" })
-			stars = req("ServerScriptService.Server.Systems.Data").get(player).soulstars
+			stars = req("ServerScriptService.Server.Systems.Data").account(player).soulstars
 		end)
 		expect(decision).toBe(Enum.ProductPurchaseDecision.NotProcessedYet)
 		expect(stars).toBe(0)
@@ -60,7 +60,7 @@ describe("Monetization in game", function()
 		sim:runAs("server", function(req)
 			local M = req("ServerScriptService.Server.Systems.Monetization")
 			decision = M.processReceipt(purchase)
-			stars = req("ServerScriptService.Server.Systems.Data").get(sim.player).soulstars
+			stars = req("ServerScriptService.Server.Systems.Data").account(sim.player).soulstars
 		end)
 		-- Same moment: granted in game, but not confirmed before the DataStore has it
 		expect(decision).toBeNil()
@@ -77,7 +77,7 @@ describe("Monetization in game", function()
 		sim:runAs("server", function(req)
 			decision =
 				req("ServerScriptService.Server.Systems.Monetization").processReceipt(purchase)
-			stars = req("ServerScriptService.Server.Systems.Data").get(sim.player).soulstars
+			stars = req("ServerScriptService.Server.Systems.Data").account(sim.player).soulstars
 		end)
 		sim:run(1)
 		expect(decision).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
@@ -98,7 +98,7 @@ describe("Monetization in game", function()
 		sim:runAs("server", function(req)
 			local player = game:GetService("Players"):GetPlayers()[1]
 			local Data = req("ServerScriptService.Server.Systems.Data")
-			local p = Data.get(player)
+			local p = Data.account(player)
 			p.passes.vip = true
 			p.passes.pet_slot = true
 		end)

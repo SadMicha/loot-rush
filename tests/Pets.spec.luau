@@ -47,7 +47,7 @@ describe("Pet rules", function()
 	end)
 
 	it("cleans up saved pets", function()
-		local p = Profile.reconcile({
+		local p = Profile.reconcileAccount({
 			pets = {
 				owned = { moss_frog = 99, bogus = 1 },
 				equipped = { "bogus", "moss_frog", "moss_frog" },
@@ -59,7 +59,7 @@ describe("Pet rules", function()
 	end)
 
 	it("keeps unknown pets and game passes (newer server) but does not count them", function()
-		local p = Profile.reconcile({
+		local p = Profile.reconcileAccount({
 			pets = {
 				owned = {
 					moss_frog = 2,
@@ -87,7 +87,7 @@ describe("Pet rules", function()
 		expect(p.passes.vip).toBe(true)
 		expect(p.passes.wrong).toBeNil()
 		-- survives a second load (save on an old server, load again)
-		local again = Profile.reconcile(Profile.copy(p))
+		local again = Profile.reconcileAccount(Profile.copy(p))
 		expect(again.pets.owned.future_pet).toBe(Pets.MAX_LEVEL)
 		expect(again.passes.future_pass).toBe(true)
 	end)
@@ -100,7 +100,7 @@ describe("Pet rules", function()
 			passes["pass" .. i] = true
 		end
 		owned.moss_frog = 1
-		local p = Profile.reconcile({ pets = { owned = owned }, passes = passes })
+		local p = Profile.reconcileAccount({ pets = { owned = owned }, passes = passes })
 		local n = 0
 		for _ in p.pets.owned do
 			n += 1
@@ -218,16 +218,18 @@ end
 
 local function state()
 	return server(function(req, player)
-		local p = req("ServerScriptService.Server.Systems.Data").get(player)
+		local Data = req("ServerScriptService.Server.Systems.Data")
+		local p = Data.get(player)
+		local a = Data.account(player)
 		local owned = 0
-		for _ in p.pets.owned do
+		for _ in a.pets.owned do
 			owned += 1
 		end
 		return {
 			owned = owned,
-			equipped = table.clone(p.pets.equipped),
+			equipped = table.clone(a.pets.equipped),
 			gold = p.gold,
-			stars = p.soulstars,
+			stars = a.soulstars,
 			attr = player:GetAttribute("Pets"),
 			slots = player:GetAttribute("PetSlots"),
 		}
@@ -271,7 +273,7 @@ describe("Pets in game", function()
 		send("equip", "rune_dragon") -- not owned
 		-- unknown pet owned (from a newer server): not equippable, no error
 		server(function(req, player)
-			req("ServerScriptService.Server.Systems.Data").get(player).pets.owned.future_pet = 3
+			req("ServerScriptService.Server.Systems.Data").account(player).pets.owned.future_pet = 3
 		end)
 		send("equip", "future_pet")
 		send("hatch", "does_not_exist")

@@ -2,10 +2,10 @@
 -- Robux on the server (IDs: Shared/Monetization).
 --  • Developer Products: ProcessReceipt credits the goods via Shop.grant. A purchase only counts
 --    as booked once it is saved (Data.saveNow) - otherwise NotProcessedYet, Roblox asks
---    again later. The PurchaseId goes into profile.receipts so nothing is credited twice.
+--    again later. The PurchaseId goes into account.receipts so nothing is credited twice.
 --  • Game passes: ownership on join (UserOwnsGamePassAsync with retries) and after a purchase in
 --    game (PromptGamePassPurchaseFinished). If the query fails, the last saved
---    ownership (profile.passes) applies. Result: attribute Pass_<key> = true, Pass.attr, bonuses via Boosts.
+--    ownership (account.passes) applies. Result: attribute Pass_<key> = true, Pass.attr, bonuses via Boosts.
 -- The client opens the purchase dialog itself (MarketplaceService:PromptProductPurchase /
 -- PromptGamePassPurchase) - the server only trusts the Roblox callbacks.
 
@@ -48,9 +48,9 @@ local function setOwned(player: Player, pass: Rules.Pass)
 	if pass.attr then
 		player:SetAttribute(pass.attr, true)
 	end
-	local profile = Data.get(player)
-	if profile then
-		profile.passes[pass.key] = true
+	local account = Data.account(player)
+	if account then
+		account.passes[pass.key] = true
 	end
 	Boosts.refresh(player)
 end
@@ -72,10 +72,10 @@ end
 
 -- passes: defaults to Rules.Passes (tests pass a list with a real id to force the ownership query)
 local function loadPasses(player: Player, passes: { Rules.Pass }?)
-	local profile = Data.waitFor(player)
+	local account = Data.waitForAccount(player)
 	-- The player may have left while the save loaded: PlayerRemoving already cleared owned[player]
 	-- and writing it again would leak the entry (same check after every yielding query below)
-	if not profile or not player.Parent then
+	if not account or not player.Parent then
 		return
 	end
 	owned[player] = owned[player] or {}
@@ -89,9 +89,9 @@ local function loadPasses(player: Player, passes: { Rules.Pass }?)
 			end
 		end
 		if has == nil then
-			has = profile.passes[pass.key] == true -- outage: last known state
+			has = account.passes[pass.key] == true -- outage: last known state
 		elseif has == false then
-			profile.passes[pass.key] = nil
+			account.passes[pass.key] = nil
 		end
 		if has and player.Parent then
 			setOwned(player, pass)
@@ -106,16 +106,17 @@ function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	local product =
 		ShopRules.productById(if typeof(info.ProductId) == "number" then info.ProductId else 0)
 	local player = Players:GetPlayerByUserId(info.PlayerId)
-	local profile = if player then Data.get(player) else nil
-	if not product or not player or not profile then
+	-- Receipts are account-wide: a purchase is booked once, whichever character is played
+	local account = if player then Data.account(player) else nil
+	if not product or not player or not account then
 		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox asks again on the next join
 	end
 	local purchase = tostring(info.PurchaseId)
-	if not table.find(profile.receipts, purchase) then
+	if not table.find(account.receipts, purchase) then
 		Shop.grant(player, product.give, product.amount)
-		table.insert(profile.receipts, purchase)
-		while #profile.receipts > Profile.MAX_RECEIPTS do
-			table.remove(profile.receipts, 1)
+		table.insert(account.receipts, purchase)
+		while #account.receipts > Profile.MAX_RECEIPTS do
+			table.remove(account.receipts, 1)
 		end
 		Net.ShopResult:FireClient(player, {
 			ok = true,

@@ -143,7 +143,7 @@ describe("Data loads that do not start a session", function()
 			sim:run(1)
 			expect(done).toBe(true)
 			expect(saved).toBe(true) -- and no spurious false
-			expect(raw("p_5").Data.data.level).toBe(21)
+			expect(raw("p_5").Data.data.characters[1].level).toBe(21)
 		end
 	)
 end)

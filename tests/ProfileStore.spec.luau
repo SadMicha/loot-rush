@@ -8,7 +8,7 @@ local PACKAGE = "ServerScriptService.ServerPackages.ProfileStore"
 local Profile = require("ReplicatedStorage.Shared.Profile")
 
 local function template()
-	return { v = Profile.VERSION, data = Profile.fresh() }
+	return { v = Profile.VERSION, data = Profile.freshAccount() }
 end
 
 local function waitUntil(cond: () -> boolean, timeout: number): boolean
@@ -43,7 +43,7 @@ describe("ProfileStore in the sandbox", function()
 		expect(A.DataStoreState).toBe("Access")
 		expect(profileA:IsActive()).toBe(true)
 		expect(profileA.Data.v).toBe(Profile.VERSION)
-		expect(profileA.Data.data.level).toBe(Profile.fresh().level)
+		expect(#profileA.Data.data.characters).toBe(1)
 
 		local rec = raw("p_1")
 		expect(rec).never.toBeNil()
@@ -89,9 +89,9 @@ describe("ProfileStore in the sandbox", function()
 		local p = storeA:StartSessionAsync("p_2", {})
 		expect(p).never.toBeNil()
 		expect(p.Data.data.gold).toBe(5)
-		expect(p.Data.data.level).toBeNil()
+		expect(p.Data.data.soulstars).toBeNil()
 		p:Reconcile()
-		expect(p.Data.data.level).toBe(Profile.fresh().level)
+		expect(p.Data.data.soulstars).toBe(Profile.freshAccount().soulstars)
 		expect(p.SessionLoadCount).toBe(4)
 		expect(p.UserIds[1]).toBe(2)
 		p:EndSession()

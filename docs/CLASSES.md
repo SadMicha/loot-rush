@@ -3,13 +3,21 @@
 Build order step 6 (`docs/DECISIONS.md`). Data in `src/shared/Classes.luau` and
 `src/shared/Skills.luau` (`Skills.forClass(id)` → basic attack, 8 skills, starting bar).
 
-## Choosing
-- New players get the class picker on first join (attribute `ClassChosen = false`).
-- The class can be changed in the hub from the Abilities window ("Class" button); the server
-  (`Systems/ClassChoice`) refuses changes during a rift. Remote `Net.Class` ("choose", id).
-- Skill levels and blooms are kept per skill, so switching back loses nothing. The bar is refit to
-  the new class (`Progression.fitBar`), the held weapon follows the class.
-- Saves: `profile.class`, `profile.classChosen`.
+## Heroes (characters) and choosing a class
+The save is an account with up to 12 heroes (`Shared/Profile` v4, docs/specs/SEASONS.md §6). Each
+hero has its own name, class, level, gear, skills and progress; Soulstars, Robux receipts, game
+passes and pets are account-wide.
+- First join: the setup screen (`CharacterController`, attribute `SetupDone = false`) asks for a
+  name (3-16 letters/digits, Roblox text filter) and a class. It cannot be skipped.
+- The class is **locked** to the hero. Another class = another hero: "Heroes" button in the Skills
+  window → list of heroes ("Play" switches) and "Create <hero>" (name + class).
+- Switching saves and rejoins the game into the other hero (TeleportService to the same place), so
+  every system loads it fresh. Never inside a rift. In Studio the teleport fails: you get kicked
+  with "Please rejoin" and press Play again.
+- Server: `Systems/Characters` (remote `Net.Character`: "list", "setup", "create", "play";
+  `Net.Characters` sends the list, `Net.CharacterResult` the feedback).
+- Saves: `character.class`, `character.setupDone`, `character.name`, `account.active`. Old v3 saves
+  become the first hero (setup counts as done if a class was picked before).
 
 ## Skills (basic attack always automatic, skills 5–8 unlock at level 8/12/16/20)
 

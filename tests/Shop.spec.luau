@@ -58,11 +58,11 @@ describe("Shop rules", function()
 	end)
 
 	it("save: new fields with starting values, broken values get repaired", function()
-		local fresh = Profile.fresh()
+		local fresh = Profile.freshAccount()
 		expect((fresh :: any).potions).toBeNil()
 		expect(fresh.soulstars).toBe(0)
 		expect(#fresh.receipts).toBe(0)
-		local fixed = Profile.reconcile({ soulstars = -3, receipts = { "a", 5, "b" } })
+		local fixed = Profile.reconcileAccount({ soulstars = -3, receipts = { "a", 5, "b" } })
 		expect(fixed.soulstars).toBe(0)
 		expect(#fixed.receipts).toBe(2)
 	end)
@@ -85,10 +85,11 @@ end
 
 local function state()
 	return server(function(req, player)
-		local p = req("ServerScriptService.Server.Systems.Data").get(player)
+		local Data = req("ServerScriptService.Server.Systems.Data")
+		local p = Data.get(player)
 		return {
 			gold = p.gold,
-			soulstars = p.soulstars,
+			soulstars = Data.account(player).soulstars,
 			shards = p.materials.shards,
 			candy = p.materials.candy,
 			attrStars = player:GetAttribute("Soulstars"),

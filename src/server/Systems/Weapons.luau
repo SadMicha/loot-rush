@@ -1,7 +1,7 @@
 --!strict
 -- Held weapon on the avatar (rules and ids: Shared/Weapons, Assets.Weapon; docs/WEAPONS.md).
--- Sets the player attribute "Class" from the save and welds the class weapon into the right
--- hand after every spawn. With uploaded ids the FBX mesh is loaded once per weapon
+-- Sets the player attribute "Class" from the save and welds the class weapon into its hand
+-- (Shared/Weapons: hand, grip, arm pose) after every spawn. With uploaded ids the FBX mesh is loaded once per weapon
 -- (InsertService) and cloned; without ids, or if loading fails, a part-built weapon is used.
 
 local InsertService = game:GetService("InsertService")
@@ -101,18 +101,19 @@ local function buildParts(w: Weapons.Weapon, model: Model): BasePart
 			CFrame.new(0, 0, 0),
 			Kit.shade(w.color, -0.3)
 		)
+		-- like the mesh: riser at the grip, limbs bend toward -X, string on the -X side
 		for _, side in { 1, -1 } do
 			Kit.block(
 				model,
 				Vector3.new(0.25, L / 2, 0.25),
-				CFrame.new(0, side * L / 4, -0.35) * CFrame.Angles(math.rad(side * 18), 0, 0),
+				CFrame.new(-0.35, side * L / 4, 0) * CFrame.Angles(0, 0, math.rad(side * 18)),
 				w.color
 			)
 		end
 		local cord = Kit.block(
 			model,
 			Vector3.new(0.05, L * 0.95, 0.05),
-			CFrame.new(0, 0, -0.75),
+			CFrame.new(-0.75, 0, 0),
 			Color3.new(0.95, 0.95, 0.9)
 		)
 		cord.Material = Enum.Material.Neon
@@ -147,11 +148,22 @@ local function buildParts(w: Weapons.Weapon, model: Model): BasePart
 	return handle
 end
 
-local HANDS = { "RightHand", "Right Arm", "UpperTorso", "HumanoidRootPart" }
+-- Hand parts per side (R15, R6), then fallbacks for unusual rigs
+local HANDS = {
+	right = { "RightHand", "Right Arm", "UpperTorso", "HumanoidRootPart" },
+	left = { "LeftHand", "Left Arm", "UpperTorso", "HumanoidRootPart" },
+}
+local ALL_HANDS =
+	{ "RightHand", "Right Arm", "LeftHand", "Left Arm", "UpperTorso", "HumanoidRootPart" }
 local APPEARANCE_WAIT = 5 -- seconds to wait for the avatar's body parts before equipping anyway
 
-local function hand(character: Model): BasePart?
-	for _, name in HANDS do
+local function classWeapon(player: Player): Weapons.Weapon?
+	return Weapons.ByClass[Classes.valid(player:GetAttribute("Class"))]
+end
+
+local function hand(character: Model, side: string): BasePart?
+	local names: { string } = if side == "left" then HANDS.left else HANDS.right
+	for _, name in names do
 		local p = character:FindFirstChild(name)
 		if p and p:IsA("BasePart") then
 			return p
@@ -160,14 +172,53 @@ local function hand(character: Model): BasePart?
 	return nil
 end
 
--- Grip point on the hand part: the rig's RightGripAttachment (R6 arms are 2 studs long, R15
+-- Grip point on the hand part: the rig's Right/LeftGripAttachment (R6 arms are 2 studs long, R15
 -- hands small), orientation of the hand part itself (+Y up the arm, -Z forward)
-local function gripOffset(part: BasePart): CFrame
-	local att = part:FindFirstChild("RightGripAttachment")
+local function gripOffset(part: BasePart, side: string): CFrame
+	local att =
+		part:FindFirstChild(if side == "left" then "LeftGripAttachment" else "RightGripAttachment")
 	if att and att:IsA("Attachment") then
 		return CFrame.new(att.Position)
 	end
 	return CFrame.new()
+end
+
+-- Arm pose for the weapon: "ready" weapons raise the arm forward (Roblox's tool-hold animation,
+-- right arm only); the bow keeps the arm down. Played on the server, it replicates to everyone.
+local holds: { [Model]: AnimationTrack } = {}
+
+local function setHold(character: Model, w: Weapons.Weapon)
+	local old = holds[character]
+	if old then
+		holds[character] = nil
+		old:Stop(0.2)
+	end
+	if not w.ready then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if not humanoid or not animator then
+		return
+	end
+	local anim = Instance.new("Animation")
+	anim.AnimationId = if humanoid.RigType == Enum.HumanoidRigType.R6
+		then Weapons.HOLD_ANIM.R6
+		else Weapons.HOLD_ANIM.R15
+	local ok, track = pcall(function()
+		return animator:LoadAnimation(anim)
+	end)
+	if not ok or not track then
+		warn("[Weapons] hold pose not loaded: " .. tostring(track))
+		return
+	end
+	track.Priority = Enum.AnimationPriority.Action -- over idle/walk, below nothing we play
+	track.Looped = true
+	track:Play(0.2)
+	holds[character] = track
+	character.Destroying:Once(function()
+		holds[character] = nil
+	end)
 end
 
 -- The avatar loads after the spawn and swaps its body parts (RightHand etc.). A weapon welded to
@@ -210,18 +261,20 @@ local function watch(player: Player, character: Model)
 			local held = character:FindFirstChild(NAME)
 			local joint = held and held:FindFirstChild("Grip")
 			local part0 = joint and (joint :: Weld).Part0
-			if not part0 or part0.Parent ~= character or part0 ~= hand(character) then
+			local w = classWeapon(player)
+			local want = w and hand(character, w.hand)
+			if not part0 or part0.Parent ~= character or part0 ~= want then
 				WeaponSystem.equip(player)
 			end
 		end)
 	end
 	character.ChildAdded:Connect(function(child)
-		if table.find(HANDS, child.Name) then
+		if table.find(ALL_HANDS, child.Name) then
 			check()
 		end
 	end)
 	character.ChildRemoved:Connect(function(child)
-		if table.find(HANDS, child.Name) then
+		if table.find(ALL_HANDS, child.Name) then
 			check()
 		end
 	end)
@@ -235,11 +288,8 @@ end
 
 function WeaponSystem.equip(player: Player)
 	local character = player.Character
-	if not character or not hand(character) then
-		return
-	end
-	local w = Weapons.ByClass[Classes.valid(player:GetAttribute("Class"))]
-	if not w then
+	local w = classWeapon(player)
+	if not character or not w or not hand(character, w.hand) then
 		return
 	end
 	local gen = (generation[player] or 0) + 1
@@ -253,7 +303,7 @@ function WeaponSystem.equip(player: Player)
 		return -- respawned while loading: the new character equips itself
 	end
 	-- the avatar may have swapped its hand parts during the load: find the grip again
-	local grip = hand(character)
+	local grip = hand(character, w.hand)
 	if not grip then
 		return
 	end
@@ -268,7 +318,11 @@ function WeaponSystem.equip(player: Player)
 	if mesh then
 		root = mesh.part:Clone()
 		-- bounding-box center of the mesh sits (0.5 - gripAt) lengths above the grip point
-		root.CFrame = CFrame.new(0, (0.5 - w.gripAt) * w.length, 0) * mesh.align
+		root.CFrame = CFrame.new(
+			w.offset.X * w.length,
+			(0.5 - w.gripAt) * w.length,
+			w.offset.Y * w.length
+		) * mesh.align
 		root.Parent = model
 	else
 		root = buildParts(w, model)
@@ -277,7 +331,7 @@ function WeaponSystem.equip(player: Player)
 	-- Joints from fixed offsets (not world positions): the weapon sits right even if the server's
 	-- copy of the hand moved meanwhile. Root → hand via "Grip", every other part → root.
 	local rootCf = root.CFrame
-	local hold = gripOffset(grip) * w.grip -- weapon space → hand space
+	local hold = gripOffset(grip, w.hand) * w.grip -- weapon space → hand space
 	local place = grip.CFrame * hold
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
@@ -303,6 +357,7 @@ function WeaponSystem.equip(player: Player)
 	joint.C0 = hold * rootCf
 	joint.Parent = model
 	model.Parent = character
+	setHold(character, w)
 	watch(player, character)
 end
 

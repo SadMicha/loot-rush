@@ -19,7 +19,10 @@
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
 --   PetResult (S→C): { ok, text, kind, pet?, level?, shards? } - feedback (hatching, equipping);
 --                    kind = "hatch" | "equip" | "unequip" (the request it answers)
---   Class     (C→S): "choose", classId - pick/change the class (first join, or in the hub)
+--   Character (C→S): "list" | "setup", name, classId | "create", name, classId | "play", characterId
+--                    (Systems/Characters: first-join setup, new characters, switching)
+--   Characters (S→C): { active, max, list = { { id, name, class, level, league } } }
+--   CharacterResult (S→C): { ok, text, action } - feedback for a Character request
 --   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
 --                    events: { done = { questText }, unlocked = { windowId } } on progress
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
@@ -51,7 +54,9 @@ local NAMES = {
 	"Pets",
 	"PetResult",
 	"Quest",
-	"Class",
+	"Character",
+	"Characters",
+	"CharacterResult",
 	"AutoSalvage",
 	"Loadout",
 	"SkillCast",
@@ -99,7 +104,9 @@ return table.freeze({
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),
 	Quest = get("Quest"),
-	Class = get("Class"),
+	Character = get("Character"),
+	Characters = get("Characters"),
+	CharacterResult = get("CharacterResult"),
 	AutoSalvage = get("AutoSalvage"),
 	Loadout = get("Loadout"),
 	SkillCast = get("SkillCast"),
