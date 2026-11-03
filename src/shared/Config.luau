@@ -28,7 +28,7 @@ return table.freeze({
 	TILE_SIZE = 8,
 	ARENA_TILES_X = 17, -- tiles per region arena (same grid in all regions)
 	ARENA_TILES_Z = 15,
-	HUB_HALF = 64, -- half size of the walkable Hub plan (16 cells × 8 studs)
+	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
 	BOUNDARY_HEIGHT = 80, -- studs of invisible wall, starting FALL_DEPTH below the floor
 	FALL_DEPTH = 20, -- this far below the map floor = fallen, back to a safe spot
@@ -54,8 +54,8 @@ return table.freeze({
 
 	-- Rift (waves → boss → deeper or back)
 	RIFT_START = Vector3.new(0, 4, 16), -- the player lands here on entering
-	HUB_ORIGIN = Vector3.new(-700, 0, 0), -- center of the Hub map "Lumenhaven" (far away from the arena)
-	HUB_POS = Vector3.new(-700, 4, 44), -- spawn in the Hub and return from the Rift
+	HUB_ORIGIN = Vector3.new(-1200, 0, 0), -- center of the Hub map "Lumenhaven" (far from every arena)
+	HUB_POS = Vector3.new(-1200, 4, 60), -- spawn in the Hub and return from the Rift
 	RIFT_WAVES = 3, -- waves before the boss
 	RIFT_WAVE_BASE = 6, -- enemies in wave 1 at depth 1
 	RIFT_WAVE_STEP = 2, -- extra enemies per wave and per depth
@@ -63,7 +63,7 @@ return table.freeze({
 	RIFT_WAVE_PAUSE = 1.5, -- seconds between waves
 	RIFT_ELITES = 2, -- elites per depth: one each in the last waves (spreadsheet: 3 per 150 enemies)
 	RIFT_SLOTS = 12, -- this many Rifts run at once on a server (one per player)
-	ARENA_SPACING = 400, -- studs between arena slots (along +X, slot 1 at the origin)
+	ARENA_SPACING = 1000, -- studs between arena slots along +X (slot 1 at the origin); no map sees the next
 
 	-- Loot: level, gold, drop chance and rarity per depth from Shared/Balance
 	LOOT_BOSS_ILVL = 1, -- boss items are this many levels (10 IP each) higher (own assumption)
