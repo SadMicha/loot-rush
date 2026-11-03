@@ -140,8 +140,11 @@ local function buildParts(w: Weapons.Weapon, model: Model): BasePart
 	return handle
 end
 
+local HANDS = { "RightHand", "Right Arm", "UpperTorso", "HumanoidRootPart" }
+local APPEARANCE_WAIT = 5 -- seconds to wait for the avatar's body parts before equipping anyway
+
 local function hand(character: Model): BasePart?
-	for _, name in { "RightHand", "Right Arm", "UpperTorso", "HumanoidRootPart" } do
+	for _, name in HANDS do
 		local p = character:FindFirstChild(name)
 		if p and p:IsA("BasePart") then
 			return p
@@ -150,30 +153,88 @@ local function hand(character: Model): BasePart?
 	return nil
 end
 
-function WeaponSystem.equip(player: Player)
-	local character = player.Character
-	local grip = character and hand(character)
-	if not character or not grip then
+-- The avatar loads after the spawn and swaps its body parts (RightHand etc.). A weapon welded to
+-- the old hand would fall out of the world, so equip only once the appearance has loaded.
+local function waitForAppearance(player: Player)
+	if player:HasAppearanceLoaded() then
 		return
 	end
-	local old = character:FindFirstChild(NAME)
-	if old then
-		old:Destroy()
+	local done = false
+	local conn = player.CharacterAppearanceLoaded:Connect(function()
+		done = true
+	end)
+	local t0 = os.clock()
+	while not done and os.clock() - t0 < APPEARANCE_WAIT and not player:HasAppearanceLoaded() do
+		task.wait(0.1)
+	end
+	conn:Disconnect()
+end
+
+local watched: { [Model]: boolean } = {}
+
+-- Re-equip when the hand the weapon hangs on is replaced (avatar loading, HumanoidDescription)
+local function watch(player: Player, character: Model)
+	if watched[character] then
+		return
+	end
+	watched[character] = true
+	local pending = false
+	local function check()
+		if pending then
+			return
+		end
+		pending = true
+		task.defer(function()
+			pending = false
+			if player.Character ~= character or not character.Parent then
+				return
+			end
+			local held = character:FindFirstChild(NAME)
+			local joint = held and held:FindFirstChild("Grip")
+			local part0 = joint and (joint :: Weld).Part0
+			if not part0 or part0.Parent ~= character or part0 ~= hand(character) then
+				WeaponSystem.equip(player)
+			end
+		end)
+	end
+	character.ChildAdded:Connect(function(child)
+		if table.find(HANDS, child.Name) then
+			check()
+		end
+	end)
+	character.ChildRemoved:Connect(function(child)
+		if table.find(HANDS, child.Name) then
+			check()
+		end
+	end)
+	character.Destroying:Connect(function()
+		watched[character] = nil
+	end)
+	player.CharacterRemoving:Once(function(c)
+		watched[c] = nil
+	end)
+end
+
+function WeaponSystem.equip(player: Player)
+	local character = player.Character
+	if not character or not hand(character) then
+		return
 	end
 	local w = Weapons.ByClass[Classes.valid(player:GetAttribute("Class"))]
 	if not w then
 		return
 	end
+	waitForAppearance(player) -- may yield (avatar still loading)
 	local mesh = loadMesh(w) -- may yield (first load per server)
 	if player.Character ~= character or not character.Parent then
 		return -- respawned while loading: the new character equips itself
 	end
 	-- the avatar may have swapped its hand parts during the load: find the grip again
-	grip = hand(character) :: BasePart
+	local grip = hand(character)
 	if not grip then
 		return
 	end
-	old = character:FindFirstChild(NAME)
+	local old = character:FindFirstChild(NAME)
 	if old then
 		old:Destroy()
 	end
@@ -183,32 +244,41 @@ function WeaponSystem.equip(player: Player)
 	local root: BasePart
 	if mesh then
 		root = mesh:Clone()
-		root.Anchored = true
 		root.CFrame = CFrame.new()
 		root.Parent = model
 	else
 		root = buildParts(w, model)
 	end
 	model.PrimaryPart = root
-	-- Model space → hand space: the root sits at the grip, the rest follows rigidly
-	local offset = grip.CFrame * w.grip
+	-- Joints from fixed offsets (not world positions): the weapon sits right even if the server's
+	-- copy of the hand moved meanwhile. Root → hand via "Grip", every other part → root.
+	local rootCf = root.CFrame
+	local place = grip.CFrame * w.grip
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
-			p.CFrame = offset * p.CFrame
 			p.CanCollide = false
 			p.CanQuery = false
 			p.CanTouch = false
 			p.Massless = true
-			if p ~= grip then
-				local weld = Instance.new("WeldConstraint")
-				weld.Part0 = grip
+			p.Anchored = false
+			if p ~= root then
+				local weld = Instance.new("Weld")
+				weld.Part0 = root
 				weld.Part1 = p
+				weld.C0 = rootCf:ToObjectSpace(p.CFrame)
 				weld.Parent = p
 			end
-			p.Anchored = false
+			p.CFrame = place * rootCf:ToObjectSpace(p.CFrame)
 		end
 	end
+	local joint = Instance.new("Weld")
+	joint.Name = "Grip"
+	joint.Part0 = grip
+	joint.Part1 = root
+	joint.C0 = w.grip
+	joint.Parent = model
 	model.Parent = character
+	watch(player, character)
 end
 
 local function onPlayer(player: Player)

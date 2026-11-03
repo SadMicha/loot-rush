@@ -16,6 +16,10 @@ until class choice exists) and welds the class weapon into the right hand after 
 
 ## Getting the real meshes into the game
 
+Status 2026-11-03: all eight assets are uploaded and their ids are in `Assets.Weapon`.
+The server waits for the avatar's appearance before equipping and re-equips when the hand part is
+replaced (body packages swap `RightHand`), so the weapon never drops off.
+
 1. Run the GitHub workflow **"Upload UI assets"** with
    `only = weapon_warrior_sword_model,weapon_warrior_sword_texture,weapon_ranger_bow_model,weapon_ranger_bow_texture,weapon_mage_staff_model,weapon_mage_staff_texture,weapon_druid_scepter_model,weapon_druid_scepter_texture`.
    The FBX files go up as Model assets, the PNGs as Image assets; the ids land in
