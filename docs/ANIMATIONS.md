@@ -15,6 +15,15 @@ works in every place without asset permissions and costs no network traffic.
   tuned in code and replace the walk cycle instead of layering on it. Uploaded animations can still
   replace single moves later (play the track and skip the move in `AnimController`).
 
+### Rig joints
+
+Roblox's Avatar Joint Upgrade replaces the character's `Motor6D` joints with
+`AnimationConstraint`s (same names, same `Transform`). `AnimController` drives both: it looks the
+joint up by name in the part it moves, else by `Part1` / `Attachment1`, and takes the joint offset
+from `C0` (or `Attachment0.CFrame`). If the own character has no joint it can drive for
+`Anim.JOINT_WARN` seconds, the Output shows one `[AnimController] no animatable joints` warning
+with the joint classes it found. `tests/AnimRig.spec.luau` covers both rig kinds.
+
 ## Moves (`Shared/Anim.Moves`)
 
 | Moment | Move | Notes |
