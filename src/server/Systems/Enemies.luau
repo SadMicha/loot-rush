@@ -1178,6 +1178,9 @@ local function step(dt: number)
 			-- only leap when the player stands where an enemy can land (else it lands short, loops)
 			local reachable = (clampArena(e, flatTarget) - flatTarget).Magnitude
 				<= kind.radius * 0.5
+			-- player stands past the enemy walking area (rim, cliffs): slam from the edge if the
+			-- circle reaches, instead of waiting at the clamp
+			local edgeSlam = not reachable and kind.ai == "slam" and dist <= kind.radius * 0.9
 			if
 				ready
 				and kind.leap
@@ -1186,7 +1189,7 @@ local function step(dt: number)
 				and dist <= kind.leap
 			then
 				beginWindup(e, pos, targetPos, vel, now, true)
-			elseif dist > kind.attackRange then
+			elseif dist > kind.attackRange and not edgeSlam then
 				move = 1
 				if kind.keepAway == 0 and dist > 0.01 then
 					-- melee spread out around the player instead of queueing in one line
