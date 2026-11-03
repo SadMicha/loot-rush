@@ -56,6 +56,13 @@ Priority: **P0** blocks 1.0 · **P1** strongly affects how the game feels or ret
 | O3 | The first loot moment is random: drop chance drops to 8 % in #75, so the first item can take a while and the "pick up 3 items" quest can stall. | P0 | **Guaranteed first drops**: the first 3 kills of a new character each drop an item (first one Magic, a weapon for the class), the first boss always drops a Rare. Pure `Balance` rule, testable. |
 | O4 | Quest 2 already asks for 10 kills; the dodge roll, skills and the Rush meter are never explained. | P1 | Contextual one-time hints (toast with the key/touch icon) on first enemy in range ("Tap a skill"), first telegraph ("Dodge!"), first full Rush. Stored account-wide (`tutorialSeen` flags). |
 | O5 | Pets unlock at depth 8 with "Hatch a pet" right after Forge/salvage: three new windows in a short span. | P2 | Spread unlocks: Forge at depth 5, Pets at depth 10, Star Web at level 5 stays. Keep quest ids stable (append only, `docs/ONBOARDING.md`). |
+
+**Built (2026-11-03):** O1 `WaypointController` (beam to `Station_<window>` from
+`Quests.Waypoints`, minimap diamond in `HudController`), O3 `Balance.FirstDrops` +
+`Loot.starter` (counted in `profile.starters`; the first boss already drops a Rare), O4
+`HintsController` (hidden account settings `hintSkills`/`hintDodge`/`hintRush`), O2 preload
+only (`PreloadController`). Still open for O2: the loading screen needs a `ReplicatedFirst`
+mapping in `default.project.json`.
 | O6 | No skip for players who already know ARPGs. | P2 | "Skip tutorial hints" toggle in settings (S1). |
 
 ### 3.2 Combat feel
