@@ -34,8 +34,10 @@ local SALVAGE_GAP = 0.15 -- seconds between salvage requests (server allows 8 pe
 local SALVAGE_STALE = 3 -- seconds after sending: an item the server kept shows up again
 local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed
 
--- Layout (design pixels). The window ends above the HUD hub bar on a phone (844x390).
-local WIN_W, WIN_H = 1460, 650
+-- Layout (design pixels). The window is fitted to the screen width and grows in height on taller
+-- screens (tablets) down to the menu dock: the figure gets taller and the bag cells bigger.
+local WIN_W, WIN_H = 1460, 650 -- WIN_H = smallest height (phones)
+local WIN_H_MAX = 1000
 local WINDOW_TOP = 84
 local HEAD_H = 48
 local BODY_Y = HEAD_H + 12
@@ -43,11 +45,12 @@ local LEFT_W = 600
 local RIGHT_X = LEFT_W + 16
 local RIGHT_W = WIN_W - RIGHT_X
 local DOLL_H = 334
-local CMP_Y = BODY_Y + DOLL_H + 10
-local CMP_H = WIN_H - CMP_Y
+local CMP_H = WIN_H - (BODY_Y + DOLL_H + 10)
 local PAD = 14
 local DOLL_CELL, DOLL_STEP = 60, 64
-local COLS, CELL, GAP = 9, 80, 8
+local GAP = 8
+local cols, cellSize = 9, 80 -- bag grid; bigger cells / fewer columns when the window grows taller
+local CELL_MAX = 120
 local GRID_PAD = 10 -- room for the glow of edge cells inside the scrolling frame
 local TAB_H = 40
 local FOOT_H = 48
@@ -106,6 +109,9 @@ local window: Frame
 local dollCard: Frame
 local cmpCard: Frame
 local gridFrame: ScrollingFrame
+local gridLayout: UIGridLayout
+local bagCard: Frame
+local stageLight: Frame
 local countLabel: TextLabel
 local capLabel: TextLabel
 local ipLabel: TextLabel
@@ -234,8 +240,9 @@ local function selectItem(item: Items.Item, isEquipped: boolean)
 end
 
 -- New render of a selected cell: small bounce so the choice is felt
+local layoutRender = false -- true while a resize rebuilds the grid: no loot reveals then
 local function popIfSelected(cell: GuiButton, item: Items.Item)
-	if freshIds[item.id] and gui.Enabled then
+	if freshIds[item.id] and gui.Enabled and not layoutRender then
 		freshIds[item.id] = nil
 		task.defer(Flat.reveal, cell)
 	end
@@ -248,6 +255,7 @@ local function popIfSelected(cell: GuiButton, item: Items.Item)
 end
 
 -- ------------------------------------------------------------------ Equipment (left top)
+local dollTop = 12 -- y of the first equipment row (centered when the card grows)
 local function renderDoll()
 	for _, child in dollCard:GetChildren() do
 		if child.Name == "Slot" then
@@ -265,7 +273,7 @@ local function renderDoll()
 			captionSide = side,
 		})
 		b.Name = "Slot"
-		b.Position = UDim2.fromOffset(x, 12 + (row - 1) * DOLL_STEP)
+		b.Position = UDim2.fromOffset(x, dollTop + (row - 1) * DOLL_STEP)
 		b.ZIndex = 3
 		if item then
 			b.Activated:Connect(function()
@@ -314,6 +322,7 @@ local function buildDoll(parent: Frame)
 	})
 	fade.Parent = light
 	light.Parent = dollCard
+	stageLight = light
 
 	viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Figure"
@@ -587,7 +596,7 @@ local function resetGrid()
 end
 
 local function emptyCell(): TextButton
-	local e = Flat.cell(CELL, nil, nil)
+	local e = Flat.cell(cellSize, nil, nil)
 	e.Name = "Empty"
 	e.Active = false
 	e.Parent = gridFrame
@@ -598,7 +607,7 @@ local function renderMaterials()
 	local have = ProgressController.materials()
 	for i, key in MATERIALS do
 		local n = math.floor((have :: any)[key] or 0)
-		local b = Flat.cell(CELL, Forge.MaterialIcon[key], {
+		local b = Flat.cell(cellSize, Forge.MaterialIcon[key], {
 			rarity = if key == "dust" then "epic" elseif key == "candy" then "rare" else "magic",
 			count = n,
 		})
@@ -606,7 +615,7 @@ local function renderMaterials()
 		b.LayoutOrder = i
 		b.Parent = gridFrame
 	end
-	for i = #MATERIALS + 1, COLS * 5 do
+	for i = #MATERIALS + 1, cols * 5 do
 		emptyCell().LayoutOrder = i
 	end
 end
@@ -712,7 +721,7 @@ local function renderItems(): number
 			entry = nil
 		end
 		if not entry then
-			local b = Flat.cell(CELL, slotArt(item.slot), {
+			local b = Flat.cell(cellSize, slotArt(item.slot), {
 				rarity = item.rarity,
 				selected = isSel,
 				marked = isMarked,
@@ -738,8 +747,8 @@ local function renderItems(): number
 		end
 	end
 	-- Empty places up to full rows (at least the bag size in "All")
-	local total = math.max(#list, if category == "all" then MAX_ITEMS else 0, COLS * 5)
-	total = math.ceil(total / COLS) * COLS
+	local total = math.max(#list, if category == "all" then MAX_ITEMS else 0, cols * 5)
+	total = math.ceil(total / cols) * cols
 	local need = total - #list
 	while #emptyPool < need do
 		table.insert(emptyPool, emptyCell())
@@ -772,12 +781,12 @@ local function renderGrid()
 		resetGrid()
 		gridShowsMaterials = true
 		renderMaterials()
-		shown = COLS * 5
+		shown = cols * 5
 	else
 		shown = renderItems()
 	end
-	local rows = math.ceil(shown / COLS)
-	gridFrame.CanvasSize = UDim2.fromOffset(0, rows * (CELL + GAP) - GAP + 2 * GRID_PAD)
+	local rows = math.ceil(shown / cols)
+	gridFrame.CanvasSize = UDim2.fromOffset(0, rows * (cellSize + GAP) - GAP + 2 * GRID_PAD)
 
 	-- Footer state
 	footNormal.Visible = not salvageMode
@@ -843,6 +852,7 @@ end
 
 local function buildGrid(parent: Frame)
 	local card = Flat.card(UDim2.fromOffset(RIGHT_W, WIN_H - BODY_Y))
+	bagCard = card
 	card.Name = "Bag"
 	card.Position = UDim2.fromOffset(RIGHT_X, BODY_Y)
 	card.Parent = parent
@@ -909,7 +919,8 @@ local function buildGrid(parent: Frame)
 	gp.PaddingRight = UDim.new(0, GRID_PAD)
 	gp.Parent = gridFrame
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(CELL, CELL)
+	gridLayout = layout
+	layout.CellSize = UDim2.fromOffset(cellSize, cellSize)
 	layout.CellPadding = UDim2.fromOffset(GAP, GAP)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = gridFrame
@@ -1032,8 +1043,51 @@ local guiRoot: Frame
 local closeButton: GuiButton
 local CLOSE_SIZE = 48 -- same as Window (top right of the screen, outside the scaled stage)
 
--- Fit the window into the screen (phones: grows over the hub bar, the window is modal anyway) and keep
--- the title clear of the Roblox buttons at the top left
+-- Window height in design pixels: the equipment card takes the extra height (taller figure, slots
+-- centered), the bag grid picks the biggest cells that still show the whole bag without scrolling.
+local shownH = WIN_H
+local lastUnit = 0 -- screen pixels per window design pixel at the last refit
+local function relayout(h: number)
+	h = math.floor(h)
+	if h == shownH then
+		return
+	end
+	shownH = h
+	local extra = h - WIN_H
+	stage.Size = UDim2.fromOffset(WIN_W, h)
+	local dollH = DOLL_H + extra
+	dollCard.Size = UDim2.fromOffset(LEFT_W, dollH)
+	viewport.Size = UDim2.fromOffset(LEFT_W - 180, dollH - 16)
+	stageLight.Position = UDim2.new(0.5, 0, 0, math.floor(dollH * 0.45))
+	stageLight.Size = UDim2.fromOffset(300 + extra // 2, 300 + extra // 2)
+	dollTop = 12 + math.floor(extra / 2)
+	cmpCard.Position = UDim2.fromOffset(0, BODY_Y + dollH + 10)
+	bagCard.Size = UDim2.fromOffset(RIGHT_W, h - BODY_Y)
+	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - FOOT_H - PAD - 6
+	gridFrame.Size = UDim2.fromOffset(gridFrame.Size.X.Offset, gridH)
+	-- Fewest columns (= biggest cells) whose rows for a full bag still fit the grid height
+	local inner = gridFrame.Size.X.Offset - 2 * GRID_PAD - 8 -- 8: scroll bar inset + rounding
+	local bestCols, bestCell = 9, math.min(80, (inner - 8 * GAP) // 9)
+	for c = 6, 9 do
+		local size = math.min(CELL_MAX, (inner - (c - 1) * GAP) // c)
+		local rows = math.ceil(MAX_ITEMS / c)
+		if rows * (size + GAP) - GAP + 2 * GRID_PAD <= gridH and size > 80 then
+			bestCols, bestCell = c, size
+			break
+		end
+	end
+	if bestCols ~= cols or bestCell ~= cellSize then
+		cols, cellSize = bestCols, bestCell
+		gridLayout.CellSize = UDim2.fromOffset(cellSize, cellSize)
+		resetGrid() -- cells are rebuilt at the new size
+	end
+	layoutRender = true
+	InventoryController.render()
+	layoutRender = false
+end
+
+-- Fit the window into the screen: full width, and as tall as the room above the menu dock allows
+-- (phones: the smallest height, scaled down). Keeps the title clear of the Roblox buttons.
 local function arrange()
 	local rootScale = guiRoot:FindFirstChildOfClass("UIScale")
 	local s = if rootScale then rootScale.Scale else 1
@@ -1050,19 +1104,31 @@ local function arrange()
 	closeButton.Position = UDim2.new(1, -28, 0, mid)
 	local closeH = math.max(CLOSE_SIZE, closeButton.Size.Y.Offset) -- grows on touch screens
 	local stageTop = math.max(WINDOW_TOP, mid + closeH / 2 + 8)
-	stage.Position = UDim2.new(0.5, 0, 0, stageTop)
+	local reserveBottom, reserveLeft = Window.reserve()
+	local leftFree = reserveLeft / s
+	stage.Position = UDim2.new(0.5, leftFree / 2, 0, stageTop)
 
-	local k = math.min((view.X - 40) / WIN_W, (view.Y - stageTop - 12) / WIN_H, F.MaxFit)
+	local roomH = view.Y - stageTop - 12 - reserveBottom / s
+	local k = math.min((view.X - 32 - leftFree) / WIN_W, F.MaxFit)
+	local h = WIN_H
+	if roomH / k >= WIN_H then
+		h = math.min(roomH / k, WIN_H_MAX)
+	else
+		k = math.min(k, roomH / WIN_H)
+	end
 	k = math.max(k, 0.5)
-	if math.abs(fit.Scale - k) > 0.001 then
+	local unit = s * k -- screen pixels per window design pixel
+	-- Scale and touch / text minimums first, then the new height (its re-render reads sizes)
+	if math.abs(fit.Scale - k) > 0.001 or math.abs(unit - lastUnit) > 0.0001 then
 		fit.Scale = k
+		lastUnit = unit
 		Kit.refit(guiRoot)
 	end
-	local unit = s * k -- screen pixels per window design pixel
+	relayout(h)
 	local indent = 0
 	-- Computed, not read back: the layout of the new scale only lands next frame
 	local top = stageTop * s
-	local left = screen.X / 2 - WIN_W * unit / 2
+	local left = (screen.X + reserveLeft) / 2 - WIN_W * unit / 2
 	if top < barH and left < barRight + 12 then
 		indent = (barRight + 12 - left) / unit
 	end
@@ -1217,7 +1283,7 @@ function InventoryController.init()
 		end
 	end, function()
 		return gui.Enabled
-	end)
+	end, "Inventory")
 
 	-- Dark scrim over the world; also blocks clicks to the HUD underneath
 	local scrim = Instance.new("Frame")
@@ -1255,7 +1321,7 @@ function InventoryController.init()
 	buildDoll(window)
 	cmpCard = Flat.card(UDim2.fromOffset(LEFT_W, CMP_H))
 	cmpCard.Name = "Compare"
-	cmpCard.Position = UDim2.fromOffset(0, CMP_Y)
+	cmpCard.Position = UDim2.fromOffset(0, BODY_Y + DOLL_H + 10)
 	cmpCard.Parent = window
 	buildGrid(window)
 	tabs.select(category)
@@ -1269,6 +1335,7 @@ function InventoryController.init()
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
 	end
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
+	Window.onReserve(arrange)
 	arrange()
 
 	InventoryController.render()

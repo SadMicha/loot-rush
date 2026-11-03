@@ -324,7 +324,15 @@ function StarNetController.init()
 	view.Size = UDim2.fromOffset(area.X, area.Y)
 	view.CanvasSize = UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y)
 	view.ScrollingDirection = Enum.ScrollingDirection.XY
-	view.ScrollBarThickness = 0 -- pan by dragging only, no scroll bars over the web
+	-- Pan by dragging only: no scroll bars over the web on any device (thickness 0 alone still left
+	-- a bar on some touch devices, so the bar images are cleared and made transparent as well)
+	view.ScrollBarThickness = 0
+	view.ScrollBarImageTransparency = 1
+	view.TopImage = ""
+	view.MidImage = ""
+	view.BottomImage = ""
+	view.VerticalScrollBarInset = Enum.ScrollBarInset.None
+	view.HorizontalScrollBarInset = Enum.ScrollBarInset.None
 	view.ElasticBehavior = Enum.ElasticBehavior.Never
 	view.Parent = win.body
 	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y))

@@ -179,6 +179,12 @@ Theme.Hud = table.freeze({
 	DashSize = 124,
 	SkillArc = 150, -- distance dash center -> skill centers
 	SkillAngles = table.freeze({ 180, 150, 120, 90 }), -- degrees, 180 = left of dash, 90 = above it
+	-- Touch (phone / tablet): bigger skill and dash buttons, the arc widens so they never touch
+	SkillSizeTouch = 86,
+	DashSizeTouch = 136,
+	SkillArcTouch = 180,
+	SkillPad = 16, -- room around the skill arc for glow and touch growth (the group clips)
+	XpBar = 6, -- experience bar along the bottom edge of the screen
 	GearSize = 48,
 	BarIcon = 64, -- hub icon bar: icon edge
 	BarCaption = 16,
@@ -218,9 +224,12 @@ Theme.MiniMap = table.freeze({
 	Fov = 28, -- narrow field of view from high up = nearly orthographic
 	PartCap = 360, -- most parts in the viewport at any time (~270 ground cells and stair steps + props)
 	GroundShare = 0.85, -- share of PartCap that ground top slabs may use (nearest first)
-	PartHz = 4, -- how often the part set is refreshed
+	PartCapTouch = 220, -- phones / tablets: fewer parts, the viewport renders much cheaper
+	RefreshMove = 6, -- studs walked before the part set is refreshed again
+	RefreshMax = 2, -- seconds: refresh at least this often while standing (doors, moving parts)
 	ViewHz = 15, -- camera + dots refresh rate
-	ClonesPerRefresh = 40, -- new copies per part refresh (spreads the cost)
+	ViewMove = 0.1, -- studs / radians: smaller camera changes are skipped (no viewport re-render)
+	ClonesPerRefresh = 30, -- new copies per part refresh (spreads the cost)
 	ClonesBurst = 180, -- new copies per refresh while the map is mostly empty (teleport / first load)
 	MinPartSize = 1.5, -- studs (Size.Magnitude); smaller parts are skipped
 	MaxAbove = 100, -- ignore parts higher than this above the player (sky, ceilings)

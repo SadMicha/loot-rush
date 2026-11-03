@@ -152,11 +152,21 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	end)
 
 	return function()
+		-- Skip (and forget) anything already destroyed: a parent's Destroy does not always fire
+		-- DescendantRemoving for every nested child before the next refit
 		for t in texts do
-			fitText(t)
+			if t.Parent then
+				fitText(t)
+			else
+				texts[t] = nil
+			end
 		end
 		for b in hits do
-			fitHit(b)
+			if b.Parent then
+				fitHit(b)
+			else
+				hits[b] = nil
+			end
 		end
 	end
 end
