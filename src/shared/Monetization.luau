@@ -128,7 +128,7 @@ local PASSES: { Pass } = {
 		name = "VIP",
 		text = "+25% gold and +25% XP forever.",
 		robux = 299,
-		icon = "crown",
+		icon = "pass_vip",
 		bonus = { gold = 25, xp = 25 },
 	},
 	{

@@ -191,7 +191,7 @@ local OFFERS: { Offer } = {
 		key = "vip",
 		name = "VIP",
 		text = "+25% gold and +25% XP forever.",
-		icon = "crown",
+		icon = "pass_vip",
 		rarity = "legend",
 		badge = "popular",
 	},
