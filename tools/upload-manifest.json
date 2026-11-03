@@ -830,6 +830,15 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pass_pet_slot",
+   "file": "assets/ui/icons/store/pass_pet_slot.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
