@@ -5,7 +5,7 @@ The server controls the whole run (`src/server/Systems/Rift.luau`). The UI only 
 ## Flow
 
 1. **Enter**: `Net.Rift:FireServer("enter", regionId)` (Atlas window). Only open regions, one rift per server.
-2. **3 waves → boss** at the region's starting depth.
+2. **Rift Trail → boss** at the region's starting depth: walk from the start pad through 3 clearings (one enemy pack each, `RiftWave` = current area), then the boss in the arena (docs/specs/WORLD-MAPS.md §4).
 3. **Boss dead**: phase `clear`, best value is saved, interim result arrives via `RiftResult` (`kind = "clear"`).
    Choice: `FireServer("deeper")` (next depth) or `FireServer("leave")` (back to the village).
 4. **End** (always `RiftResult` with `kind = "end"`):

@@ -18,6 +18,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
 local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
+local Trail = require(ReplicatedStorage.Shared.Trail)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
@@ -43,6 +44,7 @@ type Run = {
 	restored: number, -- The Smoothing: how far the owner restored this region (0..1)
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
+	checkpoint: Vector3?, -- last lit waypoint shrine (FallGuard puts the player back there)
 }
 
 type EndReason = "left" | "abandoned" | "failed" | "gone"
@@ -159,7 +161,7 @@ local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftRegion", r.region.id)
 	r.owner:SetAttribute("RiftDepth", r.depth)
 	r.owner:SetAttribute("RiftWave", r.wave)
-	r.owner:SetAttribute("RiftWaves", Config.RIFT_WAVES)
+	r.owner:SetAttribute("RiftWaves", Config.TRAIL_CLEARINGS)
 	r.owner:SetAttribute("RiftVariant", r.variant)
 	r.owner:SetAttribute("RiftPhase", phase)
 end
@@ -178,12 +180,26 @@ local function spawnPoint(r: Run): Vector3
 		+ Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 end
 
-local function spawn(r: Run, kind: string, pos: Vector3, elite: boolean?, goblin: boolean?)
+-- Random point inside a trail clearing (world), one tile away from its edge
+local function clearingPoint(lo: Vector3, hi: Vector3): Vector3
+	local T = Config.TILE_SIZE
+	return Vector3.new(rng:NextNumber(lo.X + T, hi.X - T), 0, rng:NextNumber(lo.Z + T, hi.Z - T))
+end
+
+local function spawn(
+	r: Run,
+	kind: string,
+	pos: Vector3,
+	elite: boolean?,
+	goblin: boolean?,
+	bounds: { min: Vector3, max: Vector3 }?
+)
 	mark(
 		r,
 		Enemies.spawn(kind, pos, r.depth, {
 			tier = r.tier,
 			center = r.center,
+			bounds = bounds,
 			run = r.id,
 			elite = elite,
 			goblin = goblin,
@@ -276,9 +292,17 @@ local function play(r: Run)
 	Metrics.begin(r.owner, r.id)
 	r.variant = Rift.forceVariant or RiftVariants.roll(rng, r.depth)
 	local deadline = os.clock() + RiftVariants.TIMED_LIMIT
-	for wave = 1, Config.RIFT_WAVES do
+	-- Rift Trail (Shared/Trail): one pack per clearing, in walking order. The next pack spawns
+	-- when the last one is down; it waits in its clearing (aggro radius) until the player arrives.
+	local waves = Config.TRAIL_CLEARINGS
+	for wave = 1, waves do
 		r.wave = wave
 		publish(r, "wave")
+		local lo, hi = World.clearing(r.slot, wave)
+		local bounds = if lo and hi then { min = lo, max = hi } else nil
+		local function at(): Vector3
+			return if lo and hi then clearingPoint(lo, hi) else spawnPoint(r)
+		end
 		local sinceStart = r.depth - r.region.depth -- depths since the region start
 		local count = math.min(
 			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + sinceStart),
@@ -288,16 +312,21 @@ local function play(r: Run)
 			count = math.floor(count * RiftVariants.SWARM_COUNT)
 		end
 		local mix = r.region.enemies
-		-- the last RIFT_ELITES waves open with elites: one, plus one per World Tier above Normal
-		local elite = r.variant == "elite_hunt" or wave > Config.RIFT_WAVES - Config.RIFT_ELITES
+		-- the last RIFT_ELITES packs open with elites: one, plus one per World Tier above Normal
+		local elite = r.variant == "elite_hunt" or wave > waves - Config.RIFT_ELITES
 		for i = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i <= r.tier)
+			spawn(r, mix[rng:NextInteger(1, #mix)], at(), elite and i <= r.tier, nil, bounds)
 		end
 		if r.variant == "goblin" and wave == 1 then
-			spawn(r, mix[1], spawnPoint(r), false, true)
+			spawn(r, mix[1], at(), false, true, bounds)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")
+		end
+		-- Waypoint: the shrine lights up and becomes the safe spot for the rest of this depth
+		World.lightWaypoint(r.slot, wave, r.region.color)
+		if lo and hi then
+			r.checkpoint = Vector3.new((lo.X + hi.X) / 2, 4, (lo.Z + hi.Z) / 2)
 		end
 		task.wait(Config.RIFT_WAVE_PAUSE)
 		if not alive(r) then
@@ -377,9 +406,9 @@ local function begin(player: Player, regionId: any)
 	r.died = humanoid.Died:Connect(function()
 		finish(r, "failed")
 	end)
-	World.build(region, slot)
+	World.build(region, slot, Trail.seed(region.id, r.depth))
 	World.smooth(slot, Smoothing.arenaShare(r.restored))
-	model:PivotTo(CFrame.new(r.center + Config.RIFT_START))
+	model:PivotTo(CFrame.new(World.startOf(slot)))
 	task.spawn(play, r)
 	Actions.fire(player, "rift")
 end
@@ -391,6 +420,14 @@ local function deeper(player: Player)
 	end
 	r.depth += 1
 	r.wave = 0
+	r.checkpoint = nil
+	-- every depth is a new trail: rebuild the map, back to its start pad
+	World.build(r.region, r.slot, Trail.seed(r.region.id, r.depth))
+	World.smooth(r.slot, Smoothing.arenaShare(r.restored))
+	local model = character(player)
+	if model then
+		model:PivotTo(CFrame.new(World.startOf(r.slot)))
+	end
 	Combat.refreshStats(player, true)
 	task.spawn(play, r)
 end
@@ -469,6 +506,21 @@ end
 function Rift.centerOf(player: Player): Vector3?
 	local r = runs[player]
 	return if r then r.center else nil
+end
+
+-- Map slot of the player's running Rift (nil = not in a Rift)
+function Rift.slotOf(player: Player): number?
+	local r = runs[player]
+	return if r then r.slot else nil
+end
+
+-- Where FallGuard puts a player of a running Rift back: last lit waypoint, else the start pad
+function Rift.safeSpot(player: Player): Vector3?
+	local r = runs[player]
+	if not r then
+		return nil
+	end
+	return r.checkpoint or World.startOf(r.slot)
 end
 
 -- Best results for the Atlas (the client reads the attributes)
