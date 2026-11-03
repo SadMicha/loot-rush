@@ -14,7 +14,7 @@ export type Cosmetic = {
 	slot: Slot,
 	name: string,
 	rarity: string, -- frame color in the shop (Theme.Rarity key)
-	icon: string, -- Assets.Icon
+	icon: string, -- Assets.Icon or Assets.IconImage
 	colors: { Color3 }, -- start → end of the effect (world VFX, not UI)
 	light: number, -- LightEmission of the effect (0..1)
 }
@@ -44,7 +44,7 @@ local LIST: { Cosmetic } = {
 		slot = "trail",
 		name = "Ember Trail",
 		rarity = "epic",
-		icon = "fire",
+		icon = "trail_ember",
 		colors = { Color3.fromHex("#FFC24A"), Color3.fromHex("#E8402A") },
 		light = 0.8,
 	},
@@ -80,7 +80,7 @@ local LIST: { Cosmetic } = {
 		slot = "trail",
 		name = "Void Trail",
 		rarity = "legend",
-		icon = "portal",
+		icon = "trail_void",
 		colors = { Color3.fromHex("#D9A8FF"), Color3.fromHex("#3A1A6E") },
 		light = 0.9,
 	},
@@ -89,7 +89,7 @@ local LIST: { Cosmetic } = {
 		slot = "aura",
 		name = "Void Aura",
 		rarity = "legend",
-		icon = "whirl",
+		icon = "aura_void",
 		colors = { Color3.fromHex("#F0D8FF"), Color3.fromHex("#7A3CFF") },
 		light = 1,
 	},

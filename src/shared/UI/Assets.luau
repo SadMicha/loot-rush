@@ -386,6 +386,11 @@ local ICON_ALIAS: { [string]: string } = {
 	soulstars_l = "soulstar",
 	soulstars_xl = "soulstar",
 	starter_pack = "chest",
+	trail_ember = "fire",
+	trail_void = "portal",
+	aura_void = "whirl",
+	pack_void = "portal",
+	pack_frost = "ice",
 	pack_ember = "fire",
 	pass_vip = "crown",
 	pass_magnet = "chest",
@@ -635,6 +640,11 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	pass_magnet = { id = "rbxassetid://83134635006465", size = Vector2.new(256, 256) },
 	pass_vip = { id = "rbxassetid://137405036075950", size = Vector2.new(256, 256) },
 	pack_ember = { id = "rbxassetid://115660814935673", size = Vector2.new(256, 256) },
+	pack_frost = { id = "rbxassetid://116112442841872", size = Vector2.new(256, 256) },
+	pack_void = { id = "rbxassetid://128183713220709", size = Vector2.new(256, 256) },
+	aura_void = { id = "rbxassetid://133312664956652", size = Vector2.new(256, 256) },
+	trail_void = { id = "rbxassetid://138884461442290", size = Vector2.new(256, 256) },
+	trail_ember = { id = "rbxassetid://134456301548595", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
 }
 local iconImage: { [string]: Fixed } = {}
