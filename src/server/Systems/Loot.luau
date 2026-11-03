@@ -32,9 +32,11 @@ type Drop = {
 local Loot = {
 	-- (player, gold: number, item: Items.Item?) after every pickup, for Systems/Rift
 	Picked = Instance.new("BindableEvent"),
+	VACUUM_DELAY = 1.2, -- seconds after the boss dies before the leftovers fly to the player
 }
 
 local PICKUP_RADIUS = 6
+local GOLD_PICKUP_RADIUS = 14 -- coins come from further away (fewer detours for small change)
 local LIFETIME = 60
 
 local drops: { Drop } = {}
@@ -71,6 +73,12 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	gui.StudsOffset = Vector3.new(0, 2, 0)
 	gui.LightInfluence = 0
 	gui.MaxDistance = 140
+	-- The client declutters by these (FxController): rarity for items, a flag for coins
+	if item then
+		gui:SetAttribute("Rarity", item.rarity)
+	else
+		gui:SetAttribute("Gold", true)
+	end
 	gui.Parent = part
 	local label = Instance.new("TextLabel")
 	label.BackgroundTransparency = 1
@@ -265,6 +273,23 @@ function Loot.collect(player: Player): (number, { Items.Item })
 	return gold, items
 end
 
+-- Depth cleared: everything still lying around for the player is picked up (with popups and the
+-- Picked signal, like walking over it), so nobody has to run circles before choosing "Deeper".
+-- Items that do not fit stay on the ground. Systems/Rift waits Loot.VACUUM_DELAY before calling it.
+function Loot.vacuum(player: Player)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local at = if root and root:IsA("BasePart") then root.Position else nil
+	for i = #drops, 1, -1 do
+		local d = drops[i]
+		if d.owner == player and d.model.Parent then
+			if pickup(d, at or d.part.Position) then
+				d.model:Destroy()
+				table.remove(drops, i)
+			end
+		end
+	end
+end
+
 local function sweep()
 	local now = os.clock()
 	for i = #drops, 1, -1 do
@@ -280,7 +305,8 @@ local function sweep()
 		end
 		local delta = root.Position - d.part.Position
 		local magnet = d.owner:GetAttribute("BonusMagnet") -- pet (Systems/Boosts)
-		local radius = PICKUP_RADIUS + (if typeof(magnet) == "number" then magnet else 0)
+		local radius = (if d.item then PICKUP_RADIUS else GOLD_PICKUP_RADIUS)
+			+ (if typeof(magnet) == "number" then magnet else 0)
 		if Vector3.new(delta.X, 0, delta.Z).Magnitude > radius then
 			continue
 		end

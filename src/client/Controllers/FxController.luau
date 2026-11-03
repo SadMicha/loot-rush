@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -197,13 +198,21 @@ local function attachBar(model: Instance)
 end
 
 -- ------------------------------------------------------------------ Ground drop labels
--- The server creates one BillboardGui per drop under workspace.Loot. Here (client only) gold labels are
--- only shown when near and overlapping labels are stacked upwards.
+-- The server creates one BillboardGui per drop under workspace.Loot (attribute "Rarity" on items,
+-- "Gold" on coins). Here (client only) the labels are decluttered:
+--   * best rarity first, then nearest; at most MAX_LABELS item labels at once
+--   * gold and normal items only close by (gold is picked up from further away anyway)
+--   * overlapping labels stack upwards a few steps; a label that finds no free place is hidden
+--   * holding Left Alt (keyboard) shows every label
 local LABEL_BASE_Y = 2 -- studs, same as the server's StudsOffset
 local LABEL_STEP_PX = 20 -- vertical pitch of stacked labels on screen
 local LABEL_WIDTH_PX = 150 -- labels closer than this horizontally count as overlapping
-local GOLD_LABEL_DISTANCE = 45 -- gold labels vanish beyond this distance (studs)
+local LABEL_MAX_STACK = 3 -- stack steps before a label is hidden
+local MAX_LABELS = 10
+local GOLD_LABEL_DISTANCE = 24 -- studs
+local NORMAL_LABEL_DISTANCE = 40
 local ITEM_LABEL_DISTANCE = 90
+local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4, unique = 5 }
 
 local function spreadLootLabels()
 	local loot = workspace:FindFirstChild("Loot")
@@ -211,30 +220,48 @@ local function spreadLootLabels()
 	if not loot or not camera then
 		return
 	end
-	local labels: { { gui: BillboardGui, x: number, y: number, depth: number } } = {}
+	local showAll = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
+	local focus = camera.Focus.Position
+	type Label = { gui: BillboardGui, x: number, y: number, depth: number, rank: number }
+	local labels: { Label } = {}
 	for _, gui in loot:GetDescendants() do
 		local adornee = gui.Parent
 		if gui:IsA("BillboardGui") and adornee and adornee:IsA("BasePart") then
-			local text = gui:FindFirstChildOfClass("TextLabel")
-			local isGold = text ~= nil and string.sub(text.Text, -5) == " Gold"
-			gui.MaxDistance = if isGold then GOLD_LABEL_DISTANCE else ITEM_LABEL_DISTANCE
+			local rarity = gui:GetAttribute("Rarity")
+			local rank = if typeof(rarity) == "string" then RARITY_RANK[rarity] or 1 else 0 -- 0 = gold
+			local limit = if rank == 0
+				then GOLD_LABEL_DISTANCE
+				elseif rank == 1 then NORMAL_LABEL_DISTANCE
+				else ITEM_LABEL_DISTANCE
+			gui.MaxDistance = if showAll then ITEM_LABEL_DISTANCE else limit
+			local near = (adornee.Position - focus).Magnitude <= gui.MaxDistance
 			local screen, onScreen = camera:WorldToViewportPoint(adornee.Position)
-			if onScreen then
-				table.insert(labels, { gui = gui, x = screen.X, y = screen.Y, depth = screen.Z })
+			if onScreen and near then
+				table.insert(
+					labels,
+					{ gui = gui, x = screen.X, y = screen.Y, depth = screen.Z, rank = rank }
+				)
+			else
+				gui.Enabled = false
 			end
 		end
 	end
-	-- Front to back (nearest first) so the nearest label keeps the lowest slot
+	-- Best rarity first, then nearest: the important labels get the free places
 	table.sort(labels, function(a, b)
+		if a.rank ~= b.rank then
+			return a.rank > b.rank
+		end
 		return a.depth < b.depth
 	end)
 	local studsPerPx = 2
 		* math.tan(math.rad(camera.FieldOfView) / 2)
 		/ math.max(camera.ViewportSize.Y, 1)
 	local placed: { { x: number, y: number } } = {}
+	local shownItems = 0
 	for _, l in labels do
 		local level = 0
 		local y = l.y
+		local free = true
 		while true do
 			local hit = false
 			for _, p in placed do
@@ -243,15 +270,26 @@ local function spreadLootLabels()
 					break
 				end
 			end
-			if not hit or level >= 6 then
+			if not hit then
+				break
+			end
+			if level >= LABEL_MAX_STACK then
+				free = showAll
 				break
 			end
 			level += 1
 			y = l.y - level * LABEL_STEP_PX
 		end
-		table.insert(placed, { x = l.x, y = y })
-		l.gui.StudsOffset =
-			Vector3.new(0, LABEL_BASE_Y + level * LABEL_STEP_PX * studsPerPx * l.depth, 0)
+		local full = l.rank > 0 and shownItems >= MAX_LABELS and not showAll
+		l.gui.Enabled = free and not full
+		if l.gui.Enabled then
+			if l.rank > 0 then
+				shownItems += 1
+			end
+			table.insert(placed, { x = l.x, y = y })
+			l.gui.StudsOffset =
+				Vector3.new(0, LABEL_BASE_Y + level * LABEL_STEP_PX * studsPerPx * l.depth, 0)
+		end
 	end
 end
 

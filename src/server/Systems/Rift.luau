@@ -322,8 +322,19 @@ local function play(r: Run)
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
-	publish(r, "clear")
+	-- Let the boss loot land, then pick up the leftovers before the choice (and its summary)
+	task.wait(Loot.VACUUM_DELAY)
+	if runs[r.owner] ~= r then
+		return -- the run ended meanwhile (death, leave)
+	end
+	Loot.vacuum(r.owner)
+	task.wait() -- Picked handlers (tally, quests) run before the summary goes out
+	if runs[r.owner] ~= r then
+		return
+	end
+	-- Summary first, then the phase: the client's cleared card shows the fresh totals at once
 	report(r, "clear", nil)
+	publish(r, "clear")
 end
 
 local function begin(player: Player, regionId: any)

@@ -315,7 +315,7 @@ function StarNetController.init()
 		background = "bg_starnet",
 	})
 
-	-- The web in a scroll area left of the panel (drag or swipe to pan)
+	-- The web in a pan area left of the panel (drag or swipe to pan, no visible scroll bars)
 	local area = Vector2.new(Window.BODY.X - SIDE_W - 20, Window.BODY.Y)
 	view = Instance.new("ScrollingFrame")
 	view.Name = "Web"
@@ -324,8 +324,7 @@ function StarNetController.init()
 	view.Size = UDim2.fromOffset(area.X, area.Y)
 	view.CanvasSize = UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y)
 	view.ScrollingDirection = Enum.ScrollingDirection.XY
-	view.ScrollBarThickness = 4
-	view.ScrollBarImageColor3 = C.Gold
+	view.ScrollBarThickness = 0 -- pan by dragging only, no scroll bars over the web
 	view.ElasticBehavior = Enum.ElasticBehavior.Never
 	view.Parent = win.body
 	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y))

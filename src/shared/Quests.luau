@@ -41,7 +41,13 @@ export type Data = {
 }
 
 Quests.Chain = table.freeze({
-	{ id = "enter_rift", text = "Enter the Rift", goal = "rift", target = 1, gold = 20 },
+	{
+		id = "enter_rift",
+		text = "Enter a Rift from the Atlas",
+		goal = "rift",
+		target = 1,
+		gold = 20,
+	},
 	{ id = "first_kills", text = "Defeat 10 enemies", goal = "kill", target = 10, gold = 30 },
 	{ id = "first_loot", text = "Pick up 3 items", goal = "pickup", target = 3, gold = 30 },
 	{ id = "equip", text = "Equip an item", goal = "equip", target = 1, gold = 40 },
@@ -56,7 +62,7 @@ Quests.Chain = table.freeze({
 	},
 	{
 		id = "first_star",
-		text = "Place a star in the Star Web",
+		text = "Place a star in the Star Net",
 		goal = "star",
 		target = 1,
 		gold = 80,
@@ -95,7 +101,7 @@ Quests.Unlocks = table.freeze({
 } :: { [string]: { level: number?, depth: number?, caption: string } })
 
 Quests.Names = table.freeze({
-	star_net = "Star Web",
+	star_net = "Star Net",
 	forge = "Forge",
 	pets = "Pets",
 	auto_salvage = "Auto-Salvage",
