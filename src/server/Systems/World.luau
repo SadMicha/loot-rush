@@ -1151,11 +1151,8 @@ local function folderName(id: string, slot: number): string
 end
 
 -- Waypoint shrine at a clearing (Rift lights it once the clearing's pack is down)
-local function waypoint(parent: Instance, rect: Trail.Rect, index: number)
-	local m = Props.pylon()
-	m.Name = "Waypoint_" .. index
-	m:SetAttribute("Waypoint", index)
-	put(parent, m, (rect.x1 - 0.5) * T, (rect.z0 + 0.5) * T, 0)
+-- Waypoint pylon core back to unlit (dark stone, light off)
+local function dim(m: Instance)
 	local core = m:FindFirstChild("Core")
 	if core and core:IsA("BasePart") then
 		core.Color = C.stoneDark
@@ -1169,6 +1166,14 @@ local function waypoint(parent: Instance, rect: Trail.Rect, index: number)
 	end
 end
 
+local function waypoint(parent: Instance, rect: Trail.Rect, index: number)
+	local m = Props.pylon()
+	m.Name = "Waypoint_" .. index
+	m:SetAttribute("Waypoint", index)
+	put(parent, m, (rect.x1 - 0.5) * T, (rect.z0 + 0.5) * T, 0)
+	dim(m)
+end
+
 -- Builds the map for a region (nil = Green Plains) on a slot: Rift Trail (start → clearings →
 -- boss arena) with the given seed (default: the region's first depth). Same region and seed →
 -- nothing to do.
@@ -1179,6 +1184,14 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 	local trailSeed = seed or Trail.seed(id, if region then region.depth else 1)
 	local old = current[n]
 	if old and currentId[n] == id and seeds[n] == trailSeed and old.Parent then
+		local trailFolder = old:FindFirstChild("Trail") -- same map again: a fresh run, all shrines unlit
+		if trailFolder then
+			for _, m in trailFolder:GetChildren() do
+				if m:GetAttribute("Waypoint") ~= nil then
+					dim(m)
+				end
+			end
+		end
 		return
 	end
 	if old and old.Parent then

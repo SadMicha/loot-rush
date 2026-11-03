@@ -60,6 +60,11 @@ describe("Trail layout (pure)", function()
 		end
 		expect(differs).toBe(true)
 	end)
+
+	it("gives regions with equally long ids different paths", function()
+		expect(Trail.seed("fire_desert", 2) ~= Trail.seed("sky_islands", 2)).toBe(true)
+		expect(Trail.seed("crystal_caves", 1) ~= Trail.seed("altered_world", 1)).toBe(true)
+	end)
 end)
 
 describe("Trail in game", function()
@@ -133,5 +138,18 @@ describe("Trail in game", function()
 		expect(info.wave).toBe(2)
 		expect(info.inClearing).toBe(true)
 		expect(info.neon).toBe(true)
+	end)
+
+	it("unlights every waypoint when the same map is used for the next run", function()
+		local lit = server(function(req)
+			local World = req("ServerScriptService.Server.Systems.World")
+			World.build(nil, 1)
+			World.lightWaypoint(1, 1, Color3.new(1, 0, 0))
+			World.build(nil, 1) -- same region and seed: kept, but reset
+			local m = workspace.Arena:FindFirstChild("Region_green_plains", true)
+			local core = m and m.Trail.Waypoint_1.Core
+			return core and core.Material == Enum.Material.Neon
+		end)
+		expect(lit).toBe(false)
 	end)
 end)

@@ -141,7 +141,11 @@ end
 
 -- Seed of the trail for a depth (each depth gets its own path)
 function Trail.seed(regionId: string, depth: number): number
-	return #regionId * 7919 + depth * 104729
+	local h = 0
+	for i = 1, #regionId do -- the id itself, not just its length (equal-length ids differ)
+		h = (h * 31 + string.byte(regionId, i)) % 1000003
+	end
+	return h * 7919 + depth * 104729
 end
 
 return table.freeze(Trail)
