@@ -319,16 +319,20 @@ end
 
 -- The screen part can stream out and back in (StreamingEnabled): a new part gets a new board
 local function bindScreen(screen: Instance)
-	if screen.Name == "LeaderboardScreen" and screen:IsA("BasePart") then
-		buildHubBoard(screen)
+	if screen.Name ~= "LeaderboardScreen" or not screen:IsA("BasePart") then
+		return
 	end
+	if hubRows and hubRows:IsDescendantOf(screen) then
+		return -- already bound (the stream-in signal and the first lookup can both see it)
+	end
+	buildHubBoard(screen)
 end
 
 local function watchHub()
 	workspace.DescendantAdded:Connect(bindScreen)
 	local hub = workspace:WaitForChild("Lumenhaven", 60)
 	local screen = hub and hub:FindFirstChild("LeaderboardScreen", true)
-	if screen and not (hubRows and hubRows:IsDescendantOf(screen)) then
+	if screen then
 		bindScreen(screen)
 	end
 	while true do
