@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Crit = require(ReplicatedStorage.Shared.Crit)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Classes = require(ReplicatedStorage.Shared.Classes)
+local Leash = require(ReplicatedStorage.Shared.Leash)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
@@ -342,7 +343,8 @@ local function shatter(pos: Vector3, amount: number, player: Player, skill: Skil
 	end
 end
 
-damageEnemy = function(
+-- The damage itself, without the zone check (damageEnemy below, Combat.slay)
+local function applyDamage(
 	enemy: Model,
 	base: number,
 	player: Player,
@@ -469,12 +471,35 @@ damageEnemy = function(
 	end
 end
 
+-- Every hit goes through here: only a living player standing in the enemy's zone (its trail
+-- clearing or the boss arena, Shared/Leash) can hurt it. Enemies never leave their zone, so
+-- without this a player in the corridor or the next clearing could kill them for free.
+damageEnemy = function(
+	enemy: Model,
+	base: number,
+	player: Player,
+	skill: Skills.Skill?,
+	proc: boolean?
+)
+	local root = body(player)
+	if not Leash.canHit(if root then root.Position else nil, enemy) then
+		return
+	end
+	applyDamage(enemy, base, player, skill, proc)
+end
+
 -- One hit with the full damage formula (crit tiers included); also used by the specs
 Combat.damageEnemy = damageEnemy
 
+-- May this player hurt the enemy right now (alive, inside its zone)? For specs and other systems.
+function Combat.canHit(player: Player, enemy: Model): boolean
+	local root = body(player)
+	return Leash.canHit(if root then root.Position else nil, enemy)
+end
+
 -- Test command (Systems/Debug): defeat an enemy instantly, loot and XP as with a real kill
 function Combat.slay(player: Player, enemy: Model)
-	damageEnemy(enemy, 1e9, player, nil, true)
+	applyDamage(enemy, 1e9, player, nil, true)
 end
 
 -- Called by the enemy AI. Returns true if the hit got through.
