@@ -296,7 +296,7 @@ local function buildDoll(parent: Frame)
 	dollCard.ClipsDescendants = false
 	dollCard.Parent = parent
 
-	-- Stage: soft light behind the figure and an elliptic floor ring (shapes only)
+	-- Stage: soft light behind the figure (no floor ring)
 	local light = Instance.new("Frame")
 	light.Name = "StageLight"
 	light.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -314,19 +314,6 @@ local function buildDoll(parent: Frame)
 	})
 	fade.Parent = light
 	light.Parent = dollCard
-
-	local floor = Instance.new("Frame")
-	floor.Name = "StageRing"
-	floor.AnchorPoint = Vector2.new(0.5, 0.5)
-	floor.Position = UDim2.new(0.5, 0, 0, 296)
-	floor.Size = UDim2.fromOffset(240, 34)
-	floor.BackgroundColor3 = C.Gold
-	floor.BackgroundTransparency = 0.9
-	floor.BorderSizePixel = 0
-	floor.ZIndex = 1
-	Flat.corner(floor, 17)
-	Flat.stroke(floor, C.Gold, 1.5, 0.45)
-	floor.Parent = dollCard
 
 	viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Figure"
