@@ -110,3 +110,44 @@ describe("Animations", function()
 		expect(Anim.faceWeight(m, m.time)).toBe(0)
 	end)
 end)
+
+describe("Holding stances", function()
+	it("every weapon has its own stance on real joints, with a moderate pose", function()
+		local seen = {}
+		for _, w in Weapons.List do
+			local s = Anim.STANCE[w.id]
+			expect(s).toBeTruthy()
+			expect(isJoint(s.arm)).toBe(true)
+			for joint, a in s.pose do
+				expect(isJoint(joint)).toBe(true)
+				expect(math.max(math.abs(a.X), math.abs(a.Y), math.abs(a.Z))).toBeLessThanOrEqual(
+					60
+				)
+			end
+			local key = {}
+			for joint, a in s.pose do
+				table.insert(key, `{joint}{a}`)
+			end
+			table.sort(key)
+			local sig = table.concat(key)
+			expect(seen[sig]).toBeNil() -- no two weapons share a stance
+			seen[sig] = true
+		end
+	end)
+
+	it("is full while standing, softer while running and while a move plays", function()
+		expect(Anim.stanceWeight(0, false)).toBe(1)
+		expect(math.abs(Anim.stanceWeight(1, false) - Anim.STANCE_MOVING)).toBeLessThan(1e-9)
+		expect(Anim.stanceWeight(0, true)).toBe(Anim.STANCE_ACTING)
+		local pose = {}
+		local lift = Anim.stance("warrior_sword", 1, 0, pose)
+		expect(lift.Y).toBeLessThan(0) -- guard crouch
+		expect(pose.rShoulder).toBeTruthy()
+		local none = {}
+		expect(Anim.stance("nope", 1, 0, none)).toBe(Vector3.zero)
+		expect(next(none)).toBeNil()
+		local half = {}
+		Anim.stance("mage_staff", 0.5, 0, half)
+		expect(half.rElbow.X).toBe(Anim.STANCE.mage_staff.pose.rElbow.X * 0.5)
+	end)
+end)

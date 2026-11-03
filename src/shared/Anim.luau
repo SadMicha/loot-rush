@@ -446,6 +446,91 @@ Anim.STYLE = table.freeze({
 	druid_scepter = "staff",
 } :: { [string]: string })
 
+-- Holding stance per held weapon (Shared/Weapons ids): a pose added on top of the hold pose
+-- (Weapons.HOLD_ANIM / arm hanging) and breathing while the character stands; it fades to
+-- STANCE_MOVING while walking and to STANCE_ACTING while a move plays, so attacks keep their shape.
+-- The weapon arm sways slowly (STANCE_SWAY degrees) so the weapon never looks frozen.
+--   sword    guard: weight back, right shoulder turned away, blade lowered to guard height,
+--            off hand forward
+--   bow      relaxed: bow arm slightly forward, draw hand resting near the string
+--   staff    planted: staff arm lowered and out, the staff stands beside the body
+--   scepter  close: scepter held in front of the chest with both hands near it
+Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
+Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
+Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
+Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
+Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
+Anim.STANCE = table.freeze({
+	warrior_sword = table.freeze({
+		arm = "rShoulder",
+		lift = Vector3.new(0, -0.15, 0),
+		pose = table.freeze({
+			waist = Vector3.new(0, -12, 0),
+			neck = Vector3.new(0, 10, 0),
+			rShoulder = Vector3.new(-15, 0, 0),
+			rElbow = Vector3.new(25, 0, 0),
+			lShoulder = Vector3.new(20, 0, -10),
+			lElbow = Vector3.new(30, 0, 0),
+			rHip = Vector3.new(8, 0, 0),
+			lHip = Vector3.new(-8, 0, 0),
+		}),
+	}),
+	ranger_bow = table.freeze({
+		arm = "lShoulder",
+		pose = table.freeze({
+			waist = Vector3.new(0, 8, 0),
+			neck = Vector3.new(0, -6, 0),
+			lShoulder = Vector3.new(25, 0, -8),
+			lElbow = Vector3.new(15, 0, 0),
+			rShoulder = Vector3.new(15, 0, 0),
+			rElbow = Vector3.new(50, 0, 0),
+		}),
+	}),
+	mage_staff = table.freeze({
+		arm = "rShoulder",
+		pose = table.freeze({
+			waist = Vector3.new(-3, 0, 0),
+			neck = Vector3.new(3, 0, 0),
+			rShoulder = Vector3.new(-25, 0, 8),
+			rElbow = Vector3.new(20, 0, 0),
+			lShoulder = Vector3.new(0, 0, -6),
+			lElbow = Vector3.new(15, 0, 0),
+		}),
+	}),
+	druid_scepter = table.freeze({
+		arm = "rShoulder",
+		pose = table.freeze({
+			waist = Vector3.new(-5, 0, 0),
+			neck = Vector3.new(-4, 0, 0),
+			rShoulder = Vector3.new(-10, 0, 0),
+			rElbow = Vector3.new(45, 0, 0),
+			lShoulder = Vector3.new(20, 0, -6),
+			lElbow = Vector3.new(40, 0, 0),
+		}),
+	}),
+} :: { [string]: { arm: string, lift: Vector3?, pose: Pose } })
+
+-- Target stance weight 0..1: `run` = 0..1 of full run speed, `acting` = a move plays
+function Anim.stanceWeight(run: number, acting: boolean): number
+	local w = 1 + (Anim.STANCE_MOVING - 1) * math.clamp(run, 0, 1)
+	return if acting then math.min(w, Anim.STANCE_ACTING) else w
+end
+
+-- Adds the stance of `weaponId` at `weight` into `out` (with the arm sway at time `now`);
+-- returns the body lift in studs. Unknown weapons add nothing.
+function Anim.stance(weaponId: string?, weight: number, now: number, out: Pose): Vector3
+	local s = weaponId and Anim.STANCE[weaponId]
+	if not s or weight <= 0 then
+		return Vector3.zero
+	end
+	for joint, a in s.pose do
+		out[joint] = (out[joint] or Vector3.zero) + a * weight
+	end
+	local sway = math.sin(now * Anim.STANCE_SWAY_RATE) * Anim.STANCE_SWAY * weight
+	out[s.arm] = (out[s.arm] or Vector3.zero) + Vector3.new(sway, 0, sway * 0.4)
+	return (s.lift or Vector3.zero) * weight
+end
+
 -- Skills with their own move (otherwise the skill kind decides)
 Anim.SKILL_MOVE = table.freeze({
 	whirlwind = "spin",
