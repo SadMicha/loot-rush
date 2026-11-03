@@ -2,12 +2,18 @@
 -- Dash: Space / Shift / Gamepad B / tap on the dash slot of the skill bar (HUD). 2 charges (+ Star Net "StatDash"), recharge over time.
 -- Charges are published as local player attributes, the HUD reads them.
 -- Invulnerability is granted by the server (Systems/Combat), not by this controller.
+-- A dash never rams into scenery: two probes (root height and just above the feet) look ahead
+-- every frame and end the dash in front of a wall, railing or the map edge, and the dash may not
+-- lift the character faster than Config.DASH_MAX_RISE. At 72 studs/s a collision used to pop the
+-- character onto walls, cliffs and roofs or through thin parts, out of the Hub.
 
+local CollectionService = game:GetService("CollectionService")
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Bounds = require(ReplicatedStorage.Shared.Util.Bounds)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -23,6 +29,9 @@ local recharge = 0
 local dashUntil = 0
 local dashDir = Vector3.zero
 local nextTrail = 0
+local probe = RaycastParams.new()
+probe.FilterType = Enum.RaycastFilterType.Exclude
+probe.RespectCanCollide = true -- only parts the body would actually bump into
 
 local function maxCharges(): number
 	local bonus = player:GetAttribute("StatDash")
@@ -71,6 +80,33 @@ function DashController.dash()
 	publish()
 	AnimController.play(player.Character, "roll")
 	Net.Dash:FireServer() -- Server counts its own charges and grants invulnerability
+end
+
+-- Would the next `step` studs of the dash hit a wall or leave every map rectangle?
+local function blocked(character: Model, root: BasePart, step: number): boolean
+	local enemies = workspace:FindFirstChild("Enemies") -- dodging through a pack stays possible
+	probe.FilterDescendantsInstances = if enemies then { character, enemies } else { character }
+	local ahead = dashDir * (step + Config.DASH_SKIN)
+	local pos = root.Position
+	for _, from in { pos, pos - Vector3.new(0, Config.DASH_LOW, 0) } do
+		local hit = workspace:Raycast(from, ahead, probe)
+		if hit and hit.Normal.Y < 0.7 then -- steep: wall, railing, cliff (not a stair tread or slope)
+			return true
+		end
+	end
+	-- map edge: stop when standing in a map rectangle and the step would leave all of them
+	local target = pos + ahead
+	local here = false
+	for _, folder in CollectionService:GetTagged(Bounds.TAG) do
+		local rect = Bounds.read(folder)
+		if rect then
+			if Bounds.outside(target, rect) <= 0 then
+				return false
+			end
+			here = here or Bounds.outside(pos, rect) <= 0
+		end
+	end
+	return here
 end
 
 -- Dodge roll trail: studded bricks in the class color pop up behind the character (Stud VFX)
@@ -128,10 +164,18 @@ function DashController.start()
 		local now = os.clock()
 		if now < dashUntil then
 			local _, root = parts()
-			if root then
+			local character = player.Character
+			if root and character and blocked(character, root, Config.DASH_SPEED * dt) then
+				dashUntil = 0 -- end the dash in front of the obstacle, keep no momentum into it
 				local v = root.AssemblyLinearVelocity
-				root.AssemblyLinearVelocity =
-					Vector3.new(dashDir.X * Config.DASH_SPEED, v.Y, dashDir.Z * Config.DASH_SPEED)
+				root.AssemblyLinearVelocity = Vector3.new(0, math.min(v.Y, 0), 0)
+			elseif root then
+				local v = root.AssemblyLinearVelocity
+				root.AssemblyLinearVelocity = Vector3.new(
+					dashDir.X * Config.DASH_SPEED,
+					math.min(v.Y, Config.DASH_MAX_RISE),
+					dashDir.Z * Config.DASH_SPEED
+				)
 				if now >= nextTrail then
 					nextTrail = now + Feel.ROLL_TRAIL_EVERY
 					trail(root)

@@ -23,6 +23,9 @@ return table.freeze({
 	DASH_DURATION = 0.2,
 	DASH_CHARGES = 2,
 	DASH_RECHARGE = 2.5, -- seconds per charge
+	DASH_SKIN = 2.5, -- studs ahead of the body a dash stops in front of a wall (no ramming into parts)
+	DASH_LOW = 1.6, -- the low wall probe runs this far below the root (railings, ledges)
+	DASH_MAX_RISE = 8, -- studs per second a dash may lift the character (stairs yes, popping onto walls no)
 	-- Server movement check (Systems/Movement): speed/teleport hacks get pulled back
 	MOVE_SAMPLE = 0.25, -- seconds between position samples
 	MOVE_SLACK = 1.35, -- walk speed factor allowed (lag, slopes, knockback)
@@ -40,6 +43,7 @@ return table.freeze({
 	TRAIL_CORRIDOR_WIDTH = 3, -- tiles across a corridor
 	TRAIL_SWAY = 3, -- tiles a clearing may shift sideways (winding path)
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
+	HUB_TOP = 15, -- root higher than this above the Hub floor = on a roof or cliff, back to spawn
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
 	BOUNDARY_HEIGHT = 200, -- studs of invisible wall, starting FALL_DEPTH below the floor
 	BOUNDARY_THICK = 8, -- studs; thick enough that no dash or physics step tunnels through

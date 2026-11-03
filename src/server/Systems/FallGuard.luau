@@ -19,8 +19,8 @@ local FallGuard = {
 	Rescued = Instance.new("BindableEvent"), -- (player, from) after a rescue (tests, metrics)
 }
 
-local function rect(center: Vector3, halfX: number, halfZ: number): Bounds.Rect
-	return { center = center, halfX = halfX, halfZ = halfZ }
+local function rect(center: Vector3, halfX: number, halfZ: number, top: number?): Bounds.Rect
+	return { center = center, halfX = halfX, halfZ = halfZ, top = top }
 end
 
 -- The rectangles the player may stand in: in a Rift only their own map (rescue: last lit waypoint
@@ -31,7 +31,7 @@ local function allowed(player: Player): ({ Bounds.Rect }, Vector3)
 	if slot then
 		return World.areasOf(slot), Rift.safeSpot(player) or World.startOf(slot)
 	end
-	local rects = { rect(Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF) }
+	local rects = { rect(Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF, Config.HUB_TOP) }
 	for i = 1, Config.RIFT_SLOTS do
 		for _, r in World.areasOf(i) do
 			table.insert(rects, r)
@@ -41,15 +41,22 @@ local function allowed(player: Player): ({ Bounds.Rect }, Vector3)
 end
 
 -- nil if the player is standing somewhere safe; a point just inside the edge if they slipped a
--- little past a wall (sprint, slope, lag); the safe spot if they fell or are far away.
+-- little past a wall (sprint, slope, lag); the safe spot if they fell, are far away or glitched
+-- onto a roof or cliff above the map's ceiling (Rect.top).
 local function rescueSpot(player: Player, pos: Vector3): Vector3?
 	local rects, safe = allowed(player)
 	for _, r in rects do
 		if
 			Bounds.outside(pos, r) <= Config.FALL_MARGIN
 			and pos.Y >= r.center.Y - Config.FALL_DEPTH
+			and not Bounds.above(pos, r)
 		then
 			return nil
+		end
+	end
+	for _, r in rects do
+		if Bounds.outside(pos, r) <= 0 and Bounds.above(pos, r) then
+			return safe -- on top of the scenery: pushing to the edge would leave them up there
 		end
 	end
 	return Bounds.pushBack(pos, rects) or safe

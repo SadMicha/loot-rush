@@ -34,12 +34,22 @@ end
 
 -- Four walls around `center` (world or local, as the caller's parts) with half sizes halfX/halfZ.
 -- A caller that builds at the origin and moves the parts later must update the Center attribute.
-function Fence.build(parent: Instance, center: Vector3, halfX: number, halfZ: number): Folder
+-- `top` (optional): ceiling for the root above center.Y (attribute Top, Bounds.above).
+function Fence.build(
+	parent: Instance,
+	center: Vector3,
+	halfX: number,
+	halfZ: number,
+	top: number?
+): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = "Bounds"
 	folder:SetAttribute("Center", center)
 	folder:SetAttribute("HalfX", halfX)
 	folder:SetAttribute("HalfZ", halfZ)
+	if top then
+		folder:SetAttribute("Top", top)
+	end
 	CollectionService:AddTag(folder, Bounds.TAG)
 	local h = Config.BOUNDARY_HEIGHT
 	local y = center.Y + h / 2 - Config.FALL_DEPTH
