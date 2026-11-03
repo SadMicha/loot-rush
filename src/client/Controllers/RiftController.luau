@@ -129,6 +129,9 @@ local function refresh()
 	end
 
 	local showChoice = p == "clear"
+	if p ~= "clear" then
+		lastSummary = nil -- a new depth (or the end): the next clear brings its own summary
+	end
 	if showChoice and not choice.Visible then
 		Flat.pop(choice)
 	end

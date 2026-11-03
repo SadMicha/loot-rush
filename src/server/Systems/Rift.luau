@@ -332,8 +332,9 @@ local function play(r: Run)
 	if runs[r.owner] ~= r then
 		return
 	end
-	publish(r, "clear")
+	-- Summary first, then the phase: the client's cleared card shows the fresh totals at once
 	report(r, "clear", nil)
+	publish(r, "clear")
 end
 
 local function begin(player: Player, regionId: any)
