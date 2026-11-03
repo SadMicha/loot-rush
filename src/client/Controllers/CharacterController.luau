@@ -30,6 +30,25 @@ local cards: Frame
 local nameBox: TextBox
 local status: TextLabel
 local waiting = false -- a request is out: no second tap until the server answers
+local ticket = 0 -- which request the safety timeout belongs to
+local REPLY_TIMEOUT = 8 -- seconds; unlocks the buttons if no answer ever comes
+local render: () -> ()
+
+-- Sends one hero request and locks the buttons until the answer (or the timeout) arrives
+local function request(action: string, a: any, b: any)
+	waiting = true
+	ticket += 1
+	local mine = ticket
+	Net.Character:FireServer(action, a, b)
+	task.delay(REPLY_TIMEOUT, function()
+		if waiting and ticket == mine then
+			waiting = false
+			if win.isOpen() then
+				render()
+			end
+		end
+	end)
+end
 
 local GAP = 24
 local HEROES_H = 120
@@ -113,10 +132,9 @@ local function renderHeroes()
 		Kit.setEnabled(b, not mine and not inRift and not waiting)
 		b.Activated:Connect(function()
 			if b.Active and not waiting then
-				waiting = true
 				Kit.setEnabled(b, false)
 				say("Switching to " .. entry.name .. " …", C.Text)
-				Net.Character:FireServer("play", entry.id)
+				request("play", entry.id)
 			end
 		end)
 		b.Parent = card
@@ -193,8 +211,7 @@ local function renderCards()
 				return
 			end
 			say("Creating " .. name .. " …", C.Text)
-			waiting = true
-			Net.Character:FireServer(if setupPending() then "setup" else "create", name, class.id)
+			request(if setupPending() then "setup" else "create", name, class.id)
 			renderCards() -- every create button off until the answer
 		end)
 		b.Parent = card
@@ -205,7 +222,7 @@ local function renderCards()
 	end
 end
 
-local function render()
+function render()
 	renderHeroes()
 	renderCards()
 end

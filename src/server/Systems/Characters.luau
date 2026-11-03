@@ -29,6 +29,7 @@ local Weapons = require(script.Parent.Weapons)
 local Characters = {}
 
 local allow = RateLimit.new(2, 4)
+local allowList = RateLimit.new(2, 4) -- own budget: a refresh never blocks a real action
 local switching: { [Player]: boolean } = {}
 -- One setup/create/play at a time per player: the name filter yields, a second request must not
 -- pass the same checks meanwhile (double tap → two heroes)
@@ -216,14 +217,25 @@ end
 
 function Characters.init()
 	Net.Character.OnServerEvent:Connect(function(player: Player, action: any, a: any, b: any)
+		if action == "list" then
+			if allowList(player) then
+				Characters.sync(player)
+			end
+			return
+		end
+		if action ~= "setup" and action ~= "create" and action ~= "play" then
+			return
+		end
 		if not allow(player) then
+			-- always answer, so the client's buttons unlock again
+			Net.CharacterResult:FireClient(
+				player,
+				{ ok = false, text = "Too fast, try again", action = action }
+			)
 			return
 		end
 		local ok, why
-		if action == "list" then
-			Characters.sync(player)
-			return
-		elseif action == "setup" then
+		if action == "setup" then
 			ok, why = exclusive(player, function()
 				return Characters.setup(player, a, b)
 			end)
