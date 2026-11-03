@@ -61,8 +61,8 @@ Priority: **P0** blocks 1.0 · **P1** strongly affects how the game feels or ret
 `Quests.Waypoints`, minimap diamond in `HudController`), O3 `Balance.FirstDrops` +
 `Loot.starter` (counted in `profile.starters`; the first boss already drops a Rare), O4
 `HintsController` (hidden account settings `hintSkills`/`hintDodge`/`hintRush`), O2 preload
-only (`PreloadController`). Still open for O2: the loading screen needs a `ReplicatedFirst`
-mapping in `default.project.json`.
++ loading screen (`PreloadController`, `src/first/LootRushLoading.client.luau` in
+ReplicatedFirst, fades out on the `ClientReady` attribute).
 | O6 | No skip for players who already know ARPGs. | P2 | "Skip tutorial hints" toggle in settings (S1). |
 
 ### 3.2 Combat feel
