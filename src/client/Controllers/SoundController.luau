@@ -174,17 +174,22 @@ end
 -- Loads every hook once (short clips) so the first hit is not late; reports ids that fail.
 -- In Studio the ambience and music loops are checked too (on phones they load when played).
 local function preload()
+	-- Sound instances (not id strings) so the engine fetches them as audio; names by the numeric
+	-- asset id, because the callback may report the id in another URI form
 	local names: { [string]: { string } } = {}
-	local list: { string } = {}
+	local list: { Instance } = {}
 	local function add(label: string, id: string)
-		if id == "" then
+		local num = id:match("%d+")
+		if not num then
 			return
 		end
-		if not names[id] then
-			names[id] = {}
-			table.insert(list, id)
+		if not names[num] then
+			names[num] = {}
+			local snd = Instance.new("Sound")
+			snd.SoundId = id
+			table.insert(list, snd)
 		end
-		table.insert(names[id], label)
+		table.insert(names[num], label)
 	end
 	for name, def in Sounds.Hooks do
 		add(name, def.id)
@@ -199,24 +204,24 @@ local function preload()
 	end
 	local failed = 0
 	local ok = pcall(function()
-		ContentProvider:PreloadAsync(
-			list :: { any },
-			function(id: string, status: Enum.AssetFetchStatus)
-				if status ~= Enum.AssetFetchStatus.Success then
-					failed += 1
-					warn(
-						"[Sound] "
-							.. table.concat(names[id] or { "?" }, ", ")
-							.. " did not load ("
-							.. id
-							.. ", "
-							.. status.Name
-							.. ") - replace it in Shared/Sounds"
-					)
-				end
+		ContentProvider:PreloadAsync(list, function(id: string, status: Enum.AssetFetchStatus)
+			if status ~= Enum.AssetFetchStatus.Success then
+				failed += 1
+				warn(
+					"[Sound] "
+						.. table.concat(names[id:match("%d+") or ""] or { "?" }, ", ")
+						.. " did not load ("
+						.. id
+						.. ", "
+						.. status.Name
+						.. ") - replace it in Shared/Sounds"
+				)
 			end
-		)
+		end)
 	end)
+	for _, snd in list do
+		snd:Destroy()
+	end
 	if ok and RunService:IsStudio() then
 		print(("[Sound] %d sound ids checked, %d failed"):format(#list, failed))
 	end
