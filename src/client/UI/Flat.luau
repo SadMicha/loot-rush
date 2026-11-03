@@ -294,10 +294,12 @@ function Flat.toggle(
 	color: Color3,
 	onChange: (on: boolean) -> ()
 ): Toggle
-	-- Fixed width from the content: an AutomaticSize button with the layout directly inside grew
-	-- without end once the press ripple (a full-size child) joined the layout
+	-- Width from the content: an AutomaticSize button with the layout directly inside grew without
+	-- end once the press ripple (a full-size child) joined the layout. Start from an estimate and
+	-- follow the measured label width (font scale, phone minimum text size).
 	local label = string.upper(text)
-	local width = 12 + (if iconName then 24 + 10 else 0) + #label * 9 + 10 + 46 + 12
+	local fixed = 12 + (if iconName then 24 + 10 else 0) + 10 + 46 + 12
+	local width = fixed + math.ceil(#label * Kit.fontSize(13) * 0.8)
 	local b = Instance.new("TextButton")
 	b.Name = "Toggle"
 	b.Text = ""
@@ -326,6 +328,15 @@ function Flat.toggle(
 	local t = Flat.text(label, 13, C.Text)
 	t.LayoutOrder = 2
 	t.Parent = row
+	local function fitWidth()
+		local w = t.TextBounds.X
+		if w > 0 then
+			local size = Vector2.new(fixed + math.ceil(w), 44)
+			b:SetAttribute("BaseSize", size) -- Kit touch minimums re-apply from this
+			b.Size = UDim2.fromOffset(size.X, b.Size.Y.Offset)
+		end
+	end
+	t:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
