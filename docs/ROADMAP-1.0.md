@@ -97,7 +97,7 @@ screen sizes, but no human has ticked `TEST-HUD` (0/35) or `TEST-UI-WINDOWS` (0/
 
 | # | Finding | Pri | Suggestion |
 |---|---|---|---|
-| P1 | `StreamingEnabled` is not set in `default.project.json`; with Rift Trails (bigger maps) and 12 rifts per server the full world replicates to every client. | P0 (with Rift Trail) | Turn it on together with the Rift Trail (WORLD-MAPS decision 3), test the minimap (already streaming-safe) and FallGuard. |
+| P1 | **Done (2026-11-03, WORLD-MAPS §5.3).** `StreamingEnabled` was not set in `default.project.json`; with Rift Trails (bigger maps) and 12 rifts per server the full world replicates to every client. | P0 (with Rift Trail) | Turn it on together with the Rift Trail (WORLD-MAPS decision 3), test the minimap (already streaming-safe) and FallGuard. |
 | P2 | 12 rift arenas per server (`RIFT_SLOTS`) + hub + horizon scenery. Part counts are not measured anywhere. | P1 | Add the part count per container to the Dbg overlay and set a budget (e.g. hub ≤ 6k parts, one rift ≤ 3k). Measure once on a mid phone. |
 | P3 | Minimap is a ViewportFrame with up to 360 cloned parts (220 on touch), refreshed by distance. Viewports are expensive on low-end Android. | P1 | Quality setting "low" switches to a flat 2D minimap (region image + dots). |
 | P4 | Per-frame work: 13 Heartbeat/RenderStepped loops on the client, plus #74's AnimController (up to 16 rigs). Budgets exist for bricks (90/35) and highlights (8). | P1 | Phone frame-time pass with a full #75 pack (more enemies + burning ground) and #74 animations together. |
