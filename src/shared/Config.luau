@@ -36,6 +36,7 @@ return table.freeze({
 	FALL_MARGIN = 3, -- studs outside the walls before the server guard steps in
 	BOUNDS_REACH = 40, -- up to this far outside a map the player is pushed back to the edge
 	BOUNDS_PAD = 1.5, -- studs inside the edge where a pushed-back player lands
+	BOUNDS_DROP = 6, -- push back only down to this far below map level (river, pools); lower = full rescue
 	FALL_TICK = 0.25, -- seconds between guard checks
 
 	-- Combat (player)

@@ -109,13 +109,21 @@ describe("Fall guard", function()
 			return Bounds.pushBack(Vector3.new(60, 3, 45), rects),
 				Bounds.pushBack(Vector3.new(10, 3, 0), rects),
 				Bounds.pushBack(Vector3.new(500, 3, 0), rects),
-				Bounds.pushBack(Vector3.new(55, -5, 0), rects)
+				Bounds.pushBack(Vector3.new(55, -10, 0), rects)
 		end)
 		expect(near).never.toBeNil()
 		expect(near.X <= 50 and near.Z <= 40 and near.X > 45).toBe(true)
 		expect(inside).toBeNil()
 		expect(far).toBeNil()
 		expect(below).toBeNil()
+		local river = server(function(req)
+			local Bounds = req("ReplicatedStorage.Shared.Util.Bounds")
+			return Bounds.pushBack(
+				Vector3.new(55, -1, 0),
+				{ { center = Vector3.zero, halfX = 50, halfZ = 40 } }
+			)
+		end)
+		expect(river).never.toBeNil() -- slightly below map level (river) still gets the edge, not the spawn
 	end)
 
 	it("puts a player who fell below the Hub back on the spawn", function()

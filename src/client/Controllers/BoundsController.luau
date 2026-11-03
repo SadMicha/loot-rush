@@ -31,8 +31,9 @@ end
 local function step()
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if not (root and root:IsA("BasePart")) then
-		return
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not (root and root:IsA("BasePart") and humanoid) or humanoid.Health <= 0 then
+		return -- dead bodies stay where they fall until the respawn (like FallGuard)
 	end
 	table.clear(list)
 	for _, r in rects do

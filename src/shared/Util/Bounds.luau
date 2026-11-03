@@ -56,7 +56,7 @@ function Bounds.pushBack(pos: Vector3, rects: { Rect }): Vector3?
 			best, bestD = rect, d
 		end
 	end
-	if not best or bestD > Config.BOUNDS_REACH or pos.Y < best.center.Y then
+	if not best or bestD > Config.BOUNDS_REACH or pos.Y < best.center.Y - Config.BOUNDS_DROP then
 		return nil
 	end
 	return Bounds.clamp(pos, best)
