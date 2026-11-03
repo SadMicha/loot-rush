@@ -30,9 +30,12 @@ return table.freeze({
 	ARENA_TILES_Z = 15,
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
-	BOUNDARY_HEIGHT = 80, -- studs of invisible wall, starting FALL_DEPTH below the floor
+	BOUNDARY_HEIGHT = 200, -- studs of invisible wall, starting FALL_DEPTH below the floor
+	BOUNDARY_THICK = 8, -- studs; thick enough that no dash or physics step tunnels through
 	FALL_DEPTH = 20, -- this far below the map floor = fallen, back to a safe spot
-	FALL_MARGIN = 6, -- studs outside the walls before the guard steps in
+	FALL_MARGIN = 3, -- studs outside the walls before the server guard steps in
+	BOUNDS_REACH = 40, -- up to this far outside a map the player is pushed back to the edge
+	BOUNDS_PAD = 1.5, -- studs inside the edge where a pushed-back player lands
 	FALL_TICK = 0.25, -- seconds between guard checks
 
 	-- Combat (player)

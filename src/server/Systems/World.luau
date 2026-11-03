@@ -1103,7 +1103,7 @@ function World.build(region: Atlas.Region?, slot: number?)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
-	Fence.build(folder, Vector3.zero, Fence.arenaHalf()) -- nobody walks or dashes off the playfield
+	local bounds = Fence.build(folder, Vector3.zero, Fence.arenaHalf()) -- nobody walks or dashes off the playfield
 	-- Endless surroundings beyond the environment ring (no world edge in view)
 	local hz = look.horizon
 	Models.Horizon.build(folder, {
@@ -1134,6 +1134,7 @@ function World.build(region: Atlas.Region?, slot: number?)
 	Models.Studs.applyTree(folder) -- safety net: every part in the arena carries the stud look
 	folder:SetAttribute("Region", id) -- the client sets the light (LightController)
 	folder:SetAttribute("Center", center)
+	bounds:SetAttribute("Center", center) -- world position of the walkable rectangle (BoundsController)
 	folder.Parent = arena
 	current[n] = folder
 end
