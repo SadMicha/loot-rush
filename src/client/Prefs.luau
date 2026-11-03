@@ -69,16 +69,16 @@ function Prefs.preview(key: string, value: any): any
 		values[key] = v
 		apply(key, v)
 	end
+	if not loaded then
+		dirty[key] = true -- a drag before the save arrived: keep the player's value on load
+	end
 	return v
 end
 
 function Prefs.set(key: string, value: any): any
 	local v = Prefs.preview(key, value)
 	if v ~= nil then
-		if not loaded then
-			dirty[key] = true -- the server has no save yet and ignores it: resend after loading
-		end
-		Net.Setting:FireServer(key, v)
+		Net.Setting:FireServer(key, v) -- before the save arrives preview marked it dirty (resent)
 	end
 	return v
 end
