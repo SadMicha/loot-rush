@@ -893,6 +893,33 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_moss_frog",
+   "file": "assets/ui/icons/store/pet_moss_frog.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_firefly",
+   "file": "assets/ui/icons/store/pet_firefly.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_crystal_beetle",
+   "file": "assets/ui/icons/store/pet_crystal_beetle.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
