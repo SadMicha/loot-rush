@@ -39,7 +39,14 @@ value in `Monetization.luau` equal so the button shows the right number.
 Gold packs grow with the best Rift depth like the Market's gold packs (`Balance.shopFactor`), so they
 stay worth it; gold goes to the hero being played. Soulstars and cosmetics are account-wide.
 
-## Entering the IDs (Micha)
+## Status
+
+All 11 products and 3 passes exist (created 2026-11-03 by the **Create Robux products** workflow,
+`tools/create-monetization.py`, Open Cloud key with developer-product/game-pass write). Images can be
+changed in the Creator Hub; pass images are placeholders (`assets/ui/icons`). A new offer: add it to
+the script with ID `0` in `Monetization.luau`, then run the workflow manually; it skips existing IDs.
+
+## Entering IDs by hand (fallback)
 
 1. Creator Hub → your game → **Monetization → Developer Products** → "Create" per row above
    (name, image, price). Copy the **Product ID**.

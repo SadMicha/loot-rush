@@ -5,13 +5,11 @@ name: Create Robux products
 # Idempotent: keys that already have an ID, or a product/pass with the same name, are not created again.
 # Key scopes needed: developer-product read+write, game-pass read+write.
 
+# Ran once on 2026-11-03 and created all 14. Run it again (manually) only after adding a new
+# product/pass to tools/create-monetization.py with ID 0 in Monetization.luau.
+
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/project-thread-85xbi5]
-    paths:
-      - tools/create-monetization.py
-      - .github/workflows/create-monetization.yml
 
 concurrency:
   group: create-monetization
