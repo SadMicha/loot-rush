@@ -60,7 +60,8 @@ end
 -- it even when the player leaves and Data ends the session first. The OrderedDataStore write
 -- waits for the run end; a write that is not confirmed in a saved session is retried on the next
 -- join (UpdateAsync keeps the higher value, so a repeated write is harmless).
-type Pending = { account: Data.Account, boards: { [string]: { value: number, known: number } } }
+type Entry = { value: number, known: number, unsent: number? } -- unsent = account.unsent before the run
+type Pending = { account: Data.Account, boards: { [string]: Entry } }
 
 -- Remembers a cleared depth of the running run (called by Rift after every boss)
 function Leaderboard.note(
@@ -84,7 +85,9 @@ function Leaderboard.note(
 		local known = account.boards[id] or 0
 		if value > known then
 			local entry = p.boards[id]
-			p.boards[id] = { value = value, known = if entry then entry.known else known }
+			p.boards[id] = if entry
+				then { value = value, known = entry.known, unsent = entry.unsent }
+				else { value = value, known = known, unsent = account.unsent[id] }
 			account.boards[id] = value
 			account.unsent[id] = value
 		end
@@ -104,7 +107,7 @@ function Leaderboard.taint(player: Player)
 			p.account.boards[id] = if entry.known > 0 then entry.known else nil :: any
 		end
 		if p.account.unsent[id] == entry.value then
-			p.account.unsent[id] = nil
+			p.account.unsent[id] = entry.unsent :: any -- an older unconfirmed best is still retried
 		end
 	end
 end

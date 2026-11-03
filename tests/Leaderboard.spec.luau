@@ -94,6 +94,7 @@ describe("Leaderboard server", function()
 	it("a strike or Dbg command during a run drops depths it already cleared", function()
 		local best = server(function(req, player)
 			local LB = req("ServerScriptService.Server.Systems.Leaderboard")
+			req("ServerScriptService.Server.Systems.Data").account(player).unsent.t2_ranger = 42 -- older, unconfirmed
 			LB.note(player, 2, "ranger", 7, 100) -- noted, account best raised at once
 			LB.taint(player)
 			LB.flush(player)
@@ -103,7 +104,7 @@ describe("Leaderboard server", function()
 		local unsent = server(function(req, player)
 			return req("ServerScriptService.Server.Systems.Data").account(player).unsent.t2_ranger
 		end)
-		expect(unsent).toBeNil()
+		expect(unsent).toBe(42) -- the older unconfirmed best stays queued for a retry
 	end)
 
 	it("a test command marks the hero as debugged", function()
