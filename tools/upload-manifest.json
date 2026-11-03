@@ -803,6 +803,15 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "starter_pack",
+   "file": "assets/ui/icons/store/starter_pack.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
