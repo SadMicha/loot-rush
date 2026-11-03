@@ -296,7 +296,7 @@ local function buildDoll(parent: Frame)
 	dollCard.ClipsDescendants = false
 	dollCard.Parent = parent
 
-	-- Stage: soft light behind the figure (shape only)
+	-- Stage: soft light behind the figure (no floor ring)
 	local light = Instance.new("Frame")
 	light.Name = "StageLight"
 	light.AnchorPoint = Vector2.new(0.5, 0.5)
