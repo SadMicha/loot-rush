@@ -21,6 +21,8 @@ local AtlasController = {}
 
 local C = Theme.Color
 local PAD = 28
+local ACTION_H = 84 -- bottom row (tier arrows + Travel): touch size on phones without growing
+local ARROW_W = 84
 local SIDE_W = 440
 local LABEL = Vector2.new(230, 98) -- aspect ratio like plaque_region
 local DOT_GAP = 18
@@ -262,9 +264,9 @@ local function renderSide()
 	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 490)
 	rewardHead.Parent = side
 	local rewards = row(PAD + 524, w)
-	rewards.Size = UDim2.fromOffset(w, 76)
+	rewards.Size = UDim2.fromOffset(w, 64)
 	for i, rw in r.rewards do
-		local s = Kit.itemSlot(72, rw.icon, { rarity = rw.rarity })
+		local s = Kit.itemSlot(60, rw.icon, { rarity = rw.rarity })
 		s.Active = false
 		s.LayoutOrder = i
 		s.Parent = rewards
@@ -274,31 +276,37 @@ local function renderSide()
 	local player = Players.LocalPlayer
 	local tier = WorldTiers.get(player:GetAttribute("WorldTier"))
 	local unlocked = WorldTiers.get(player:GetAttribute("WorldTierUnlocked")).id
-	local tierRow = Window.frame(UDim2.fromOffset(w, 48))
-	tierRow.Name = "WorldTier"
-	tierRow.AnchorPoint = Vector2.new(0, 1)
-	tierRow.Position = UDim2.new(0, PAD, 1, -PAD - 76)
-	local function arrow(text: string, step: number, x: number)
+	-- One bottom row: [<] [Travel] [>], all ACTION_H tall (already touch size on phones, so
+	-- nothing grows into a neighbour); the tier name sits on its own line above the row.
+	local bottom = Window.frame(UDim2.fromOffset(w, ACTION_H))
+	bottom.Name = "WorldTier"
+	bottom.AnchorPoint = Vector2.new(0, 1)
+	bottom.Position = UDim2.new(0, PAD, 1, -PAD)
+	local function arrow(text: string, step: number)
 		local target = tier.id + step
-		local b = Kit.button(text, C.Gold, Vector2.new(56, 48))
+		local b = Kit.button(text, C.Gold, Vector2.new(ARROW_W, ACTION_H))
 		b.Name = if step < 0 then "TierDown" else "TierUp"
-		b.Position = UDim2.fromOffset(x, 0)
+		b.AnchorPoint = Vector2.new(if step < 0 then 0 else 1, 0.5)
+		b.Position = UDim2.new(if step < 0 then 0 else 1, 0, 0.5, 0)
 		Kit.setEnabled(b, target >= 1 and target <= unlocked and not RiftController.active())
 		b.Activated:Connect(function()
 			if b.Active then
 				Net.Rift:FireServer("tier", target)
 			end
 		end)
-		b.Parent = tierRow
+		b.Parent = bottom
 	end
-	arrow("<", -1, 0)
-	arrow(">", 1, w - 56)
+	arrow("<", -1)
+	arrow(">", 1)
 	local tierText =
 		Kit.label("World Tier: " .. tier.name, 18, if tier.id > 1 then C.GoldHi else C.Text)
-	tierText.AnchorPoint = Vector2.new(0.5, 0.5)
-	tierText.Position = UDim2.fromScale(0.5, 0.5)
-	tierText.Parent = tierRow
-	tierRow.Parent = side
+	tierText.AutomaticSize = Enum.AutomaticSize.Y
+	tierText.Size = UDim2.fromOffset(w, 0)
+	tierText.TextXAlignment = Enum.TextXAlignment.Center
+	tierText.TextTruncate = Enum.TextTruncate.AtEnd
+	tierText.AnchorPoint = Vector2.new(0.5, 1)
+	tierText.Position = UDim2.new(0, PAD + w / 2, 1, -PAD - ACTION_H - 8)
+	tierText.Parent = side
 
 	local inRift = RiftController.active()
 	local open = isOpen(r)
@@ -306,10 +314,15 @@ local function renderSide()
 		then string.format("Clear Depth %d first", r.depth - 1)
 		elseif inRift then "Already in Rift"
 		else "Travel"
-	local go = Kit.button(text, C.Gold, Vector2.new(w, 64), if open then "portal" else "lock")
+	local go = Kit.button(
+		text,
+		C.Gold,
+		Vector2.new(w - 2 * (ARROW_W + 10), ACTION_H),
+		if open then "portal" else "lock"
+	)
 	Kit.buttonLabel(go).TextSize = Kit.fontSize(24)
-	go.AnchorPoint = Vector2.new(0, 1)
-	go.Position = UDim2.new(0, PAD, 1, -PAD)
+	go.AnchorPoint = Vector2.new(0.5, 0.5)
+	go.Position = UDim2.fromScale(0.5, 0.5)
 	Kit.setEnabled(go, open and not inRift)
 	go.Activated:Connect(function()
 		if not go.Active then
@@ -318,7 +331,8 @@ local function renderSide()
 		Net.Rift:FireServer("enter", r.id)
 		win.close()
 	end)
-	go.Parent = side
+	go.Parent = bottom
+	bottom.Parent = side
 end
 
 -- ------------------------------------------------------------------ Flow
