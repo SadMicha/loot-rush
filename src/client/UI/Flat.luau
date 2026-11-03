@@ -294,6 +294,12 @@ function Flat.toggle(
 	color: Color3,
 	onChange: (on: boolean) -> ()
 ): Toggle
+	-- Width from the content: an AutomaticSize button with the layout directly inside grew without
+	-- end once the press ripple (a full-size child) joined the layout. Start from an estimate and
+	-- follow the measured label width (font scale, phone minimum text size).
+	local label = string.upper(text)
+	local fixed = 12 + (if iconName then 24 + 10 else 0) + 10 + 46 + 12
+	local width = fixed + math.ceil(#label * Kit.fontSize(13) * 0.8)
 	local b = Instance.new("TextButton")
 	b.Name = "Toggle"
 	b.Text = ""
@@ -301,25 +307,36 @@ function Flat.toggle(
 	b.BackgroundColor3 = F.Surface2
 	b.BackgroundTransparency = 0.1
 	b.BorderSizePixel = 0
-	b.AutomaticSize = Enum.AutomaticSize.X
-	b.Size = UDim2.fromOffset(0, 44)
+	b.Size = UDim2.fromOffset(width, 44)
 	Kit.touchTarget(b)
 	Flat.corner(b, F.Radius.M)
 	local edge = Flat.stroke(b, F.Edge)
+	local row = Flat.frame(UDim2.fromScale(1, 1))
+	row.Name = "Row"
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 12)
 	pad.PaddingRight = UDim.new(0, 12)
-	pad.Parent = b
-	local layout = Kit.list(b, Enum.FillDirection.Horizontal, 10)
+	pad.Parent = row
+	local layout = Kit.list(row, Enum.FillDirection.Horizontal, 10)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	row.Parent = b
 	if iconName then
 		local ic = Kit.icon(iconName, 24)
 		ic.LayoutOrder = 1
-		ic.Parent = b
+		ic.Parent = row
 	end
-	local t = Flat.text(string.upper(text), 13, C.Text)
+	local t = Flat.text(label, 13, C.Text)
 	t.LayoutOrder = 2
-	t.Parent = b
+	t.Parent = row
+	local function fitWidth()
+		local w = t.TextBounds.X
+		if w > 0 then
+			local size = Vector2.new(fixed + math.ceil(w), 44)
+			b:SetAttribute("BaseSize", size) -- Kit touch minimums re-apply from this
+			b.Size = UDim2.fromOffset(size.X, b.Size.Y.Offset)
+		end
+	end
+	t:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -338,7 +355,7 @@ function Flat.toggle(
 	knob.BorderSizePixel = 0
 	Flat.corner(knob, 9)
 	knob.Parent = track
-	track.Parent = b
+	track.Parent = row
 
 	local on = false
 	local function apply(animate: boolean)
