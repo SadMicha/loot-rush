@@ -28,6 +28,20 @@ As long as the scene images and nodes from ChatGPT are missing (`Assets.Art` emp
 - [ ] "Travel" at Green Plains starts the rift and closes the Atlas; in the rift it says "Already in a rift"
 - [ ] Locked regions: button "Locked"
 
+## Settings (gear on the HUD, at rest)
+- [ ] Gear opens the Settings window (no menu dock over it); X closes it back to the game
+- [ ] Sound: "Mute all" silences everything; each slider changes its channel while dragging
+      (music, combat sounds, ambience, interface) and keeps the value after release
+- [ ] Camera shake Off / Low / Full: hits and kills shake less or not at all
+- [ ] Damage numbers off: no numbers over hit enemies; "Dodged!", own hurt numbers and texts still show
+- [ ] Effects quality Low: fewer flying bricks on kills, minimap shows fewer parts; Auto on a phone = Med
+- [ ] Minimap off hides the compass map; on brings it back
+- [ ] HUD size XS..XL rescales the HUD at once (phone, tablet, PC); nothing leaves the screen at XL on a phone
+- [ ] Camera speed changes how fast mouse drag / finger swipe turns the camera
+- [ ] "Defaults" resets everything; "Roblox Menu" closes the window and opens the Roblox menu
+- [ ] Rejoin (or switch hero): every setting is still the same (saved per account)
+- [ ] Phone: sliders drag with a finger, every switch and option is easy to hit
+
 ## General
 - [ ] No error in the output at startup and when opening each window
 - [ ] Windows fit with a small and a large Studio window (scaling like the inventory)

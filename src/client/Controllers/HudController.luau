@@ -46,6 +46,8 @@ local StoreController = require(script.Parent.StoreController)
 local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
 local ProgressController = require(script.Parent.ProgressController)
+local SettingsController = require(script.Parent.SettingsController)
+local Prefs = require(script.Parent.Parent.Prefs)
 
 local HudController = {}
 
@@ -317,11 +319,13 @@ local dots: { Frame } = {}
 local MAP_SIZE = 156
 local MAP_RANGE = Theme.MiniMap.Range -- studs from the center to the edge
 local mapView: MiniMapView.View
+local mapBox: Frame -- whole minimap incl. the place plaque ("Minimap" setting hides it)
 local mapInner = 0.4 -- radius of the map area inside the ring (fraction of the width)
 
 local function buildMinimap()
 	local box = Instance.new("Frame")
 	box.Name = "Minimap"
+	mapBox = box
 	box.BackgroundTransparency = 1
 	box.Size = UDim2.fromOffset(MAP_SIZE, MAP_SIZE + 18)
 	place(box, Vector2.new(1, 0), UDim2.new(1, -H.Margin, 0, 10))
@@ -803,7 +807,10 @@ local WINDOW_OF: { [string]: string } = { -- bar id -> Window name / Window.excl
 	pets = "Pets",
 	shop = "Shop",
 }
-local NO_DOCK: { [string]: boolean } = { Class = true } -- first-join class picker: no way out
+local NO_DOCK: { [string]: boolean } = {
+	Class = true, -- first-join class picker: no way out
+	Settings = true, -- settings window: full screen, closes back to the game
+}
 local menuGui: ScreenGui
 local menuMarks: { [string]: Frame } = {}
 local menuShown: string? = nil
@@ -928,16 +935,13 @@ local function buildCalmPanels()
 	)
 
 	-- Settings gear above the dash button at rest (the skill arc is away then; beside the dash it
-	-- would run into the icon bar on tablets with the bigger touch dash). Opens the Roblox menu.
+	-- would run into the icon bar on tablets with the bigger touch dash). Opens the settings window
+	-- (SettingsController; the Roblox menu is one button in there).
 	local gearGroup = group(Vector2.new(H.GearSize + 12, H.GearSize))
 	gearGroup.Name = "Settings"
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
-	gear.Activated:Connect(function()
-		pcall(function()
-			GuiService:SetMenuIsOpen(true)
-		end)
-	end)
+	gear.Activated:Connect(SettingsController.toggle)
 	gear.Parent = gearGroup
 	local gearX = -(H.Margin + dashSize / 2 - (H.GearSize + 12) / 2)
 	local gearY = -(H.Margin + dashSize + H.DashDiamond + 6)
@@ -1227,6 +1231,17 @@ function HudController.init()
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(layoutHud)
 	-- After Kit.scaledGui (new scaling): safe area or screen size changed
 	hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
+	-- HUD size setting (Kit.setHudScale) changes only the scale
+	local hudScale = root:FindFirstChildOfClass("UIScale")
+	if hudScale then
+		hudScale:GetPropertyChangedSignal("Scale"):Connect(layoutHud)
+	end
+	mapBox.Visible = Prefs.get("minimap") ~= false
+	Prefs.changed:Connect(function(key: string, value: any)
+		if key == "minimap" then
+			mapBox.Visible = value ~= false
+		end
+	end)
 	local camera = workspace.CurrentCamera
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutHud)
@@ -1332,8 +1347,8 @@ function HudController.start()
 			buffAcc = 0
 			updateBuffs()
 		end
-		if Window.anyOpen() then
-			return -- a fullscreen window covers the minimap: no terrain or dot work behind it
+		if Window.anyOpen() or not mapBox.Visible then
+			return -- a fullscreen window covers the minimap (or it is off): no terrain or dot work
 		end
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")

@@ -21,7 +21,8 @@ return table.freeze({
 	FLASH_MAX = 8, -- highlights at the same time (Roblox renders at most 31)
 	-- Brick debris (one shared pool for death shatter, hit chips, skill bricks, roll trail)
 	DEBRIS_MAX = 90, -- active bricks at once, oldest are recycled first
-	DEBRIS_LOW = 35, -- budget on low graphics quality (phones)
+	DEBRIS_MEDIUM = 60, -- effects quality "medium" (settings; the auto default on touch devices)
+	DEBRIS_LOW = 35, -- budget on low graphics quality / effects quality "low"
 	DEATH_BRICKS = 16, -- bricks per normal death (bosses x2)
 	HIT_CHIPS = 2,
 	BRICK_LIFE = 1.1, -- seconds before a brick fades

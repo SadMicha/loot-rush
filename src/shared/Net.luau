@@ -31,6 +31,8 @@
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
 --   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
+--   Setting   (C→S): key: string, value: number | boolean | string - one setting (Shared/Settings)
+--   Settings  (S→C): Settings.Data - the saved settings of the account, sent once after loading
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -65,6 +67,8 @@ local NAMES = {
 	"AutoSalvage",
 	"Loadout",
 	"SkillCast",
+	"Setting",
+	"Settings",
 	"Debug",
 }
 
@@ -117,5 +121,7 @@ return table.freeze({
 	AutoSalvage = get("AutoSalvage"),
 	Loadout = get("Loadout"),
 	SkillCast = get("SkillCast"),
+	Setting = get("Setting"),
+	Settings = get("Settings"),
 	Debug = get("Debug"),
 })

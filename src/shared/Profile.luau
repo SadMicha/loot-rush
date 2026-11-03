@@ -22,6 +22,7 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Settings = require(script.Parent.Settings)
 local WorldTiers = require(script.Parent.WorldTiers)
 
 local Profile = {}
@@ -54,6 +55,7 @@ export type Account = {
 	receipts: { string }, -- recently booked Robux purchases (PurchaseId), against double crediting
 	pets: Pets.Data, -- pets (Shared/Pets), shared by all characters
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
+	settings: Settings.Data, -- settings window (Shared/Settings), the same for every character
 	cosmetics: { [string]: boolean }, -- owned cosmetics (Shared/Cosmetics ids)
 	wear: { [string]: string }, -- slot → worn cosmetic id ("" = none)
 	bought: { [string]: boolean }, -- one-time Robux products already bought (Monetization once)
@@ -102,6 +104,7 @@ local ACCOUNT_DEFAULTS = {
 	receipts = {},
 	pets = Pets.fresh(),
 	passes = {},
+	settings = Settings.fresh(), -- contents checked by Settings.reconcile
 	cosmetics = {},
 	wear = { trail = "", aura = "" },
 	bought = {},
@@ -287,6 +290,7 @@ function Profile.reconcileAccount(raw: any): Account
 		end
 	end
 	data.passes = passes
+	data.settings = Settings.reconcile(data.settings)
 	-- Cosmetics and one-time purchases: string keys with true; unknown keys (newer server) stay,
 	-- capped. Worn cosmetics must be owned and fit their slot.
 	local function flags(input: any): { [string]: boolean }

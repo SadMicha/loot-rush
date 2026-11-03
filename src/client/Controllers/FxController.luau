@@ -11,6 +11,7 @@ local UserInputService = game:GetService("UserInputService")
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Prefs = require(script.Parent.Parent.Prefs)
 
 local FxController = {}
 
@@ -101,6 +102,8 @@ function handlers.dmg(d)
 		popText(pos, d.text, (d.color :: Color3?) or C.Gold, 22)
 	elseif d.hurt then
 		popText(pos, "-" .. tostring(d.amount), C.Danger, 28)
+	elseif not Prefs.get("damageNumbers") then
+		return -- "Damage numbers" off: dealt damage stays silent (dodges, texts, own hurt still show)
 	elseif d.crit then
 		local tiers = Theme.Damage.Tiers
 		local tier = math.clamp(math.floor(tonumber(d.critTier) or 1), 1, #tiers)

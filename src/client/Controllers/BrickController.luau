@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Studs = require(ReplicatedStorage.Shared.Models.Studs)
+local Prefs = require(script.Parent.Parent.Prefs)
 
 local BrickController = {}
 
@@ -35,13 +36,14 @@ local recent: { { pos: Vector3, t: number } } = {} -- last shatters, so the deat
 local moveParts: { BasePart } = {}
 local moveCFrames: { CFrame } = {}
 
+-- Brick budget by the "Effects quality" setting (auto: low Roblox graphics level or touch
+-- device get fewer bricks, Prefs.effectLevel)
 local function budget(): number
-	local ok, level = pcall(function()
-		return UserSettings().GameSettings.SavedQualityLevel.Value
-	end)
-	-- 0 = automatic, 1..10 = manual; low manual levels get the small budget
-	if ok and typeof(level) == "number" and level > 0 and level <= 3 then
+	local level = Prefs.effectLevel()
+	if level == "low" then
 		return Feel.DEBRIS_LOW
+	elseif level == "medium" then
+		return Feel.DEBRIS_MEDIUM
 	end
 	return Feel.DEBRIS_MAX
 end

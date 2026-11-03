@@ -105,7 +105,8 @@ describe("Phone layout", function()
 			{ "star_net", "StarNet" },
 			{ "forge", "Forge" },
 			{ "atlas", "Atlas" },
-			{ "Shop_gold", "Shop" }, -- the + on the gold capsule
+			{ "Gear", "Settings" }, -- the settings gear
+			{ "Shop_gold", "Shop" }, -- the + on the gold capsule (stays open for the next test)
 		}
 	do
 		it("Window " .. entry[2], function()
