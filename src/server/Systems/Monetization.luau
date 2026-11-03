@@ -42,7 +42,13 @@ function Monetization.isTracked(player: Player): boolean
 	return owned[player] ~= nil
 end
 
-local function setOwned(player: Player, pass: Rules.Pass)
+-- Drops the ownership of a player (they left)
+function Monetization.forget(player: Player)
+	owned[player] = nil
+end
+
+-- persist = false: this session only, account.passes (the outage fallback) stays untouched
+local function setOwned(player: Player, pass: Rules.Pass, persist: boolean?)
 	local o = owned[player]
 	if not o then
 		o = {}
@@ -54,7 +60,7 @@ local function setOwned(player: Player, pass: Rules.Pass)
 		player:SetAttribute(pass.attr, true)
 	end
 	local account = Data.account(player)
-	if account then
+	if account and persist ~= false then
 		account.passes[pass.key] = true
 	end
 	Boosts.refresh(player)
@@ -187,9 +193,10 @@ end
 
 -- ------------------------------------------------------------------ Game passes bought in game
 -- PromptGamePassPurchaseFinished is only a hint that a dialog closed, not proof of a purchase
--- (exploit tools have faked it to unlock passes for free). Ownership is asked from Roblox, whose
--- answer reflects a purchase made in this server right away. Not confirmed (or the query failed):
--- nothing is granted now, loadPasses picks the pass up on the next join.
+-- (exploit tools have faked it to unlock passes for free). Only a purchase Roblox confirms with
+-- UserOwnsGamePassAsync is saved. That answer can be a cached "false" from the join query, so an
+-- unconfirmed purchase still unlocks for this session (a paying player never waits for a rejoin),
+-- but is not saved: the next join asks Roblox again, so a faked signal never outlives the session.
 function Monetization.passPurchased(player: Player, id: any, purchased: any)
 	if purchased ~= true or typeof(id) ~= "number" or not player.Parent then
 		return
@@ -203,10 +210,13 @@ function Monetization.passPurchased(player: Player, id: any, purchased: any)
 		return -- left while asking: writing owned[player] again would leak the entry
 	end
 	if has ~= true then
-		warn("[LootRush] game pass purchase not confirmed by Roblox:", player.UserId, id)
-		return
+		warn(
+			"[LootRush] game pass purchase not confirmed yet, unlocked for this session:",
+			player.UserId,
+			id
+		)
 	end
-	setOwned(player, pass)
+	setOwned(player, pass, has == true)
 	Net.ShopResult:FireClient(player, {
 		ok = true,
 		text = pass.name .. " unlocked forever!",
@@ -223,9 +233,7 @@ function Monetization.init()
 			return Monetization.owns(player, key)
 		end)
 	end)
-	Players.PlayerRemoving:Connect(function(player: Player)
-		owned[player] = nil
-	end)
+	Players.PlayerRemoving:Connect(Monetization.forget)
 end
 
 function Monetization.start()

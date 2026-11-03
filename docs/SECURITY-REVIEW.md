@@ -8,7 +8,7 @@ debug commands. Read against commit `2939c0a` (after #80).
 
 | # | Priority | Finding | Status |
 |---|----------|---------|--------|
-| 1 | High | A game pass was unlocked (and saved to `account.passes`) on `PromptGamePassPurchaseFinished` alone. That signal only says a dialog closed; exploit tools have faked it to get passes for free. | **Fixed**: `Monetization.passPurchased` asks `UserOwnsGamePassAsync` first; unconfirmed = nothing granted, the pass loads on the next join. Test added. |
+| 1 | High | A game pass was unlocked (and saved to `account.passes`) on `PromptGamePassPurchaseFinished` alone. That signal only says a dialog closed; exploit tools have faked it to get passes for free. | **Fixed**: `Monetization.passPurchased` asks `UserOwnsGamePassAsync` first and saves only a confirmed pass. Unconfirmed (faked, or a cached "false" from the join query) unlocks for this session only, so paying players never wait, and the next join asks Roblox again. Test added. |
 | 2 | Medium | No server check on movement. Characters are client-owned, so speed hacks, teleports and noclip work. FallGuard keeps players on their map, but a cheater can run a Rift Trail much faster and pull in their own drops from far away. Gold, items, damage and depth all stay server-side, so nothing can be minted or duplicated. | **Open**: add before any time-based leaderboard (see below). |
 | 3 | Low | `CastSkill` accepts a client `origin` up to 12 studs from the server position (smooths lag), so a projectile can start just behind a thin wall. | Accepted (feel > tiny gain). |
 | 4 | Low | A receipt for a product ID missing from `Shared/Monetization` stayed `NotProcessedYet` silently. | **Fixed**: now logs a warning, still never credited. |

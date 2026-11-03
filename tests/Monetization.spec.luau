@@ -166,7 +166,7 @@ describe("Monetization in game", function()
 		expect(tracked).toBe(false)
 	end)
 
-	it("unlocks a pass bought in game only once Roblox confirms the purchase", function()
+	it("saves a pass bought in game only once Roblox confirms the purchase", function()
 		local CUSTOM_KEY = "MarketplaceService.UserOwnsGamePassAsync"
 		local confirmed = false
 		sim:custom("MarketplaceService", "UserOwnsGamePassAsync", {
@@ -175,21 +175,27 @@ describe("Monetization in game", function()
 			end,
 		})
 		sim.customCache[CUSTOM_KEY] = nil
-		local forged, real, saved
+		local forgedAttr, forgedSaved, real, saved
 		sim:runAs("server", function(req)
 			local M = req("ServerScriptService.Server.Systems.Monetization")
-			-- A faked PromptGamePassPurchaseFinished: Roblox does not know the purchase
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			-- Not confirmed (a faked signal or a cached answer): this session only, never saved
 			M.passPurchased(sim.player, PASS_ID, true)
-			forged = sim.player:GetAttribute("Pass_magnet")
+			forgedAttr = sim.player:GetAttribute("Pass_magnet")
+			forgedSaved = Data.account(sim.player).passes.magnet
+			-- Next session (rejoin): Roblox confirms the purchase, now it is saved
+			sim.player:SetAttribute("Pass_magnet", nil)
+			M.forget(sim.player)
 			confirmed = true
 			M.passPurchased(sim.player, PASS_ID, true)
 			real = sim.player:GetAttribute("Pass_magnet")
-			saved = req("ServerScriptService.Server.Systems.Data").account(sim.player).passes.magnet
+			saved = Data.account(sim.player).passes.magnet
 		end)
 		sim:run(0.5)
 		sim.customs.MarketplaceService.UserOwnsGamePassAsync = nil
 		sim.customCache[CUSTOM_KEY] = nil
-		expect(forged).toBeNil()
+		expect(forgedAttr).toBe(true)
+		expect(forgedSaved).toBeNil()
 		expect(real).toBe(true)
 		expect(saved).toBe(true)
 	end)
