@@ -51,6 +51,7 @@ local LIST: { Pet } = {
 	{
 		id = "firefly",
 		name = "Firefly",
+		icon = "pet_firefly",
 		rarity = "normal",
 		text = "Lights your way to more gold.",
 		bonus = { gold = 10 },
@@ -61,6 +62,7 @@ local LIST: { Pet } = {
 	{
 		id = "moss_frog",
 		name = "Moss Frog",
+		icon = "pet_moss_frog",
 		rarity = "normal",
 		text = "Croaks after every win - you learn faster.",
 		bonus = { xp = 10 },
@@ -71,6 +73,7 @@ local LIST: { Pet } = {
 	{
 		id = "crystal_beetle",
 		name = "Crystal Beetle",
+		icon = "pet_crystal_beetle",
 		rarity = "magic",
 		text = "Pulls in loot from farther away.",
 		bonus = { magnet = 6 },

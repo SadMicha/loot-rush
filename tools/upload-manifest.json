@@ -850,6 +850,78 @@
    "registry": "Assets.IconImage"
   },
   {
+   "key": "aura_void",
+   "file": "assets/ui/icons/store/aura_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "trail_void",
+   "file": "assets/ui/icons/store/trail_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "trail_ember",
+   "file": "assets/ui/icons/store/trail_ember.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_frost",
+   "file": "assets/ui/icons/store/pack_frost.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_void",
+   "file": "assets/ui/icons/store/pack_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_moss_frog",
+   "file": "assets/ui/icons/store/pet_moss_frog.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_firefly",
+   "file": "assets/ui/icons/store/pet_firefly.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_crystal_beetle",
+   "file": "assets/ui/icons/store/pet_crystal_beetle.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
    "key": "vfx_trail_gilded",
    "file": "assets/vfx/trail_gilded.png",
    "size": [
