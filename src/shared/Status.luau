@@ -57,10 +57,10 @@ Status.Defs = table.freeze({
 		false,
 		1
 	),
-	damage = def("damage", "Empowered", "More damage", "sword", false, 2),
-	armor = def("armor", "Armored", "Less damage taken", "shield_buff", false, 3),
-	haste = def("haste", "Haste", "More move speed", "wings", false, 4),
-	shield = def("shield", "Arcane Shield", "Absorbs damage", "crystal", false, 5),
+	damage = def("damage", "Empowered", "More damage", "buff_damage", false, 2),
+	armor = def("armor", "Armored", "Less damage taken", "buff_armor", false, 3),
+	haste = def("haste", "Haste", "More move speed", "buff_haste", false, 4),
+	shield = def("shield", "Arcane Shield", "Absorbs damage", "buff_shield", false, 5),
 	chill = def("chill", "Chilled", "Less move speed (Frozen aura)", "ice", true, 20),
 } :: { [string]: Def })
 

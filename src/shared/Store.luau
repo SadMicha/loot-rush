@@ -123,7 +123,7 @@ local OFFERS: { Offer } = {
 		key = "gold_s",
 		name = "Gold Pouch",
 		text = "Grows with your deepest Rift.",
-		icon = "gold",
+		icon = "gold_sack",
 		rarity = "magic",
 	},
 	{
@@ -145,7 +145,7 @@ local OFFERS: { Offer } = {
 		key = "gold_l",
 		name = "Gold Hoard",
 		text = "Grows with your deepest Rift.",
-		icon = "crown",
+		icon = "gold_hoard",
 		rarity = "epic",
 		badge = "best",
 		bonus = "+20% bonus",
