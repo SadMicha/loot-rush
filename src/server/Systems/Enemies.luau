@@ -63,6 +63,7 @@ type Enemy = {
 	depth: number,
 	tier: number, -- World Tier of the run (Shared/WorldTiers)
 	center: Vector3, -- center of the own arena (Rift slot)
+	bounds: { min: Vector3, max: Vector3 }?, -- leash area (a trail clearing); nil = the arena
 	run: number, -- Rift run the enemy belongs to (0 = none)
 	summoned: boolean,
 	stage: number, -- boss phase 1-3 (Shared/Bosses)
@@ -466,6 +467,14 @@ end
 
 -- Keeps a point inside the enemy's arena (every Rift has its own slot, e.center)
 local function clampArena(e: Enemy, p: Vector3): Vector3
+	local b = e.bounds
+	if b then
+		return Vector3.new(
+			math.clamp(p.X, b.min.X + 2, b.max.X - 2),
+			p.Y,
+			math.clamp(p.Z, b.min.Z + 2, b.max.Z - 2)
+		)
+	end
 	local c = e.center
 	return Vector3.new(
 		math.clamp(p.X, c.X - MAX_X, c.X + MAX_X),
@@ -493,6 +502,7 @@ end
 export type SpawnOpts = {
 	tier: number?, -- World Tier of the run (Shared/WorldTiers), default 1
 	center: Vector3?, -- center of the arena (default: origin)
+	bounds: { min: Vector3, max: Vector3 }?, -- leash area (Rift Trail clearing), default the arena
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
 	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
 	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
@@ -602,6 +612,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		depth = depth,
 		tier = tier,
 		center = o.center or Vector3.zero,
+		bounds = o.bounds,
 		run = o.run or 0,
 		summoned = false,
 		stage = 1,
@@ -853,7 +864,7 @@ local function summon(e: Enemy, around: Vector3, count: number)
 			addKind,
 			Vector3.new(at.X, 0, at.Z),
 			e.depth,
-			{ tier = e.tier, center = e.center, run = e.run }
+			{ tier = e.tier, center = e.center, bounds = e.bounds, run = e.run }
 		)
 		if m then
 			local region = e.model:GetAttribute("Region")

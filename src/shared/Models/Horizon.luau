@@ -30,6 +30,7 @@ export type Spec = {
 
 local SKIRT = 900 -- studs; stays below Config.ARENA_SPACING so neighbours never overlap
 local NEAR, MID, FAR = 30, 34, 10 -- peaks per ring
+local FILL = 20 -- small scenery models on the skirt
 
 local function scenery(p: BasePart)
 	p.Anchored = true
@@ -155,7 +156,7 @@ function Horizon.build(parent: Instance, spec: Spec): Folder
 
 	-- Small scenery on the skirt between the map and the first ring (sides and north only)
 	if spec.fill then
-		for i = 1, 40 do
+		for i = 1, FILL do
 			local a = r:NextNumber(math.pi * 0.95, math.pi * 2.05)
 			local edge = onRect(a, spec.halfX, spec.halfZ)
 			local out = Vector3.new(math.cos(a), 0, math.sin(a))

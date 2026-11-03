@@ -119,7 +119,7 @@ local function refresh()
 		local wave = (player:GetAttribute("RiftWave") or 1) :: number
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
-		infoLine.Text = string.format("Wave %d/%d  ·  %d left", wave, waves, left)
+		infoLine.Text = string.format("Area %d/%d  ·  %d left", wave, waves, left)
 	elseif p == "boss" then
 		infoLine.Text = "Boss"
 	elseif p == "failed" then
