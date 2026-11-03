@@ -1,7 +1,7 @@
 --!strict
 -- Invisible boundary walls around a walkable rectangle, so nobody can walk or dash off a map.
--- Used by Systems/Hub (Lumenhaven) and Systems/World (every arena). The walls do not block
--- raycasts or touches (CanQuery/CanTouch off), so camera, skills and loot ignore them.
+-- Used by Systems/Hub (Lumenhaven) and Systems/World (every arena). The walls answer raycasts
+-- (CanQuery on), so a leap stops in front of them like at any other wall; touches are off.
 -- Systems/FallGuard is the second line of defence if a player ever ends up outside anyway.
 
 local Config = require(game:GetService("ReplicatedStorage").Shared.Config)
@@ -15,7 +15,7 @@ local function wall(parent: Instance, size: Vector3, pos: Vector3)
 	p.Name = "Boundary"
 	p.Anchored = true
 	p.CanCollide = true
-	p.CanQuery = false
+	p.CanQuery = true -- leap raycasts (Combat.castLeap) stop at the edge
 	p.CanTouch = false
 	p.CastShadow = false
 	p.Transparency = 1

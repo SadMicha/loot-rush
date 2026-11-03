@@ -40,6 +40,18 @@ describe("Fall guard", function()
 		expect(arena).toBe(4)
 	end)
 
+	it("walls answer raycasts, so a leap stops at the edge instead of passing through", function()
+		local all = server(function()
+			for _, p in workspace.Lumenhaven.Bounds:GetChildren() do
+				if not (p:IsA("BasePart") and p.CanQuery) then
+					return false
+				end
+			end
+			return true
+		end)
+		expect(all).toBe(true)
+	end)
+
 	it("puts a player who fell below the Hub back on the spawn", function()
 		server(function(_, player)
 			player.Character:PivotTo(CFrame.new(Config.HUB_ORIGIN + Vector3.new(0, -60, 0)))
