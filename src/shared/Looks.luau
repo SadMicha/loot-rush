@@ -15,7 +15,7 @@ export type Light = {
 	haze: number?,
 	tint: Color3?, -- color correction
 	clouds: number?, -- Terrain Clouds.Cover (0 = clear sky)
-	ambience: string?, -- key in Assets.Sound for the looped ambience (AmbienceController)
+	ambience: string?, -- key in Shared/Sounds.Ambience for the looped ambience (AmbienceController)
 }
 
 local Looks = {}

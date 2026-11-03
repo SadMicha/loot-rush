@@ -27,13 +27,16 @@ export type EnemyAttributes = {
 }
 
 -- Net.Fx events (server → all clients): kind → data
---   dmg     { pos, amount?, text?, crit?, critTier?, hurt? }
+--   dmg     { pos, amount?, text?, crit?, critTier?, hurt?, pickup? }
+--           pickup = item rarity or "gold" on the owner's own pickup popup (pickup sound)
 --           crit = tier >= 1; critTier (optional, >= 1 only on crits) = overcrit tier, 2 = double crit
 --   proj    { from, to, time, color, size }
 --   nova    { pos, radius, color }
 --   chain   { points: {Vector3}, color }
 --   death   { pos, color }
 --   levelup { pos, level, who }
+--   rush    { who } - Stud Rush started · intro { text, color } - boss intro (owner only)
+--   phase   { pos, stage } - boss phase change
 --   act     { by, kind, skill?, basic, at? } - an attack, cast ("projectile", "arc", …, the
 --           Skills kind) or "dash" of player `by`; drives AnimController (Shared/Anim)
 

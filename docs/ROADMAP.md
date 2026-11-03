@@ -47,7 +47,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 | N3 | Fixes from N1/N2 | Collected bugs, small briefs per lane | backend-developer / frontend-developer | ⏳ |
 | N4 | Monetization live | Create products/passes in Creator Hub, enter IDs, purchase test (Studio + test place), policy check (random items) | Micha (IDs), backend-developer, code-reviewer | ⏳ |
 | ~~N5~~ | Village & offline income | **Dropped** (2026-11-02): pure ARPG, no incremental layer | - | dropped |
-| N6 | Content & assets | Missing scene images/node icons (`Assets.Art`), all sound ids (`Shared/Sounds`, `Assets.Sound`) | ui-designer (prompts), Micha (images, sound ids) | ⏳ |
+| N6 | Content & assets | Missing scene images/node icons (`Assets.Art`), sound ids filled (`Shared/Sounds`), Studio spot-check open | ui-designer (prompts), Micha (images, sound ids) | ⏳ |
 | N7 | Release preparation | Mobile performance budget, store page, live data/analytics, starting region polish | all | ⏳ |
 | N8 | Package tooling | Wally packages (`wally install` in setup/CI, Rojo mapping `Packages`/`ServerPackages`, package types, commit `wally.lock`); prerequisite for N9/N12. Starts only when no other agent edits `tools/`, `tests/`, `wally.toml`, `default.project.json`, `ci.yml` (`docs/specs/PLATFORM-STACK.md` §1) | backend-developer → code-reviewer | ⏳ |
 | N9 | ProfileStore saving | `lm-loleris/profilestore@1.0.3` behind the unchanged `Data` API, new store `LootRush_Profile_v3` (no migration), sandbox support, `Data*.spec` kept green, TEST-SAVING update; lands before the saving part of N1 (D6, §2) | backend-developer → code-reviewer → planner (checklist) → Micha | ✅ done, pending review (store `LootRush_Profile_v3`, own lock helpers removed) |
