@@ -1,6 +1,7 @@
 --!strict
 -- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
--- items, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio or for UserIds in DEV_USERS.
+-- items, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio, for the
+-- owner of the place (user-owned experience) or for UserIds in DEV_USERS.
 -- The check lives here on the server - the menu on the client is only a convenience.
 -- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
 -- The server tells the client it is allowed via the player attribute "DebugTools".
@@ -35,6 +36,14 @@ local Debug = {}
 -- Roblox UserIds that may use the test commands in the published game too
 local DEV_USERS: { [number]: true } = {}
 
+-- The account that owns the experience may always use them (0 for group games or outside Roblox)
+local OWNER_ID: number = (function(): number
+	local ok, id = pcall(function(): number
+		return if game.CreatorType == Enum.CreatorType.User then game.CreatorId else 0
+	end)
+	return if ok and typeof(id) == "number" then id else 0
+end)()
+
 local MAX_LEVEL = 200
 local REGION_SPAN = 5 -- depths per region (starting depths 1, 6, 11 …)
 
@@ -42,7 +51,9 @@ local rng = Random.new()
 local allow = RateLimit.new(4, 8)
 
 function Debug.allowed(player: Player): boolean
-	return RunService:IsStudio() or DEV_USERS[player.UserId] == true
+	return RunService:IsStudio()
+		or DEV_USERS[player.UserId] == true
+		or (OWNER_ID > 0 and player.UserId == OWNER_ID)
 end
 
 local function whole(value: any, min: number, max: number): number?
