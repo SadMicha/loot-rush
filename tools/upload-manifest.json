@@ -839,6 +839,15 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_ember",
+   "file": "assets/ui/icons/store/pack_ember.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
