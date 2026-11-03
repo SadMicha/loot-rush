@@ -187,6 +187,19 @@ end
 -- has to be scaled down further for it (phone); the HUD stays at 0.55 minimum.
 -- design = supplies its own design area instead of Theme.DesignSize (HUD on touch: smaller area =
 -- larger elements); asked again on every size change.
+-- Design area for HUD-like layers: desktop mock-up size, the compact touch size on phones and a
+-- larger one on tablets so their HUD keeps phone proportions instead of growing past them
+function Kit.hudDesign(): Vector2
+	if not UserInputService.TouchEnabled then
+		return Theme.DesignSize
+	end
+	local camera = workspace.CurrentCamera
+	local v = if camera then camera.ViewportSize else Vector2.zero
+	return if math.min(v.X, v.Y) >= Theme.TabletMinSide
+		then Theme.HudDesignTablet
+		else Theme.HudDesignTouch
+end
+
 function Kit.scaledGui(
 	name: string,
 	order: number,
