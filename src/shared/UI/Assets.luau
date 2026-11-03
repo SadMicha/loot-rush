@@ -386,6 +386,7 @@ local ICON_ALIAS: { [string]: string } = {
 	soulstars_l = "soulstar",
 	soulstars_xl = "soulstar",
 	starter_pack = "chest",
+	pack_ember = "fire",
 	pass_vip = "crown",
 	pass_magnet = "chest",
 	pass_pet_slot = "companion",
@@ -633,6 +634,7 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	pass_pet_slot = { id = "rbxassetid://113670167155375", size = Vector2.new(256, 256) },
 	pass_magnet = { id = "rbxassetid://83134635006465", size = Vector2.new(256, 256) },
 	pass_vip = { id = "rbxassetid://137405036075950", size = Vector2.new(256, 256) },
+	pack_ember = { id = "rbxassetid://115660814935673", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
 }
 local iconImage: { [string]: Fixed } = {}

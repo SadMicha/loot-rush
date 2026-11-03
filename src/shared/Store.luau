@@ -158,7 +158,7 @@ local OFFERS: { Offer } = {
 		key = "pack_ember",
 		name = "Ember Pack",
 		text = "Trail and aura of living fire.",
-		icon = "fire",
+		icon = "pack_ember",
 		rarity = "epic",
 	},
 	{
