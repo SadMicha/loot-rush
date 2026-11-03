@@ -848,6 +848,42 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "vfx_trail_gilded",
+   "file": "assets/vfx/trail_gilded.png",
+   "size": [
+    512,
+    128
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_trail_ember",
+   "file": "assets/vfx/trail_ember.png",
+   "size": [
+    512,
+    128
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_trail_frost",
+   "file": "assets/vfx/trail_frost.png",
+   "size": [
+    512,
+    128
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_trail_void",
+   "file": "assets/vfx/trail_void.png",
+   "size": [
+    512,
+    128
+   ],
+   "registry": "Assets.Vfx"
   }
  ]
 }

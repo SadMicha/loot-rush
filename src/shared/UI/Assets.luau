@@ -667,6 +667,16 @@ Assets.Weapon = table.freeze({
 	}),
 } :: { [string]: { model: string, texture: string } })
 
+-- World VFX textures (assets/vfx/*.png, upload keys "vfx_<name>"), e.g. Trail.Texture of the
+-- cosmetic trails (Shared/Cosmetics `texture`). Paste the ids from assets/ui-asset-ids.csv after the
+-- upload. Empty = the effect keeps its flat color look.
+Assets.Vfx = table.freeze({
+	trail_gilded = "rbxassetid://112657872833926",
+	trail_ember = "rbxassetid://97154003089217",
+	trail_frost = "rbxassetid://133044313718164",
+	trail_void = "rbxassetid://137876026395589",
+} :: { [string]: string })
+
 -- Robux glyph (Roblox built-in texture). Empty string = the shop writes "R$" instead.
 Assets.Robux = "rbxasset://textures/ui/common/robux.png"
 
