@@ -555,7 +555,7 @@ local function wardrobe(order: number): Frame
 				if (wear[slot] or "") ~= e.id then
 					wear[slot] = e.id
 					Net.Wear:FireServer(slot, e.id)
-					StoreController.render()
+					StoreController.render(true)
 				end
 			end)
 			cell.Parent = row
@@ -576,7 +576,9 @@ local function wardrobe(order: number): Frame
 end
 
 -- ------------------------------------------------------------------ Pages
-function StoreController.render()
+-- keepScroll: stay where the player is (wardrobe clicks, server updates); tab changes start at the top
+function StoreController.render(keepScroll: boolean?)
+	local scroll = page.CanvasPosition
 	bobs = {}
 	pulses = {}
 	clear(page)
@@ -612,7 +614,14 @@ function StoreController.render()
 		note.LayoutOrder = 99
 		note.Parent = page
 	end
-	page.CanvasPosition = Vector2.zero
+	if keepScroll then
+		page.CanvasPosition = scroll
+		task.defer(function() -- the canvas grows to its new size after layout
+			page.CanvasPosition = scroll
+		end)
+	else
+		page.CanvasPosition = Vector2.zero
+	end
 	Kit.refit(win.root)
 	runClock()
 end
@@ -835,7 +844,7 @@ function StoreController.init()
 	end)
 	local function refresh()
 		if win.isOpen() then
-			StoreController.render()
+			StoreController.render(true)
 		end
 	end
 	for _, attr in { "Soulstars", "Gold" } do

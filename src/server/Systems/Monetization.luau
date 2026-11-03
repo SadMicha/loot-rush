@@ -112,6 +112,14 @@ Monetization.loadPasses = loadPasses
 local function grant(player: Player, account: Profile.Account, product: Rules.Product): string
 	local parts = {}
 	local refund = 0
+	-- A one-time product bought again (e.g. two dialogs opened before the first was booked): the
+	-- player paid, so they get its Soulstars plus its refund, but not the gold or items again
+	if product.once and account.bought[product.key] then
+		local stars = (product.soulstars or 0) + (product.refund or 0)
+		Shop.grant(player, "soulstars", stars)
+		Cosmetics.sync(player)
+		return "+" .. Format.int(stars) .. " Soulstars (already owned)"
+	end
 	if product.soulstars then
 		Shop.grant(player, "soulstars", product.soulstars)
 		table.insert(parts, "+" .. Format.int(product.soulstars) .. " Soulstars")

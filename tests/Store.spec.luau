@@ -189,6 +189,16 @@ describe("Store in game", function()
 		expect(h.gold).toBe(gold + Store.goldFor(Monetization.ProductByKey.starter, 1))
 	end)
 
+	it("a second Starter Pack only gives Soulstars, not the gold again", function()
+		local before, hero = account()
+		local stars, gold = before.soulstars, hero.gold
+		receipt("starter", "s-2")
+		local a, h = account()
+		local p = Monetization.ProductByKey.starter
+		expect(a.soulstars).toBe(stars + p.soulstars + p.refund)
+		expect(h.gold).toBe(gold)
+	end)
+
 	it("gold packs credit the active hero", function()
 		local _, hero = account()
 		local gold = hero.gold
