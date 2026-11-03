@@ -63,4 +63,6 @@ Platform stack order (decisions D1-D6 made by the user on 2026-11-01, see `docs/
 
 Build order for 1.0: `docs/DECISIONS.md` §5, steps 1–10 all merged (#50–#61 and the release pass). Rebirth and the village are gone; World Tiers replace rebirth.
 
+Plan to 1.0 after the review of 2026-11-03 (phases F0–F5, leaderboard, daily rewards, Beta Season): `docs/ROADMAP-1.0.md`.
+
 Release steps: `docs/RELEASE.md` (debug tools for developers only, release checklist, test commands, from #39).
