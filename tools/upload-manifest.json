@@ -812,6 +812,15 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pass_vip",
+   "file": "assets/ui/icons/store/pass_vip.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
