@@ -262,9 +262,9 @@ local function renderSide()
 	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 490)
 	rewardHead.Parent = side
 	local rewards = row(PAD + 524, w)
-	rewards.Size = UDim2.fromOffset(w, 76)
+	rewards.Size = UDim2.fromOffset(w, 64)
 	for i, rw in r.rewards do
-		local s = Kit.itemSlot(72, rw.icon, { rarity = rw.rarity })
+		local s = Kit.itemSlot(60, rw.icon, { rarity = rw.rarity })
 		s.Active = false
 		s.LayoutOrder = i
 		s.Parent = rewards
@@ -274,11 +274,12 @@ local function renderSide()
 	local player = Players.LocalPlayer
 	local tier = WorldTiers.get(player:GetAttribute("WorldTier"))
 	local unlocked = WorldTiers.get(player:GetAttribute("WorldTierUnlocked")).id
-	-- Tall enough for the arrows at phone touch size (they grow around their center)
-	local tierRow = Window.frame(UDim2.fromOffset(w, 84))
+	-- Between rewards (end at PAD + 588) and Travel (top at BODY.Y - PAD - 64). The arrows grow
+	-- around their center to touch size on phones (~80 design px) and still fit that gap.
+	local tierRow = Window.frame(UDim2.fromOffset(w, 64))
 	tierRow.Name = "WorldTier"
 	tierRow.AnchorPoint = Vector2.new(0, 1)
-	tierRow.Position = UDim2.new(0, PAD, 1, -PAD - 76)
+	tierRow.Position = UDim2.new(0, PAD, 1, -PAD - 72)
 	local function arrow(text: string, step: number)
 		local target = tier.id + step
 		local b = Kit.button(text, C.Gold, Vector2.new(56, 48))
