@@ -59,8 +59,14 @@ function FeelController.hitstop(duration: number)
 	if now + duration <= hitstopUntil then
 		return
 	end
+	local extending = now < hitstopUntil
 	hitstopUntil = now + duration
 	BrickController.pause(hitstopUntil)
+	if extending then
+		-- already frozen: the running restore picks up the new end. Capturing the speeds again
+		-- here would read 0 and leave idle/walk frozen for good after back-to-back hits.
+		return
+	end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
@@ -69,11 +75,11 @@ function FeelController.hitstop(duration: number)
 	end
 	local paused: { [AnimationTrack]: number } = {}
 	for _, track in animator:GetPlayingAnimationTracks() do
-		paused[track] = track.Speed
+		paused[track] = if track.Speed ~= 0 then track.Speed else 1
 		track:AdjustSpeed(0)
 	end
 	task.delay(duration, function()
-		if os.clock() < hitstopUntil - 0.001 then
+		while os.clock() < hitstopUntil - 0.001 do
 			task.wait(hitstopUntil - os.clock())
 		end
 		for track, speed in paused do

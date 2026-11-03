@@ -140,6 +140,48 @@ describe("Trail in game", function()
 		expect(info.neon).toBe(true)
 	end)
 
+	it(
+		"a death respawns at the last lit waypoint once per depth, the second fails the run",
+		function()
+			local function die()
+				server(function(_, player)
+					player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+				end)
+				sim:run(0.3)
+			end
+			expect(sim.player:GetAttribute("RiftRevives")).toBe(Config.RIFT_REVIVES)
+			die()
+			expect(sim.player:GetAttribute("RiftDowned")).toBe(true)
+			expect(sim.player:GetAttribute("RiftPhase")).toBe("wave")
+			sim:spawnCharacter() -- the engine respawns the player in the Hub
+			sim:run(0.5)
+			local info = server(function(req, player)
+				local Rift = req("ServerScriptService.Server.Systems.Rift")
+				local spot = Rift.safeSpot(player)
+				local root = player.Character.HumanoidRootPart.Position
+				return {
+					running = Rift.isRunning(player),
+					dist = (Vector3.new(root.X, 0, root.Z) - Vector3.new(spot.X, 0, spot.Z)).Magnitude,
+					health = player.Character:FindFirstChildOfClass("Humanoid").Health,
+				}
+			end)
+			expect(info.running).toBe(true)
+			expect(info.dist).toBeLessThan(2)
+			expect(info.health).toBeGreaterThan(0)
+			expect(sim.player:GetAttribute("RiftDowned")).toBeNil()
+			expect(sim.player:GetAttribute("RiftRevives")).toBe(0)
+			expect(sim.player:GetAttribute("RiftWave")).toBe(2) -- same pack, the run went on
+			die()
+			local running = server(function(req, player)
+				return req("ServerScriptService.Server.Systems.Rift").isRunning(player)
+			end)
+			expect(running).toBe(false)
+			expect(sim.player:GetAttribute("RiftPhase")).toBe("failed")
+			sim:spawnCharacter()
+			sim:run(Config.RESPAWN_TIME + 1.5)
+		end
+	)
+
 	it("unlights every waypoint when the same map is used for the next run", function()
 		local lit = server(function(req)
 			local World = req("ServerScriptService.Server.Systems.World")

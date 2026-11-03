@@ -1,7 +1,7 @@
 --!strict
 -- Character animations without uploaded assets (docs/ANIMATIONS.md). Every move is a short list
 -- of keyframes per joint; AnimController layers them on top of Roblox's own idle/walk/run and the
--- weapon hold pose by rotating the rig's Motor6D joints every frame (client only, nothing is
+-- weapon hold pose by rotating the rig's joints (Motor6D or AnimationConstraint) every frame (client only, nothing is
 -- replicated). Pure data and math here, so the specs can sample every move headless.
 --
 -- Joint angles are degrees in the parent part's space at the joint (character space: +X right,
@@ -77,6 +77,8 @@ Anim.BREATH = 1.6 -- degrees of idle breathing (chest and arms)
 Anim.BREATH_RATE = 1.9 -- breaths per ~3 seconds (radians per second / pi)
 Anim.FACE_MAX = 110 -- degrees the body turns toward a target at most
 Anim.LAYERS_MAX = 3 -- moves at once per character (the oldest is dropped)
+Anim.JOINT_RETRY = 0.5 -- seconds between joint searches while a rig has none (avatar loading)
+Anim.JOINT_WARN = 4 -- seconds without joints on the own character: warn once in the Output
 Anim.DEATH_BREAK = 0.95 -- seconds after death: the fallen body breaks into bricks
 
 -- Enemy body language (server, Systems/Enemies; pivot rotation only)

@@ -52,6 +52,9 @@ return table.freeze({
 
 	-- Combat (player)
 	RESPAWN_TIME = 3,
+	RIFT_REVIVES = 1, -- deaths per Rift depth that respawn you at the last waypoint instead of failing
+	RIFT_REVIVE_GRACE = 10, -- seconds after RESPAWN_TIME a revive waits for the new character
+	STREAM_AROUND_TIMEOUT = 2, -- seconds a teleport waits for the target area to stream in
 	DASH_IFRAMES = 0.3, -- seconds of invulnerability per dash (checked by the server)
 	CRIT_CHANCE = 0.1,
 	CRIT_MULT = 2,

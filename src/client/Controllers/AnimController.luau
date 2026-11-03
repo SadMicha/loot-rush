@@ -3,8 +3,9 @@
 -- reaction, death, level-up cheer, plus a run lean and idle breathing. Moves are keyframes in
 -- Shared/Anim; this controller layers them on top of Roblox's own animations (idle, walk, the
 -- weapon hold pose) by rotating the rig's Motor6D.Transform right after the Animator wrote it
--- (RunService.PreSimulation). Works on R15 and R6, needs no uploaded animation assets and sends
--- nothing over the network: every client animates the characters near its own camera.
+-- (RunService.PreSimulation). Works on R15 and R6, on classic Motor6D joints and on the
+-- AnimationConstraint joints of Roblox's Avatar Joint Upgrade (no Motor6D left in the rig). Needs
+-- no uploaded animation assets and sends nothing over the network: every client animates the characters near its own camera.
 --
 -- Triggers: Net.Fx "act" (server, every basic attack, skill cast and dash of any player),
 -- Fx "dmg" with `hurt` (hit reaction), Fx "levelup" (cheer), Humanoid.Died (death), and the own
@@ -22,8 +23,10 @@ local FeelController = require(script.Parent.FeelController)
 
 local AnimController = {}
 
+-- A rig joint: Motor6D (classic rigs) or AnimationConstraint (Avatar Joint Upgrade). Both have
+-- C0, Part0, Part1 and a writable Transform with the same meaning, so they are used untyped.
 type Joint = {
-	motor: Motor6D,
+	motor: any,
 	rot: CFrame, -- C0 rotation: turns parent-space angles into the motor's Transform space
 	rotInv: CFrame,
 	base: CFrame, -- the Transform the Animator wrote (without our layer)
@@ -44,6 +47,9 @@ type Rig = {
 	broken: boolean,
 	active: boolean,
 	conns: { RBXScriptConnection },
+	emptyAt: number, -- since when joint searches find nothing (0 = joints found)
+	searchedAt: number,
+	warned: boolean,
 }
 
 local player = Players.LocalPlayer
@@ -53,6 +59,61 @@ local DEG = math.pi / 180
 
 local function own(rig: Rig): boolean
 	return rig.character == player.Character
+end
+
+local function isJoint(d: Instance): boolean
+	return d:IsA("Motor6D") or d:IsA("AnimationConstraint")
+end
+
+-- The part a joint moves (AnimationConstraint: also through its Attachment1)
+local function movedPart(joint: any): Instance?
+	local ok, part = pcall(function()
+		return joint.Part1
+	end)
+	if ok and part then
+		return part
+	end
+	local okA, a1 = pcall(function()
+		return joint.Attachment1
+	end)
+	return if okA and a1 then a1.Parent else nil
+end
+
+-- Joint offset in the parent part (C0); an AnimationConstraint's C0 is its Attachment0.CFrame
+local function jointC0(joint: any): CFrame?
+	local ok, c0 = pcall(function()
+		return joint.C0
+	end)
+	if ok and typeof(c0) == "CFrame" then
+		return c0
+	end
+	local okA, a0 = pcall(function()
+		return joint.Attachment0
+	end)
+	if okA and a0 and a0:IsA("Attachment") then
+		return a0.CFrame
+	end
+	return nil
+end
+
+-- The joint that moves `part`: by name inside it first, else any joint whose Part1 is the part
+-- (the joint upgrade may rename or reparent the constraints)
+local function jointOf(character: Model, part: Instance, name: string): Instance?
+	local byName = part:FindFirstChild(name)
+	if byName and isJoint(byName) then
+		return byName
+	end
+	for _, d in part:GetChildren() do
+		if isJoint(d) and movedPart(d) == part then
+			return d
+		end
+	end
+	for _, d in character:GetDescendants() do
+		if isJoint(d) and movedPart(d) == part then
+			return d
+		end
+	end
+	return nil
 end
 
 local function findJoints(rig: Rig)
@@ -67,9 +128,11 @@ local function findJoints(rig: Rig)
 	local map: { [string]: { string } } = if rig.r6 then Anim.R6 else Anim.R15
 	for name, at in map do
 		local part = character:FindFirstChild(at[1])
-		local motor = part and part:FindFirstChild(at[2])
-		if motor and motor:IsA("Motor6D") then
-			local rot = motor.C0.Rotation
+		local found = if part and part:IsA("BasePart") then jointOf(character, part, at[2]) else nil
+		local motor = found :: any
+		local c0 = if motor then jointC0(motor) else nil
+		if c0 then
+			local rot = c0.Rotation
 			rig.joints[name] = {
 				motor = motor,
 				rot = rot,
@@ -78,6 +141,12 @@ local function findJoints(rig: Rig)
 				written = nil,
 			}
 		end
+	end
+	rig.searchedAt = os.clock()
+	if next(rig.joints) == nil then
+		rig.emptyAt = if rig.emptyAt > 0 then rig.emptyAt else os.clock()
+	else
+		rig.emptyAt = 0
 	end
 end
 
@@ -161,12 +230,15 @@ local function addRig(character: Model, owner: Player?)
 		broken = false,
 		active = false,
 		conns = {},
+		emptyAt = 0,
+		searchedAt = 0,
+		warned = false,
 	}
 	rigs[character] = rig
 	table.insert(
 		rig.conns,
 		character.DescendantAdded:Connect(function(d)
-			if d:IsA("Motor6D") or d:IsA("Humanoid") then
+			if isJoint(d) or d:IsA("Humanoid") or d:IsA("BasePart") then
 				rig.dirty = true
 			end
 		end)
@@ -174,7 +246,7 @@ local function addRig(character: Model, owner: Player?)
 	table.insert(
 		rig.conns,
 		character.DescendantRemoving:Connect(function(d)
-			if d:IsA("Motor6D") then
+			if isJoint(d) or d:IsA("BasePart") then
 				rig.dirty = true
 			end
 		end)
@@ -284,10 +356,53 @@ local function breakApart(rig: Rig)
 	end
 end
 
+-- Tells the Output once when the own character has nothing we can animate (a rig we do not
+-- know); lists the joint classes found so the cause is visible in one playtest
+local function warnNoJoints(rig: Rig)
+	rig.warned = true
+	local kinds: { [string]: number } = {}
+	for _, d in rig.character:GetDescendants() do
+		if d:IsA("JointInstance") or d:IsA("Constraint") then
+			kinds[d.ClassName] = (kinds[d.ClassName] or 0) + 1
+		end
+	end
+	local list = {}
+	for k, n in kinds do
+		table.insert(list, k .. " x" .. n)
+	end
+	local humanoid = rig.humanoid
+	warn(
+		"[AnimController] no animatable joints on own character (RigType "
+			.. (if humanoid then tostring(humanoid.RigType) else "no Humanoid")
+			.. "; joints: "
+			.. (if #list > 0 then table.concat(list, ", ") else "none")
+			.. ")"
+	)
+end
+
 local function animate(rig: Rig, dt: number, now: number)
+	if rig.emptyAt > 0 and now - rig.searchedAt >= Anim.JOINT_RETRY then
+		rig.dirty = true -- nothing found yet (still loading?): look again now and then
+	end
+	if not rig.dirty then
+		for _, j in rig.joints do
+			if j.motor.Parent == nil then
+				rig.dirty = true -- a joint was replaced (avatar loading, joint upgrade)
+				break
+			end
+		end
+	end
 	if rig.dirty then
 		release(rig)
 		findJoints(rig)
+		if
+			rig.emptyAt > 0
+			and own(rig)
+			and not rig.warned
+			and now - rig.emptyAt >= Anim.JOINT_WARN
+		then
+			warnNoJoints(rig)
+		end
 	end
 	local root = rig.root
 	if not root then

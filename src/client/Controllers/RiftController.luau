@@ -103,7 +103,8 @@ local function refresh()
 	local variant = RiftVariants.ById[(player:GetAttribute("RiftVariant") or "") :: string]
 	local regionName = if region then region.name else "Rift"
 
-	info.Visible = p ~= "" and p ~= "clear"
+	local downed = player:GetAttribute("RiftDowned") == true
+	info.Visible = p ~= "" and (p ~= "clear" or downed)
 	if p ~= "boss" then
 		bossBox.Visible = false
 	end
@@ -115,7 +116,9 @@ local function refresh()
 	infoVariant.Visible = variant ~= nil
 	infoTitle.Text = string.format("%s · D%d", regionName, depth)
 	infoTitle.TextColor3 = if p == "failed" then C.Danger else C.GoldHi
-	if p == "wave" then
+	if downed and (p == "wave" or p == "boss" or p == "clear") then
+		infoLine.Text = "Respawning at the waypoint…"
+	elseif p == "wave" then
 		local wave = (player:GetAttribute("RiftWave") or 1) :: number
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
@@ -128,7 +131,7 @@ local function refresh()
 		infoLine.Text = ""
 	end
 
-	local showChoice = p == "clear"
+	local showChoice = p == "clear" and not downed -- the choice waits for the respawn
 	if showChoice and not choice.Visible then
 		Flat.pop(choice)
 	end
@@ -303,7 +306,17 @@ function RiftController.init()
 end
 
 function RiftController.start()
-	for _, attr in { "RiftPhase", "RiftRegion", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
+	for _, attr in
+		{
+			"RiftPhase",
+			"RiftRegion",
+			"RiftDepth",
+			"RiftWave",
+			"RiftWaves",
+			"RiftLeft",
+			"RiftDowned",
+		}
+	do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
 	Net.RiftResult.OnClientEvent:Connect(function(summary: any)
