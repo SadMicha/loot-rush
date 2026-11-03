@@ -130,6 +130,11 @@ account fields added in `Shared/Profile` (`Profile.reconcile`, store `LootRush_P
 
 ### 4.1 Leaderboard
 
+**Built (2026-11-03):** `Shared/Leaderboard`, `Systems/Leaderboard`, `LeaderboardController`
+(window behind the HUD trophy + board on the spawn plaza). Own rank shows when in the top 50,
+otherwise "50+" with the own best. Runs with a movement strike (`Systems/Movement`, server check
+against speed/teleport hacks) or a hero touched by a Dbg command (`debugged`) never reach a board.
+
 - **What is ranked:** best depth cleared **per World Tier and class** (`DECISIONS.md` §3), plus one
   overall "Highest World Tier + depth" board. Ties broken by clear time.
 - **Storage:** OrderedDataStore `LootRush_Board_<tier>_<class>`, key = UserId, value = encoded
@@ -143,6 +148,9 @@ account fields added in `Shared/Profile` (`Profile.reconcile`, store `LootRush_P
   (`Debug` sets a "dirty" flag on the character, boards skip it).
 
 ### 4.2 Daily rewards
+
+**Built (2026-11-03):** `Shared/Daily`, `Systems/Daily`, `DailyController` (pops up once per
+session, chest button with a gold dot on the HUD), rewards in `Balance.Daily`, Dbg "Next Day".
 
 - **Shape:** 7-day calendar, claim once per UTC day, day 7 is the big one, then the cycle repeats.
   Missing a day does **not** reset the cycle to 1 (no loss mechanics, fits the pure-ARPG rule); the

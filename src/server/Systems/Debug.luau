@@ -20,7 +20,9 @@ local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
+local Daily = require(script.Parent.Daily)
 local Data = require(script.Parent.Data)
+local Leaderboard = require(script.Parent.Leaderboard)
 local Inventory = require(script.Parent.Inventory)
 local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
@@ -168,6 +170,12 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Rush.add(player, RushRules.METER)
 		end,
 	},
+	day = {
+		-- Daily reward: pretend the last claim was yesterday (claim again)
+		run = function(player)
+			Daily.rewind(player)
+		end,
+	},
 	slay = {
 		-- Only the caller's own run: other players' Rifts run on the same server
 		run = function(player)
@@ -200,6 +208,15 @@ local function onCommand(player: Player, command: any, value: any)
 			return
 		end
 		n = checked
+	end
+	-- A hero touched by a test command never reaches a leaderboard (Systems/Leaderboard).
+	-- "day" only changes the account's daily calendar, not the hero's power.
+	if command ~= "day" then
+		local profile = Data.get(player)
+		if profile then
+			profile.debugged = true
+		end
+		Leaderboard.taint(player) -- depths already cleared in this run are dropped too
 	end
 	entry.run(player, n)
 	print(string.format("[Debug] %s: %s %s", player.Name, command, tostring(value or "")))

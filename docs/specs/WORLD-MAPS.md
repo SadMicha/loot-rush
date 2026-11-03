@@ -29,6 +29,13 @@ player who fell below the floor or is far outside gets the full rescue to the sa
 Rift Trail maps have irregular walls (`Fence.cells`); their `Bounds` folder holds one tagged
 `Area` per rectangle (arena, corridors, clearings, start pad), and the clamp uses their union.
 
+Hardened again after "I can still glitch out of the hub with dashing": the dash (DashController)
+probes ahead every frame (root height and just above the feet, enemies ignored) and ends in front of
+any wall, railing or the map edge instead of ramming the body into it, and it may lift the
+character at most `Config.DASH_MAX_RISE` studs/s. The Hub `Bounds` folder also has a ceiling
+(attribute `Top` = `Config.HUB_TOP`): a root higher above the Hub floor (on a roof, wall or cliff)
+is put back on the spawn by FallGuard.
+
 ## 2. Hiding the world edge (slice 1, this PR)
 
 Three layers around every map, built by `Shared/Models/Horizon` and themed per place:

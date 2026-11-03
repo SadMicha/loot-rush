@@ -1,0 +1,49 @@
+name: Create Robux products
+
+# One-off: creates the Developer Products and Game Passes (tools/create-monetization.py) in the
+# universe from the "Roblox" environment and commits their IDs to src/shared/Monetization.luau.
+# Idempotent: keys that already have an ID, or a product/pass with the same name, are not created again.
+# Key scopes needed: developer-product read+write, game-pass read+write.
+
+# Ran once on 2026-11-03 and created all 14. Run it again (manually) only after adding a new
+# product/pass to tools/create-monetization.py with ID 0 in Monetization.luau.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: create-monetization
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Roblox
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create
+        shell: bash -eo pipefail {0}
+        run: python3 -u tools/create-monetization.py | tee create.log
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat create.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit IDs
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add src/shared/Monetization.luau
+          git diff --cached --quiet || (git commit -m "Monetization: Robux product and pass IDs from Open Cloud" && git push)

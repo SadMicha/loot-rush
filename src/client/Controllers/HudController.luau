@@ -47,6 +47,8 @@ local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
 local ProgressController = require(script.Parent.ProgressController)
 local SettingsController = require(script.Parent.SettingsController)
+local DailyController = require(script.Parent.DailyController)
+local LeaderboardController = require(script.Parent.LeaderboardController)
 local Prefs = require(script.Parent.Parent.Prefs)
 
 local HudController = {}
@@ -873,6 +875,12 @@ local function updateMenuDock()
 	if menuGui.Enabled ~= show then
 		menuGui.Enabled = show
 	end
+	-- The coin bar would show through behind window titles: hidden while any window is open
+	-- (windows that spend currency show their own wallet)
+	local res = if resList then resList.Parent :: GuiObject? else nil
+	if res and res.Visible ~= (name == nil) then
+		res.Visible = name == nil
+	end
 	if name ~= menuShown then
 		menuShown = name
 		for id, mark in menuMarks do
@@ -937,19 +945,57 @@ local function buildCalmPanels()
 	-- Settings gear above the dash button at rest (the skill arc is away then; beside the dash it
 	-- would run into the icon bar on tablets with the bigger touch dash). Opens the settings window
 	-- (SettingsController; the Roblox menu is one button in there).
-	local gearGroup = group(Vector2.new(H.GearSize + 12, H.GearSize))
+	-- Left of it: the leaderboard (trophy) and the daily rewards (chest, gold dot while a reward
+	-- waits), both at rest only.
+	local cellW = H.GearSize + 12
+	local gearGroup = group(Vector2.new(3 * cellW, H.GearSize))
 	gearGroup.Name = "Settings"
+	local gearList = Kit.list(gearGroup, Enum.FillDirection.Horizontal, 0)
+	gearList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local board = Kit.hudIconButton(H.GearSize, "hud_leaderboard", "trophy", nil)
+	board.Name = "Leaderboard"
+	board.LayoutOrder = 1
+	board.Activated:Connect(LeaderboardController.toggle)
+	board.Parent = gearGroup
+	local chest = Kit.hudIconButton(H.GearSize, "hud_daily", "chest", nil)
+	chest.Name = "Daily"
+	chest.LayoutOrder = 2
+	chest.Activated:Connect(DailyController.toggle)
+	chest.Parent = gearGroup
+	local ready = Instance.new("Frame")
+	ready.Name = "Ready"
+	ready.AnchorPoint = Vector2.new(1, 0)
+	ready.Position = UDim2.new(1, -4, 0, 2)
+	ready.Size = UDim2.fromOffset(14, 14)
+	ready.BackgroundColor3 = C.GoldHi
+	ready.BorderSizePixel = 0
+	ready.ZIndex = 4
+	ready.Visible = false
+	Kit.corner(ready, 7)
+	Kit.stroke(ready, C.Bg0, 2)
+	ready.Parent = chest
+	local function refreshDot()
+		ready.Visible = DailyController.claimable()
+	end
+	DailyController.changed.Event:Connect(refreshDot)
+	task.spawn(function()
+		while ready.Parent do
+			task.wait(5)
+			refreshDot()
+		end
+	end)
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
+	gear.LayoutOrder = 3
 	gear.Activated:Connect(SettingsController.toggle)
 	gear.Parent = gearGroup
-	local gearX = -(H.Margin + dashSize / 2 - (H.GearSize + 12) / 2)
+	local gearX = -(H.Margin + dashSize / 2 - cellW / 2)
 	local gearY = -(H.Margin + dashSize + H.DashDiamond + 6)
 	addFly(
 		gearGroup,
 		Vector2.new(1, 1),
 		UDim2.new(1, gearX, 1, gearY),
-		UDim2.new(1, gearX + 200, 1, gearY),
+		UDim2.new(1, 3 * cellW + 10, 1, gearY), -- fully off the right edge
 		3,
 		false
 	)

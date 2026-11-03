@@ -425,6 +425,25 @@ local function buildGround(parent: Instance)
 	stairs(ground, Vector3.new(0, H.P, south), Vector3.new(0, H.R, north), 32)
 end
 
+-- Leaderboard on the west edge of the spawn plaza, facing the spawn. The client draws the top list
+-- on the part "LeaderboardScreen" (its +X face, LeaderboardController); the prompt opens the window.
+local function leaderboard(parent: Instance)
+	local x, z = -22, SPAWN.Z - 2
+	local y = groundAt(x, z)
+	local model = Instance.new("Model")
+	model.Name = "Leaderboard"
+	for _, dz in { -6, 6 } do
+		block(model, Vector3.new(1.2, 12, 1.2), at(Vector3.new(x, y + 6, z + dz)), C.woodDark)
+	end
+	local screen = block(model, Vector3.new(0.6, 8, 11), at(Vector3.new(x + 0.2, y + 7, z)), C.ink)
+	screen.Name = "LeaderboardScreen"
+	block(model, Vector3.new(1.4, 1.2, 13.6), at(Vector3.new(x, y + 11.6, z)), C.gold)
+	block(model, Vector3.new(1.4, 0.8, 13.6), at(Vector3.new(x, y + 2.6, z)), C.woodDark)
+	model.Parent = parent
+	table.insert(reserved, Vector3.new(x, 0, z))
+	station(parent, Vector3.new(x + 5, y, z), "View", "Leaderboard", "Leaderboard")
+end
+
 local function buildTown(parent: Instance)
 	local deco = Instance.new("Folder")
 	deco.Name = "Deco"
@@ -513,6 +532,7 @@ local function buildTown(parent: Instance)
 	put(deco, Props.barrel(), cell(16.4, 9.2).X, cell(16.4, 9.2).Z)
 	put(deco, Props.crate(), cell(16.4, 11.9).X + 2, cell(16.4, 11.9).Z, PLAZA)
 	table.insert(reserved, SPAWN)
+	leaderboard(parent)
 
 	-- Trees on grass, firs on the hills and cliffs (never on buildings, stations or the spawn)
 	for row = 1, N do
@@ -619,7 +639,7 @@ function Hub.init()
 	buildGround(root)
 	buildTown(root)
 	buildCountry(root)
-	Fence.build(root, origin, Config.HUB_HALF, Config.HUB_HALF) -- nobody walks off the Hub
+	Fence.build(root, origin, Config.HUB_HALF, Config.HUB_HALF, Config.HUB_TOP) -- nobody walks off the Hub
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Anchored = true

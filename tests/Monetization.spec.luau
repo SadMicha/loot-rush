@@ -30,17 +30,22 @@ describe("Monetization rules", function()
 end)
 
 local STORE = "LootRush_Profile_v3/global"
-local PRODUCT_ID = 777 -- test ID for soulstars_s (the real IDs are still 0 = no product)
+local PRODUCT_ID = 777 -- test ID for soulstars_s (replaces the real ID in the sandbox)
 local PASS_ID = 4243 -- test ID for the magnet pass (last in the list, so join loading stays quick)
 
--- Gives soulstars_s a real product ID in the sandbox's copy of Shared/Monetization (before boot)
+-- Gives soulstars_s and magnet fixed test IDs in the sandbox's copy of Shared/Monetization (before boot)
 local function liveProduct()
 	local native = sim:nativeOf(sim:find("ReplicatedStorage.Shared.Monetization"))
 	local source, count =
-		string.gsub(native.Source, "soulstars_s = 0,", `soulstars_s = {PRODUCT_ID},`)
+		string.gsub(native.Source, "\n\tsoulstars_s = %d+,", `\n\tsoulstars_s = {PRODUCT_ID},`, 1)
 	assert(count == 1, "soulstars_s ID not found in Shared/Monetization")
-	source, count = string.gsub(source, "magnet = 0,", `magnet = {PASS_ID},`)
+	source, count = string.gsub(source, "\n\tmagnet = %d+,", `\n\tmagnet = {PASS_ID},`, 1)
 	assert(count == 1, "magnet ID not found in Shared/Monetization")
+	-- The other passes have real IDs; zero them so join loading uses the saved state (no queries)
+	for _, key in { "vip", "pet_slot" } do
+		source, count = string.gsub(source, "\n\t" .. key .. " = %d+,", `\n\t{key} = 0,`, 1)
+		assert(count == 1, key .. " ID not found in Shared/Monetization")
+	end
 	native.Source = source
 	-- The rules tests above already loaded the old source: start the game with empty module caches
 	sim.modules.server = {}
@@ -178,8 +183,8 @@ describe("Monetization in game", function()
 		local leaver = sim:joinPlayer("Leaver")
 		sim:run(1) -- the save is loaded, so loadPasses gets past Data.waitFor
 		local hasProfile, started
-		-- Ownership query that only answers after the player has left (real passes have id 0,
-		-- so the query would never run without a pass with a real id)
+		-- Ownership query that only answers after the player has left (the passes are zeroed in the
+		-- sandbox, so the query only runs for the pass with a test id)
 		local CUSTOM_KEY = "MarketplaceService.UserOwnsGamePassAsync"
 		sim:custom("MarketplaceService", "UserOwnsGamePassAsync", {
 			method = function()

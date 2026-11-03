@@ -245,7 +245,7 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	amount.LayoutOrder = 2
 	amount.Parent = priceRow
 	if egg.price.kind == "gold" then
-		local grows = Kit.label("grows with depth", 14, C.Muted, Theme.Font.Body)
+		local grows = Kit.label("· grows with depth", 14, C.Muted, Theme.Font.Body)
 		grows.LayoutOrder = 3
 		grows.Parent = priceRow
 	end
@@ -271,7 +271,15 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	end
 	rows.Parent = f
 
-	local hatch = Kit.button("Hatch", C.Gold, Vector2.new(inner, 64), nil)
+	-- Can't pay: the disabled button itself says why (no extra line squeezed above it)
+	local hatch = Kit.button(
+		if affordable
+			then "Hatch"
+			else "Not enough " .. (Shop.KindName[egg.price.kind] or egg.price.kind),
+		C.Gold,
+		Vector2.new(inner, 64),
+		nil
+	)
 	hatch.Name = "Hatch_" .. egg.id
 	hatch.AnchorPoint = Vector2.new(0.5, 1)
 	hatch.Position = UDim2.new(0.5, 0, 1, -CARD_PAD)
@@ -283,18 +291,6 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 		end
 	end)
 	hatch.Parent = f
-	if not affordable then
-		local why = Kit.label(
-			"Not enough " .. (Shop.KindName[egg.price.kind] or egg.price.kind),
-			14,
-			C.Danger,
-			Theme.Font.Body
-		)
-		why.AnchorPoint = Vector2.new(0.5, 1)
-		why.Position = UDim2.new(0.5, 0, 1, -CARD_PAD - 70)
-		why.ZIndex = 2
-		why.Parent = f
-	end
 	return f
 end
 
