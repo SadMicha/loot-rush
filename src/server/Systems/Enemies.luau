@@ -32,6 +32,7 @@ local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Feel = require(ReplicatedStorage.Shared.Feel)
+local Leash = require(ReplicatedStorage.Shared.Leash)
 local Anim = require(ReplicatedStorage.Shared.Anim)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Combat = require(script.Parent.Combat)
@@ -97,6 +98,10 @@ type Enemy = {
 	nextMortar: number, -- Mortar elites / bosses from phase 2: next shell volley
 	lungeAt: number, -- when the last attack landed (body language, Shared/Anim)
 	facing: Vector3, -- last walking/attack direction (flat); the tilt is added on top
+	zoned: boolean, -- false: spawned without center/bounds (tests, debug), no zone rules
+	zoneMin: Vector3, -- own zone (clearing or arena, Shared/Leash): players outside cannot hurt it
+	zoneMax: Vector3,
+	aloneSince: number, -- since when no player stands in the zone (0 = someone is in it)
 }
 
 type Pool = {
@@ -526,6 +531,19 @@ local function clampArena(e: Enemy, p: Vector3): Vector3
 	)
 end
 
+-- The enemy's zone (Shared/Leash): its trail clearing, else the arena playfield around center
+local function zoneOf(center: Vector3, bounds: { min: Vector3, max: Vector3 }?): (Vector3, Vector3)
+	if bounds then
+		return Vector3.new(bounds.min.X, 0, bounds.min.Z),
+			Vector3.new(bounds.max.X, 0, bounds.max.Z)
+	end
+	local T = Config.TILE_SIZE
+	local hx = (math.floor(Config.ARENA_TILES_X / 2) + 0.5) * T
+	local hz = (math.floor(Config.ARENA_TILES_Z / 2) + 0.5) * T
+	return Vector3.new(center.X - hx, 0, center.Z - hz),
+		Vector3.new(center.X + hx, 0, center.Z + hz)
+end
+
 -- Values of an enemy type at this depth (without region bonuses); also for tests/Balancing.
 -- tier = World Tier of the run (Shared/WorldTiers): tougher enemies, more gold and XP.
 function Enemies.stats(kindName: string, depth: number, tier: number?)
@@ -642,6 +660,14 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	model:SetAttribute("Color", kind.color)
 	model:SetAttribute("Depth", depth)
 	model:SetAttribute("Run", o.run or 0)
+	-- Zone (Shared/Leash): Rift spawns always pass their clearing or arena; a bare spawn
+	-- without center/bounds (tests, debug) gets none and stays hittable from anywhere
+	local zoned = o.bounds ~= nil or o.center ~= nil
+	local zoneMin, zoneMax = zoneOf(o.center or Vector3.zero, o.bounds)
+	if zoned then
+		model:SetAttribute(Leash.MIN_ATTR, zoneMin)
+		model:SetAttribute(Leash.MAX_ATTR, zoneMax)
+	end
 	if kind.boss then
 		model:SetAttribute("Boss", true)
 	end
@@ -686,6 +712,10 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		nextMortar = now + EliteMods.MORTAR_EVERY * rng:NextNumber(0.5, 1),
 		lungeAt = -1,
 		facing = Vector3.new(0, 0, -1),
+		zoned = zoned,
+		zoneMin = zoneMin,
+		zoneMax = zoneMax,
+		aloneSince = 0,
 	})
 	return model
 end
@@ -1095,6 +1125,51 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 	})
 end
 
+-- Does a living player stand in the enemy's zone (Shared/Leash)?
+local function zoneOccupied(e: Enemy): boolean
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if
+			root
+			and root:IsA("BasePart")
+			and humanoid
+			and humanoid.Health > 0
+			and Leash.inside(root.Position, e.zoneMin, e.zoneMax)
+		then
+			return true
+		end
+	end
+	return false
+end
+
+-- Leash: a hurt enemy whose zone stays empty for Leash.RESET_AFTER heals to full, so poking it
+-- from the edge and stepping out again earns nothing
+local function leash(e: Enemy, now: number)
+	if not e.zoned or zoneOccupied(e) then
+		e.aloneSince = 0
+		return
+	end
+	if e.aloneSince == 0 then
+		e.aloneSince = now
+		return
+	end
+	if now - e.aloneSince < Leash.RESET_AFTER then
+		return
+	end
+	local model = e.model
+	local hp = (model:GetAttribute("Health") or 0) :: number
+	local max = (model:GetAttribute("MaxHealth") or hp) :: number
+	if hp > 0 and hp < max then
+		model:SetAttribute("Health", max)
+	end
+	local maxShield = model:GetAttribute("MaxShield")
+	if typeof(maxShield) == "number" and model:GetAttribute("Shield") ~= maxShield then
+		model:SetAttribute("Shield", maxShield)
+	end
+end
+
 local function step(dt: number)
 	local now = os.clock()
 	stepPools(now)
@@ -1113,6 +1188,7 @@ local function step(dt: number)
 		local baseY = bodyY(kind)
 		local pos = model:GetPivot().Position
 		local target, targetPos, dist, vel = nearestPlayer(pos)
+		leash(e, now)
 		local y = baseY
 		local dir = Vector3.zero
 		local walking = false
