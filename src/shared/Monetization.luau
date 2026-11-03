@@ -11,24 +11,24 @@ local Monetization = {}
 -- ▼▼▼ PLACEHOLDER IDs - replace every 0 with the ID from the Creator Hub ▼▼▼
 -- Developer Products (can be bought repeatedly). Key = Monetization.Products[].key
 Monetization.ProductIds = table.freeze({
-	soulstars_s = 0,
-	soulstars_m = 0,
-	soulstars_l = 0,
-	soulstars_xl = 0,
-	gold_s = 0,
-	gold_m = 0,
-	gold_l = 0,
-	pack_ember = 0,
-	pack_frost = 0,
-	pack_void = 0,
-	starter = 0,
+	soulstars_s = 3727984997,
+	soulstars_m = 3727984999,
+	soulstars_l = 3727985001,
+	soulstars_xl = 3727985003,
+	gold_s = 3727985006,
+	gold_m = 3727985007,
+	gold_l = 3727985010,
+	pack_ember = 3727985013,
+	pack_frost = 3727985015,
+	pack_void = 3727985016,
+	starter = 3727985017,
 } :: { [string]: number })
 
 -- Game passes (bought once). Key = Monetization.Passes[].key
 Monetization.PassIds = table.freeze({
-	vip = 0,
-	pet_slot = 0,
-	magnet = 0,
+	vip = 2067793715,
+	pet_slot = 2068399721,
+	magnet = 2067319804,
 } :: { [string]: number })
 -- ▲▲▲ PLACEHOLDER IDs ▲▲▲
 
