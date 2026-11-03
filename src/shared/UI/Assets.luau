@@ -610,23 +610,4 @@ Assets.Weapon = table.freeze({
 	}),
 } :: { [string]: { model: string, texture: string } })
 
--- Looped ambience per place (Shared/Looks `ambience` key → sound id, AmbienceController).
--- Any audio id from the Creator Store works (paste "rbxassetid://<id>"). Empty = silent.
-Assets.Sound = table.freeze({
-	hub = "",
-	meadow = "",
-	cave = "",
-	swamp = "",
-	lava = "",
-	wind = "",
-	rift = "",
-	waterfall = "",
-	forge = "",
-	-- UI sounds (client/UI/Shape.sound); empty = silent
-	ui_click = "",
-	ui_open = "",
-	ui_close = "",
-	ui_reward = "",
-})
-
 return table.freeze(Assets)

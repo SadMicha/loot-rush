@@ -22,9 +22,10 @@ Everything the code can't take care of by itself. Order = suggestion.
   For the real place, point the secrets `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game
   or publish once manually from Studio.
 
-- [ ] **Sounds:** every id in `src/shared/Sounds.luau` and `Assets.Sound` (`src/shared/UI/Assets.luau`)
-  is still empty, so the game is silent apart from Roblox defaults. Pick sounds from the Creator Store
-  (or upload your own) and paste the ids; empty ids are skipped, nothing errors.
+- [ ] **Sounds:** all ids are filled in `src/shared/Sounds.luau` (hooks, ambience, music), mostly from
+  the Roblox-licensed libraries (@ProSoundEffects, @APMOfficial). Spot-check in Studio: Play, then look
+  for `[Sound] N sound ids checked, M failed` in the Output; every failed id is named with its hook.
+  Swap a sound by changing only its id there. Volume/mute hook for the settings window: `Client/Audio`.
 - [ ] **Weapons/skill icons:** run the "Upload UI assets" workflow for anything new in `assets/`
   and register the ids (`assets/ui-asset-ids.csv` → `Assets.luau`); missing ids fall back to parts/flat icons.
 

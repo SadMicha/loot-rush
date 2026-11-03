@@ -242,11 +242,12 @@ local function pickup(d: Drop, at: Vector3?): boolean
 		color = Theme.Color.Gold
 	end
 	if at then
-		Net.Fx:FireClient(
-			d.owner,
-			"dmg",
-			{ pos = at + Vector3.new(0, 4, 0), text = text, color = color }
-		)
+		Net.Fx:FireClient(d.owner, "dmg", {
+			pos = at + Vector3.new(0, 4, 0),
+			text = text,
+			color = color,
+			pickup = if item then item.rarity else "gold", -- pickup sound (SoundController)
+		})
 		Loot.Picked:Fire(d.owner, if item then 0 else d.gold, item)
 	end
 	return true

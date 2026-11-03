@@ -14,10 +14,12 @@
 -- where a Terrain exists (glass otherwise). Stations carry a ProximityPrompt with the attribute
 -- "Window"; the HubController uses it to open the matching window.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
+local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
 
 local Hub = {}
@@ -258,6 +260,26 @@ local function station(
 	table.insert(reserved, pos)
 end
 
+-- Positional ambience loop (Shared/Sounds.Ambience key) heard only near `part`; the client puts
+-- it into the ambience volume channel by the tag (AmbienceController). Empty id = no sound.
+local function emitter(part: BasePart, key: string)
+	local def = Sounds.Ambience[key]
+	if not def or def.id == "" then
+		return
+	end
+	local s = Instance.new("Sound")
+	s.Name = "Ambience_" .. key
+	s.SoundId = def.id
+	s.Volume = def.volume
+	s.Looped = true
+	s.RollOffMode = Enum.RollOffMode.InverseTapered
+	s.RollOffMinDistance = 10
+	s.RollOffMaxDistance = Sounds.EMITTER_RANGE
+	s.Parent = part
+	CollectionService:AddTag(s, "AmbientEmitter")
+	s:Play()
+end
+
 local function waterfall(parent: Instance, top: Vector3, drop: number, width: number)
 	local fall = block(
 		parent,
@@ -281,6 +303,7 @@ local function waterfall(parent: Instance, top: Vector3, drop: number, width: nu
 	e.Size = NumberSequence.new(1.2, 0)
 	e.Transparency = NumberSequence.new(0.3, 1)
 	e.Parent = foam
+	emitter(foam, "waterfall")
 end
 
 -- ------------------------------------------------------------------ Assembly
@@ -434,6 +457,10 @@ local function buildTown(parent: Instance)
 	local forge = cell(3.2, 10.5)
 	put(deco, Buildings.forge(3), forge.X, forge.Z, PLAZA)
 	station(parent, cell(5.2, 10.5) + Vector3.new(0, H.P, 0), "Forge", "Glitter Forge", "Forge")
+	local forgeSpot = parent:FindFirstChild("Station_Forge")
+	if forgeSpot and forgeSpot:IsA("BasePart") then
+		emitter(forgeSpot, "forge")
+	end
 	local stash = cell(17.8, 10.5)
 	put(deco, Buildings.stash(Props.chest()), stash.X, stash.Z, PLAZA)
 	station(parent, cell(15.8, 10.5) + Vector3.new(0, H.P, 0), "Open", "Stash", "Inventory")

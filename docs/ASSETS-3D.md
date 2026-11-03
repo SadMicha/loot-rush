@@ -48,7 +48,7 @@ Look fields per region: `patches`, `accent`, `ring.terrace`, `ring.marsh`.
   Sky, DepthOfField, Terrain Clouds and water look (`Systems/Ambience`); per-place time of day,
   fog, tint and cloud cover on the client (`Shared/Looks` → `LightController`).
 - Water: Terrain water in the hub river (`Hub.luau`), glass sheets for waterfalls; lava/rifts are Neon.
-- Sounds: looped ambience per place (`Looks.ambience` → `Assets.Sound`, `AmbienceController`);
+- Sounds: looped ambience per place (`Looks.ambience` → `Sounds.Ambience`, `AmbienceController`);
   paste any Creator Store audio id, empty = silent.
 - PointLights in lanterns, forge, portal, chimneys; ParticleEmitters (smoke, sparks, motes,
   waterfall spray, region sparkles); Beams between the pylons.

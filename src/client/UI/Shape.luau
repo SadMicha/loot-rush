@@ -2,15 +2,13 @@
 -- Low-level pieces of the flat look (Theme.Flat, look v5 "gilded ink"), shared by Kit (all older
 -- windows) and Flat (new ones): corners, strokes, gradients, lit card surface with corner brackets,
 -- rarity glow (halo rings + pulse + spinning edge + light sweep), hover/press motion with a ripple
--- and UI sounds, the item cell skin and a number ticker. Only Theme, Assets and Spring are required
+-- and UI sounds, the item cell skin and a number ticker. Only Theme and Spring are required
 -- here, so both Kit and Flat can use it without a require cycle.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
-local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Spring = require(script.Parent.Spring)
 
@@ -361,26 +359,13 @@ function Shape.reveal(cell: GuiObject)
 end
 
 -- ------------------------------------------------------------------ Sounds
--- UI sounds by Assets.Sound key ("ui_click", "ui_open", ...). Empty ids stay silent.
-local soundCache: { [string]: Sound } = {}
-
+-- UI sounds by hook name in Shared/Sounds.Hooks ("ui_click", "ui_open", ...): played by the
+-- SoundController (pooled, rate limited, "ui" volume channel). Unknown or empty ids stay silent.
 function Shape.sound(key: string)
-	local id = (Assets.Sound :: { [string]: string })[key]
-	if not id or id == "" then
-		return
-	end
-	local s = soundCache[key]
-	if not s or not s.Parent then
-		local snd = Instance.new("Sound")
-		snd.Name = "UI_" .. key
-		snd.SoundId = id
-		snd.Volume = 0.5
-		snd.Parent = SoundService
-		soundCache[key] = snd
-		s = snd
-	end
-	if s then
-		SoundService:PlayLocalSound(s)
+	local Controllers = script.Parent.Parent:FindFirstChild("Controllers")
+	local mod = Controllers and Controllers:FindFirstChild("SoundController")
+	if mod and mod:IsA("ModuleScript") then
+		(require(mod) :: any).play(key)
 	end
 end
 
