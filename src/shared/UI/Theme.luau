@@ -45,6 +45,10 @@ Theme.DesignSize = Vector2.new(1600, 900)
 -- HUD on touch devices: smaller design area so the bar, status and minimap are as large as in
 -- the mobile mock-up (tablet ≈ 1.0, phone 844×390 ≈ 0.63 instead of 0.55).
 Theme.HudDesignTouch = Vector2.new(1100, 620)
+-- Tablets (shorter side at least TabletMinSide points) get a larger design area, so the HUD,
+-- quest card and result cards do not blow up past phone proportions (iPad 1180×820 ≈ 0.84).
+Theme.HudDesignTablet = Vector2.new(1400, 860)
+Theme.TabletMinSide = 600
 
 -- Font size: the screen is scaled down to 1600×900, small windows make text tiny.
 -- All text therefore goes through Kit.label / Kit.fontSize and is enlarged by this factor.

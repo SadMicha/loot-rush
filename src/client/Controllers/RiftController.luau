@@ -11,7 +11,6 @@ local CollectionService = game:GetService("CollectionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
@@ -32,7 +31,7 @@ local C = Theme.Color
 
 local INFO_W, INFO_H = 230, 68 -- run card (top left)
 local BOSS_W = 360 -- boss bar (top center)
-local CHOICE_W, CHOICE_H = 420, 168 -- card after the boss
+local CHOICE_W, CHOICE_BTN = 330, 38 -- compact card after the boss (width, button height)
 local CONFIRM_TIME = 3 -- seconds the "Leave" button stays armed after the first tap
 
 local root: Frame
@@ -243,38 +242,43 @@ local function buildBoss()
 end
 
 local function buildChoice()
-	choice = Flat.card(UDim2.fromOffset(CHOICE_W, CHOICE_H), nil, C.Gold)
+	-- Height follows the content (no empty strip at the bottom)
+	choice = Flat.card(UDim2.fromOffset(CHOICE_W, 0), nil, C.Gold)
+	choice.AutomaticSize = Enum.AutomaticSize.Y
 	choice.Name = "RiftClear"
-	choice.AnchorPoint = Vector2.new(0.5, 0.5)
-	choice.Position = UDim2.fromScale(0.5, 0.64) -- below the hero, above the hub bar
+	-- Top center, under the resource capsules: keeps the hero, the Rush bar and the skills free
+	choice.AnchorPoint = Vector2.new(0.5, 0)
+	choice.Position = UDim2.new(0.5, 0, 0, 84)
 	choice.Visible = false
-	Shape.brackets(choice, C.GoldHi, 10, 0)
-	local body = content(choice, 16, 8, Enum.HorizontalAlignment.Center)
+	Shape.brackets(choice, C.GoldHi, 8, 0)
+	local body = content(choice, 12, 6, Enum.HorizontalAlignment.Center)
+	body.Size = UDim2.fromScale(1, 0)
+	body.AutomaticSize = Enum.AutomaticSize.Y
 
-	choiceTitle = Flat.text("", 17, C.GoldHi, Theme.Font.Title, Enum.TextXAlignment.Center)
+	choiceTitle = Flat.text("", 14, C.GoldHi, Theme.Font.Title, Enum.TextXAlignment.Center)
 	choiceTitle.LayoutOrder = 1
 	choiceTitle.Parent = body
-	choiceStats = Flat.text("", 12, C.Muted, Theme.Font.Body, Enum.TextXAlignment.Center)
+	choiceStats = Flat.text("", 10, C.Muted, Theme.Font.Body, Enum.TextXAlignment.Center)
 	choiceStats.LayoutOrder = 2
 	choiceStats.Parent = body
-	local rule = Flat.rule(CHOICE_W - 64)
+	local rule = Flat.rule(CHOICE_W - 48)
 	rule.LayoutOrder = 3
 	rule.Parent = body
 
-	local row = Flat.frame(UDim2.fromOffset(CHOICE_W - 32, 52))
+	local row = Flat.frame(UDim2.fromOffset(CHOICE_W - 24, CHOICE_BTN))
 	row.LayoutOrder = 4
-	local rl = Kit.list(row, Enum.FillDirection.Horizontal, 12)
+	local rl = Kit.list(row, Enum.FillDirection.Horizontal, 8)
 	rl.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	local btnW = (CHOICE_W - 32 - 12) / 2
+	local btnW = (CHOICE_W - 24 - 8) / 2
 	local deeper
-	deeper, deeperLabel = Flat.button("Deeper", "primary", Vector2.new(btnW, 48))
+	deeper, deeperLabel = Flat.button("Deeper", "primary", Vector2.new(btnW, CHOICE_BTN))
 	deeper.Name = "Deeper"
 	deeper.LayoutOrder = 1
 	deeper.Activated:Connect(function()
 		Net.Rift:FireServer("deeper")
 	end)
 	deeper.Parent = row
-	local home = Flat.button("Back to Hub", "secondary", Vector2.new(btnW, 48))
+	local home = Flat.button("Back to Hub", "secondary", Vector2.new(btnW, CHOICE_BTN))
 	home.Name = "Home"
 	home.LayoutOrder = 2
 	home.Activated:Connect(function()
@@ -288,9 +292,7 @@ end
 function RiftController.init()
 	local gui: ScreenGui
 	-- Same design size as the HUD so touch screens get the larger touch layout
-	gui, root = Kit.scaledGui("LootRushRift", 3, false, function()
-		return if UserInputService.TouchEnabled then Theme.HudDesignTouch else Theme.DesignSize
-	end, true)
+	gui, root = Kit.scaledGui("LootRushRift", 3, false, Kit.hudDesign, true)
 	buildInfo()
 	buildBoss()
 	buildChoice()
