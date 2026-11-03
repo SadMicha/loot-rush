@@ -43,6 +43,7 @@ type Rig = {
 	dirty: boolean, -- body parts changed (avatar loading): find the motors again
 	layers: { Layer },
 	combo: number,
+	stance: number, -- current holding-stance weight (Anim.STANCE), eases toward its target
 	deadAt: number, -- 0 = alive
 	broken: boolean,
 	active: boolean,
@@ -226,6 +227,7 @@ local function addRig(character: Model, owner: Player?)
 		dirty = true,
 		layers = {},
 		combo = 0,
+		stance = 0,
 		deadAt = 0,
 		broken = false,
 		active = false,
@@ -422,6 +424,12 @@ local function animate(rig: Rig, dt: number, now: number)
 		addVec("neck", Vector3.new(Anim.RUN_LEAN * run * 0.4 - b * 0.3, 0, 0))
 		addVec("rShoulder", Vector3.new(0, 0, b * 0.5))
 		addVec("lShoulder", Vector3.new(0, 0, -b * 0.5))
+		-- Holding stance of the class weapon (Anim.STANCE), eased toward its target weight
+		local p = rig.player
+		local w = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+		local want = Anim.stanceWeight(run, #rig.layers > 0)
+		rig.stance += (want - rig.stance) * math.min(1, dt * Anim.STANCE_BLEND)
+		lift += Anim.stance(w and w.id, rig.stance, now, pose)
 	elseif not rig.broken and now - rig.deadAt >= Anim.DEATH_BREAK then
 		breakApart(rig)
 	end

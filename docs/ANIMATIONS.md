@@ -47,6 +47,14 @@ with the joint classes it found. `tests/AnimRig.spec.luau` covers both rig kinds
 Always on: forward lean while running, idle breathing. Attack moves turn the body toward the
 target (`face`), so a basic attack while walking still points at the enemy.
 
+## Holding stances (`Shared/Anim.STANCE`)
+
+Each class weapon has its own stance, added on top of the hold pose while the character stands:
+sword = guard (weight back, blade lowered, off hand forward), bow = relaxed (bow arm forward, draw
+hand near the string), staff = planted beside the body, scepter = held close to the chest. The
+stance fades to `STANCE_MOVING` while running and to `STANCE_ACTING` while a move plays, eased
+with `STANCE_BLEND`; the weapon arm sways by `STANCE_SWAY`. Tune the angles in `Anim.STANCE`.
+
 ## Triggers
 
 - Server `Combat` fires `Net.Fx("act", { by, kind, skill, basic, at })` for every basic attack,
