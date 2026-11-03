@@ -1,14 +1,13 @@
 --!strict
 -- Shop catalog and purchase rules (pure logic, testable). Only the server buys (Systems/Shop),
--- the window (ShopController) shows the same offers and the same reasons for locked buttons.
---   • In-game: materials for gold, gold for Soulstars
---   • Robux: Soulstars as Developer Products - IDs are still placeholders (0 = not for sale)
+-- the Market window (MarketController) shows the same offers and the same reasons for locked buttons.
+--   • In-game ("Market"): materials for gold, gold for Soulstars
+--   • Robux offers live in the Shop window (Shared/Store, IDs in Shared/Monetization)
 -- Prices are own assumptions (not in the balancing sheet). Gold prices and gold packs grow with the
 -- best depth reached (Balance.shopFactor, like kill gold ×1.13 per depth); the numbers in the
 -- catalog apply to depth 1. Always display via Shop.price/Shop.amount.
 
 local Balance = require(script.Parent.Balance)
-local Monetization = require(script.Parent.Monetization)
 
 local Shop = {}
 
@@ -26,15 +25,7 @@ export type Offer = {
 	rarity: string, -- frame color of the slot
 	give: Kind,
 	amount: number,
-	price: { kind: Kind, amount: number }?, -- in-game price
-	product: string?, -- key in Shop.Products (Robux)
-}
-
-export type Product = {
-	id: number, -- Developer Product ID from the Creator Hub; 0 = not created yet
-	robux: number, -- display price (must match the Creator Hub)
-	give: Kind,
-	amount: number,
+	price: { kind: Kind, amount: number }, -- in-game price
 }
 
 Shop.KindName = table.freeze({
@@ -56,21 +47,7 @@ Shop.KindIcon = table.freeze({
 Shop.Tabs = table.freeze({
 	{ id = "material", name = "Materials", icon = "crystal" },
 	{ id = "gold", name = "Gold", icon = "gold" },
-	{ id = "soulstars", name = "Soulstars", icon = "soulstar" },
 })
-
--- Developer Products. The IDs live in Shared/Monetization (one place for all Robux IDs);
--- only with a real ID do the Robux buttons activate and the server accept purchases.
-local ids = Monetization.ProductIds
-local PRODUCTS: { [string]: Product } = {
-	soulstars_s = { id = ids.soulstars_s or 0, robux = 49, give = "soulstars", amount = 100 },
-	soulstars_m = { id = ids.soulstars_m or 0, robux = 249, give = "soulstars", amount = 550 },
-	soulstars_l = { id = ids.soulstars_l or 0, robux = 499, give = "soulstars", amount = 1200 },
-}
-for _, p in PRODUCTS do
-	table.freeze(p)
-end
-Shop.Products = table.freeze(PRODUCTS)
 
 local OFFERS: { Offer } = {
 	-- Materials
@@ -147,43 +124,6 @@ local OFFERS: { Offer } = {
 		amount = 12000,
 		price = { kind = "soulstars", amount = 200 },
 	},
-	-- Soulstars for Robux
-	{
-		id = "soulstars_s",
-		tab = "soulstars",
-		name = "Handful of Stars",
-		text = "To get you started.",
-		icon = "soulstar",
-		art = "shop_stars_s",
-		rarity = "rare",
-		give = "soulstars",
-		amount = 100,
-		product = "soulstars_s",
-	},
-	{
-		id = "soulstars_m",
-		tab = "soulstars",
-		name = "Pouch of Stars",
-		text = "10% more than the handful.",
-		icon = "soulstar",
-		art = "shop_stars_m",
-		rarity = "epic",
-		give = "soulstars",
-		amount = 550,
-		product = "soulstars_m",
-	},
-	{
-		id = "soulstars_l",
-		tab = "soulstars",
-		name = "Hoard of Stars",
-		text = "20% more than the handful.",
-		icon = "soulstar",
-		art = "shop_stars_l",
-		rarity = "legend",
-		give = "soulstars",
-		amount = 1200,
-		product = "soulstars_l",
-	},
 }
 
 local byId: { [string]: Offer } = {}
@@ -204,37 +144,6 @@ function Shop.inTab(tab: string): { Offer }
 	return out
 end
 
--- Robux offer with a real product ID? (nil while it is only a placeholder)
-function Shop.productOf(offer: Offer): Product?
-	local p = if offer.product then Shop.Products[offer.product] else nil
-	if p and p.id > 0 then
-		return p
-	end
-	return nil
-end
-
--- Product ID → product (for ProcessReceipt)
-function Shop.productById(productId: number): Product?
-	if productId <= 0 then
-		return nil
-	end
-	for _, p in Shop.Products do
-		if p.id == productId then
-			return p
-		end
-	end
-	return nil
-end
-
-function Shop.hasLiveProducts(): boolean
-	for _, p in Shop.Products do
-		if p.id > 0 then
-			return true
-		end
-	end
-	return false
-end
-
 -- Round number: whole below 100, above that two significant digits (1,234 → 1,200)
 local function nice(n: number): number
 	if n < 100 then
@@ -243,13 +152,11 @@ local function nice(n: number): number
 	local step = 10 ^ (math.floor(math.log10(n)) - 1)
 	return math.floor(n / step + 0.5) * step
 end
+Shop.round = nice
 
--- In-game price at this best depth (nil = Robux only). Only gold prices grow.
-function Shop.price(offer: Offer, bestDepth: number?): { kind: Kind, amount: number }?
+-- In-game price at this best depth. Only gold prices grow.
+function Shop.price(offer: Offer, bestDepth: number?): { kind: Kind, amount: number }
 	local price = offer.price
-	if not price then
-		return nil
-	end
 	if price.kind ~= "gold" then
 		return price
 	end
@@ -264,12 +171,9 @@ function Shop.amount(offer: Offer, bestDepth: number?): number
 	return nice(offer.amount * Balance.shopFactor(bestDepth or 1))
 end
 
--- May the player buy the in-game offer? Robux offers do not go through here.
+-- May the player buy the offer?
 function Shop.check(offer: Offer, wallet: Wallet, bestDepth: number?): (boolean, string?)
 	local price = Shop.price(offer, bestDepth)
-	if not price then
-		return false, "Robux only"
-	end
 	if (wallet[price.kind] or 0) < price.amount then
 		return false, "Not enough " .. Shop.KindName[price.kind]
 	end
@@ -280,9 +184,7 @@ end
 function Shop.apply(offer: Offer, wallet: Wallet, bestDepth: number?): Wallet
 	local out = table.clone(wallet)
 	local price = Shop.price(offer, bestDepth)
-	if price then
-		out[price.kind] = (out[price.kind] or 0) - price.amount
-	end
+	out[price.kind] = (out[price.kind] or 0) - price.amount
 	out[offer.give] = (out[offer.give] or 0) + Shop.amount(offer, bestDepth)
 	return out
 end

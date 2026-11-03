@@ -124,6 +124,37 @@ describe("Phone layout", function()
 		end)
 	end
 
+	-- every Shop tab, then the Market behind the Shop's "Market" button
+	it("Shop tabs and Market", function()
+		sim:run(3) -- let onboarding toasts from the boot fly out first
+		local shop = sim.player.PlayerGui:FindFirstChild("LootRushShop")
+		expect(shop.Enabled).toBe(true)
+		for _, id in { "soulstars", "gold", "cosmetics", "passes", "featured" } do
+			local tabButton = nil
+			for _, d in shop:GetDescendants() do
+				if d:IsA("GuiButton") and d.Name == "Tab_" .. id then
+					tabButton = d
+				end
+			end
+			expect(tabButton).never.toBeNil()
+			sim:click(tabButton)
+			sim:run(0.3)
+			expectClean(problems("Shop"))
+		end
+		local market = nil
+		for _, d in shop:GetDescendants() do
+			if d:IsA("GuiButton") and d.Name == "Market" then
+				market = d
+			end
+		end
+		expect(market).never.toBeNil()
+		sim:click(market)
+		sim:run(0.5)
+		local gui = sim.player.PlayerGui:FindFirstChild("LootRushMarket")
+		expect(gui.Enabled).toBe(true)
+		expectClean(problems("Market"))
+	end)
+
 	it("close buttons look the same everywhere", function()
 		expect(#closeLooks).toBeGreaterThan(0)
 		local list = {}

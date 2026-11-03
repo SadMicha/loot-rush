@@ -612,6 +612,9 @@ Assets.Weapon = table.freeze({
 
 -- Looped ambience per place (Shared/Looks `ambience` key → sound id, AmbienceController).
 -- Any audio id from the Creator Store works (paste "rbxassetid://<id>"). Empty = silent.
+-- Robux glyph (Roblox built-in texture). Empty string = the shop writes "R$" instead.
+Assets.Robux = "rbxasset://textures/ui/common/robux.png"
+
 Assets.Sound = table.freeze({
 	hub = "",
 	meadow = "",

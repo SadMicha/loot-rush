@@ -20,11 +20,9 @@ describe("Shop rules", function()
 			expect(tabs[offer.tab]).toBe(true)
 			expect(Shop.KindName[offer.give]).never.toBeNil()
 			expect(offer.amount).toBeGreaterThan(0)
-			-- either an in-game price or a Robux product
-			expect((offer.price ~= nil) ~= (offer.product ~= nil)).toBe(true)
-			if offer.product then
-				expect(Shop.Products[offer.product]).never.toBeNil()
-			end
+			-- the Market only trades in-game currency (Robux offers live in Shared/Store)
+			expect(offer.price).never.toBeNil()
+			expect((offer :: any).product).toBeNil()
 		end
 		expect(#Shop.inTab("material")).toBe(3)
 	end)
@@ -49,12 +47,11 @@ describe("Shop rules", function()
 		end
 	end)
 
-	it("never sells Robux offers for in-game currency and has no real IDs yet", function()
-		local ok = Shop.check(Shop.ById.soulstars_s, wallet({ gold = 1e9, soulstars = 1e9 }))
-		expect(ok).toBe(false)
-		expect(Shop.hasLiveProducts()).toBe(false)
-		expect(Shop.productOf(Shop.ById.soulstars_s)).toBeNil()
-		expect(Shop.productById(0)).toBeNil()
+	it("has no Robux offers (they moved to the Shop window)", function()
+		expect(Shop.ById.soulstars_s).toBeNil()
+		for _, t in Shop.Tabs do
+			expect(t.id).never.toBe("soulstars")
+		end
 	end)
 
 	it("save: new fields with starting values, broken values get repaired", function()
