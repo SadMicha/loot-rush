@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
+local AnimController = require(script.Parent.AnimController)
 local BrickController = require(script.Parent.BrickController)
 
 local DashController = {}
@@ -68,6 +69,7 @@ function DashController.dash()
 	dashUntil = os.clock() + Config.DASH_DURATION
 	charges -= 1
 	publish()
+	AnimController.play(player.Character, "roll")
 	Net.Dash:FireServer() -- Server counts its own charges and grants invulnerability
 end
 
