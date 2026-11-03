@@ -146,3 +146,32 @@ Bigger maps also make **StreamingEnabled** worth turning on (place setting, owne
 2. This PR: Horizon builder for all maps, new Lumenhaven layout, slot spacing.
 3. After the decision: Rift Trail chunks + assembler (looks only, test via debug), then packs and
    waypoints in `Rift`, then variants, then minimap path hint and StreamingEnabled.
+
+## 7. Color and contrast
+
+Micha (2026-11-03): "The world has to be more colorful, contrast with great colors." Rules:
+
+- **One dominant hue per place**, a contrasting shadow/fog hue and a cyan-blue or gold accent.
+  Shadows (`Lighting.Ambient`) are cooler and darker than the sun side, so props pop.
+- **Ground < combat**: floors stay darker or less saturated than enemies, loot beams and danger
+  zones. Danger zones are pure red (`#FF2E3E`, core `#FF0A2E`) so they read on green, sand and
+  violet floors alike.
+- **Paths read as paths**: trail corridor tiles use the look's `lane` colour (sandy dirt in the
+  meadow, bright slate in the caves, planks-brown in the swamp, red clay in the desert, gold in
+  the sky, glowing violet in the Altered World); clearings and the boss arena keep the floor
+  colours.
+- **Light per place** (`Shared/Looks`, client `LightController`): time of day, ambient/outdoor,
+  Atmosphere colour/decay/density/haze, tint plus extra `saturation`/`contrast` on top of the base
+  ColorCorrection, and Bloom intensity. The Hub has explicit values in code, so
+  `default.project.json` only provides the fallback.
+- **Phones**: no new post effects or instances; only property values of existing ones change.
+
+| Place | Before | After |
+|---|---|---|
+| Hub | grey cobble, grey cliffs, default sunset light | warm sand cobble, violet-grey cliffs, vivid crops/roofs, sky-blue fog, cool violet shadows |
+| Green Plains | soft green, grey stone, default light | vivid green, sandy dirt trail, blue-grey distant mountains, bright midday light |
+| Crystal Caves | grey-blue slate | deep indigo floor, bright slate trail, cyan fog, stronger bloom |
+| Mushroom Swamp | olive green, grey-violet cliffs | lush green, violet cliffs, turquoise water, violet dusk |
+| Fire Desert | pale tan, brown cliffs | golden sand, red-clay trail and mesas, orange sunset |
+| Sky Islands | grey cream, grey-blue cliffs | white-gold stone, gold trail/inlays, blue cliffs, saturated sky |
+| Altered World | dark grey-violet | deep violet, glowing violet trail, magenta rifts, more contrast |
