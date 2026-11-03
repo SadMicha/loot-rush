@@ -322,6 +322,16 @@ local function play(r: Run)
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
+	-- Let the boss loot land, then pick up the leftovers before the choice (and its summary)
+	task.wait(Loot.VACUUM_DELAY)
+	if runs[r.owner] ~= r then
+		return -- the run ended meanwhile (death, leave)
+	end
+	Loot.vacuum(r.owner)
+	task.wait() -- Picked handlers (tally, quests) run before the summary goes out
+	if runs[r.owner] ~= r then
+		return
+	end
 	publish(r, "clear")
 	report(r, "clear", nil)
 end

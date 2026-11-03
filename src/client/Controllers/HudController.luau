@@ -2,8 +2,8 @@
 -- Combat HUD after the style reference (assets/style_reference):
 --   In combat: life orb + experience orb (bottom center), four round skills in an arc around the
 --   dash button (bottom right), compass minimap (top right), resources (top center).
---   At rest: the orbs and skills leave, the icon bar (bottom center), settings gear, quests and the
---   Rift button fly in. The dash button and the minimap stay.
+--   At rest: the orbs and skills leave, the icon bar (bottom center), settings gear and quests fly
+--   in. The dash button and the minimap stay. Rifts are entered from the Atlas only.
 -- Combat/rest comes from the server (player attribute "InCombat").
 -- Everything is laid out inside the device safe area (Kit.scaledGui safeArea).
 
@@ -23,6 +23,8 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
+local Spring = require(script.Parent.Parent.UI.Spring)
+local QuestRules = require(ReplicatedStorage.Shared.Quests)
 local MiniMapView = require(script.Parent.Parent.UI.MiniMapView)
 local CameraController = require(script.Parent.CameraController)
 local DashController = require(script.Parent.DashController)
@@ -66,9 +68,7 @@ local MENU_ACTION: { [string]: () -> () } = {
 	pets = PetWindowController.toggle,
 	-- "Hub": back to the hub while in a Rift (there is nothing to do when already there)
 	hub = function()
-		if RiftController.active() then
-			RiftController.toggle()
-		end
+		RiftController.leave()
 	end,
 }
 
@@ -677,25 +677,6 @@ local function buildCalmPanels()
 		4,
 		false
 	)
-
-	-- Rift button above the icon bar
-	local rift = clearGroup(Vector2.new(240, 48))
-	rift.Name = "Rift"
-	local btn = Kit.button("Enter Rift", C.Gold, Vector2.new(240, 48))
-	btn.Activated:Connect(RiftController.toggle)
-	player:GetAttributeChangedSignal("RiftPhase"):Connect(function()
-		Kit.buttonLabel(btn).Text = if RiftController.active() then "Leave Rift" else "Enter Rift"
-	end)
-	btn.Parent = rift
-	local riftY = H.Margin + barH + 12
-	addFly(
-		rift,
-		Vector2.new(0.5, 1),
-		UDim2.new(0.5, 0, 1, -riftY),
-		UDim2.new(0.5, 0, 1, 120),
-		5,
-		false
-	)
 end
 
 -- ------------------------------------------------------------------ Layout inside the safe area
@@ -870,6 +851,29 @@ function HudController.start()
 	if player.Character then
 		task.spawn(onCharacter, player.Character)
 	end
+
+	-- First quest ("enter a Rift"): the Atlas button bounces now and then, it is the way in
+	task.spawn(function()
+		while true do
+			task.wait(1.6)
+			local q = QuestController.state()
+			local quest = QuestRules.Chain[q.step]
+			if
+				quest
+				and quest.id == "enter_rift"
+				and QuestController.ready()
+				and not RiftController.active()
+				and not Window.anyOpen()
+			then
+				for _, entry in barButtons do
+					local motion = entry.button:FindFirstChild("Motion")
+					if entry.id == "atlas" and motion and motion:IsA("UIScale") then
+						Spring.impulse(motion, "Scale", 3, "Bouncy")
+					end
+				end
+			end
+		end
+	end)
 
 	local acc = 0
 	RunService.Heartbeat:Connect(function(dt: number)

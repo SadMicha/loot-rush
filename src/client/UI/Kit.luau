@@ -792,10 +792,31 @@ function Kit.cooldownVeil(parent: GuiObject): (number, number) -> ()
 	text.ZIndex = 5
 	text.Parent = parent
 
+	-- Ready flash: a bright disc that fades out and a small bounce when the cooldown ends
+	local flash = Instance.new("Frame")
+	flash.Name = "ReadyFlash"
+	flash.AnchorPoint = Vector2.new(0.5, 0.5)
+	flash.Position = UDim2.fromScale(0.5, 0.5)
+	flash.Size = UDim2.fromScale(0.84, 0.84)
+	flash.BackgroundColor3 = Color3.new(1, 1, 1)
+	flash.BackgroundTransparency = 1
+	flash.BorderSizePixel = 0
+	flash.ZIndex = 5
+	circle(flash)
+	flash.Parent = parent
+
 	local lastStep = -1
 	return function(ratio: number, remaining: number)
 		local step = math.floor(math.clamp(ratio, 0, 1) * 100 + 0.5)
 		if step ~= lastStep then
+			if step == 0 and lastStep > 0 then
+				flash.BackgroundTransparency = 0.45
+				Spring.target(flash, { BackgroundTransparency = 1 }, "Soft")
+				local motion = parent:FindFirstChild("Motion")
+				if motion and motion:IsA("UIScale") then
+					Spring.impulse(motion, "Scale", 2.5, "Bouncy")
+				end
+			end
 			lastStep = step
 			veil.Visible = step > 0
 			-- Hard edge: clear above, veil below; the veil covers the lower `ratio` part
@@ -808,7 +829,11 @@ function Kit.cooldownVeil(parent: GuiObject): (number, number) -> ()
 				NumberSequenceKeypoint.new(1, veilT),
 			})
 		end
-		text.Text = if step > 0 then string.format("%.1f", remaining) else ""
+		-- Whole seconds while long, tenths for the last moments (easier to read at a glance)
+		text.Text = if step <= 0
+			then ""
+			elseif remaining >= 3 then tostring(math.ceil(remaining))
+			else string.format("%.1f", remaining)
 	end
 end
 

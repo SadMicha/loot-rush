@@ -30,7 +30,9 @@ local F = Theme.Flat
 local player = Players.LocalPlayer
 
 local MAX_ITEMS = 40 -- same as server (Systems/Inventory)
-local SALVAGE_GAP = 0.15 -- seconds between batch salvage requests (server allows 8 per second)
+local SALVAGE_GAP = 0.15 -- seconds between salvage requests (server allows 8 per second)
+local SALVAGE_STALE = 3 -- seconds after sending: an item the server kept shows up again
+local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed
 
 -- Layout (design pixels). The window ends above the HUD hub bar on a phone (844x390).
 local WIN_W, WIN_H = 1460, 650
@@ -109,8 +111,9 @@ local capLabel: TextLabel
 local ipLabel: TextLabel
 local footNormal: Frame
 local footSalvage: Frame
-local salvageButton: TextButton
 local salvageLabel: TextLabel
+local quickNormal: TextLabel
+local quickMagic: TextLabel
 local autoButton: TextButton
 local autoLabel: TextLabel
 local AUTO_CYCLE = { "", "normal", "magic", "rare" } -- auto-salvage on pickup (never uniques)
@@ -130,11 +133,16 @@ local sortMode = "rarity"
 local rarityFilter: string? = nil
 local searchText = "" -- lowercase
 local salvageMode = false
-local marked: { [string]: boolean } = {}
+local marked: { [string]: boolean } = {} -- salvage mode: epic/unique armed by a first tap
+local pending: { [string]: number } = {} -- salvaged locally, waiting for the server (send time)
+local salvageQueue: { string } = {}
+local salvagedCount, salvagedGold = 0, 0 -- tally of the current salvage session
+local quickArmed: string? = nil -- "normal"/"magic" while a quick salvage waits for its second tap
 local popId: string? = nil -- cell that gets a selection pop on the next render
 local seenIds: { [string]: boolean }? = nil -- item ids known so far (nil until the first snapshot)
 local freshIds: { [string]: boolean } = {} -- new loot that gets a reveal when its cell is shown
 local salvaging = false
+local salvageItems: (list: { Items.Item }) -> ()
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -165,14 +173,6 @@ end
 
 local function rarityColor(rarity: string): Color3
 	return Theme.Rarity[rarity] or Theme.Rarity.normal
-end
-
-local function markedCount(): number
-	local n = 0
-	for _ in marked do
-		n += 1
-	end
-	return n
 end
 
 -- ------------------------------------------------------------------ 3D figure
@@ -533,8 +533,8 @@ local function renderCompare()
 		local sell = Flat.button("Salvage", "danger", Vector2.new(110, 40))
 		sell.LayoutOrder = 2
 		sell.Activated:Connect(function()
-			Net.Sell:FireServer(bagItem.id)
 			selected = nil
+			salvageItems({ bagItem })
 		end)
 		sell.Parent = actions
 		actions.Parent = right
@@ -586,13 +586,25 @@ local function visibleItems(): { Items.Item }
 	return list
 end
 
-local function emptyCells(from: number, total: number)
-	for i = from, total do
-		local e = Flat.cell(CELL, nil, nil)
-		e.Active = false
-		e.LayoutOrder = i
-		e.Parent = gridFrame
-	end
+-- Grid cells are kept per item id and only rebuilt when their look changes, so a click, a salvage
+-- or a new server snapshot never resets the whole grid (scroll position and reveals stay).
+type CellEntry = { cell: TextButton, key: string }
+local itemCells: { [string]: CellEntry } = {}
+local emptyPool: { TextButton } = {}
+local gridShowsMaterials = false
+
+local function resetGrid()
+	clear(gridFrame)
+	table.clear(itemCells)
+	table.clear(emptyPool)
+end
+
+local function emptyCell(): TextButton
+	local e = Flat.cell(CELL, nil, nil)
+	e.Name = "Empty"
+	e.Active = false
+	e.Parent = gridFrame
+	return e
 end
 
 local function renderMaterials()
@@ -607,48 +619,175 @@ local function renderMaterials()
 		b.LayoutOrder = i
 		b.Parent = gridFrame
 	end
-	emptyCells(#MATERIALS + 1, COLS * 5)
+	for i = #MATERIALS + 1, COLS * 5 do
+		emptyCell().LayoutOrder = i
+	end
+end
+
+local function findItem(id: string): Items.Item?
+	for _, it in items do
+		if it.id == id then
+			return it
+		end
+	end
+	return nil
+end
+
+-- Send queued salvage requests one at a time (the server throttles to 8 per second)
+local function pumpSalvage()
+	if salvaging then
+		return
+	end
+	salvaging = true
+	task.spawn(function()
+		while #salvageQueue > 0 do
+			local id = table.remove(salvageQueue, 1) :: string
+			pending[id] = os.clock()
+			Net.Sell:FireServer(id)
+			task.wait(SALVAGE_GAP)
+		end
+		salvaging = false
+	end)
+end
+
+-- Salvage right away: the cells vanish at once, the server confirms with its next snapshot
+local function salvageNow(list: { Items.Item })
+	if #list == 0 then
+		return
+	end
+	local gone: { [string]: boolean } = {}
+	local clock = os.clock()
+	for _, item in list do
+		local sent = pending[item.id]
+		if not sent or (sent ~= math.huge and clock - sent >= SALVAGE_STALE) then
+			pending[item.id] = math.huge -- queued, not sent yet
+			table.insert(salvageQueue, item.id)
+			salvagedCount += 1
+			salvagedGold += Items.sellValue(item)
+		end
+		gone[item.id] = true
+		marked[item.id] = nil
+	end
+	local rest: { Items.Item } = {}
+	for _, it in items do
+		if not gone[it.id] then
+			table.insert(rest, it)
+		end
+	end
+	items = rest
+	pumpSalvage()
+	InventoryController.render()
+end
+
+local function onItemTap(id: string)
+	local item = findItem(id)
+	if not item then
+		return
+	end
+	if not salvageMode then
+		selectItem(item, false)
+		return
+	end
+	-- Epic and unique items need a second tap, everything else goes on the first
+	if (RARITY_RANK[item.rarity] or 0) >= RARITY_RANK.epic and not marked[id] then
+		marked[id] = true
+		InventoryController.render()
+		task.delay(CONFIRM_TIME, function()
+			if marked[id] then
+				marked[id] = nil
+				InventoryController.render()
+			end
+		end)
+		return
+	end
+	salvageNow({ item })
+end
+
+local function renderItems(): number
+	if gridShowsMaterials then
+		resetGrid()
+		gridShowsMaterials = false
+	end
+	local list = visibleItems()
+	local keep: { [string]: boolean } = {}
+	for i, item in list do
+		local isSel = selected ~= nil
+			and not selectedEquipped
+			and selected.id == item.id
+			and not salvageMode
+		local isMarked = salvageMode and marked[item.id] == true
+		local key = item.rarity
+			.. (if isSel then "|sel" else "")
+			.. (if isMarked then "|mark" else "")
+		local entry: CellEntry? = itemCells[item.id]
+		if entry and entry.key ~= key then
+			entry.cell:Destroy()
+			entry = nil
+		end
+		if not entry then
+			local b = Flat.cell(CELL, slotArt(item.slot), {
+				rarity = item.rarity,
+				selected = isSel,
+				marked = isMarked,
+			})
+			b.Name = "Item"
+			local id = item.id
+			b.Activated:Connect(function()
+				onItemTap(id)
+			end)
+			b.Parent = gridFrame
+			entry = { cell = b, key = key }
+			itemCells[item.id] = entry
+		end
+		local e = entry :: CellEntry
+		e.cell.LayoutOrder = i
+		keep[item.id] = true
+		popIfSelected(e.cell, item)
+	end
+	for id, entry in itemCells do
+		if not keep[id] then
+			entry.cell:Destroy()
+			itemCells[id] = nil
+		end
+	end
+	-- Empty places up to full rows (at least the bag size in "All")
+	local total = math.max(#list, if category == "all" then MAX_ITEMS else 0, COLS * 5)
+	total = math.ceil(total / COLS) * COLS
+	local need = total - #list
+	while #emptyPool < need do
+		table.insert(emptyPool, emptyCell())
+	end
+	while #emptyPool > need do
+		(table.remove(emptyPool) :: TextButton):Destroy()
+	end
+	for k, e in emptyPool do
+		e.LayoutOrder = #list + k
+	end
+	return total
+end
+
+local function quickCount(rarity: string): number
+	local limit = RARITY_RANK[rarity] or 0
+	local n = 0
+	for _, item in items do
+		if (RARITY_RANK[item.rarity] or 0) <= limit then
+			n += 1
+		end
+	end
+	return n
 end
 
 local function renderGrid()
-	clear(gridFrame)
 	countLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
 	capLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
 	local shown = 0
 	if category == "materials" then
+		resetGrid()
+		gridShowsMaterials = true
 		renderMaterials()
 		shown = COLS * 5
 	else
-		local list = visibleItems()
-		for i, item in list do
-			local isSel = selected ~= nil and not selectedEquipped and selected.id == item.id
-			local b = Flat.cell(CELL, slotArt(item.slot), {
-				rarity = item.rarity,
-				selected = isSel and not salvageMode,
-				marked = salvageMode and marked[item.id] == true,
-			})
-			b.Name = "Item"
-			b.LayoutOrder = i
-			b.Activated:Connect(function()
-				if salvageMode then
-					if marked[item.id] then
-						marked[item.id] = nil
-					else
-						marked[item.id] = true
-					end
-					InventoryController.render()
-				else
-					selectItem(item, false)
-				end
-			end)
-			popIfSelected(b, item)
-			b.Parent = gridFrame
-		end
-		-- Empty places up to full rows (at least the bag size in "All")
-		local total = math.max(#list, if category == "all" then MAX_ITEMS else 0, COLS * 5)
-		total = math.ceil(total / COLS) * COLS
-		emptyCells(#list + 1, total)
-		shown = total
+		shown = renderItems()
 	end
 	local rows = math.ceil(shown / COLS)
 	gridFrame.CanvasSize = UDim2.fromOffset(0, rows * (CELL + GAP) - GAP + 2 * GRID_PAD)
@@ -656,66 +795,54 @@ local function renderGrid()
 	-- Footer state
 	footNormal.Visible = not salvageMode
 	footSalvage.Visible = salvageMode
-	local n = markedCount()
-	local value, shards = 0, 0
-	for _, item in items do
-		if marked[item.id] then
-			value += Items.sellValue(item)
-			shards += (Items.Salvage[item.rarity] or Items.Salvage.normal).shards
-		end
-	end
-	salvageLabel.Text = if n > 0
-		then string.format("Salvage %d · +%s Gold", n, Format.big(value))
-		else "Mark items"
+	salvageLabel.Text = if salvagedCount > 0
+		then string.format("Salvaged %d · +%s Gold", salvagedCount, Format.big(salvagedGold))
+		else "Tap items to salvage"
+	salvageLabel.TextColor3 = if salvagedCount > 0 then C.Gold else F.Faint
+	quickNormal.Text = if quickArmed == "normal"
+		then string.format("Confirm %d?", quickCount("normal"))
+		else "All Normal"
+	quickMagic.Text = if quickArmed == "magic"
+		then string.format("Confirm %d?", quickCount("magic"))
+		else "All ≤ Magic"
 	local auto = (player:GetAttribute("AutoSalvage") or "") :: string
 	autoLabel.Text = if not QuestController.isOpen("auto_salvage")
 		then "Auto: Locked"
 		elseif auto == "" then "Auto: Off"
 		else "Auto: ≤ " .. (Items.RarityName[auto] or auto)
 	Flat.setEnabled(autoButton, QuestController.isOpen("auto_salvage"))
-	Flat.setEnabled(salvageButton, n > 0 and not salvaging)
 	sortLabel.Text = "Sort: " .. SORT_NAME[sortMode]
 	filterLabel.Text = if rarityFilter
 		then Items.RarityName[rarityFilter] or rarityFilter
 		else "All Rarities"
 end
 
--- Mark every bag item of a rarity (and below it) for salvage, worn gear is never in the bag
-local function markUpTo(rarity: string)
+-- Quick salvage of every bag item of a rarity and below (worn gear is never in the bag).
+-- First tap arms it and shows the count, the second tap within CONFIRM_TIME salvages.
+local function quickSalvage(rarity: string)
+	if quickArmed ~= rarity then
+		if quickCount(rarity) == 0 then
+			return
+		end
+		quickArmed = rarity
+		InventoryController.render()
+		task.delay(CONFIRM_TIME, function()
+			if quickArmed == rarity then
+				quickArmed = nil
+				InventoryController.render()
+			end
+		end)
+		return
+	end
+	quickArmed = nil
 	local limit = RARITY_RANK[rarity] or 0
+	local list: { Items.Item } = {}
 	for _, item in items do
 		if (RARITY_RANK[item.rarity] or 0) <= limit then
-			marked[item.id] = true
+			table.insert(list, item)
 		end
 	end
-	InventoryController.render()
-end
-
--- Salvage all marked items, one request at a time (the server throttles to 8 per second)
-local function salvageMarked()
-	if salvaging then
-		return
-	end
-	local ids: { string } = {}
-	for _, item in items do
-		if marked[item.id] then
-			table.insert(ids, item.id)
-		end
-	end
-	if #ids == 0 then
-		return
-	end
-	salvaging = true
-	marked = {}
-	InventoryController.render()
-	task.spawn(function()
-		for _, id in ids do
-			Net.Sell:FireServer(id)
-			task.wait(SALVAGE_GAP)
-		end
-		salvaging = false
-		InventoryController.render()
-	end)
+	salvageNow(list)
 end
 
 local function footButton(
@@ -857,16 +984,20 @@ local function buildGrid(parent: Frame)
 	footSalvage.Visible = false
 	local sl = Kit.list(footSalvage, Enum.FillDirection.Horizontal, 8)
 	sl.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	local markNormal = footButton("+ Normal", 92, nil, "ghost")
+	local markNormal
+	markNormal, quickNormal = footButton("All Normal", 110, nil, "ghost")
+	quickNormal.TextSize = Kit.fontSize(12)
 	markNormal.LayoutOrder = 1
 	markNormal.Activated:Connect(function()
-		markUpTo("normal")
+		quickSalvage("normal")
 	end)
 	markNormal.Parent = footSalvage
-	local markMagic = footButton("+ Magic", 92, nil, "ghost")
+	local markMagic
+	markMagic, quickMagic = footButton("All ≤ Magic", 110, nil, "ghost")
+	quickMagic.TextSize = Kit.fontSize(12)
 	markMagic.LayoutOrder = 2
 	markMagic.Activated:Connect(function()
-		markUpTo("magic")
+		quickSalvage("magic")
 	end)
 	markMagic.Parent = footSalvage
 	-- Auto-salvage on pickup (unlocked at depth 10): cycles Off → Normal → Magic → Rare
@@ -884,20 +1015,17 @@ local function buildGrid(parent: Frame)
 		Net.AutoSalvage:FireServer(AUTO_CYCLE[i % #AUTO_CYCLE + 1])
 	end)
 	autoButton.Parent = footSalvage
-	salvageButton, salvageLabel = footButton("Mark items", 160, nil, "danger")
-	salvageLabel.TextSize = Kit.fontSize(12)
-	salvageButton.LayoutOrder = 4
-	salvageButton.Activated:Connect(function()
-		if salvageButton:GetAttribute("Enabled") ~= false then
-			salvageMarked()
-		end
-	end)
-	salvageButton.Parent = footSalvage
+	-- Tally of this salvage session (epic/unique cells ask for a second tap)
+	salvageLabel = Flat.text("Tap items to salvage", 12, F.Faint, Theme.Font.Body)
+	salvageLabel.LayoutOrder = 4
+	salvageLabel.Parent = footSalvage
 	footSalvage.Parent = foot
 
 	salvageToggle = Flat.toggle("Salvage", "salvage", C.Danger, function(on: boolean)
 		salvageMode = on
 		marked = {}
+		quickArmed = nil
+		salvagedCount, salvagedGold = 0, 0
 		if on then
 			selected = nil
 		end
@@ -1085,12 +1213,14 @@ function InventoryController.toggle()
 		end
 		salvageMode = false
 		marked = {}
+		quickArmed = nil
 		salvageToggle.set(false)
 		InventoryController.render()
 	end
 end
 
 function InventoryController.init()
+	salvageItems = salvageNow -- the compare panel (built above) salvages through the same queue
 	local root: Frame
 	gui, root = Kit.scaledGui("LootRushInventory", 5, true)
 	gui.Enabled = false
@@ -1163,12 +1293,30 @@ function InventoryController.start()
 		if typeof(data) ~= "table" then
 			return
 		end
-		items = data.items or {}
+		local fresh: { Items.Item } = data.items or {}
 		equipped = data.equipped or {}
+		-- Items salvaged locally stay hidden until the server drops them (or forgets the request)
+		local inBag: { [string]: boolean } = {}
+		local clock = os.clock()
+		items = {}
+		for _, it in fresh do
+			if typeof(it) == "table" and typeof(it.id) == "string" then
+				inBag[it.id] = true
+				local sent = pending[it.id]
+				if not (sent and clock - sent < SALVAGE_STALE) then
+					table.insert(items, it)
+				end
+			end
+		end
+		for id in pending do
+			if not inBag[id] then
+				pending[id] = nil
+			end
+		end
 		-- New loot since the last snapshot gets a reveal animation (not the first load)
 		local known = seenIds
 		local now: { [string]: boolean } = {}
-		for _, it in items do
+		for _, it in fresh do
 			if typeof(it) == "table" and typeof(it.id) == "string" then
 				now[it.id] = true
 				if known and not known[it.id] then
