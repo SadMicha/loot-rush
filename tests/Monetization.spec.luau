@@ -175,23 +175,34 @@ describe("Monetization in game", function()
 			end,
 		})
 		sim.customCache[CUSTOM_KEY] = nil
-		local forgedAttr, forgedSaved, real, saved
+		local forgedAttr, forgedSaved, real, saved, pass, ownedBefore, err
 		sim:runAs("server", function(req)
 			local M = req("ServerScriptService.Server.Systems.Monetization")
 			local Data = req("ServerScriptService.Server.Systems.Data")
-			-- Not confirmed (a faked signal or a cached answer): this session only, never saved
-			M.passPurchased(sim.player, PASS_ID, true)
-			forgedAttr = sim.player:GetAttribute("Pass_magnet")
-			forgedSaved = Data.account(sim.player).passes.magnet
-			-- Next session (rejoin): Roblox confirms the purchase, now it is saved
-			sim.player:SetAttribute("Pass_magnet", nil)
-			M.forget(sim.player)
-			confirmed = true
-			M.passPurchased(sim.player, PASS_ID, true)
-			real = sim.player:GetAttribute("Pass_magnet")
-			saved = Data.account(sim.player).passes.magnet
+			local player = game:GetService("Players"):GetPlayers()[1]
+			pass = req("ReplicatedStorage.Shared.Monetization").passById(PASS_ID)
+			ownedBefore = M.owns(player, "magnet")
+			local ok, e = pcall(function()
+				-- Not confirmed (a faked signal or a cached answer): this session only, never saved
+				M.passPurchased(player, PASS_ID, true)
+				forgedAttr = player:GetAttribute("Pass_magnet")
+				forgedSaved = Data.account(player).passes.magnet
+				-- Next session (rejoin): Roblox confirms the purchase, now it is saved
+				player:SetAttribute("Pass_magnet", nil)
+				M.forget(player)
+				confirmed = true
+				M.passPurchased(player, PASS_ID, true)
+				real = player:GetAttribute("Pass_magnet")
+				saved = Data.account(player).passes.magnet
+			end)
+			if not ok then
+				err = tostring(e)
+			end
 		end)
-		sim:run(0.5)
+		sim:run(3)
+		expect(err).toBeNil()
+		expect(pass).never.toBeNil()
+		expect(ownedBefore).toBe(false)
 		sim.customs.MarketplaceService.UserOwnsGamePassAsync = nil
 		sim.customCache[CUSTOM_KEY] = nil
 		expect(forgedAttr).toBe(true)
