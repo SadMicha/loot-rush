@@ -348,7 +348,7 @@ if args.clicks then
 	end
 
 	-- Scenario: windows with a full inventory and materials (the Forge needs items) and the debug menu
-	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "pets", "Dbg" } do
+	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "pets", "Gear", "Dbg" } do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
 		sb:runAs("server", function(req)
@@ -367,6 +367,17 @@ if args.clicks then
 			sb.player:SetAttribute("BestDepth", 99)
 		end)
 		sb:run(0.5)
+		if name == "Gear" then
+			-- the gear sits on the HUD under the first-join hero screen: finish the setup first
+			sb:runAs("client", function(req)
+				req("ReplicatedStorage.Shared.Net").Character:FireServer(
+					"setup",
+					"Tester Hero",
+					"mage"
+				)
+			end)
+			sb:run(1)
+		end
 		local open = nil
 		for _, b in clickable(sb) do
 			if b.path:match("%." .. name .. "$") then

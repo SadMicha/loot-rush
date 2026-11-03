@@ -172,6 +172,26 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 end
 
 local refitters: { [Frame]: () -> () } = {}
+local hudScale = 1 -- "HUD scale" setting: layers with their own design area grow/shrink by it
+local hudRescalers: { () -> () } = {}
+
+-- Sets the HUD scale (settings window) and rescales every HUD-like layer at once
+function Kit.setHudScale(s: number)
+	if typeof(s) ~= "number" or s ~= s or s <= 0 then
+		return
+	end
+	if math.abs(s - hudScale) < 1e-3 then
+		return
+	end
+	hudScale = s
+	for _, fn in hudRescalers do
+		fn()
+	end
+end
+
+function Kit.hudScale(): number
+	return hudScale
+end
 
 -- Re-apply minimum sizes after an inner UIScale has changed
 function Kit.refit(root: Frame)
@@ -235,7 +255,8 @@ function Kit.scaledGui(
 			if safeArea and gui.AbsoluteSize.X > 0 then
 				v = gui.AbsoluteSize -- smaller than the viewport by the device insets
 			end
-			local d = if design then design() else Theme.DesignSize
+			-- HUD scale: a smaller design area makes every element larger
+			local d = if design then design() / hudScale else Theme.DesignSize
 			local s = math.clamp(math.min(v.X / d.X, v.Y / d.Y), if fit then 0.3 else 0.55, 1.4)
 			scale.Scale = s
 			root.Size = UDim2.fromScale(1 / s, 1 / s)
@@ -243,6 +264,9 @@ function Kit.scaledGui(
 		end
 	end
 	rescale()
+	if design then
+		table.insert(hudRescalers, rescale)
+	end
 	local camera = workspace.CurrentCamera
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)

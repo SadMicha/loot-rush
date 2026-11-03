@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Prefs = require(script.Parent.Parent.Prefs)
 local FeelController = require(script.Parent.FeelController)
 
 local CameraController = {}
@@ -25,6 +26,12 @@ local freeTouches: { [InputObject]: true } = {} -- fingers on free space (two = 
 
 local MOUSE_TURN = 0.006 -- radians per pixel
 local TOUCH_TURN = 0.008
+
+-- "Camera speed" setting (1 = default)
+local function turnSpeed(): number
+	local v = Prefs.get("camera")
+	return if typeof(v) == "number" then v else 1
+end
 
 local function rootPart(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -84,9 +91,9 @@ function CameraController.init()
 				Config.CAMERA_MAX_DISTANCE
 			)
 		elseif input.UserInputType == Enum.UserInputType.MouseMovement and rotating then
-			yaw -= input.Delta.X * MOUSE_TURN
+			yaw -= input.Delta.X * MOUSE_TURN * turnSpeed()
 		elseif input == touchTurn then
-			yaw -= input.Delta.X * TOUCH_TURN
+			yaw -= input.Delta.X * TOUCH_TURN * turnSpeed()
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)

@@ -13,6 +13,7 @@ local Feel = require(ReplicatedStorage.Shared.Feel)
 local Net = require(ReplicatedStorage.Shared.Net)
 local BrickController = require(script.Parent.BrickController)
 local QuestController = require(script.Parent.QuestController)
+local Prefs = require(script.Parent.Parent.Prefs)
 
 local FeelController = {}
 
@@ -22,9 +23,11 @@ local hitstopUntil = 0
 local flashes = 0
 local noise = Random.new()
 
--- Adds camera trauma (0..1); the offset grows with trauma² so small hits stay subtle
+-- Adds camera trauma (0..1); the offset grows with trauma² so small hits stay subtle.
+-- Scaled by the "Camera shake" setting (0 = off).
 function FeelController.shake(amount: number)
-	trauma = math.clamp(trauma + amount, 0, 1)
+	local scale = Prefs.get("shake")
+	trauma = math.clamp(trauma + amount * (if typeof(scale) == "number" then scale else 1), 0, 1)
 end
 
 function FeelController.trauma(): number

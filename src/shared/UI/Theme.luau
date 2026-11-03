@@ -229,6 +229,7 @@ Theme.MiniMap = table.freeze({
 	PartCap = 360, -- most parts in the viewport at any time (~270 ground cells and stair steps + props)
 	GroundShare = 0.85, -- share of PartCap that ground top slabs may use (nearest first)
 	PartCapTouch = 220, -- phones / tablets: fewer parts, the viewport renders much cheaper
+	PartCapLow = 140, -- effects quality "low" (settings window)
 	RefreshMove = 6, -- studs walked before the part set is refreshed again
 	RefreshMax = 2, -- seconds: refresh at least this often while standing (doors, moving parts)
 	ViewHz = 15, -- camera + dots refresh rate

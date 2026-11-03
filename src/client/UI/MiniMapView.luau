@@ -10,9 +10,9 @@
 -- are visible (StreamingEnabled-safe: a query simply returns what exists on this client).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Prefs = require(script.Parent.Parent.Prefs)
 
 local MiniMapView = {}
 
@@ -136,7 +136,21 @@ function MiniMapView.new(): View
 	local include: { Instance } = {}
 	local sincePart, sinceView = math.huge, math.huge
 	local hadRoot = false
-	local partCap = if UserInputService.TouchEnabled then M.PartCapTouch else M.PartCap
+	-- Part cap by the "Effects quality" setting (auto = touch devices get the smaller cap)
+	local function capFor(level: string): number
+		if level == "low" then
+			return M.PartCapLow
+		elseif level == "medium" then
+			return M.PartCapTouch
+		end
+		return M.PartCap
+	end
+	local partCap = capFor(Prefs.effectLevel())
+	Prefs.changed:Connect(function(key: string)
+		if key == "quality" then
+			partCap = capFor(Prefs.effectLevel())
+		end
+	end)
 	local lastRefresh: Vector3? = nil -- where the part set was refreshed last
 	local lastCam: Vector3? = nil
 	local lastYaw = 0

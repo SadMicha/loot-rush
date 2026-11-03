@@ -20,6 +20,7 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Settings = require(script.Parent.Settings)
 local WorldTiers = require(script.Parent.WorldTiers)
 
 local Profile = {}
@@ -52,6 +53,7 @@ export type Account = {
 	receipts: { string }, -- recently booked Robux purchases (PurchaseId), against double crediting
 	pets: Pets.Data, -- pets (Shared/Pets), shared by all characters
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
+	settings: Settings.Data, -- settings window (Shared/Settings), the same for every character
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -96,6 +98,7 @@ local ACCOUNT_DEFAULTS = {
 	receipts = {},
 	pets = Pets.fresh(),
 	passes = {},
+	settings = Settings.fresh(), -- contents checked by Settings.reconcile
 	characters = {},
 	active = "",
 }
@@ -278,6 +281,7 @@ function Profile.reconcileAccount(raw: any): Account
 		end
 	end
 	data.passes = passes
+	data.settings = Settings.reconcile(data.settings)
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}
