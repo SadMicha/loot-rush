@@ -35,7 +35,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 | M19 | Bosses, variants, Smoothing (#54) | Boss phases at 66 %/33 %, rift variants (swarm, elite hunt, treasure goblin, timed), restored regions (`docs/BOSSES.md`, `docs/SMOOTHING.md`) | 🔧 ready to test |
 | M20 | Spell stones (#54, fixes #58) | Support stones, up to 3 per skill (`docs/SPELL-STONES.md`) | 🔧 ready to test |
 | M21 | Star Web 100 (#60) | 100 nodes, class start points, cross-class paths, connected allocation (`docs/STAR-WEB.md`) | 🔧 ready to test |
-| M22 | Stud Rush (#61) | Kills pop studs, meter, Rush burst on G / HUD button (`docs/STUD-RUSH.md`) | 🔧 ready to test |
+| M22 | Stud Rush (#61) | Kills pop studs, meter, Rush starts by itself when full; HUD Rush meter + buff/debuff bar (`docs/STUD-RUSH.md`) | 🔧 ready to test |
 | M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8; PR #42 HUD pass (terrain minimap, text shadows/outlines, icon shadows, orbs, skill arc/cooldown veil, dash diamonds, class icons, hub bar, safe area, Lumenhaven) | 🔧 ready to test (real phone open, with M5; checklist `TEST-HUD` open) |
 
 ## Next milestones (in order)

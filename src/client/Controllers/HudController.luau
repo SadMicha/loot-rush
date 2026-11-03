@@ -4,6 +4,7 @@
 --   dash button (bottom right), compass minimap (top right), resources (top center).
 --   At rest: the orbs and skills leave, the icon bar (bottom center), settings gear and quests fly
 --   in. The dash button and the minimap stay. Rifts are entered from the Atlas only.
+--   Always: buff/debuff bar + Stud Rush meter above the orbs / icon bar (bottom center).
 -- Combat/rest comes from the server (player attribute "InCombat").
 -- Everything is laid out inside the device safe area (Kit.scaledGui safeArea).
 
@@ -29,7 +30,7 @@ local MiniMapView = require(script.Parent.Parent.UI.MiniMapView)
 local CameraController = require(script.Parent.CameraController)
 local DashController = require(script.Parent.DashController)
 local RushController = require(script.Parent.RushController)
-local RushRules = require(ReplicatedStorage.Shared.Rush)
+local StatusRules = require(ReplicatedStorage.Shared.Status)
 local SkillController = require(script.Parent.SkillController)
 local InventoryController = require(script.Parent.InventoryController)
 local RiftController = require(script.Parent.RiftController)
@@ -399,8 +400,6 @@ end
 local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
 local skillButtons: { ImageButton } = {}
-local updateRush: (number, number) -> ()
-local rushButton: ImageButton
 local shownSkills: { string } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
 
@@ -463,19 +462,6 @@ local function buildSkills()
 		skillVeils[i] = update
 		btn.Parent = arc
 	end
-	-- Stud Rush: in the free corner of the arc; the veil shows the unfilled part of the meter,
-	-- the seconds only while a Rush runs (Shared/Rush)
-	local rush, rushVeil = Kit.roundButton(S, "gold", nil, "fire", if keyboard then "G" else nil)
-	rush.Name = "Rush"
-	rush.AnchorPoint = Vector2.new(0.5, 0.5)
-	local diag = math.rad(135)
-	local rushR = math.min(R + S * 0.95, (cx - S / 2) / -math.cos(diag))
-	rush.Position = UDim2.fromOffset(cx + rushR * math.cos(diag), cy - rushR * math.sin(diag))
-	onTap(rush, RushController.trigger)
-	rush.Parent = arc
-	rushButton = rush
-	updateRush = rushVeil
-
 	local inset = M + D / 2 - S / 2
 	addFly(
 		arc,
@@ -485,6 +471,200 @@ local function buildSkills()
 		2,
 		true
 	)
+end
+
+-- ------------------------------------------------------------------ Status (bottom center)
+-- Buff/debuff bar (Shared/Status, attributes Status_<id>) with the Stud Rush meter under it. The
+-- Rush starts on its own when the meter is full (Systems/Rush); the bar then drains with the Rush
+-- time. It sits above the orbs (combat) and the icon bar (rest), clear of joystick and skills.
+type BuffCell = {
+	root: Frame,
+	veil: Frame,
+	time: TextLabel,
+	stacks: TextLabel,
+	scale: UIScale,
+	total: number,
+}
+local buffRow: Frame
+local buffCells: { [string]: BuffCell } = {}
+local rushBox: Frame
+local rushFill: Frame
+local rushText: TextLabel
+local rushStroke: UIStroke
+local rushShown = 0 -- displayed fill, eases toward the real value
+
+local function buffCell(def: StatusRules.Def): BuffCell
+	local B = H.BuffSize
+	local color = if def.debuff then C.Life else C.Gold
+	local cell = Instance.new("Frame")
+	cell.Name = "Buff_" .. def.id
+	cell.BackgroundTransparency = 1
+	cell.Size = UDim2.fromOffset(B, B + H.BuffTime)
+	cell.LayoutOrder = def.order
+	local scale = Instance.new("UIScale")
+	scale.Parent = cell
+
+	local box = Instance.new("Frame")
+	box.Name = "Box"
+	box.Size = UDim2.fromOffset(B, B)
+	box.BackgroundColor3 = Theme.Flat.Surface1
+	box.BackgroundTransparency = 0.15
+	box.ClipsDescendants = true
+	Kit.corner(box, Theme.Flat.Radius.S)
+	Kit.stroke(box, color, 1.5)
+	box.Parent = cell
+	local icon = Kit.icon(def.icon, B - 8, color)
+	icon.AnchorPoint = Vector2.new(0.5, 0.5)
+	icon.Position = UDim2.fromScale(0.5, 0.5)
+	icon.Parent = box
+	-- Dark veil from the top = time already spent
+	local veil = Instance.new("Frame")
+	veil.Name = "Veil"
+	veil.BackgroundColor3 = C.Bg0
+	veil.BackgroundTransparency = H.Veil
+	veil.BorderSizePixel = 0
+	veil.Size = UDim2.fromScale(1, 0)
+	veil.ZIndex = 3
+	veil.Parent = box
+
+	local stacks = Kit.label("", 11, C.Text)
+	stacks.Name = "Stacks"
+	stacks.AnchorPoint = Vector2.new(1, 0)
+	stacks.Position = UDim2.new(1, -2, 0, 0)
+	stacks.ZIndex = 4
+	Kit.textOutline(stacks, 0.2)
+	stacks.Parent = box
+
+	local time = Kit.label("", 11, if def.debuff then C.Life else C.Text)
+	time.Name = "Time"
+	time.AutomaticSize = Enum.AutomaticSize.None
+	time.AnchorPoint = Vector2.new(0.5, 1)
+	time.Position = UDim2.fromScale(0.5, 1)
+	time.Size = UDim2.fromOffset(B + 8, H.BuffTime)
+	time.TextXAlignment = Enum.TextXAlignment.Center
+	Kit.textOutline(time, 0.3)
+	time.Parent = cell
+
+	-- Tap / click: what it does
+	onTap(box, function()
+		QuestController.toast(def.name .. " · " .. def.text, color)
+	end)
+	cell.Parent = buffRow
+	scale.Scale = 0.4
+	Spring.target(scale, { Scale = 1 }, "Bouncy")
+	return { root = cell, veil = veil, time = time, stacks = stacks, scale = scale, total = 0 }
+end
+
+local function buildStatus()
+	local B, W = H.BuffSize, H.RushBarWidth
+	local orbsH = H.OrbSize + H.BarCaption
+	local barH = H.BarIcon + H.BarCaption + H.DockPad + math.floor(H.DockPad / 2)
+	local box = Instance.new("Frame")
+	box.Name = "Status"
+	box.BackgroundTransparency = 1
+	box.Size = UDim2.fromOffset(W, B + H.BuffTime + 6 + H.RushBarHeight + 10)
+	Kit.list(box, Enum.FillDirection.Vertical, 6, Enum.VerticalAlignment.Bottom)
+	place(box, Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -(H.Margin + math.max(orbsH, barH) + 8)))
+
+	buffRow = Instance.new("Frame")
+	buffRow.Name = "Buffs"
+	buffRow.BackgroundTransparency = 1
+	buffRow.Size = UDim2.fromOffset(W, B + H.BuffTime)
+	buffRow.LayoutOrder = 1
+	Kit.list(buffRow, Enum.FillDirection.Horizontal, 6, Enum.VerticalAlignment.Bottom)
+	buffRow.Parent = box
+
+	-- Rush meter: caption left, bar, value right ("64%" while filling, "6.2s" while rushing)
+	rushBox = Instance.new("Frame")
+	rushBox.Name = "RushMeter"
+	rushBox.BackgroundTransparency = 1
+	rushBox.Size = UDim2.fromOffset(W, H.RushBarHeight + 10)
+	rushBox.LayoutOrder = 2
+	rushBox.Visible = false
+	rushBox.Parent = box
+	local caption = Kit.label("RUSH", 12, C.GoldHi, Theme.Font.Title)
+	caption.AnchorPoint = Vector2.new(0, 0.5)
+	caption.Position = UDim2.fromScale(0, 0.5)
+	Kit.textOutline(caption, 0.3)
+	caption.Parent = rushBox
+	local back, fill = Kit.bar(Vector2.new(W - 96, H.RushBarHeight), C.Gold)
+	back.Name = "Bar"
+	back.AnchorPoint = Vector2.new(0.5, 0.5)
+	back.Position = UDim2.fromScale(0.5, 0.5)
+	back.Parent = rushBox
+	fill.Size = UDim2.fromScale(0, 1)
+	rushFill = fill
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Ready"
+	stroke.Color = C.GoldHi
+	stroke.Thickness = 2
+	stroke.Transparency = 1
+	stroke.Parent = back
+	rushStroke = stroke
+	rushText = Kit.label("", 12, C.Text)
+	rushText.Name = "Value"
+	rushText.AnchorPoint = Vector2.new(1, 0.5)
+	rushText.Position = UDim2.fromScale(1, 0.5)
+	Kit.textOutline(rushText, 0.3)
+	rushText.Parent = rushBox
+end
+
+local function seconds(left: number): string
+	return if left >= 10
+		then string.format("%ds", math.ceil(left))
+		else string.format("%.1fs", left)
+end
+
+-- Buff cells: 10 times a second (GetAttributes makes a table)
+local function updateBuffs()
+	local active = StatusRules.active(player:GetAttributes(), workspace:GetServerTimeNow())
+	local seen: { [string]: boolean } = {}
+	for _, a in active do
+		local id = a.def.id
+		seen[id] = true
+		local cell = buffCells[id]
+		if not cell then
+			cell = buffCell(a.def)
+			buffCells[id] = cell
+		end
+		-- the longest time seen is "full" (refreshes and Rush chains raise it)
+		cell.total = math.max(cell.total, a.left)
+		cell.veil.Size = UDim2.fromScale(1, 1 - math.clamp(a.left / cell.total, 0, 1))
+		cell.time.Text = seconds(a.left)
+		cell.stacks.Text = if a.stacks > 1 then "×" .. a.stacks else ""
+	end
+	for id, cell in buffCells do
+		if not seen[id] then
+			cell.root:Destroy()
+			buffCells[id] = nil
+		end
+	end
+end
+
+-- Rush meter: every frame (eased fill, pulse while rushing)
+local function updateRushMeter(dt: number)
+	local left = RushController.remaining()
+	local rushing = left > 0
+	rushBox.Visible = rushing or RiftController.active()
+	if not rushBox.Visible then
+		rushShown = 0
+		return
+	end
+	local total = buffCells.rush and buffCells.rush.total or 0
+	local goal = if rushing
+		then math.clamp(left / math.max(total, left, 0.01), 0, 1)
+		else RushController.meter()
+	rushShown += (goal - rushShown) * math.min(1, dt * 10)
+	rushFill.Size = UDim2.fromScale(math.clamp(rushShown, 0, 1), 1)
+	if rushing then
+		rushText.Text = seconds(left)
+		rushText.TextColor3 = C.GoldHi
+		rushStroke.Transparency = 0.35 + 0.35 * math.sin(os.clock() * 8)
+	else
+		rushText.Text = math.floor(RushController.meter() * 100) .. "%"
+		rushText.TextColor3 = C.Text
+		rushStroke.Transparency = 1
+	end
 end
 
 -- ------------------------------------------------------------------ Rest panels (fly in)
@@ -783,6 +963,7 @@ function HudController.init()
 	buildOrbs()
 	buildMinimap()
 	buildSkills()
+	buildStatus()
 	buildCalmPanels()
 
 	hudGui.Parent = player:WaitForChild("PlayerGui")
@@ -876,21 +1057,16 @@ function HudController.start()
 	end)
 
 	local acc = 0
+	local buffAcc = 1
 	RunService.Heartbeat:Connect(function(dt: number)
 		for i, update in skillVeils do
 			update(SkillController.cooldownRatio(i), SkillController.remaining(i))
 		end
-		if updateRush then
-			local left = RushController.remaining()
-			local text = rushButton:FindFirstChild("CooldownText")
-			if text and text:IsA("GuiObject") then
-				text.Visible = left > 0
-			end
-			if left > 0 then
-				updateRush(math.clamp(left / RushRules.DURATION, 0.01, 1), left) -- drains
-			else
-				updateRush(1 - RushController.meter(), 0)
-			end
+		updateRushMeter(dt)
+		buffAcc += dt
+		if buffAcc >= 0.1 then
+			buffAcc = 0
+			updateBuffs()
 		end
 		if Window.anyOpen() then
 			return -- a fullscreen window covers the minimap: no terrain or dot work behind it

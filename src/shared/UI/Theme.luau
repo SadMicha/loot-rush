@@ -187,6 +187,10 @@ Theme.Hud = table.freeze({
 	RingCyan = Color3.fromRGB(150, 215, 255), -- tint of the silver ring for skill buttons
 	DashDiamond = 20, -- dash charge diamond edge
 	Veil = 0.35, -- cooldown veil transparency
+	BuffSize = 40, -- buff/debuff bar: icon cell edge
+	BuffTime = 14, -- height of the seconds under a buff cell
+	RushBarWidth = 268, -- Stud Rush meter incl. caption and value (= orb row width)
+	RushBarHeight = 12,
 	-- Skill id (Shared.Skills) -> Assets.Hud key; without an image the atlas icon of the skill is used
 	SkillArt = table.freeze({
 		thunderstorm = "skill_storm",
