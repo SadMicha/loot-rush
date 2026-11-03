@@ -313,6 +313,36 @@ Theme.Flat = table.freeze({
 	MaxFit = 1.25, -- windows grow up to this factor to fill small screens
 })
 
+-- Robux Shop (client/Controllers/StoreController): badges, hero banner, celebration
+Theme.Store = table.freeze({
+	Badge = table.freeze({
+		best = hex("#7FD96A"),
+		limited = hex("#E8505A"),
+		popular = hex("#EBB54A"),
+		new = hex("#58E1F0"),
+	} :: { [string]: Color3 }),
+	BadgeText = hex("#08090F"),
+	HeroTop = hex("#3B1E5C"), -- hero banner gradient (deep violet → ink)
+	HeroBottom = hex("#120C1E"),
+	Robux = hex("#F2EEE4"), -- tint of the Robux glyph on the gold buy button (multiplied)
+	Owned = hex("#7FD96A"),
+	CardH = 410,
+	Gap = 28,
+	HeroH = 340,
+	TopH = 80, -- tab row
+	ButtonH = 80,
+	ArtSize = 112, -- icon on a card
+	HeroArt = 190,
+	Rays = 12, -- light rays behind featured art
+	RaySpin = 14, -- degrees per second
+	Bob = 6, -- design pixels the card art floats up and down
+	BobSpeed = 2.4, -- radians per second
+	BadgePulse = 0.06, -- scale swing of "Limited" badges
+	HoverLift = 1.025, -- card scale under the mouse
+	Burst = 28, -- stud confetti pieces on a purchase
+	CelebrateTime = 3.2, -- seconds the purchase celebration stays (tap closes it sooner)
+})
+
 -- Animation vocabulary: the same motions everywhere
 Theme.Tween = table.freeze({
 	FlyIn = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out),

@@ -1,13 +1,20 @@
 -- Robux: IDs in one place, ProcessReceipt rejects unknown purchases, game pass bonuses arrive.
 local Monetization = require("ReplicatedStorage.Shared.Monetization")
-local Shop = require("ReplicatedStorage.Shared.Shop")
+local Store = require("ReplicatedStorage.Shared.Store")
 
 describe("Monetization rules", function()
 	it("has an ID entry for every Robux offer and unique passes", function()
-		for _, offer in Shop.Offers do
-			if offer.product then
-				expect(Monetization.ProductIds[offer.product]).never.toBeNil()
+		for _, offer in Store.Offers do
+			if offer.kind == "product" then
+				expect(Monetization.ProductIds[offer.key]).never.toBeNil()
+				expect(Monetization.ProductByKey[offer.key]).never.toBeNil()
+			else
+				expect(Monetization.PassIds[offer.key]).never.toBeNil()
+				expect(Monetization.PassByKey[offer.key]).never.toBeNil()
 			end
+		end
+		for _, p in Monetization.Products do
+			expect(Monetization.ProductIds[p.key]).never.toBeNil()
 		end
 		local seen = {}
 		for _, p in Monetization.Passes do

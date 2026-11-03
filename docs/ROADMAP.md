@@ -27,7 +27,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 | M10 | Hub Lumenhaven | Own hub map (parts with studs since M17), stations, distant scenery | 🔧 ready to test |
 | M11 | World Tiers | Rebirth removed (pure ARPG, 2026-11-02); four World Tiers with tougher enemies and better loot, scaling shop prices (`docs/WORLD-TIERS.md`) | 🔧 ready to test |
 | M12 | Pets | Eggs at the stall, permanent bonuses, companion model, light per player hub vs. rift (`docs/PETS.md`, checklist `TEST-PETS`) | 🔧 ready to test (odds/egg/equip steps wait for the pet window, not built yet, or run via server command-bar steps in `TEST-PETS`) |
-| M13 | Monetization | Soulstar products, 3 gamepasses (VIP, pet slot, loot magnet), robust ProcessReceipt; **all IDs still placeholder `0`** (`docs/MONETIZATION.md`) | 🔧 ready to test (Robux IDs in Creator Hub missing) |
+| M13 | Monetization | Robux Shop (Soulstars, gold, cosmetic packs, Starter Pack, 3 gamepasses), Market for in-game trades, robust ProcessReceipt; **all IDs still placeholder `0`** (`docs/MONETIZATION.md`) | 🔧 ready to test (Robux IDs in Creator Hub missing) |
 | M14 | Hardening & multiplayer | Remote throttles (inventory, rift, skills, dash), ID length check, several rifts at once (arena per player, `RIFT_SLOTS = 12`) | 🔧 ready to test (multiplayer playtest with 2+ clients open) |
 | M15 | Tooling & publishing | `tools/check.sh` (format, lint, types, build, test, ui), Lune sandbox, headless UI check, asset check (`check-assets`), auto-publish to test place (Open Cloud), debug menu, checklist template | ✅ Runs in CI (workflows ci, check-assets, publish) |
 | M17 | Parts + studs world | Whole map from parts with the classic stud look (`Shared/Models/Studs`, `Kit` wedge/cylinder/truss, new town props), Blender models removed, Terrain water, Sky/Clouds/DepthOfField, smoke/spark particles, ambience sound slots (`docs/ASSETS-3D.md`) | 🔧 ready to test (stud texture upload for balls/cylinders and sound ids open) |
@@ -62,5 +62,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 Platform stack order (decisions D1-D6 made by the user on 2026-11-01, see `docs/specs/PLATFORM-STACK.md`): N8 → N9 → N11 → N13; N10 can run before/alongside N8 (no package); N12 runs in the UI lane after N8. N9 must land before the TEST-SAVING part of N1.
 
 Build order for 1.0: `docs/DECISIONS.md` §5, steps 1–10 all merged (#50–#61 and the release pass). Rebirth and the village are gone; World Tiers replace rebirth.
+
+Plan to 1.0 after the review of 2026-11-03 (phases F0–F5, leaderboard, daily rewards, Beta Season): `docs/ROADMAP-1.0.md`.
 
 Release steps: `docs/RELEASE.md` (debug tools for developers only, release checklist, test commands, from #39).

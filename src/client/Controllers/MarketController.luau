@@ -1,10 +1,10 @@
 --!strict
--- Shop window (key P or the + on the capsules at the top): tabs and holdings on the left, the tab's
--- offers as cards with a buy button on the right. Rules and catalog live in Shared.Shop; purchases happen on
--- the server (Systems/Shop) via Net.Buy, feedback arrives via Net.ShopResult.
--- Robux offers open the Roblox purchase dialog as soon as Shared.Shop.Products contains real IDs.
+-- Market window (in-game trades: Market station in the Hub, the + on the shards capsule, the
+-- "Market" button in the Robux Shop): tabs and holdings on the left, the tab's offers as cards with a
+-- buy button on the right. Rules and catalog live in Shared.Shop; purchases happen on the server
+-- (Systems/Shop) via Net.Buy, feedback arrives via Net.ShopResult.
+-- Robux offers are the Shop window (StoreController).
 
-local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,7 +15,10 @@ local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
 
-local ShopController = {}
+local MarketController = {}
+
+-- Opens the Robux Shop (set by StoreController, which requires this module)
+MarketController.openStore = nil :: (() -> ())?
 
 local player = Players.LocalPlayer
 local C = Theme.Color
@@ -83,12 +86,24 @@ local function renderLeft(have: Shop.Wallet)
 		b.Activated:Connect(function()
 			tab = t.id
 			lastResult = nil
-			ShopController.render()
+			MarketController.render()
 		end)
 		b.Parent = left
 	end
 
-	local top = PAD + #Shop.Tabs * (TAB_H + 12) + 12
+	-- Link to the Robux Shop below the tabs
+	local store = Kit.button("Get Soulstars", C.Mana, Vector2.new(w, TAB_H), "soulstar")
+	store.Name = "Store"
+	store.Position = UDim2.fromOffset(PAD, PAD + #Shop.Tabs * (TAB_H + 12))
+	store.Activated:Connect(function()
+		local open = MarketController.openStore
+		if open then
+			open()
+		end
+	end)
+	store.Parent = left
+
+	local top = PAD + (#Shop.Tabs + 1) * (TAB_H + 12) + 12
 	local divider = Kit.divider(w)
 	divider.Position = UDim2.fromOffset(PAD, top)
 	divider.Parent = left
@@ -131,31 +146,15 @@ local function priceButton(offer: Shop.Offer, have: Shop.Wallet, w: number): (Im
 	local size = Vector2.new(w, 64)
 	local best = bestDepth()
 	local price = Shop.price(offer, best)
-	if price then
-		local ok, why = Shop.check(offer, have, best)
-		local b = Kit.button(Format.int(price.amount), C.Gold, size, Shop.KindIcon[price.kind])
-		Kit.setEnabled(b, ok)
-		b.Activated:Connect(function()
-			if b.Active then
-				Net.Buy:FireServer(offer.id)
-			end
-		end)
-		return b, why
-	end
-	local product = Shop.productOf(offer)
-	local planned = if offer.product then Shop.Products[offer.product] else nil
-	local b = Kit.button(
-		if planned then string.format("%d Robux", planned.robux) else "–",
-		C.Gold,
-		size
-	)
-	Kit.setEnabled(b, product ~= nil)
+	local ok, why = Shop.check(offer, have, best)
+	local b = Kit.button(Format.int(price.amount), C.Gold, size, Shop.KindIcon[price.kind])
+	Kit.setEnabled(b, ok)
 	b.Activated:Connect(function()
-		if b.Active and product then
-			MarketplaceService:PromptProductPurchase(player, product.id)
+		if b.Active then
+			Net.Buy:FireServer(offer.id)
 		end
 	end)
-	return b, if product then nil else "Coming soon"
+	return b, why
 end
 
 local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
@@ -210,8 +209,7 @@ local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
 	buy.Parent = f
 	if why then
 		-- in the text flow below the description so large phone text covers nothing
-		local reason =
-			Kit.label(why, 14, if offer.price then C.Danger else C.Muted, Theme.Font.Body)
+		local reason = Kit.label(why, 14, C.Danger, Theme.Font.Body)
 		reason.LayoutOrder = 4
 		reason.ZIndex = 2
 		reason.Parent = info
@@ -248,8 +246,7 @@ local function renderRight(have: Shop.Wallet)
 
 	local note = if lastResult
 		then lastResult.text
-		elseif tab == "soulstars" then "Robux purchases are not unlocked yet."
-		else "Gold drops in Rifts, Soulstars are coming soon."
+		else "Gold drops in Rifts. More Soulstars in the Shop."
 	local foot = Kit.label(
 		note,
 		16,
@@ -263,35 +260,34 @@ local function renderRight(have: Shop.Wallet)
 end
 
 -- ------------------------------------------------------------------ Flow
-function ShopController.render()
+function MarketController.render()
 	local have = wallet()
 	renderLeft(have)
 	renderRight(have)
 end
 
-function ShopController.toggle()
+function MarketController.toggle()
 	win.toggle()
 end
 
 -- Open the shop on a tab (the + on the capsules)
-function ShopController.open(tabId: string?)
+function MarketController.open(tabId: string?)
 	if tabId then
 		tab = tabId
 	end
 	lastResult = nil
 	if win.isOpen() then
-		ShopController.render()
+		MarketController.render()
 	else
 		win.toggle()
 	end
 end
 
-function ShopController.init()
+function MarketController.init()
 	win = Window.new({
-		name = "Shop",
-		title = "Shop",
+		name = "Market",
+		title = "Market",
 		icon = "pouch",
-		key = Enum.KeyCode.P,
 		background = "bg_shop",
 	})
 
@@ -304,10 +300,10 @@ function ShopController.init()
 	right.Position = UDim2.fromScale(1, 0)
 	right.Parent = win.body
 
-	win.onOpen(ShopController.render)
+	win.onOpen(MarketController.render)
 	local function refresh()
 		if win.isOpen() then
-			ShopController.render()
+			MarketController.render()
 		end
 	end
 	for _, attr in ATTR do
@@ -315,12 +311,12 @@ function ShopController.init()
 	end
 	player:GetAttributeChangedSignal("BestDepth"):Connect(refresh) -- gold prices
 	Net.ShopResult.OnClientEvent:Connect(function(data: any)
-		if typeof(data) ~= "table" or typeof(data.text) ~= "string" then
-			return
+		if typeof(data) ~= "table" or typeof(data.text) ~= "string" or data.robux == true then
+			return -- Robux purchases are celebrated by the Shop window
 		end
 		lastResult = { ok = data.ok == true, text = data.text }
 		refresh()
 	end)
 end
 
-return ShopController
+return MarketController

@@ -610,4 +610,7 @@ Assets.Weapon = table.freeze({
 	}),
 } :: { [string]: { model: string, texture: string } })
 
+-- Robux glyph (Roblox built-in texture). Empty string = the shop writes "R$" instead.
+Assets.Robux = "rbxasset://textures/ui/common/robux.png"
+
 return table.freeze(Assets)

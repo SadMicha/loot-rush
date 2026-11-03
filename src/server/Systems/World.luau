@@ -16,8 +16,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
+local Trail = require(ReplicatedStorage.Shared.Trail)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
+local Bounds = require(ReplicatedStorage.Shared.Util.Bounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
 
 local World = {}
@@ -73,6 +75,10 @@ local current: { [number]: Folder } = {} -- slot → arena
 local currentId: { [number]: string } = {}
 local heights: { [number]: number } = {} -- ground height per tile (key x * 1000 + z)
 local marsh: { [number]: boolean } = {} -- environment tiles that are liquid (key as heights)
+local walk: { [number]: boolean } = {} -- walkable tiles of the map being built (arena + trail)
+local trailRim: { [number]: boolean } = {} -- cliff tiles along the trail (deco goes there)
+local layouts: { [number]: Trail.Layout } = {} -- slot → trail layout of the built map
+local seeds: { [number]: number } = {}
 
 -- ------------------------------------------------------------------ Building blocks
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
@@ -93,10 +99,13 @@ local function groundAt(pos: Vector3): number
 	return heights[x * 1000 + z] or 0
 end
 
--- Heights of all tiles: playfield (north edge/sides raised) and environment ring
-local function layout(look: Look, r: Random)
+-- Heights of all tiles: playfield (north edge/sides raised), environment ring and the Rift Trail
+-- south of the arena (walkable path, low cliffs around it; no cliffs over the abyss of Sky Islands)
+local function layout(look: Look, r: Random, trail: Trail.Layout)
 	heights = {}
 	marsh = {}
+	walk = trail.cells
+	trailRim = {}
 	local ring = look.ring
 	local ext = if ring then RING else 0
 	for x = -HX - ext, HX + ext do
@@ -107,8 +116,9 @@ local function layout(look: Look, r: Random)
 			elseif ring then
 				local d = math.max(math.abs(x) - HX, -z - HZ, 0)
 				if z > HZ then
-					-- taper off flat in front (clear view for the camera)
-					heights[x * 1000 + z] = if math.abs(x) > HX then 1 else 0
+					-- low cliffs in front (the trail cuts through them; low for the camera)
+					heights[x * 1000 + z] = RIM + r:NextInteger(0, 1)
+					trailRim[x * 1000 + z] = true
 				else
 					-- sides lower toward the front so they do not block the camera
 					local front = math.clamp((HZ - z) / (2 * HZ), 0.35, 1)
@@ -125,6 +135,38 @@ local function layout(look: Look, r: Random)
 			end
 		end
 	end
+	-- Trail: walkable tiles, a ring of cliff tiles around them (replacing the open front ring)
+	for key in trail.cells do
+		local x = math.floor((key + 500) / 1000)
+		local z = key - x * 1000
+		if z > HZ then
+			heights[key] = 0
+			marsh[key] = nil
+		end
+	end
+	for key in trail.cells do
+		local x = math.floor((key + 500) / 1000)
+		local z = key - x * 1000
+		for dx = -1, 1 do
+			for dz = -1, 1 do
+				local k = (x + dx) * 1000 + (z + dz)
+				local nz = z + dz
+				if not trail.cells[k] and nz > HZ and not trailRim[k] then
+					if ring then
+						local h = RIM + math.floor(r:NextNumber(0, math.min(ring.rough, 3)) + 0.5)
+						if ring.terrace then
+							h = math.max(RIM, math.floor(h / ring.terrace + 0.5) * ring.terrace)
+						end
+						heights[k] = h
+						marsh[k] = nil
+						trailRim[k] = true
+					else
+						heights[k] = nil -- floating path: nothing next to it
+					end
+				end
+			end
+		end
+	end
 end
 
 -- Puts a model on the ground at (x, z)
@@ -133,7 +175,7 @@ local function put(parent: Instance, model: Model, x: number, z: number, yaw: nu
 end
 
 local function tile(parent: Instance, look: Look, x: number, z: number, height: number)
-	local inside = math.abs(x) <= HX and math.abs(z) <= HZ
+	local inside = walk[x * 1000 + z] == true
 	local liquid = look.liquid
 	local wet = liquid ~= nil
 		and height == 0
@@ -165,8 +207,20 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 		end
 		return
 	end
+	if trailRim[x * 1000 + z] and not inside then
+		-- cliff along the trail: one solid block (part budget for phones)
+		local h = height + 3.6
+		block(
+			parent,
+			Vector3.new(T, h, T),
+			CFrame.new(x * T, height - h / 2, z * T),
+			Models.Kit.shade(look.cliff, rng:NextNumber(-0.05, 0.05))
+		)
+		return
+	end
 	block(parent, Vector3.new(T, 0.7, T), CFrame.new(x * T, height - 0.35, z * T), top)
-	if inside then
+	local arenaTile = math.abs(x) <= HX and math.abs(z) <= HZ
+	if inside and arenaTile then -- edge strip only on the arena (part budget for phones)
 		block(
 			parent,
 			Vector3.new(T + 0.05, 0.2, T + 0.05),
@@ -174,7 +228,10 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 			look.edge
 		)
 	end
-	local deco = if look.accent and (inside or height <= RIM) then look.accent(rng, false) else nil
+	local accent = look.accent
+		and (inside or height <= RIM)
+		and (arenaTile or rng:NextNumber() < 0.12)
+	local deco = if accent and look.accent then look.accent(rng, false) else nil
 	if deco then
 		deco:PivotTo(
 			CFrame.new(x * T + rng:NextNumber(-1.5, 1.5), height, z * T + rng:NextNumber(-1.5, 1.5))
@@ -287,12 +344,36 @@ local function scatter(parent: Instance, look: Look, r: Random)
 	for key, h in heights do
 		local x = math.floor((key + 500) / 1000)
 		local z = key - x * 1000
-		local inside = math.abs(x) <= HX and math.abs(z) <= HZ
-		if not inside and z <= HZ and not marsh[key] and r:NextNumber() < 0.75 then
+		local inside = walk[key] == true
+		local chance = if trailRim[key] then 0.08 else 0.75
+		if
+			not inside
+			and (z <= HZ or trailRim[key])
+			and not marsh[key]
+			and r:NextNumber() < chance
+		then
 			i += 1
 			local pos =
 				Vector3.new(x * T + r:NextNumber(-2.5, 2.5), h, z * T + r:NextNumber(-2.5, 2.5))
 			place(parent, look.fill(r, i), pos, r:NextNumber(0, 360))
+		end
+	end
+	-- Next to the trail: a few scattered models on the low ground behind the cliffs
+	for key in trailRim do
+		if r:NextNumber() < 0.3 then
+			local x = math.floor((key + 500) / 1000)
+			local z = key - x * 1000
+			-- outward = away from the walkable neighbour
+			local side = if walk[(x + 1) * 1000 + z]
+				then -1
+				elseif walk[(x - 1) * 1000 + z] then 1
+				else 0
+			local tx = x + side * 2
+			if side ~= 0 and not walk[tx * 1000 + z] and not heights[tx * 1000 + z] then
+				i += 1
+				local pos = Vector3.new((tx + r:NextNumber(-0.3, 0.3)) * T, -1.5, z * T)
+				place(parent, look.fill(r, i), pos, r:NextNumber(0, 360))
+			end
 		end
 	end
 	for _, p in rim(r, 14) do
@@ -1069,25 +1150,63 @@ local function folderName(id: string, slot: number): string
 	return if slot == 1 then "Region_" .. id else string.format("Region_%s_%d", id, slot)
 end
 
--- Builds the arena for a region (nil = Green Plains) on a slot. Same region → nothing to do.
-function World.build(region: Atlas.Region?, slot: number?)
+-- Waypoint shrine at a clearing (Rift lights it once the clearing's pack is down)
+-- Waypoint pylon core back to unlit (dark stone, light off)
+local function dim(m: Instance)
+	local core = m:FindFirstChild("Core")
+	if core and core:IsA("BasePart") then
+		core.Color = C.stoneDark
+		core.Material = Enum.Material.SmoothPlastic
+		core:SetAttribute("NoStuds", true)
+		for _, l in core:GetChildren() do
+			if l:IsA("Light") then
+				l.Enabled = false
+			end
+		end
+	end
+end
+
+local function waypoint(parent: Instance, rect: Trail.Rect, index: number)
+	local m = Props.pylon()
+	m.Name = "Waypoint_" .. index
+	m:SetAttribute("Waypoint", index)
+	put(parent, m, (rect.x1 - 0.5) * T, (rect.z0 + 0.5) * T, 0)
+	dim(m)
+end
+
+-- Builds the map for a region (nil = Green Plains) on a slot: Rift Trail (start → clearings →
+-- boss arena) with the given seed (default: the region's first depth). Same region and seed →
+-- nothing to do.
+function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 	local n = slot or 1
 	local id = if region then region.id else Atlas.Start
 	local look = LOOKS[id] or LOOKS[Atlas.Start]
+	local trailSeed = seed or Trail.seed(id, if region then region.depth else 1)
 	local old = current[n]
-	if old and currentId[n] == id and old.Parent then
+	if old and currentId[n] == id and seeds[n] == trailSeed and old.Parent then
+		local trailFolder = old:FindFirstChild("Trail") -- same map again: a fresh run, all shrines unlit
+		if trailFolder then
+			for _, m in trailFolder:GetChildren() do
+				if m:GetAttribute("Waypoint") ~= nil then
+					dim(m)
+				end
+			end
+		end
 		return
 	end
 	if old and old.Parent then
 		old:Destroy()
 	end
 	currentId[n] = id
+	seeds[n] = trailSeed
+	local trail = Trail.layout(trailSeed)
+	layouts[n] = trail
 	rng = Random.new(7)
 	local folder = Instance.new("Folder")
 	folder.Name = folderName(id, n)
 
 	local r = Random.new(#id * 31)
-	layout(look, r)
+	layout(look, r, trail)
 	local ground = Instance.new("Folder")
 	ground.Name = "Ground"
 	ground.Parent = folder
@@ -1103,13 +1222,24 @@ function World.build(region: Atlas.Region?, slot: number?)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
-	local bounds = Fence.build(folder, Vector3.zero, Fence.arenaHalf()) -- nobody walks or dashes off the playfield
-	-- Endless surroundings beyond the environment ring (no world edge in view)
+	-- Trail furniture: entry portal on the start pad, a waypoint shrine per clearing
+	local trailFolder = Instance.new("Folder")
+	trailFolder.Name = "Trail"
+	trailFolder.Parent = folder
+	local s0 = Trail.center(trail.start)
+	put(trailFolder, Props.portal(), s0.X, s0.Z + T * 1.2, 180)
+	for i, rect in trail.clearings do
+		waypoint(trailFolder, rect, i)
+	end
+	local bounds = Fence.cells(folder, trail.cells, T) -- nobody walks or dashes off the path
+	-- Endless surroundings beyond the environment ring and the trail (no world edge in view)
 	local hz = look.horizon
+	local zA, zB = (trail.minZ - RING - 0.5) * T, (trail.maxZ + 2.5) * T
+	local xA, xB = (trail.minX - RING - 0.5) * T, (trail.maxX + RING + 0.5) * T
 	Models.Horizon.build(folder, {
-		center = Vector3.zero,
-		halfX = (HX + RING + 0.5) * T,
-		halfZ = (HZ + RING + 0.5) * T,
+		center = Vector3.new((xA + xB) / 2, 0, (zA + zB) / 2),
+		halfX = (xB - xA) / 2,
+		halfZ = (zB - zA) / 2,
 		inner = 18,
 		ground = hz.ground,
 		rock = hz.rock,
@@ -1134,7 +1264,7 @@ function World.build(region: Atlas.Region?, slot: number?)
 	Models.Studs.applyTree(folder) -- safety net: every part in the arena carries the stud look
 	folder:SetAttribute("Region", id) -- the client sets the light (LightController)
 	folder:SetAttribute("Center", center)
-	bounds:SetAttribute("Center", center) -- world position of the walkable rectangle (BoundsController)
+	Fence.areas(bounds, World.areasOf(n)) -- walkable rectangles for the edge clamp (BoundsController)
 	folder.Parent = arena
 	current[n] = folder
 end
@@ -1190,6 +1320,76 @@ function World.release(slot: number)
 	end
 	current[slot] = nil
 	currentId[slot] = nil
+	layouts[slot] = nil
+	seeds[slot] = nil
+end
+
+-- Trail layout of the map on a slot (nil = nothing built there)
+function World.layoutOf(slot: number?): Trail.Layout?
+	return layouts[slot or 1]
+end
+
+-- Walkable rectangles of the map on this slot in world studs (arena, corridors, clearings, start
+-- pad); their union is exactly the walkable tiles. Empty if nothing is built there.
+function World.areasOf(slot: number): { Bounds.Rect }
+	local l = layouts[slot]
+	local out: { Bounds.Rect } = {}
+	if not l then
+		return out
+	end
+	local base = World.center(slot)
+	for _, r in Trail.rects(l) do
+		table.insert(out, {
+			center = base + Trail.center(r),
+			halfX = (r.x1 - r.x0 + 1) * T / 2,
+			halfZ = (r.z1 - r.z0 + 1) * T / 2,
+		})
+	end
+	return out
+end
+
+-- Is a world position on (or one tile next to) a walkable tile of the map on this slot?
+function World.walkableAt(slot: number, pos: Vector3): boolean
+	local l = layouts[slot]
+	return l ~= nil and Trail.walkable(l, pos - World.center(slot), 1)
+end
+
+-- Where a run starts: the trail's start pad on this slot (world, standing height)
+function World.startOf(slot: number): Vector3
+	local l = layouts[slot]
+	local s = if l then Trail.center(l.start) else Config.RIFT_START
+	return World.center(slot) + Vector3.new(s.X, 4, s.Z)
+end
+
+-- World bounds (min, max corners) of a clearing on this slot, for enemy leashes and spawns
+function World.clearing(slot: number, index: number): (Vector3?, Vector3?)
+	local l = layouts[slot]
+	local rect = l and l.clearings[index]
+	if not rect then
+		return nil, nil
+	end
+	local c = World.center(slot)
+	return c + Vector3.new((rect.x0 - 0.5) * T, 0, (rect.z0 - 0.5) * T),
+		c + Vector3.new((rect.x1 + 0.5) * T, 0, (rect.z1 + 0.5) * T)
+end
+
+-- Light the waypoint shrine of a cleared clearing (glows in the region colour)
+function World.lightWaypoint(slot: number, index: number, color: Color3)
+	local folder = current[slot]
+	local trail = folder and folder:FindFirstChild("Trail")
+	local m = trail and trail:FindFirstChild("Waypoint_" .. index)
+	local core = m and m:FindFirstChild("Core")
+	if core and core:IsA("BasePart") then
+		core.Color = color
+		core.Material = Enum.Material.Neon
+		local light = core:FindFirstChildWhichIsA("Light") :: Light?
+		if light then
+			light.Color = color
+			light.Enabled = true
+		else
+			Models.Kit.light(core, color, 18, 1.2)
+		end
+	end
 end
 
 -- Region on a slot (default: slot 1)

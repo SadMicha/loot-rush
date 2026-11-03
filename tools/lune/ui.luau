@@ -348,9 +348,14 @@ if args.clicks then
 	end
 
 	-- Scenario: windows with a full inventory and materials (the Forge needs items) and the debug menu
-	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "pets", "Dbg" } do
+	for _, name in { "forge", "skills", "star_net", "atlas", "Shop_gold", "shop", "pets", "Dbg" } do
 		local sb = newSandbox()
 		sb:boot({ seconds = args.seconds })
+		-- finish the first-join hero setup, otherwise its screen covers every window
+		sb:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Tester Hero", "mage")
+		end)
+		sb:run(1)
 		sb:runAs("server", function(req)
 			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
 			local Progress = req("ServerScriptService.Server.Systems.Progress")
