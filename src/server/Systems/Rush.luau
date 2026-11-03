@@ -62,6 +62,11 @@ function Rush.isRushing(player: Player): boolean
 	return now() < state(player).untilT
 end
 
+-- End of the running Rush (server time, 0 = none)
+function Rush.untilTime(player: Player): number
+	return state(player).untilT
+end
+
 function Rush.meter(player: Player): number
 	return state(player).meter
 end

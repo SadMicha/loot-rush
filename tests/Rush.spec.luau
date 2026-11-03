@@ -80,10 +80,17 @@ describe("Stud Rush", function()
 	end)
 
 	it("extends the Rush with kills and ends it on time", function()
-		local before = sim.player:GetAttribute("RushUntil")
+		-- read on the server: the Lune sandbox squeezes whole-number attributes through int32/float32
+		-- (1700000011 reads back as 1700000000), real Roblox keeps doubles
+		local function untilT()
+			return server(function(req, player)
+				return req("ServerScriptService.Server.Systems.Rush").untilTime(player)
+			end)
+		end
+		local before = untilT()
 		kill()
 		sim:run(0.1)
-		expect(sim.player:GetAttribute("RushUntil") > before).toBe(true)
+		expect(untilT() > before).toBe(true)
 		expect(sim.player:GetAttribute(Status.attr("rush"))).toBe(
 			sim.player:GetAttribute("RushUntil")
 		)
