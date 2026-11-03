@@ -97,13 +97,13 @@ local function liveProducts()
 	local source = native.Source
 	for key, id in IDS do
 		local count
-		source, count = string.gsub(source, "\t" .. key .. " = %d+,", `\t{key} = {id},`, 1)
+		source, count = string.gsub(source, "\n\t" .. key .. " = %d+,", `\n\t{key} = {id},`, 1)
 		assert(count == 1, key .. " ID not found in Shared/Monetization")
 	end
 	-- Passes have real IDs; zero them so joining does not query ownership in the sandbox
 	for _, key in { "vip", "pet_slot", "magnet" } do
 		local count
-		source, count = string.gsub(source, "\t" .. key .. " = %d+,", `\t{key} = 0,`, 1)
+		source, count = string.gsub(source, "\n\t" .. key .. " = %d+,", `\n\t{key} = 0,`, 1)
 		assert(count == 1, key .. " ID not found in Shared/Monetization")
 	end
 	native.Source = source

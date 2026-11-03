@@ -37,13 +37,13 @@ local PASS_ID = 4243 -- test ID for the magnet pass (last in the list, so join l
 local function liveProduct()
 	local native = sim:nativeOf(sim:find("ReplicatedStorage.Shared.Monetization"))
 	local source, count =
-		string.gsub(native.Source, "soulstars_s = %d+,", `soulstars_s = {PRODUCT_ID},`)
+		string.gsub(native.Source, "\n\tsoulstars_s = %d+,", `\n\tsoulstars_s = {PRODUCT_ID},`, 1)
 	assert(count == 1, "soulstars_s ID not found in Shared/Monetization")
-	source, count = string.gsub(source, "magnet = %d+,", `magnet = {PASS_ID},`)
+	source, count = string.gsub(source, "\n\tmagnet = %d+,", `\n\tmagnet = {PASS_ID},`, 1)
 	assert(count == 1, "magnet ID not found in Shared/Monetization")
 	-- The other passes have real IDs; zero them so join loading uses the saved state (no queries)
 	for _, key in { "vip", "pet_slot" } do
-		source, count = string.gsub(source, "\t" .. key .. " = %d+,", `\t{key} = 0,`, 1)
+		source, count = string.gsub(source, "\n\t" .. key .. " = %d+,", `\n\t{key} = 0,`, 1)
 		assert(count == 1, key .. " ID not found in Shared/Monetization")
 	end
 	native.Source = source
