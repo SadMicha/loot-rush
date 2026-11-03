@@ -483,7 +483,9 @@ type BuffCell = {
 	time: TextLabel,
 	stacks: TextLabel,
 	scale: UIScale,
-	total: number,
+	total: number, -- seconds that count as "full" for the veil
+	left: number, -- last shown seconds and when (to spot a re-application)
+	at: number,
 }
 local buffRow: Frame
 local buffCells: { [string]: BuffCell } = {}
@@ -552,7 +554,16 @@ local function buffCell(def: StatusRules.Def): BuffCell
 	cell.Parent = buffRow
 	scale.Scale = 0.4
 	Spring.target(scale, { Scale = 1 }, "Bouncy")
-	return { root = cell, veil = veil, time = time, stacks = stacks, scale = scale, total = 0 }
+	return {
+		root = cell,
+		veil = veil,
+		time = time,
+		stacks = stacks,
+		scale = scale,
+		total = 0,
+		left = 0,
+		at = 0,
+	}
 end
 
 local function buildStatus()
@@ -627,8 +638,16 @@ local function updateBuffs()
 			cell = buffCell(a.def)
 			buffCells[id] = cell
 		end
-		-- the longest time seen is "full" (refreshes and Rush chains raise it)
-		cell.total = math.max(cell.total, a.left)
+		-- A new application (any jump in the end time, also a shorter one) starts a new "full";
+		-- small additions (Rush chain kills) only raise it
+		local t = os.clock()
+		local jump = a.left - (cell.left - (t - cell.at))
+		if cell.total <= 0 or jump < -0.25 or jump > 1 then
+			cell.total = a.left
+		else
+			cell.total = math.max(cell.total, a.left)
+		end
+		cell.left, cell.at = a.left, t
 		cell.veil.Size = UDim2.fromScale(1, 1 - math.clamp(a.left / cell.total, 0, 1))
 		cell.time.Text = seconds(a.left)
 		cell.stacks.Text = if a.stacks > 1 then "×" .. a.stacks else ""
