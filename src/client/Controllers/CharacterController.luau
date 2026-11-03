@@ -30,24 +30,13 @@ local cards: Frame
 local nameBox: TextBox
 local status: TextLabel
 local waiting = false -- a request is out: no second tap until the server answers
-local ticket = 0 -- which request the safety timeout belongs to
-local REPLY_TIMEOUT = 8 -- seconds; unlocks the buttons if no answer ever comes
-local render: () -> ()
 
--- Sends one hero request and locks the buttons until the answer (or the timeout) arrives
+-- Sends one hero request and locks the buttons until the answer arrives. The server answers
+-- every setup/create/play (also when rate-limited or on an error), so there is no timeout:
+-- unlocking early would let a slow, still-running setup lock the class behind the player's back.
 local function request(action: string, a: any, b: any)
 	waiting = true
-	ticket += 1
-	local mine = ticket
 	Net.Character:FireServer(action, a, b)
-	task.delay(REPLY_TIMEOUT, function()
-		if waiting and ticket == mine then
-			waiting = false
-			if win.isOpen() then
-				render()
-			end
-		end
-	end)
 end
 
 local GAP = 24
@@ -222,7 +211,7 @@ local function renderCards()
 	end
 end
 
-function render()
+local function render()
 	renderHeroes()
 	renderCards()
 end
