@@ -33,6 +33,8 @@ export type EnemyAttributes = {
 --   nova    { pos, radius, color }
 --   chain   { points: {Vector3}, color }
 --   death   { pos, color }
---   levelup { pos, level }
+--   levelup { pos, level, who }
+--   act     { by, kind, skill?, basic, at? } - an attack, cast ("projectile", "arc", …, the
+--           Skills kind) or "dash" of player `by`; drives AnimController (Shared/Anim)
 
 return nil

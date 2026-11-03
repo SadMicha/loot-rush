@@ -820,9 +820,7 @@ local PHONE_DOCK = 0.72
 local PHONE_GAP = 2
 
 local function buildMenuDock()
-	local gui, r = Kit.scaledGui("LootRushMenuDock", 7, false, function()
-		return if UserInputService.TouchEnabled then Theme.HudDesignTouch else Theme.DesignSize
-	end, true)
+	local gui, r = Kit.scaledGui("LootRushMenuDock", 7, false, Kit.hudDesign, true)
 	gui.Enabled = false
 	menuGui = gui
 	for name in NO_DOCK do
@@ -1213,9 +1211,7 @@ function HudController.init()
 		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 	end)
 
-	hudGui, root = Kit.scaledGui("LootRushHUD", 1, false, function()
-		return if UserInputService.TouchEnabled then Theme.HudDesignTouch else Theme.DesignSize
-	end, true)
+	hudGui, root = Kit.scaledGui("LootRushHUD", 1, false, Kit.hudDesign, true)
 
 	buildOrbs()
 	buildXpBar()

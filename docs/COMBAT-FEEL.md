@@ -28,6 +28,9 @@ Build order step 4 (`docs/DECISIONS.md`). All tuning lives in `src/shared/Feel.l
   simulation keeps running.
 - Hit flashes are capped at `FLASH_MAX` (Roblox renders at most 31 Highlights).
 
+## Animations
+Attack, cast, roll, hit, death and level-up moves, plus enemy body language: `docs/ANIMATIONS.md`.
+
 ## Not yet (later PRs)
 
 Cancel windows into the dodge roll.

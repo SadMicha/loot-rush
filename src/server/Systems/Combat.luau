@@ -94,6 +94,18 @@ local function aliveEnemies(): { Model }
 	return list
 end
 
+-- Tells every client to animate an attack, cast or dash of `player` (AnimController, Shared/Anim).
+-- Purely visual: the client picks the move from the class weapon and the skill kind.
+local function act(player: Player, kind: string, skillId: string?, basic: boolean, at: Vector3?)
+	Net.Fx:FireAllClients("act", {
+		by = player.UserId,
+		kind = kind,
+		skill = skillId,
+		basic = basic,
+		at = at,
+	})
+end
+
 local function body(player: Player): (BasePart?, Humanoid?)
 	local character = player.Character
 	if not character then
@@ -1032,6 +1044,7 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	end
 	st.cdUntil[base.id] = now + skill.cooldown
 	Net.SkillCast:FireClient(player, base.id, skill.cooldown)
+	act(player, skill.kind, base.id, false, aim)
 	-- Bloom "Twin Ball": second ball shortly after
 	local twin = skill.twin
 	if skill.kind == "projectile" and twin then
@@ -1089,6 +1102,7 @@ local function dash(player: Player)
 	end
 	st.dashCharges -= 1
 	st.iframesUntil = now + Config.DASH_IFRAMES
+	act(player, "dash", nil, false, nil)
 end
 
 -- ------------------------------------------------------------------ Lifecycle
@@ -1124,7 +1138,22 @@ local function onPlayer(player: Player)
 	end)
 
 	local function onCharacter(character: Model)
-		character:WaitForChild("Humanoid")
+		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+		-- Death animation instead of falling apart: the body stays whole and in place, every
+		-- client plays the collapse and breaks it into bricks (AnimController)
+		humanoid.BreakJointsOnDeath = false
+		humanoid.Died:Once(function()
+			local root = character:FindFirstChild("HumanoidRootPart")
+			if root and root:IsA("BasePart") then
+				root.Anchored = true
+			end
+			-- the fallen (later hidden) body must not block anyone until the respawn
+			for _, d in character:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = false
+				end
+			end
+		end)
 		applyLevelStats(player, true)
 		applySpeed(player)
 	end
@@ -1200,6 +1229,7 @@ function Combat.start()
 							double.damage *= 2
 							basic = double
 						end
+						act(player, basic.kind, basic.id, true, enemyPos(target))
 						if basic.kind == "arc" then
 							castArc(player, root, basic, enemyPos(target))
 						else

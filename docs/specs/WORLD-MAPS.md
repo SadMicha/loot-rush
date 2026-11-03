@@ -21,6 +21,12 @@ Invisible walls (`Util/Fence`) around every walkable area, plus `Systems/FallGua
 anyone below the floor or outside the walls back on a safe spot (no damage, the run keeps going).
 The walls stay as a safety net even where the new natural barriers already block the way.
 
+Hardened after "you can sprint over the hub fence": the walls are 200 studs tall and 8 thick
+(`Config.BOUNDARY_HEIGHT/THICK`), each `Bounds` folder is tagged `MapBounds` with its walkable
+rectangle, the client (`BoundsController`) clamps its own character back to the nearest edge every
+frame (the client owns its physics), and FallGuard does the same push-back on the server. Only a
+player who fell below the floor or is far outside gets the full rescue to the safe spot.
+
 ## 2. Hiding the world edge (slice 1, this PR)
 
 Three layers around every map, built by `Shared/Models/Horizon` and themed per place:
