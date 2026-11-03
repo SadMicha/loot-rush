@@ -5,7 +5,7 @@
 --    as booked once it is saved (Data.saveNow) - otherwise NotProcessedYet, Roblox asks
 --    again later. The PurchaseId goes into account.receipts so nothing is credited twice.
 --  • Game passes: ownership on join (UserOwnsGamePassAsync with retries) and after a purchase in
---    game (PromptGamePassPurchaseFinished). If the query fails, the last saved
+--    game (PromptGamePassPurchaseFinished, confirmed with UserOwnsGamePassAsync). If the query fails, the last saved
 --    ownership (account.passes) applies. Result: attribute Pass_<key> = true, Pass.attr, bonuses via Boosts.
 -- The client opens the purchase dialog itself (MarketplaceService:PromptProductPurchase /
 -- PromptGamePassPurchase) - the server only trusts the Roblox callbacks.
@@ -157,7 +157,12 @@ function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	-- Receipts are account-wide: a purchase is booked once, whichever character is played
 	local account = if player then Data.account(player) else nil
-	if not product or not player or not account then
+	if not product then
+		-- An ID missing from Shared/Monetization: never credited until it is added there
+		warn("[LootRush] receipt for an unknown product:", info.ProductId, info.PlayerId)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	if not player or not account then
 		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox asks again on the next join
 	end
 	local purchase = tostring(info.PurchaseId)
@@ -180,22 +185,39 @@ function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
+-- ------------------------------------------------------------------ Game passes bought in game
+-- PromptGamePassPurchaseFinished is only a hint that a dialog closed, not proof of a purchase
+-- (exploit tools have faked it to unlock passes for free). Ownership is asked from Roblox, whose
+-- answer reflects a purchase made in this server right away. Not confirmed (or the query failed):
+-- nothing is granted now, loadPasses picks the pass up on the next join.
+function Monetization.passPurchased(player: Player, id: any, purchased: any)
+	if purchased ~= true or typeof(id) ~= "number" or not player.Parent then
+		return
+	end
+	local pass = Rules.passById(id)
+	if not pass or Monetization.owns(player, pass.key) then
+		return
+	end
+	local has = askOwns(player, id)
+	if not player.Parent then
+		return -- left while asking: writing owned[player] again would leak the entry
+	end
+	if has ~= true then
+		warn("[LootRush] game pass purchase not confirmed by Roblox:", player.UserId, id)
+		return
+	end
+	setOwned(player, pass)
+	Net.ShopResult:FireClient(player, {
+		ok = true,
+		text = pass.name .. " unlocked forever!",
+		offerId = pass.key,
+		robux = true,
+	})
+end
+
 function Monetization.init()
 	MarketplaceService.ProcessReceipt = Monetization.processReceipt
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
-		function(player: Player, id: number, purchased: boolean)
-			local pass = if purchased then Rules.passById(id) else nil
-			if pass and player.Parent then
-				setOwned(player, pass)
-				Net.ShopResult:FireClient(player, {
-					ok = true,
-					text = pass.name .. " unlocked forever!",
-					offerId = pass.key,
-					robux = true,
-				})
-			end
-		end
-	)
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(Monetization.passPurchased)
 	Boosts.source("passes", function(player)
 		return Rules.bonus(function(key)
 			return Monetization.owns(player, key)

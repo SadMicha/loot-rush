@@ -31,6 +31,7 @@ end)
 
 local STORE = "LootRush_Profile_v3/global"
 local PRODUCT_ID = 777 -- test ID for soulstars_s (the real IDs are still 0 = no product)
+local PASS_ID = 4243 -- test ID for the magnet pass (last in the list, so join loading stays quick)
 
 -- Gives soulstars_s a real product ID in the sandbox's copy of Shared/Monetization (before boot)
 local function liveProduct()
@@ -38,6 +39,8 @@ local function liveProduct()
 	local source, count =
 		string.gsub(native.Source, "soulstars_s = 0,", `soulstars_s = {PRODUCT_ID},`)
 	assert(count == 1, "soulstars_s ID not found in Shared/Monetization")
+	source, count = string.gsub(source, "magnet = 0,", `magnet = {PASS_ID},`)
+	assert(count == 1, "magnet ID not found in Shared/Monetization")
 	native.Source = source
 	-- The rules tests above already loaded the old source: start the game with empty module caches
 	sim.modules.server = {}
@@ -161,5 +164,33 @@ describe("Monetization in game", function()
 		expect(hasProfile).toBe(true)
 		expect(started).toBe(true)
 		expect(tracked).toBe(false)
+	end)
+
+	it("unlocks a pass bought in game only once Roblox confirms the purchase", function()
+		local CUSTOM_KEY = "MarketplaceService.UserOwnsGamePassAsync"
+		local confirmed = false
+		sim:custom("MarketplaceService", "UserOwnsGamePassAsync", {
+			method = function()
+				return confirmed
+			end,
+		})
+		sim.customCache[CUSTOM_KEY] = nil
+		local forged, real, saved
+		sim:runAs("server", function(req)
+			local M = req("ServerScriptService.Server.Systems.Monetization")
+			-- A faked PromptGamePassPurchaseFinished: Roblox does not know the purchase
+			M.passPurchased(sim.player, PASS_ID, true)
+			forged = sim.player:GetAttribute("Pass_magnet")
+			confirmed = true
+			M.passPurchased(sim.player, PASS_ID, true)
+			real = sim.player:GetAttribute("Pass_magnet")
+			saved = req("ServerScriptService.Server.Systems.Data").account(sim.player).passes.magnet
+		end)
+		sim:run(0.5)
+		sim.customs.MarketplaceService.UserOwnsGamePassAsync = nil
+		sim.customCache[CUSTOM_KEY] = nil
+		expect(forged).toBeNil()
+		expect(real).toBe(true)
+		expect(saved).toBe(true)
 	end)
 end)
