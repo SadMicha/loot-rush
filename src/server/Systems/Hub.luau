@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
+local Fence = require(script.Parent.Parent.Util.Fence)
 
 local Hub = {}
 
@@ -423,6 +424,7 @@ function Hub.init()
 	root.Name = "Lumenhaven"
 	buildGround(root)
 	buildTown(root)
+	Fence.build(root, origin, Config.HUB_HALF, Config.HUB_HALF) -- nobody walks off the Hub
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Anchored = true
