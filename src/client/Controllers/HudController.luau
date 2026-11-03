@@ -41,7 +41,8 @@ local AbilitiesController = require(script.Parent.AbilitiesController)
 local StarNetController = require(script.Parent.StarNetController)
 local ForgeController = require(script.Parent.ForgeController)
 local AtlasController = require(script.Parent.AtlasController)
-local ShopController = require(script.Parent.ShopController)
+local MarketController = require(script.Parent.MarketController)
+local StoreController = require(script.Parent.StoreController)
 local PetWindowController = require(script.Parent.PetWindowController)
 local QuestController = require(script.Parent.QuestController)
 local ProgressController = require(script.Parent.ProgressController)
@@ -68,7 +69,7 @@ local MENU_ACTION: { [string]: () -> () } = {
 	skills = AbilitiesController.toggle,
 	forge = ForgeController.toggle,
 	atlas = AtlasController.toggle,
-	shop = ShopController.toggle,
+	shop = StoreController.toggle, -- the Robux Shop (the Market is in the Hub)
 	pets = PetWindowController.toggle,
 	-- "Hub": back to the hub while in a Rift (there is nothing to do when already there)
 	hub = function()
@@ -880,11 +881,11 @@ local function buildCalmPanels()
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
 	res.Name = "Resources"
 	resList = Kit.list(res, Enum.FillDirection.Horizontal, 8)
-	-- Capsule, attribute, color, shop tab behind the +
+	-- Capsule, attribute, color, tab behind the + (Robux Shop; shards only trade in the Market)
 	for i, spec in
 		{
 			{ "gold", "Gold", C.Gold, "gold" },
-			{ "crystal", "Shards", C.Cyan, "material" },
+			{ "crystal", "Shards", C.Cyan, "market:material" },
 			{ "soulstar", "Soulstars", Theme.Rarity.epic, "soulstars" },
 		} :: { { any } }
 	do
@@ -902,7 +903,12 @@ local function buildCalmPanels()
 			plus.Name = "Shop_" .. (spec[1] :: string)
 			local tabId = spec[4] :: string
 			plus.Activated:Connect(function()
-				ShopController.open(tabId)
+				local market = string.match(tabId, "^market:(.+)$")
+				if market then
+					MarketController.open(market)
+				else
+					StoreController.open(tabId)
+				end
 			end)
 		end
 		pill.LayoutOrder = i

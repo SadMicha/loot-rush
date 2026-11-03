@@ -1,6 +1,7 @@
 --!strict
 -- Robux on the server (IDs: Shared/Monetization).
---  • Developer Products: ProcessReceipt credits the goods via Shop.grant. A purchase only counts
+--  • Developer Products: ProcessReceipt credits the goods (Soulstars/gold via Shop.grant,
+--    cosmetics via Cosmetics.give - an already owned cosmetic is refunded in Soulstars). A purchase only counts
 --    as booked once it is saved (Data.saveNow) - otherwise NotProcessedYet, Roblox asks
 --    again later. The PurchaseId goes into account.receipts so nothing is credited twice.
 --  • Game passes: ownership on join (UserOwnsGamePassAsync with retries) and after a purchase in
@@ -13,11 +14,15 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local CosmeticRules = require(ReplicatedStorage.Shared.Cosmetics)
+local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Rules = require(ReplicatedStorage.Shared.Monetization)
-local ShopRules = require(ReplicatedStorage.Shared.Shop)
+local Store = require(ReplicatedStorage.Shared.Store)
 local Boosts = require(script.Parent.Boosts)
+local Cosmetics = require(script.Parent.Cosmetics)
 local Data = require(script.Parent.Data)
 local Shop = require(script.Parent.Shop)
 
@@ -102,9 +107,45 @@ end
 Monetization.loadPasses = loadPasses
 
 -- ------------------------------------------------------------------ Developer Products
+-- Credits one product (no checks: ProcessReceipt already matched the purchase). Returns the
+-- feedback text ("+550 Soulstars · Ember Trail").
+local function grant(player: Player, account: Profile.Account, product: Rules.Product): string
+	local parts = {}
+	local refund = 0
+	if product.soulstars then
+		Shop.grant(player, "soulstars", product.soulstars)
+		table.insert(parts, "+" .. Format.int(product.soulstars) .. " Soulstars")
+	end
+	if product.gold then
+		local profile = Data.get(player)
+		local best = if profile then Atlas.bestDepth(profile.atlas) else 1
+		local gold = Store.goldFor(product, best)
+		Shop.grant(player, "gold", gold)
+		table.insert(parts, "+" .. Format.int(gold) .. " Gold")
+	end
+	local cosmetics: { string } = product.cosmetics or {}
+	for _, id in cosmetics do
+		if Cosmetics.give(player, id) then
+			local c = CosmeticRules.ById[id]
+			table.insert(parts, if c then c.name else id)
+		else
+			refund += product.refund or 0
+		end
+	end
+	if refund > 0 then
+		Shop.grant(player, "soulstars", refund)
+		table.insert(parts, "+" .. Format.int(refund) .. " Soulstars (already owned)")
+	end
+	if product.once then
+		account.bought[product.key] = true
+	end
+	Cosmetics.sync(player)
+	return table.concat(parts, " · ")
+end
+
 function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	local product =
-		ShopRules.productById(if typeof(info.ProductId) == "number" then info.ProductId else 0)
+		Rules.productById(if typeof(info.ProductId) == "number" then info.ProductId else 0)
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	-- Receipts are account-wide: a purchase is booked once, whichever character is played
 	local account = if player then Data.account(player) else nil
@@ -113,14 +154,16 @@ function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision
 	end
 	local purchase = tostring(info.PurchaseId)
 	if not table.find(account.receipts, purchase) then
-		Shop.grant(player, product.give, product.amount)
+		local text = grant(player, account, product)
 		table.insert(account.receipts, purchase)
 		while #account.receipts > Profile.MAX_RECEIPTS do
 			table.remove(account.receipts, 1)
 		end
 		Net.ShopResult:FireClient(player, {
 			ok = true,
-			text = string.format("+%d %s", product.amount, ShopRules.KindName[product.give]),
+			text = text,
+			offerId = product.key,
+			robux = true,
 		})
 	end
 	if not Data.saveNow(player) then
@@ -136,7 +179,12 @@ function Monetization.init()
 			local pass = if purchased then Rules.passById(id) else nil
 			if pass and player.Parent then
 				setOwned(player, pass)
-				Net.ShopResult:FireClient(player, { ok = true, text = pass.name .. " unlocked!" })
+				Net.ShopResult:FireClient(player, {
+					ok = true,
+					text = pass.name .. " unlocked forever!",
+					offerId = pass.key,
+					robux = true,
+				})
 			end
 		end
 	)

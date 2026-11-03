@@ -1,6 +1,6 @@
 --!strict
 -- Stations in the "Lumenhaven" Hub: the server sets ProximityPrompts with the attribute "Window"
--- (Rift Gate -> Atlas, Forge, Market -> Shop, Stash -> Inventory, Pet Stable -> Pets).
+-- (Rift Gate -> Atlas, Forge, Market -> Market window (attribute "Shop"), Stash -> Inventory, Pet Stable -> Pets).
 -- The window is opened here. Stations without their own window in OPEN (e.g. "Pets")
 -- fire HubController.Requested(name) - a new window hooks in there.
 
@@ -9,8 +9,8 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local AtlasController = require(script.Parent.AtlasController)
 local ForgeController = require(script.Parent.ForgeController)
 local InventoryController = require(script.Parent.InventoryController)
+local MarketController = require(script.Parent.MarketController)
 local QuestController = require(script.Parent.QuestController)
-local ShopController = require(script.Parent.ShopController)
 
 local HubController = {
 	-- (window: string) for stations that have no window in OPEN (yet)
@@ -28,8 +28,8 @@ local OPEN: { [string]: () -> () } = {
 		end
 	end,
 	Inventory = InventoryController.toggle,
-	Shop = function()
-		ShopController.open()
+	Shop = function() -- the Market station (stable attribute name)
+		MarketController.open()
 	end,
 }
 
