@@ -277,6 +277,7 @@ local function breakApart(rig: Rig)
 	for _, d in rig.character:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.LocalTransparencyModifier = 1
+			d.CanCollide = false -- the server does the same; locally it takes effect at once
 		elseif d:IsA("Decal") then
 			d.Transparency = 1
 		end

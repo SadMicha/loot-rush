@@ -1147,6 +1147,12 @@ local function onPlayer(player: Player)
 			if root and root:IsA("BasePart") then
 				root.Anchored = true
 			end
+			-- the fallen (later hidden) body must not block anyone until the respawn
+			for _, d in character:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = false
+				end
+			end
 		end)
 		applyLevelStats(player, true)
 		applySpeed(player)
