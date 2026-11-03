@@ -107,6 +107,23 @@ Quests.Names = table.freeze({
 	auto_salvage = "Auto-Salvage",
 } :: { [string]: string })
 
+-- Quest waypoint (docs/ROADMAP-1.0.md O1): the hub station a goal is done at, by the window name
+-- of its prompt (Hub builds a part "Station_<window>"). Goals that happen in a Rift or in a
+-- window have none.
+Quests.Waypoints = table.freeze({
+	rift = "Atlas",
+	depth = "Atlas",
+	forge = "Forge",
+	salvage = "Inventory",
+	hatch = "Pets",
+} :: { [string]: string })
+
+-- Station window the quest at this chain step points to, nil = no waypoint
+function Quests.waypoint(step: number): string?
+	local q = Quests.Chain[step]
+	return if q then Quests.Waypoints[q.goal] else nil
+end
+
 function Quests.fresh(): Data
 	return { step = 1, count = 0, unlocks = {} }
 end

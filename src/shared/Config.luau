@@ -27,6 +27,7 @@ return table.freeze({
 	MOVE_SAMPLE = 0.25, -- seconds between position samples
 	MOVE_SLACK = 1.35, -- walk speed factor allowed (lag, slopes, knockback)
 	MOVE_GRACE = 4, -- studs per sample on top (replication jitter)
+	WAYPOINT_HIDE = 14, -- studs from the quest station where the waypoint beam and marker hide
 	MOVE_BURST = 40, -- studs of extra distance banked for dashes (refills over DASH_RECHARGE)
 
 	-- World
