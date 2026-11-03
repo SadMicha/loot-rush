@@ -9,6 +9,7 @@
 local Biomes = require(script.Biomes)
 local Buildings = require(script.Buildings)
 local Creatures = require(script.Creatures)
+local Horizon = require(script.Horizon)
 local Kit = require(script.Kit)
 local Loot = require(script.Loot)
 local Props = require(script.Props)
@@ -18,6 +19,7 @@ local Models = {
 	Biomes = Biomes,
 	Buildings = Buildings,
 	Creatures = Creatures,
+	Horizon = Horizon,
 	Kit = Kit,
 	Loot = Loot,
 	Props = Props,

@@ -55,6 +55,16 @@ type Look = {
 	fill: (r: Random, i: number) -> Model, -- dense deco in the ring and at the edge
 	detail: (r: Random, i: number) -> Model, -- small ground details without collision
 	deco: (parent: Instance, rng: Random) -> (), -- fixed placements, obstacles, landmark
+	-- Endless surroundings beyond the ring (Shared/Models/Horizon); fill = look.fill
+	horizon: {
+		ground: Color3,
+		rock: { Color3 },
+		cap: Color3?,
+		capMaterial: Enum.Material?,
+		height: number?,
+		shrink: number?,
+		kind: ("mountains" | "clouds")?,
+	},
 }
 
 local rng = Random.new(7)
@@ -886,6 +896,16 @@ local LOOKS: { [string]: Look } = {
 		fill = meadowFill,
 		detail = meadowDetail,
 		deco = meadow,
+		horizon = {
+			ground = Color3.fromHex("#4FA52F"),
+			rock = {
+				Color3.fromHex("#8C8A80"),
+				Color3.fromHex("#7C7A72"),
+				Color3.fromHex("#9A978C"),
+			},
+			cap = Color3.fromHex("#F2F4F8"),
+			height = 40,
+		},
 	},
 	crystal_caves = {
 		top = { Color3.fromHex("#4B5878"), Color3.fromHex("#435070") },
@@ -908,6 +928,18 @@ local LOOKS: { [string]: Look } = {
 		fill = cavesFill,
 		detail = cavesDetail,
 		deco = caves,
+		horizon = {
+			ground = Color3.fromHex("#2A2F45"),
+			rock = {
+				Color3.fromHex("#3A4462"),
+				Color3.fromHex("#323B56"),
+				Color3.fromHex("#2B334C"),
+			},
+			cap = Color3.fromHex("#4FD8F5"),
+			capMaterial = Enum.Material.Neon,
+			height = 50,
+			shrink = 0.62,
+		},
 	},
 	mushroom_swamp = {
 		top = { Color3.fromHex("#5E7A3A"), Color3.fromHex("#557034") },
@@ -931,6 +963,17 @@ local LOOKS: { [string]: Look } = {
 		fill = swampFill,
 		detail = swampDetail,
 		deco = swamp,
+		horizon = {
+			ground = Color3.fromHex("#3F5A2A"),
+			rock = {
+				Color3.fromHex("#5A4A6A"),
+				Color3.fromHex("#4E4060"),
+				Color3.fromHex("#5E7A3A"),
+			},
+			cap = Color3.fromHex("#6F8F3A"),
+			height = 30,
+			shrink = 0.75,
+		},
 	},
 	fire_desert = {
 		top = { Color3.fromHex("#D9A066"), Color3.fromHex("#CF955C") },
@@ -955,6 +998,17 @@ local LOOKS: { [string]: Look } = {
 		fill = desertFill,
 		detail = desertDetail,
 		deco = desert,
+		horizon = {
+			ground = Color3.fromHex("#CF955C"),
+			rock = {
+				Color3.fromHex("#A86A3A"),
+				Color3.fromHex("#8A5230"),
+				Color3.fromHex("#6B3A26"),
+			},
+			cap = Color3.fromHex("#D9A066"),
+			height = 34,
+			shrink = 0.92, -- mesas
+		},
 	},
 	sky_islands = {
 		top = { Color3.fromHex("#D6CEBD"), Color3.fromHex("#CBC2B0") },
@@ -966,6 +1020,7 @@ local LOOKS: { [string]: Look } = {
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
+		horizon = { ground = Color3.fromHex("#E6ECF4"), rock = {}, kind = "clouds", height = 30 },
 	},
 	altered_world = {
 		top = { Color3.fromHex("#3A2A52"), Color3.fromHex("#33244A") },
@@ -988,6 +1043,18 @@ local LOOKS: { [string]: Look } = {
 		fill = riftFill,
 		detail = riftDetail,
 		deco = rift,
+		horizon = {
+			ground = Color3.fromHex("#1E1530"),
+			rock = {
+				Color3.fromHex("#2A1E3E"),
+				Color3.fromHex("#33244A"),
+				Color3.fromHex("#3A2A52"),
+			},
+			cap = Color3.fromHex("#FF5AD0"),
+			capMaterial = Enum.Material.Neon,
+			height = 46,
+			shrink = 0.62,
+		},
 	},
 }
 World.Looks = LOOKS
@@ -1037,6 +1104,23 @@ function World.build(region: Atlas.Region?, slot: number?)
 		sparkles(folder, look.particles)
 	end
 	Fence.build(folder, Vector3.zero, Fence.arenaHalf()) -- nobody walks or dashes off the playfield
+	-- Endless surroundings beyond the environment ring (no world edge in view)
+	local hz = look.horizon
+	Models.Horizon.build(folder, {
+		center = Vector3.zero,
+		halfX = (HX + RING + 0.5) * T,
+		halfZ = (HZ + RING + 0.5) * T,
+		inner = 18,
+		ground = hz.ground,
+		rock = hz.rock,
+		cap = hz.cap,
+		capMaterial = hz.capMaterial,
+		height = hz.height,
+		shrink = hz.shrink,
+		kind = hz.kind,
+		seed = #id * 97,
+		fill = if hz.kind == "clouds" then nil else look.fill,
+	})
 	-- built at the origin, then moved to the slot
 	local center = World.center(n)
 	if center.Magnitude > 0 then

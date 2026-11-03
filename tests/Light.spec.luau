@@ -75,9 +75,10 @@ describe("Arena slots", function()
 			info.slot1 = World.current(1)
 		end)
 		sim:run(0.5)
-		expect(info.center).toBe(Vector3.new(400, 0, 0))
+		local spacing = require("ReplicatedStorage.Shared.Config").ARENA_SPACING
+		expect(info.center).toBe(Vector3.new(spacing, 0, 0))
 		expect(info.region).toBe("mushroom_swamp")
-		expect(info.minX).toBeGreaterThan(200)
+		expect(info.minX).toBeGreaterThan(spacing / 2) -- incl. the horizon, never reaches slot 1
 		expect(info.count).toBe(1)
 		expect(info.other).toBe(0)
 		expect(info.gone).toBe(true)
