@@ -30,14 +30,14 @@ local function walls(folder: Instance): number
 end
 
 describe("Fall guard", function()
-	it("fences the Hub and the arena with four invisible walls", function()
+	it("fences the Hub with four invisible walls and the whole Rift Trail map", function()
 		sim:boot({ seconds = 2 })
 		local hub, arena = server(function()
 			local region = workspace.Arena:FindFirstChildWhichIsA("Folder")
 			return walls(workspace.Lumenhaven), if region then walls(region) else 0
 		end)
 		expect(hub).toBe(4)
-		expect(arena).toBe(4)
+		expect(arena).toBeGreaterThan(8) -- arena + corridors + clearings
 	end)
 
 	it("walls answer raycasts, so a leap stops at the edge instead of passing through", function()
@@ -57,7 +57,7 @@ describe("Fall guard", function()
 			local region = workspace.Arena:FindFirstChildWhichIsA("Folder")
 			for _, folder in { workspace.Lumenhaven, region } do
 				for _, p in folder.Bounds:GetChildren() do
-					local s = p.Size
+					local s = if p:IsA("BasePart") then p.Size else Vector3.new(8, 200, 8)
 					if s.Y < 150 or math.min(s.X, s.Z) < 8 then
 						return false
 					end
@@ -68,22 +68,31 @@ describe("Fall guard", function()
 		expect(ok).toBe(true)
 	end)
 
-	it("tags every Bounds folder with its walkable rectangle in world space", function()
-		local hub, arena = server(function(req)
+	it("tags the walkable rectangles of every map in world space", function()
+		local hub, areas, covered = server(function(req)
 			local Bounds = req("ReplicatedStorage.Shared.Util.Bounds")
+			local World = req("ServerScriptService.Server.Systems.World")
 			local cs = game:GetService("CollectionService")
 			local region = workspace.Arena:FindFirstChildWhichIsA("Folder")
-			local a = region.Bounds
-			return cs:HasTag(workspace.Lumenhaven.Bounds, Bounds.TAG) and Bounds.read(
-				workspace.Lumenhaven.Bounds
-			),
-				cs:HasTag(a, Bounds.TAG) and Bounds.read(a)
+			local rects = {}
+			for _, a in region.Bounds:GetChildren() do
+				if cs:HasTag(a, Bounds.TAG) then
+					table.insert(rects, Bounds.read(a))
+				end
+			end
+			-- every rectangle center is on a walkable tile (the union matches the trail)
+			local ok = #rects > 0
+			for _, r in rects do
+				ok = ok and World.walkableAt(1, r.center)
+			end
+			local hubBounds = workspace.Lumenhaven.Bounds
+			return cs:HasTag(hubBounds, Bounds.TAG) and Bounds.read(hubBounds), #rects, ok
 		end)
 		expect(hub).never.toBeNil()
 		expect(hub.halfX).toBe(Config.HUB_HALF)
 		expect((hub.center - Config.HUB_ORIGIN).Magnitude < 0.01).toBe(true)
-		expect(arena).never.toBeNil()
-		expect(arena.halfX > 40).toBe(true)
+		expect(areas).toBe(3 + Config.TRAIL_CLEARINGS * 2) -- arena, start, corridors + tail, clearings
+		expect(covered).toBe(true)
 	end)
 
 	it("pushes back to the edge a player who got a little past a wall", function()
@@ -152,21 +161,22 @@ describe("Fall guard", function()
 		expect((rootPos() - here).Magnitude < 1).toBe(true)
 	end)
 
-	it("in a Rift brings a fallen player back to the arena start, run still going", function()
+	it("in a Rift brings a fallen player back to the trail start, run still going", function()
 		sim:runAs("client", function(req)
 			req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", "green_plains")
 		end)
 		sim:run(0.5)
-		local center = server(function(req, player)
-			local c = req("ServerScriptService.Server.Systems.Rift").centerOf(player)
+		local spot = server(function(req, player)
+			local Rift = req("ServerScriptService.Server.Systems.Rift")
+			local c = Rift.centerOf(player)
 			if c then
 				player.Character:PivotTo(CFrame.new(c + Vector3.new(0, -50, 0)))
 			end
-			return c
+			return Rift.safeSpot(player)
 		end)
-		expect(center).never.toBeNil()
+		expect(spot).never.toBeNil()
 		sim:run(0.6)
-		expect((rootPos() - (center + Config.RIFT_START)).Magnitude < 1).toBe(true)
+		expect((rootPos() - spot).Magnitude < 1).toBe(true)
 		local region = server(function(_, player)
 			return player:GetAttribute("RiftRegion")
 		end)

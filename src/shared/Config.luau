@@ -28,6 +28,12 @@ return table.freeze({
 	TILE_SIZE = 8,
 	ARENA_TILES_X = 17, -- tiles per region arena (same grid in all regions)
 	ARENA_TILES_Z = 15,
+	-- Rift Trail (Shared/Trail): start → corridor → clearings with packs → boss arena
+	TRAIL_CLEARINGS = 3, -- clearings per depth, one enemy pack each (shown as "Area 1/3")
+	TRAIL_CLEARING = 8, -- tiles per clearing side
+	TRAIL_CORRIDOR = 3, -- tiles of corridor between two clearings
+	TRAIL_CORRIDOR_WIDTH = 3, -- tiles across a corridor
+	TRAIL_SWAY = 3, -- tiles a clearing may shift sideways (winding path)
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
 	BOUNDARY_HEIGHT = 200, -- studs of invisible wall, starting FALL_DEPTH below the floor

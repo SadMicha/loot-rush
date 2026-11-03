@@ -3,7 +3,8 @@
 -- (testable); loading, saving and sessions are Systems/Data on ProfileStore.
 --
 -- Since v4 the save is an ACCOUNT holding CHARACTERS (docs/specs/SEASONS.md §6, docs/CLASSES.md):
---   Account   = account-wide values (Soulstars, Robux receipts, game passes, pets) + characters
+--   Account   = account-wide values (Soulstars, Robux receipts, game passes, pets, cosmetics) +
+--               characters
 --   Character = everything a hero owns (gold, level, gear, skills, atlas, class …); the class is
 --               locked once the character is set up (name + class on the setup screen)
 -- Gameplay sees the active character (Data.get); account values through Data.account.
@@ -15,6 +16,7 @@
 -- JSON-safe values only: numbers, strings, bools, lists and tables with string keys.
 
 local Classes = require(script.Parent.Classes)
+local Cosmetics = require(script.Parent.Cosmetics)
 local Items = require(script.Parent.Items)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
@@ -54,6 +56,9 @@ export type Account = {
 	pets: Pets.Data, -- pets (Shared/Pets), shared by all characters
 	passes: { [string]: boolean }, -- last known game pass ownership (outage buffer, Systems/Monetization)
 	settings: Settings.Data, -- settings window (Shared/Settings), the same for every character
+	cosmetics: { [string]: boolean }, -- owned cosmetics (Shared/Cosmetics ids)
+	wear: { [string]: string }, -- slot → worn cosmetic id ("" = none)
+	bought: { [string]: boolean }, -- one-time Robux products already bought (Monetization once)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -71,6 +76,7 @@ Profile.NAME_MAX = 16
 Profile.MAX_RECEIPTS = 50
 Profile.MAX_UNKNOWN_PASSES = 20 -- game passes only a newer server knows (stay saved)
 Profile.MAX_KEY_LEN = 64
+Profile.MAX_FLAGS = 64 -- cap for unknown keys in account.cosmetics / account.bought
 
 local DEFAULTS: Data = {
 	id = "",
@@ -99,6 +105,9 @@ local ACCOUNT_DEFAULTS = {
 	pets = Pets.fresh(),
 	passes = {},
 	settings = Settings.fresh(), -- contents checked by Settings.reconcile
+	cosmetics = {},
+	wear = { trail = "", aura = "" },
+	bought = {},
 	characters = {},
 	active = "",
 }
@@ -282,6 +291,41 @@ function Profile.reconcileAccount(raw: any): Account
 	end
 	data.passes = passes
 	data.settings = Settings.reconcile(data.settings)
+	-- Cosmetics and one-time purchases: string keys with true; unknown keys (newer server) stay,
+	-- capped. Worn cosmetics must be owned and fit their slot.
+	local function flags(input: any): { [string]: boolean }
+		local out = {}
+		local unknown = 0
+		for key, on in input do
+			if
+				typeof(key) == "string"
+				and #key > 0
+				and #key <= Profile.MAX_KEY_LEN
+				and on == true
+			then
+				if Cosmetics.ById[key] == nil and Monetization.ProductByKey[key] == nil then
+					unknown += 1
+					if unknown > Profile.MAX_FLAGS then
+						continue
+					end
+				end
+				out[key] = true
+			end
+		end
+		return out
+	end
+	data.cosmetics = flags(data.cosmetics)
+	data.bought = flags(data.bought)
+	local wear = {}
+	for _, slot in Cosmetics.Slots do
+		local id = data.wear[slot]
+		wear[slot] = if typeof(id) == "string"
+				and data.cosmetics[id]
+				and Cosmetics.fits(slot, id)
+			then id
+			else ""
+	end
+	data.wear = wear
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}

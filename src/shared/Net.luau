@@ -13,7 +13,10 @@
 --   ForgeAct  (C→S): actionId: string, itemId: string, affix: number? (Forge)
 --   ForgeResult (S→C): { ok, text, itemId?, used? } - Forge feedback
 --   Buy       (C→S): offerId: string - in-game purchase in the shop (Systems/Shop)
---   ShopResult (S→C): { ok, text, offerId? } - shop feedback
+--   ShopResult (S→C): { ok, text, offerId?, robux? } - shop feedback; robux = true for a booked
+--                    Robux purchase (offerId = Shared/Store offer id, the Shop window celebrates)
+--   Wear      (C→S): slot: string, cosmeticId: string ("" = take off) - Systems/Cosmetics
+--   Store     (S→C): { cosmetics = { id }, wear = { [slot]: id }, bought = { key } } - Robux shop state
 --   Pet       (C→S): action: "hatch" | "equip" | "unequip", id: string (egg or pet ID)
 --   Pets      (S→C): { owned, equipped, slots, odds } - pet state (Shared/Pets);
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
@@ -52,6 +55,8 @@ local NAMES = {
 	"ForgeResult",
 	"Buy",
 	"ShopResult",
+	"Wear",
+	"Store",
 	"Pet",
 	"Pets",
 	"PetResult",
@@ -104,6 +109,8 @@ return table.freeze({
 	ForgeResult = get("ForgeResult"),
 	Buy = get("Buy"),
 	ShopResult = get("ShopResult"),
+	Wear = get("Wear"),
+	Store = get("Store"),
 	Pet = get("Pet"),
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),
