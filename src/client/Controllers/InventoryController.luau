@@ -240,8 +240,9 @@ local function selectItem(item: Items.Item, isEquipped: boolean)
 end
 
 -- New render of a selected cell: small bounce so the choice is felt
+local layoutRender = false -- true while a resize rebuilds the grid: no loot reveals then
 local function popIfSelected(cell: GuiButton, item: Items.Item)
-	if freshIds[item.id] and gui.Enabled then
+	if freshIds[item.id] and gui.Enabled and not layoutRender then
 		freshIds[item.id] = nil
 		task.defer(Flat.reveal, cell)
 	end
@@ -1080,7 +1081,9 @@ local function relayout(h: number)
 		gridLayout.CellSize = UDim2.fromOffset(cellSize, cellSize)
 		resetGrid() -- cells are rebuilt at the new size
 	end
+	layoutRender = true
 	InventoryController.render()
+	layoutRender = false
 end
 
 -- Fit the window into the screen: full width, and as tall as the room above the menu dock allows
