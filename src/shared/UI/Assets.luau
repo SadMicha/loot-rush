@@ -592,10 +592,22 @@ Assets.Class = table.freeze(class)
 -- assets/ui-asset-ids.csv after the upload: model = "weapon_<id>_model" (Model asset from the FBX),
 -- texture = "weapon_<id>_texture" (Image asset from Color.png). Empty = part-built fallback.
 Assets.Weapon = table.freeze({
-	warrior_sword = table.freeze({ model = "", texture = "" }),
-	ranger_bow = table.freeze({ model = "", texture = "" }),
-	mage_staff = table.freeze({ model = "", texture = "" }),
-	druid_scepter = table.freeze({ model = "", texture = "" }),
+	warrior_sword = table.freeze({
+		model = "rbxassetid://93287839309680",
+		texture = "rbxassetid://130914505484937",
+	}),
+	ranger_bow = table.freeze({
+		model = "rbxassetid://137257012727377",
+		texture = "rbxassetid://80404162491006",
+	}),
+	mage_staff = table.freeze({
+		model = "rbxassetid://122366270633643",
+		texture = "rbxassetid://122658965398935",
+	}),
+	druid_scepter = table.freeze({
+		model = "rbxassetid://100336404154752",
+		texture = "rbxassetid://106110248003359",
+	}),
 } :: { [string]: { model: string, texture: string } })
 
 -- Looped ambience per place (Shared/Looks `ambience` key → sound id, AmbienceController).

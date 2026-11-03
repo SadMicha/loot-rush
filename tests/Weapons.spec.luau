@@ -41,7 +41,7 @@ describe("Held weapon in game", function()
 			local held = player.Character:FindFirstChild("HeldWeapon")
 			local welds = 0
 			for _, d in held:GetDescendants() do
-				if d:IsA("WeldConstraint") then
+				if d:IsA("Weld") then
 					welds += 1
 				end
 			end
