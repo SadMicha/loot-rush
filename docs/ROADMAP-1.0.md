@@ -179,8 +179,8 @@ season machinery before Season 1 depends on it.
 |---|---|
 | Length | **4 weeks** (shorter than the 10-week standard), then a 1-week break while Season 1 is finished. |
 | Mechanic | None new. The "mechanic" under test is the core game. |
-| Characters | **Recommended:** Beta characters are normal Legacy heroes (no league split yet). Lower risk for launch; the league split and season-end migration first ship with Season 1 and are tested on the test place with a short fake season. (Alternative in §8 decision 1.) |
-| Season Journey | ~15 challenges covering the whole game: reach depth 10/20, clear every region boss, beat a boss on Veteran, socket 3 spell stones, finish a Rush with 50 kills, salvage 50 items, find 3 uniques, claim 5 daily rewards. Each one is also an analytics checkpoint. |
+| Characters | **(owner, 2026-11-03) Like a real season:** players create fresh characters in the **Beta league**; when the Beta ends, every Beta character moves into **Legacy** with everything it owns (SEASONS §6). This tests the full league split and season-end migration before Season 1 depends on it. |
+| Beta challenges (Season Journey) | **(owner)** beta challenges that reward cosmetics and similar, like a real season. ~15 challenges covering the whole game: reach depth 10/20, clear every region boss, beat a boss on Veteran, socket 3 spell stones, finish a Rush with 50 kills, salvage 50 items, find 3 uniques, claim 5 daily rewards. Each one is also an analytics checkpoint. |
 | Rewards | Cosmetic and account-wide, forever: **"Beta Tester"** title, a gold stud trail, a hub banner. Nobody loses anything when the Beta ends. |
 | Ladder | Beta board per class and World Tier (§4.1), frozen at the end and shown in the hub as "Beta Season Hall of Fame". |
 | Feedback | The SEASONS §3 vote becomes a short **feedback card** after the 5th run: "How does combat feel?" (1–5), "What should we improve first?" (combat, loot, classes, maps, UI). Stored once per account, counted per server in batches. |
@@ -188,29 +188,28 @@ season machinery before Season 1 depends on it.
 | Report | End of week 3: `docs/seasons/BETA-REPORT.md` (retention D1/D7, where players stop, class pick rates, deaths per depth, feedback card results) → input for Season 1 tuning. |
 
 Code steps (subset of SEASONS §9, one PR each):
-1. `Shared/Seasons` + `Systems/Seasons`: clock, current season, HUD season badge (no league split).
-2. Season Journey window + challenge tracking (reuses `Util/Actions`) + Beta rewards.
-3. Season ladder via the leaderboard code (§4.1) + feedback card.
+1. Leagues: `league` field on characters, character select with league badge, "New Beta character" button (SEASONS §6, §9 step 1 remainder).
+2. `Shared/Seasons` + `Systems/Seasons`: clock, current season, HUD season badge, **season-end migration Beta → Legacy** with idempotency tests, then one fake 1-hour season on the test place.
+3. Season Journey window + challenge tracking (reuses `Util/Actions`) + Beta cosmetic rewards.
+4. Season ladder via the leaderboard code (§4.1) + feedback card.
 
-Already done for Season 1: account → characters (`Profile` v4, heroes, PR #68) covers SEASONS §9
+Already done: account → characters (`Profile` v4, heroes, PR #68) covers SEASONS §9
 step 1 except the league field and character select across leagues.
 
 ## 7. Season 1 (after the Beta)
 
-Season 1 = **Blueprints** (`docs/specs/SEASON-1-BLUEPRINTS.md`), the first season with fresh
-characters in a Season league that move into Legacy at the end (SEASONS §6). Notes from this review:
+Season 1 = **Blueprints** (`docs/specs/SEASON-1-BLUEPRINTS.md`), the first season with a new
+mechanic; characters work exactly like in the Beta (fresh league, moved into Legacy at the end, SEASONS §6). Notes from this review:
 
 - **Build Blueprints on the Rift Trail assembler.** A Blueprint is effectively "a trail with mods";
   the spec still describes arena waves. Update the spec once the trail lands.
-- League split + migration (SEASONS §6) is the risky part: Lune tests for idempotency, then one
-  fake 1-hour season on the test place before Season 1 goes live.
+- League split + migration (SEASONS §6) is already proven by the Beta; Season 1 reuses it unchanged.
 - Use the Beta report to pick the 10-week numbers, Journey difficulty and ladder stat.
 - Great Build ships with Season 1 (Grand Blueprint Tower).
 
 ## 8. Open decisions for Micha
 
-1. **Beta characters**: normal Legacy heroes (recommended, less risk) **or** fresh Beta-league
-   characters that move to Legacy at the end (tests the PoE flow once, more work before launch).
+1. ~~Beta characters~~ Decided (owner, 2026-11-03): fresh Beta-league characters, moved into Legacy at the end.
 2. **Beta length**: 4 weeks (recommended) or until Season 1 is ready.
 3. **Daily rewards**: no streak reset on a missed day (recommended, no loss mechanics) or classic
    reset.
@@ -242,6 +241,6 @@ place only), "Journey: complete next".
 6. **Leaderboard (§4.1)**: OrderedDataStore boards per tier/class, hub board, Atlas tab, Dbg-safe.
 7. **Daily rewards (§4.2)**: 7-day calendar, account save, hub card, Dbg "Next day".
 8. **Analytics N10 (R4)**: economy, rift progression and custom events; prerequisite for the Beta report.
-9. **Beta Season (§6)**: season clock + badge, Journey, Beta ladder, feedback card, Beta Tester cosmetics.
+9. **Beta Season (§6)**: Beta league with fresh characters, season clock + badge, season-end migration to Legacy, beta challenges (Journey) with cosmetics, Beta ladder, feedback card.
 10. **Combat polish (C2, C3, C5, C6)**: dodge cancel windows, damage number styles, Rush moment.
 11. **Mobile performance pass (P1–P5)**: StreamingEnabled with trails, part budgets in Dbg, minimap low mode.
