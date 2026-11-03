@@ -90,7 +90,7 @@ end
 local function renderList()
 	clear(listPanel)
 
-	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
+	local head = Window.heading("Skills", 20, C.Text)
 	head.Position = UDim2.fromOffset(PAD, PAD - 6)
 	head.Parent = listPanel
 	-- Heroes: the class belongs to the hero; another class = another hero (switch outside rifts)
@@ -141,7 +141,7 @@ local function renderList()
 			if locked
 				then string.format("Unlocks at level %d", skill.unlock or 1)
 				else string.format(
-					"Level %d · %s Damage · %s s",
+					"Lv %d · %s dmg · %s s",
 					progressOf(skill).level,
 					fmt(math.floor(eff.damage + 0.5)),
 					fmt(eff.cooldown)
@@ -151,19 +151,31 @@ local function renderList()
 			Theme.Font.Body
 		)
 		sub.AutomaticSize = Enum.AutomaticSize.None
-		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 84 - 70, 20)
+		sub.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 84 - 54, 20)
 		sub.TextTruncate = Enum.TextTruncate.AtEnd
 		sub.TextXAlignment = Enum.TextXAlignment.Left
 		sub.Position = UDim2.fromOffset(84, 46)
 		sub.ZIndex = 2
 		sub.Parent = row
-		-- Right side: bar key if equipped
-		local tagText = if locked then "" elseif slot then KEYS[slot] else ""
-		local key = Kit.label(tagText, 15, if slot then C.GoldHi else C.Cyan)
-		key.AnchorPoint = Vector2.new(1, 0.5)
-		key.Position = UDim2.new(1, -14, 0.5, 0)
-		key.ZIndex = 2
-		key.Parent = row
+		-- Right side: key badge if equipped
+		if slot and not locked then
+			local badge = Instance.new("Frame")
+			badge.Name = "Key"
+			badge.BackgroundColor3 = Theme.Flat.Surface0
+			badge.BackgroundTransparency = 0.2
+			badge.AnchorPoint = Vector2.new(1, 0.5)
+			badge.Position = UDim2.new(1, -12, 0.5, 0)
+			badge.Size = UDim2.fromOffset(34, 34)
+			badge.ZIndex = 2
+			Kit.corner(badge, Theme.Radius.M)
+			Kit.stroke(badge, C.Gold, 1)
+			local key = Kit.label(KEYS[slot], 16, C.GoldHi)
+			key.AnchorPoint = Vector2.new(0.5, 0.5)
+			key.Position = UDim2.fromScale(0.5, 0.5)
+			key.ZIndex = 3
+			key.Parent = badge
+			badge.Parent = row
+		end
 		if locked then
 			local lock = Kit.icon("lock", 22, C.Muted)
 			lock.AnchorPoint = Vector2.new(1, 0.5)

@@ -274,15 +274,17 @@ local function renderSide()
 	local player = Players.LocalPlayer
 	local tier = WorldTiers.get(player:GetAttribute("WorldTier"))
 	local unlocked = WorldTiers.get(player:GetAttribute("WorldTierUnlocked")).id
-	local tierRow = Window.frame(UDim2.fromOffset(w, 48))
+	-- Tall enough for the arrows at phone touch size (they grow around their center)
+	local tierRow = Window.frame(UDim2.fromOffset(w, 84))
 	tierRow.Name = "WorldTier"
 	tierRow.AnchorPoint = Vector2.new(0, 1)
 	tierRow.Position = UDim2.new(0, PAD, 1, -PAD - 76)
-	local function arrow(text: string, step: number, x: number)
+	local function arrow(text: string, step: number)
 		local target = tier.id + step
 		local b = Kit.button(text, C.Gold, Vector2.new(56, 48))
 		b.Name = if step < 0 then "TierDown" else "TierUp"
-		b.Position = UDim2.fromOffset(x, 0)
+		b.AnchorPoint = Vector2.new(if step < 0 then 0 else 1, 0.5)
+		b.Position = UDim2.new(if step < 0 then 0 else 1, 0, 0.5, 0)
 		Kit.setEnabled(b, target >= 1 and target <= unlocked and not RiftController.active())
 		b.Activated:Connect(function()
 			if b.Active then
@@ -291,10 +293,15 @@ local function renderSide()
 		end)
 		b.Parent = tierRow
 	end
-	arrow("<", -1, 0)
-	arrow(">", 1, w - 56)
+	arrow("<", -1)
+	arrow(">", 1)
 	local tierText =
 		Kit.label("World Tier: " .. tier.name, 18, if tier.id > 1 then C.GoldHi else C.Text)
+	-- Between the arrows (they grow to touch size on phones): truncate instead of running under them
+	tierText.AutomaticSize = Enum.AutomaticSize.Y
+	tierText.Size = UDim2.fromOffset(w - 2 * 72, 0)
+	tierText.TextXAlignment = Enum.TextXAlignment.Center
+	tierText.TextTruncate = Enum.TextTruncate.AtEnd
 	tierText.AnchorPoint = Vector2.new(0.5, 0.5)
 	tierText.Position = UDim2.fromScale(0.5, 0.5)
 	tierText.Parent = tierRow

@@ -16,6 +16,7 @@ local Skills = require(ReplicatedStorage.Shared.Skills)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 
 local CharacterController = {}
@@ -46,6 +47,13 @@ local NAME_Y = HEROES_H + 20
 local NAME_H = 56
 local CARDS_Y = NAME_Y + NAME_H + 20
 local CARD_H = Window.BODY.Y - CARDS_Y
+-- Class card: emblem + name block on a color wash, then the starting skills as icon rows
+local PAD = 22
+local EMBLEM = 92
+local WASH_H = 170
+local SKILLS_Y = PAD + EMBLEM + 44
+local ROW_H = 50
+local KEYS = { "Q", "E", "R", "F" }
 
 local state: { active: string, max: number, list: { Entry } } =
 	{ active = "", max = Profile.MAX_CHARACTERS, list = {} }
@@ -144,44 +152,100 @@ local function renderCards()
 		card.Name = class.id
 		card.LayoutOrder = i
 
-		local title = Window.heading(class.name, 30, accent)
-		title.AutomaticSize = Enum.AutomaticSize.None
-		title.Size = UDim2.fromOffset(w - 48, 36)
-		title.TextScaled = true
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Position = UDim2.fromOffset(24, 20)
-		title.Parent = card
-		local hero = Kit.label(class.hero .. " · " .. class.role, 18, C.Muted, Theme.Font.Body)
-		hero.Position = UDim2.fromOffset(24, 64)
-		hero.Parent = card
+		-- Class color washes down from the top; the signature skill sits in a glowing emblem
+		local wash = Instance.new("Frame")
+		wash.Name = "Wash"
+		wash.BackgroundColor3 = accent
+		wash.BorderSizePixel = 0
+		wash.Size = UDim2.new(1, 0, 0, WASH_H)
+		wash.ZIndex = 0
+		Kit.corner(wash, Theme.Radius.L)
+		Shape.gradient(wash, accent, accent, 0.72, 1)
+		wash.Parent = card
 
 		local kit = Skills.forClass(class.id)
-		local lines = { "Basic: " .. kit.basic.name }
-		for _, id in kit.bar do
-			local s = Skills.ById[id]
-			if s then
-				table.insert(lines, "• " .. s.name)
+		local signature = Skills.ById[kit.bar[1]] or kit.basic
+		local emblem = Kit.itemSlot(
+			EMBLEM,
+			Kit.skillIcon(signature.id, signature.icon, class.id),
+			{ rarity = "rare", tint = accent }
+		)
+		emblem.Name = "Emblem"
+		emblem.Active = false
+		emblem.Position = UDim2.fromOffset(PAD, PAD)
+		Shape.glow(emblem, accent, 2, true)
+		emblem.Parent = card
+
+		-- Hero name big (short names fit even on phones), class and role below
+		local textX = PAD + EMBLEM + 16
+		local textW = w - textX - PAD
+		local function fixed(t: TextLabel, y: number, h: number)
+			t.AutomaticSize = Enum.AutomaticSize.None
+			t.Size = UDim2.fromOffset(textW, h)
+			t.TextXAlignment = Enum.TextXAlignment.Left
+			t.TextTruncate = Enum.TextTruncate.AtEnd
+			t.Position = UDim2.fromOffset(textX, y)
+			t.Parent = card
+		end
+		fixed(Window.heading(class.hero, 34, accent), PAD + 2, 40)
+		fixed(Kit.label(class.name, 18, C.Text), PAD + 46, 26)
+		fixed(Kit.label(class.role, 16, C.Muted, Theme.Font.Body), PAD + 74, 22)
+
+		local head = Kit.label("STARTING SKILLS", 15, C.Gold)
+		head.Position = UDim2.fromOffset(PAD, SKILLS_Y - 26)
+		head.Parent = card
+		local skills =
+			Window.frame(UDim2.fromOffset(w - 2 * PAD, 5 * ROW_H), UDim2.fromOffset(PAD, SKILLS_Y))
+		Kit.list(skills, Enum.FillDirection.Vertical, 0, Enum.VerticalAlignment.Top)
+		local rows: { { skill: Skills.Skill, tag: string } } =
+			{ { skill = kit.basic, tag = "Basic" } }
+		for k, id in kit.bar do
+			local sk = Skills.ById[id]
+			if sk then
+				table.insert(rows, { skill = sk, tag = KEYS[k] or "" })
 			end
 		end
-		table.insert(lines, "+ 4 more skills from level 8")
-		local text = Kit.label(table.concat(lines, "\n"), 18, C.Text, Theme.Font.Body)
-		text.TextXAlignment = Enum.TextXAlignment.Left
-		text.TextYAlignment = Enum.TextYAlignment.Top
-		text.TextWrapped = true
-		text.AutomaticSize = Enum.AutomaticSize.None
-		text.Size = UDim2.fromOffset(w - 48, CARD_H - 200)
-		text.Position = UDim2.fromOffset(24, 104)
-		text.Parent = card
+		for k, r in rows do
+			local row = Window.frame(UDim2.fromOffset(w - 2 * PAD, ROW_H))
+			row.Name = r.skill.id
+			row.LayoutOrder = k
+			local ic = Kit.itemSlot(
+				ROW_H - 8,
+				Kit.skillIcon(r.skill.id, r.skill.icon, class.id),
+				{ rarity = "normal" }
+			)
+			ic.Active = false
+			ic.AnchorPoint = Vector2.new(0, 0.5)
+			ic.Position = UDim2.fromScale(0, 0.5)
+			ic.Parent = row
+			local name = Kit.label(r.skill.name, 18, C.Text)
+			name.AutomaticSize = Enum.AutomaticSize.None
+			name.Size = UDim2.new(1, -(ROW_H + 60), 0, ROW_H)
+			name.TextXAlignment = Enum.TextXAlignment.Left
+			name.TextTruncate = Enum.TextTruncate.AtEnd
+			name.AnchorPoint = Vector2.new(0, 0.5)
+			name.Position = UDim2.new(0, ROW_H + 4, 0.5, 0)
+			name.Parent = row
+			local tag = Kit.label(r.tag, 15, if k == 1 then C.Muted else accent)
+			tag.AnchorPoint = Vector2.new(1, 0.5)
+			tag.Position = UDim2.new(1, 0, 0.5, 0)
+			tag.Parent = row
+			row.Parent = skills
+		end
+		skills.Parent = card
+		local more = Kit.label("+4 more from level 8", 16, C.Muted, Theme.Font.Body)
+		more.Position = UDim2.fromOffset(PAD, SKILLS_Y + 5 * ROW_H + 8)
+		more.Parent = card
 
 		local b = Kit.button(
 			if pending then "Play " .. class.hero else "Create " .. class.hero,
 			C.Gold,
-			Vector2.new(w - 48, 60),
+			Vector2.new(w - 2 * PAD, 60),
 			nil
 		)
 		b.Name = "Choose"
 		b.AnchorPoint = Vector2.new(0.5, 1)
-		b.Position = UDim2.new(0.5, 0, 1, -20)
+		b.Position = UDim2.new(0.5, 0, 1, -PAD)
 		Kit.setEnabled(b, not full and not waiting)
 		b.Activated:Connect(function()
 			if not b.Active or waiting then

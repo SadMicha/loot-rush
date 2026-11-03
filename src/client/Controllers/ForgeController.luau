@@ -23,6 +23,7 @@ local PAD = 28
 local LEFT_W, SIDE_W = 440, 440
 local PICK = 88 -- as tall as a button gets on phones at minimum, otherwise the bar is cut off
 local CENTER_W = 600
+local ROW_H = 104 -- action row (Add Affix, Upgrade Tier, Reroll, Seal)
 
 local win: Window.Window
 local left: Frame
@@ -336,26 +337,38 @@ local function renderSide(item: Items.Item?)
 	headText.Parent = headBox
 	headBox.Parent = side
 
-	local rows = Window.frame(UDim2.fromOffset(w, 480), UDim2.fromOffset(PAD, PAD + 80))
+	local rows = Window.frame(UDim2.fromOffset(w, 4 * ROW_H + 36), UDim2.fromOffset(PAD, PAD + 80))
 	Kit.list(rows, Enum.FillDirection.Vertical, 12, Enum.VerticalAlignment.Top)
 	for i, action in Forge.Actions do
-		local row = Window.frame(UDim2.fromOffset(w, 96))
+		local row = Window.frame(UDim2.fromOffset(w, ROW_H))
 		row.LayoutOrder = i
-		Kit.skin(row, "stat_tile", 96, 0.4)
+		Kit.skin(row, "stat_tile", ROW_H, 0.4)
 		local ic = Kit.itemSlot(68, action.icon, { rarity = "normal" })
 		ic.Active = false
 		ic.AnchorPoint = Vector2.new(0, 0.5)
 		ic.Position = UDim2.new(0, 12, 0.5, 0)
 		ic.ZIndex = 2
 		ic.Parent = row
-		-- Text ends before the anvil button on the right
+		-- Text column between icon and anvil button: name, cost, reason stack and stay centered
+		-- (on phones the text grows to the minimum size and pushes the lines apart, never over each other)
 		local textW = w - 94 - 96
-		local n = Kit.label(action.name, 19, C.Text)
-		n.Position = UDim2.fromOffset(94, 12)
-		n.ZIndex = 2
-		n.Parent = row
+		local col = Window.frame(UDim2.fromOffset(textW, ROW_H - 8), UDim2.fromOffset(94, 4))
+		col.ZIndex = 2
+		Kit.list(col, Enum.FillDirection.Vertical, 2, Enum.VerticalAlignment.Center)
+		local function line(text: string, size: number, color: Color3, font: Font?, order: number)
+			local t = Kit.label(text, size, color, font)
+			t.AutomaticSize = Enum.AutomaticSize.Y
+			t.Size = UDim2.fromOffset(textW, 0)
+			t.TextXAlignment = Enum.TextXAlignment.Left
+			t.TextTruncate = Enum.TextTruncate.AtEnd
+			t.LayoutOrder = order
+			t.ZIndex = 2
+			t.Parent = col
+			return t
+		end
+		line(action.name, 19, C.Text, nil, 1)
 		local price = Forge.cost(action, item, selectedAffix)
-		local cost = Kit.label(
+		local cost = line(
 			string.format(
 				"%d %s",
 				price,
@@ -363,17 +376,12 @@ local function renderSide(item: Items.Item?)
 					then Forge.MaterialName[action.material]
 					else Forge.MaterialPlural[action.material]
 			),
-			14,
+			15,
 			C.Gold,
-			Theme.Font.Body
+			Theme.Font.Body,
+			2
 		)
-		cost.AutomaticSize = Enum.AutomaticSize.None
-		cost.Size = UDim2.fromOffset(textW, 20)
-		cost.TextXAlignment = Enum.TextXAlignment.Left
-		cost.TextTruncate = Enum.TextTruncate.AtEnd
-		cost.Position = UDim2.fromOffset(94, 42)
-		cost.ZIndex = 2
-		cost.Parent = row
+		col.Parent = row
 		local go = Kit.button("", C.Gold, Vector2.new(68, 60), nil)
 		local hammer = Kit.icon("forge", 36)
 		hammer.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -397,14 +405,7 @@ local function renderSide(item: Items.Item?)
 		if why and item then
 			-- Reason on its own line below the cost
 			cost.TextColor3 = C.Muted
-			local reason = Kit.label(why, 13, C.Danger, Theme.Font.Body)
-			reason.AutomaticSize = Enum.AutomaticSize.None
-			reason.Size = UDim2.fromOffset(textW, 18)
-			reason.TextXAlignment = Enum.TextXAlignment.Left
-			reason.TextTruncate = Enum.TextTruncate.AtEnd
-			reason.Position = UDim2.fromOffset(94, 66)
-			reason.ZIndex = 2
-			reason.Parent = row
+			line(why, 14, C.Danger, Theme.Font.Body, 3)
 		end
 		row.Parent = rows
 	end

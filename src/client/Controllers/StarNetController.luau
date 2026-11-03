@@ -183,6 +183,10 @@ local function renderSide()
 		else ""
 	local kind =
 		Kit.label(kindText .. branchText, 16, if s.kind == "core" then C.Gold else colorOf(s))
+	kind.AutomaticSize = Enum.AutomaticSize.Y
+	kind.Size = UDim2.fromOffset(w - 130, 0) -- ends before the state on the right
+	kind.TextXAlignment = Enum.TextXAlignment.Left
+	kind.TextTruncate = Enum.TextTruncate.AtEnd
 	kind.Position = UDim2.fromOffset(PAD, PAD + 100)
 	kind.Parent = side
 	local state = if allocated[s.id]
