@@ -96,3 +96,5 @@ weapon_mage_staff_model,122366270633643,assets/weapons/Mage_Staff/Standard.fbx
 weapon_mage_staff_texture,122658965398935,assets/weapons/Mage_Staff/Color.png
 weapon_druid_scepter_model,100336404154752,assets/weapons/Druid_Scepter/Standard.fbx
 weapon_druid_scepter_texture,106110248003359,assets/weapons/Druid_Scepter/Color.png
+menu_pets,77889190601004,assets/ui/icons/pets.png
+menu_daily,87505829317379,assets/ui/icons/daily.png
