@@ -88,3 +88,11 @@ skill_warrior_06_taunt,132431220958547,assets/ui/icons/skills/128px/Warrior/Warr
 skill_warrior_07_stonearmor,94172705395298,assets/ui/icons/skills/128px/Warrior/Warrior_07_StoneArmor.png
 skill_warrior_08_swordslash,120232738581425,assets/ui/icons/skills/128px/Warrior/Warrior_08_SwordSlash.png
 skill_warrior_09_sprint,126173903836694,assets/ui/icons/skills/128px/Warrior/Warrior_09_Sprint.png
+weapon_warrior_sword_model,93287839309680,assets/weapons/Warrior_Sword/Standard.fbx
+weapon_warrior_sword_texture,130914505484937,assets/weapons/Warrior_Sword/Color.png
+weapon_ranger_bow_model,137257012727377,assets/weapons/Ranger_Bow/Standard.fbx
+weapon_ranger_bow_texture,80404162491006,assets/weapons/Ranger_Bow/Color.png
+weapon_mage_staff_model,122366270633643,assets/weapons/Mage_Staff/Standard.fbx
+weapon_mage_staff_texture,122658965398935,assets/weapons/Mage_Staff/Color.png
+weapon_druid_scepter_model,100336404154752,assets/weapons/Druid_Scepter/Standard.fbx
+weapon_druid_scepter_texture,106110248003359,assets/weapons/Druid_Scepter/Color.png
