@@ -137,7 +137,7 @@ local PASSES: { Pass } = {
 		name = "Pet Slot",
 		text = "A second pet joins you.",
 		robux = 199,
-		icon = "companion",
+		icon = "pass_pet_slot",
 		bonus = {},
 		attr = "PassPetSlot",
 	},

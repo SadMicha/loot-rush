@@ -202,7 +202,7 @@ local OFFERS: { Offer } = {
 		key = "pet_slot",
 		name = "Pet Slot",
 		text = "A second pet joins you in battle.",
-		icon = "companion",
+		icon = "pass_pet_slot",
 		rarity = "epic",
 	},
 	{
