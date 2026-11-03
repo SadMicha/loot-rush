@@ -18,6 +18,7 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
+local Fence = require(script.Parent.Parent.Util.Fence)
 
 local World = {}
 
@@ -1035,6 +1036,7 @@ function World.build(region: Atlas.Region?, slot: number?)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
+	Fence.build(folder, Vector3.zero, Fence.arenaHalf()) -- nobody walks or dashes off the playfield
 	-- built at the origin, then moved to the slot
 	local center = World.center(n)
 	if center.Magnitude > 0 then

@@ -28,6 +28,12 @@ return table.freeze({
 	TILE_SIZE = 8,
 	ARENA_TILES_X = 17, -- tiles per region arena (same grid in all regions)
 	ARENA_TILES_Z = 15,
+	HUB_HALF = 64, -- half size of the walkable Hub plan (16 cells × 8 studs)
+	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
+	BOUNDARY_HEIGHT = 80, -- studs of invisible wall, starting FALL_DEPTH below the floor
+	FALL_DEPTH = 20, -- this far below the map floor = fallen, back to a safe spot
+	FALL_MARGIN = 6, -- studs outside the walls before the guard steps in
+	FALL_TICK = 0.25, -- seconds between guard checks
 
 	-- Combat (player)
 	RESPAWN_TIME = 3,

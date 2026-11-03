@@ -465,6 +465,12 @@ function Rift.init()
 	end)
 end
 
+-- Arena center of the player's running Rift (nil = not in a Rift; FallGuard uses it)
+function Rift.centerOf(player: Player): Vector3?
+	local r = runs[player]
+	return if r then r.center else nil
+end
+
 -- Best results for the Atlas (the client reads the attributes)
 function Rift.start()
 	local function onPlayer(player: Player)
