@@ -50,6 +50,7 @@ export type Data = {
 	class: string, -- class of this character (Shared/Classes id), locked after setup
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
 	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
+	starters: number, -- guaranteed first drops already given (Balance.FirstDrops, Systems/Loot)
 }
 
 -- The whole save of one Roblox account
@@ -104,6 +105,7 @@ local DEFAULTS: Data = {
 	class = Classes.DEFAULT,
 	autoSalvage = "",
 	debugged = false,
+	starters = 0,
 }
 
 local ACCOUNT_DEFAULTS = {
@@ -234,6 +236,7 @@ function Profile.reconcile(raw: any): Data
 	data.created = whole(data.created)
 	data.level = math.max(1, math.floor(data.level))
 	data.xp = math.max(0, data.xp)
+	data.starters = whole(data.starters)
 	data.progress = Progression.reconcile(data.progress)
 	data.materials = Progression.reconcileMaterials(data.materials)
 	local atlas = {}

@@ -115,3 +115,7 @@ pack_void,128183713220709,assets/ui/icons/store/pack_void.png
 pet_moss_frog,91835194884455,assets/ui/icons/store/pet_moss_frog.png
 pet_firefly,117562730191418,assets/ui/icons/store/pet_firefly.png
 pet_crystal_beetle,104285913069347,assets/ui/icons/store/pet_crystal_beetle.png
+vfx_trail_gilded,112657872833926,assets/vfx/trail_gilded.png
+vfx_trail_ember,97154003089217,assets/vfx/trail_ember.png
+vfx_trail_frost,133044313718164,assets/vfx/trail_frost.png
+vfx_trail_void,137876026395589,assets/vfx/trail_void.png

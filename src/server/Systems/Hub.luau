@@ -61,17 +61,17 @@ local PLAN = {
 
 local H = { P = 1, G = 1, w = 1, g = 3, R = 6, X = 1, K = 16, W = -1 }
 
-local COBBLE = { Color3.fromHex("#B7B0A0"), Color3.fromHex("#A9A291"), Color3.fromHex("#C4BDAC") }
-local TERRACE = { Color3.fromHex("#CFC8B6"), Color3.fromHex("#C2BBA8") }
-local WATER = Color3.fromHex("#4FB8F0")
-local CLIFF = Color3.fromHex("#6E6A73")
-local WALL = Color3.fromHex("#BDB4A0")
-local ROOF_BLUE = Color3.fromHex("#2F5BD0")
+local COBBLE = { Color3.fromHex("#D2BE96"), Color3.fromHex("#C2AC84"), Color3.fromHex("#DECBA4") }
+local TERRACE = { Color3.fromHex("#EADBB6"), Color3.fromHex("#DCCBA2") }
+local WATER = Color3.fromHex("#2FB6FF")
+local CLIFF = Color3.fromHex("#5E5878")
+local WALL = Color3.fromHex("#D9C6A0")
+local ROOF_BLUE = Color3.fromHex("#2A68FF")
 local CROPS = {
-	Color3.fromHex("#E8C25A"),
-	Color3.fromHex("#9BCB4A"),
-	Color3.fromHex("#C98A3A"),
-	Color3.fromHex("#6FB83A"),
+	Color3.fromHex("#FFC83A"),
+	Color3.fromHex("#A6E03A"),
+	Color3.fromHex("#E08A2A"),
+	Color3.fromHex("#5FCB2E"),
 }
 
 local root: Model
@@ -616,9 +616,9 @@ local function buildCountry(parent: Instance)
 		halfX = edge + 30,
 		halfZ = edge + 10,
 		inner = 40,
-		ground = Color3.fromHex("#4FA52F"),
+		ground = Color3.fromHex("#3BAE2C"),
 		groundY = -0.4,
-		rock = { Color3.fromHex("#8C8A80"), Color3.fromHex("#7C7A72"), Color3.fromHex("#9A978C") },
+		rock = { Color3.fromHex("#8790AE"), Color3.fromHex("#77809E"), Color3.fromHex("#98A0BC") },
 		cap = Color3.fromHex("#F2F4F8"),
 		height = 44,
 		seed = 4242,

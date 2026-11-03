@@ -40,6 +40,11 @@ Settings.Defs = table.freeze({
 	minimap = { kind = "bool", default = true },
 	hudScale = { kind = "number", default = 1, min = 0.8, max = 1.2, step = 0.1 },
 	camera = { kind = "number", default = 1, min = 0.5, max = 2, step = 0.1 }, -- turn speed
+	-- One-time hints already shown (HintsController, roadmap O4): not in the window; the Defaults
+	-- button clears them, so the hints come back once
+	hintSkills = { kind = "bool", default = false },
+	hintDodge = { kind = "bool", default = false },
+	hintRush = { kind = "bool", default = false },
 } :: { [string]: Def })
 
 -- Net.Setting key that puts every setting back to its default in one request (Defaults button)

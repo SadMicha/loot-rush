@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Cosmetics)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -69,6 +70,14 @@ function Cosmetics.apply(player: Player)
 		t.FaceCamera = true
 		t.Transparency = NumberSequence.new(0.15, 1)
 		t.WidthScale = NumberSequence.new(1, 0.2)
+		local texture = if trail.texture then Assets.Vfx[trail.texture] else nil
+		if texture and texture ~= "" then
+			-- Painted ribbon: already in color, so the tint stays white (no double tint)
+			t.Texture = texture
+			t.TextureMode = Enum.TextureMode.Wrap
+			t.TextureLength = Rules.TRAIL_TEXTURE_LENGTH
+			t.Color = ColorSequence.new(Color3.new(1, 1, 1))
+		end
 		t.Parent = root
 	end
 

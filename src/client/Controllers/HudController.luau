@@ -37,6 +37,7 @@ local StatusRules = require(ReplicatedStorage.Shared.Status)
 local SkillController = require(script.Parent.SkillController)
 local InventoryController = require(script.Parent.InventoryController)
 local RiftController = require(script.Parent.RiftController)
+local WaypointController = require(script.Parent.WaypointController)
 local AbilitiesController = require(script.Parent.AbilitiesController)
 local StarNetController = require(script.Parent.StarNetController)
 local ForgeController = require(script.Parent.ForgeController)
@@ -323,6 +324,7 @@ local MAP_RANGE = Theme.MiniMap.Range -- studs from the center to the edge
 local mapView: MiniMapView.View
 local mapBox: Frame -- whole minimap incl. the place plaque ("Minimap" setting hides it)
 local mapInner = 0.4 -- radius of the map area inside the ring (fraction of the width)
+local mapQuest: Frame -- quest waypoint marker (WaypointController), held at the rim when far
 
 local function buildMinimap()
 	local box = Instance.new("Frame")
@@ -384,6 +386,22 @@ local function buildMinimap()
 	me.Position = UDim2.fromScale(0.5, 0.5)
 	me.ZIndex = 2
 	me.Parent = mapFrame
+
+	-- Quest waypoint: a gold diamond, pulsing, at the rim when the station is out of range
+	mapQuest = Instance.new("Frame")
+	mapQuest.Name = "Quest"
+	mapQuest.AnchorPoint = Vector2.new(0.5, 0.5)
+	mapQuest.Size = UDim2.fromOffset(11, 11)
+	mapQuest.Rotation = 45
+	mapQuest.BackgroundColor3 = C.GoldHi
+	mapQuest.BorderSizePixel = 0
+	mapQuest.ZIndex = 3
+	mapQuest.Visible = false
+	local edge = Instance.new("UIStroke")
+	edge.Color = C.Bg0
+	edge.Thickness = 1.5
+	edge.Parent = mapQuest
+	mapQuest.Parent = mapFrame
 
 	local plate = Instance.new("Frame")
 	plate.Name = "Place"
@@ -451,6 +469,24 @@ local function updateMinimap()
 	end
 	for i = used + 1, #dots do
 		dots[i].Visible = false
+	end
+	local goal = WaypointController.target()
+	if goal and rootPart and rootPart:IsA("BasePart") then
+		local yaw = CameraController.getYaw()
+		local d = goal - rootPart.Position
+		local x = d.X * math.cos(yaw) - d.Z * math.sin(yaw)
+		local z = d.X * math.sin(yaw) + d.Z * math.cos(yaw)
+		local r = math.sqrt(x * x + z * z) / MAP_RANGE
+		if r > 0.92 then -- clamp to the rim
+			x, z = x / r * 0.92, z / r * 0.92
+		end
+		mapQuest.Visible = true
+		mapQuest.Position =
+			UDim2.fromScale(0.5 + x / MAP_RANGE * mapInner, 0.5 + z / MAP_RANGE * mapInner)
+		local pulse = 11 + 3 * math.sin(os.clock() * 5)
+		mapQuest.Size = UDim2.fromOffset(pulse, pulse)
+	else
+		mapQuest.Visible = false
 	end
 end
 

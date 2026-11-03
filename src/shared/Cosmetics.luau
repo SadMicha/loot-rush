@@ -17,6 +17,7 @@ export type Cosmetic = {
 	icon: string, -- Assets.Icon or Assets.IconImage
 	colors: { Color3 }, -- start → end of the effect (world VFX, not UI)
 	light: number, -- LightEmission of the effect (0..1)
+	texture: string?, -- trails: Assets.Vfx key of the painted ribbon (empty id = flat color ribbon)
 }
 
 Cosmetics.Slots = table.freeze({ "trail", "aura" } :: { Slot })
@@ -25,6 +26,7 @@ Cosmetics.SlotName = table.freeze({ trail = "Trail", aura = "Aura" } :: { [strin
 -- Effect tuning (Systems/Cosmetics)
 Cosmetics.TRAIL_LIFETIME = 0.45 -- seconds a trail segment stays
 Cosmetics.TRAIL_WIDTH = 1.6 -- studs between the two trail attachments
+Cosmetics.TRAIL_TEXTURE_LENGTH = 6 -- studs one repeat of a painted trail texture covers
 Cosmetics.AURA_RATE = 14 -- particles per second
 Cosmetics.AURA_SIZE = 0.35 -- studs
 Cosmetics.AURA_LIFETIME = 1.4
@@ -38,6 +40,7 @@ local LIST: { Cosmetic } = {
 		icon = "trail_gilded",
 		colors = { Color3.fromHex("#FFE08A"), Color3.fromHex("#C07E22") },
 		light = 0.6,
+		texture = "trail_gilded",
 	},
 	{
 		id = "ember_trail",
@@ -47,6 +50,7 @@ local LIST: { Cosmetic } = {
 		icon = "trail_ember",
 		colors = { Color3.fromHex("#FFC24A"), Color3.fromHex("#E8402A") },
 		light = 0.8,
+		texture = "trail_ember",
 	},
 	{
 		id = "ember_aura",
@@ -65,6 +69,7 @@ local LIST: { Cosmetic } = {
 		icon = "trail_frost",
 		colors = { Color3.fromHex("#E6FBFF"), Color3.fromHex("#58B8F0") },
 		light = 0.7,
+		texture = "trail_frost",
 	},
 	{
 		id = "frost_aura",
@@ -83,6 +88,7 @@ local LIST: { Cosmetic } = {
 		icon = "trail_void",
 		colors = { Color3.fromHex("#D9A8FF"), Color3.fromHex("#3A1A6E") },
 		light = 0.9,
+		texture = "trail_void",
 	},
 	{
 		id = "void_aura",

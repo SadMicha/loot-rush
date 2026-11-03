@@ -1,5 +1,6 @@
 -- Robux Shop: catalog rules (pure), cosmetics in the save, and purchases booked by ProcessReceipt
 -- (cosmetic packs, refunds for duplicates, one-time Starter Pack, gold packs) plus wearing cosmetics.
+local Assets = require("ReplicatedStorage.Shared.UI.Assets")
 local Cosmetics = require("ReplicatedStorage.Shared.Cosmetics")
 local Monetization = require("ReplicatedStorage.Shared.Monetization")
 local Profile = require("ReplicatedStorage.Shared.Profile")
@@ -40,6 +41,15 @@ describe("Store rules", function()
 		for _, p in Monetization.Products do
 			for _, id in p.cosmetics or {} do
 				expect(Cosmetics.ById[id]).never.toBeNil()
+			end
+		end
+	end)
+
+	it("every trail texture is a registered VFX texture", function()
+		for _, c in Cosmetics.List do
+			if c.texture then
+				expect(c.slot).toBe("trail")
+				expect(Assets.Vfx[c.texture]).never.toBeNil()
 			end
 		end
 	end)

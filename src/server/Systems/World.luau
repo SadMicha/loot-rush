@@ -43,6 +43,7 @@ type Liquid = { color: Color3, material: Enum.Material, transparency: number, gl
 type Look = {
 	top: { Color3 }, -- checkerboard of the top faces
 	edge: Color3, -- narrow edge below the top face
+	lane: Color3, -- top face of the trail corridors between clearings (reads as a path)
 	soil: Color3, -- base at ground level
 	cliff: Color3, -- base of the raised tiles
 	liquid: Liquid?,
@@ -77,6 +78,7 @@ local heights: { [number]: number } = {} -- ground height per tile (key x * 1000
 local marsh: { [number]: boolean } = {} -- environment tiles that are liquid (key as heights)
 local walk: { [number]: boolean } = {} -- walkable tiles of the map being built (arena + trail)
 local trailRim: { [number]: boolean } = {} -- cliff tiles along the trail (deco goes there)
+local lanes: { [number]: boolean } = {} -- corridor tiles of the trail (path colour)
 local layouts: { [number]: Trail.Layout } = {} -- slot → trail layout of the built map
 local seeds: { [number]: number } = {}
 
@@ -106,6 +108,14 @@ local function layout(look: Look, r: Random, trail: Trail.Layout)
 	marsh = {}
 	walk = trail.cells
 	trailRim = {}
+	lanes = {}
+	for _, c in trail.corridors do
+		for x = c.x0, c.x1 do
+			for z = c.z0, c.z1 do
+				lanes[x * 1000 + z] = true
+			end
+		end
+	end
 	local ring = look.ring
 	local ext = if ring then RING else 0
 	for x = -HX - ext, HX + ext do
@@ -185,7 +195,7 @@ local function tile(parent: Instance, look: Look, x: number, z: number, height: 
 		local n = math.noise(x * 0.31, z * 0.31, #look.top * 3.7)
 		pick = math.clamp(math.floor((n + 0.5) * #look.top) + 1, 1, #look.top)
 	end
-	local top = look.top[pick]
+	local top = if inside and lanes[x * 1000 + z] then look.lane else look.top[pick]
 	top = Models.Kit.shade(top, rng:NextNumber(-0.03, 0.03))
 	if wet and liquid then
 		local surface = block(
@@ -628,7 +638,7 @@ end
 -- Crystal Caves: tall rock walls, stalagmites, glowing crystals and ponds
 local CAVE_ROCK = Color3.fromHex("#3A4462")
 local function caves(parent: Instance, _r: Random)
-	path(parent, Color3.fromHex("#6C7FA8"), maxZ - 6, -6)
+	path(parent, Color3.fromHex("#8FB8FF"), maxZ - 6, -6)
 	for i, p in
 		{
 			Vector3.new(-24, 0, -10),
@@ -747,7 +757,7 @@ end
 -- Fire Desert (lava bakery): crust sand, lava river, oven chimneys, basalt rocks, mesas
 local BASALT = Color3.fromHex("#4A2E26")
 local function desert(parent: Instance, r: Random)
-	path(parent, Color3.fromHex("#B07A48"), maxZ - 6, 10)
+	path(parent, Color3.fromHex("#B5532E"), maxZ - 6, 10)
 	for _, p in
 		{
 			Vector3.new(-30, 0, -18),
@@ -817,7 +827,7 @@ end
 -- Sky Islands: marble plateau above the sea of clouds, archways, castle in the background
 local MARBLE = Color3.fromHex("#D4CCBA")
 local function sky(parent: Instance, r: Random)
-	path(parent, Color3.fromHex("#D9C38A"), maxZ - 6, -6)
+	path(parent, Color3.fromHex("#F2C24A"), maxZ - 6, -6)
 	for _, x in { -30, 30 } do
 		put(parent, Props.arch(1.1, MARBLE), x, -22, 90)
 	end
@@ -968,9 +978,10 @@ local LOOKS: { [string]: Look } = {
 	green_plains = {
 		top = { C.grass, C.grass2 },
 		edge = C.grassDark,
+		lane = Color3.fromHex("#E2BE7A"),
 		soil = C.dirt,
-		cliff = C.stone,
-		particles = { color = Color3.fromHex("#FFF3A0"), rate = 6, speed = 1, size = 0.25 },
+		cliff = Color3.fromHex("#A8957A"),
+		particles = { color = Color3.fromHex("#FFE45A"), rate = 8, speed = 1, size = 0.25 },
 		ring = { step = 3, rough = 3 },
 		patches = true,
 		accent = grassTuft,
@@ -978,21 +989,22 @@ local LOOKS: { [string]: Look } = {
 		detail = meadowDetail,
 		deco = meadow,
 		horizon = {
-			ground = Color3.fromHex("#4FA52F"),
+			ground = Color3.fromHex("#3BAE2C"),
 			rock = {
-				Color3.fromHex("#8C8A80"),
-				Color3.fromHex("#7C7A72"),
-				Color3.fromHex("#9A978C"),
+				Color3.fromHex("#8790AE"),
+				Color3.fromHex("#77809E"),
+				Color3.fromHex("#98A0BC"),
 			},
 			cap = Color3.fromHex("#F2F4F8"),
 			height = 40,
 		},
 	},
 	crystal_caves = {
-		top = { Color3.fromHex("#4B5878"), Color3.fromHex("#435070") },
-		edge = Color3.fromHex("#2E3A58"),
-		soil = Color3.fromHex("#2A2F45"),
-		cliff = Color3.fromHex("#3A4462"),
+		top = { Color3.fromHex("#3D4F94"), Color3.fromHex("#344486") },
+		edge = Color3.fromHex("#1E2868"),
+		lane = Color3.fromHex("#6A86D8"),
+		soil = Color3.fromHex("#1A2048"),
+		cliff = Color3.fromHex("#2A3878"),
 		liquid = {
 			color = Color3.fromHex("#4FD8F5"),
 			material = Enum.Material.Neon,
@@ -1010,11 +1022,11 @@ local LOOKS: { [string]: Look } = {
 		detail = cavesDetail,
 		deco = caves,
 		horizon = {
-			ground = Color3.fromHex("#2A2F45"),
+			ground = Color3.fromHex("#1A2048"),
 			rock = {
-				Color3.fromHex("#3A4462"),
-				Color3.fromHex("#323B56"),
-				Color3.fromHex("#2B334C"),
+				Color3.fromHex("#2A3878"),
+				Color3.fromHex("#24306C"),
+				Color3.fromHex("#1E285E"),
 			},
 			cap = Color3.fromHex("#4FD8F5"),
 			capMaterial = Enum.Material.Neon,
@@ -1023,12 +1035,13 @@ local LOOKS: { [string]: Look } = {
 		},
 	},
 	mushroom_swamp = {
-		top = { Color3.fromHex("#5E7A3A"), Color3.fromHex("#557034") },
-		edge = Color3.fromHex("#3F5A2A"),
-		soil = Color3.fromHex("#4A3A2E"),
-		cliff = Color3.fromHex("#5A4A6A"),
+		top = { Color3.fromHex("#5C9A2C"), Color3.fromHex("#4E8826") },
+		edge = Color3.fromHex("#2C5A20"),
+		lane = Color3.fromHex("#A8763E"),
+		soil = Color3.fromHex("#40283C"),
+		cliff = Color3.fromHex("#6A4590"),
 		liquid = {
-			color = Color3.fromHex("#5FBFA0"),
+			color = Color3.fromHex("#2FE0B4"),
 			material = Enum.Material.Glass,
 			transparency = 0.25,
 			glow = false,
@@ -1045,22 +1058,23 @@ local LOOKS: { [string]: Look } = {
 		detail = swampDetail,
 		deco = swamp,
 		horizon = {
-			ground = Color3.fromHex("#3F5A2A"),
+			ground = Color3.fromHex("#2E6A22"),
 			rock = {
-				Color3.fromHex("#5A4A6A"),
-				Color3.fromHex("#4E4060"),
-				Color3.fromHex("#5E7A3A"),
+				Color3.fromHex("#6A4590"),
+				Color3.fromHex("#5A3A80"),
+				Color3.fromHex("#4E8826"),
 			},
-			cap = Color3.fromHex("#6F8F3A"),
+			cap = Color3.fromHex("#8FD83A"),
 			height = 30,
 			shrink = 0.75,
 		},
 	},
 	fire_desert = {
-		top = { Color3.fromHex("#D9A066"), Color3.fromHex("#CF955C") },
-		edge = Color3.fromHex("#A86A3A"),
-		soil = Color3.fromHex("#6B3A26"),
-		cliff = Color3.fromHex("#4A2E26"),
+		top = { Color3.fromHex("#F0BE6A"), Color3.fromHex("#E6AF5A") },
+		edge = Color3.fromHex("#B8622A"),
+		lane = Color3.fromHex("#B5532E"),
+		soil = Color3.fromHex("#6B2A18"),
+		cliff = Color3.fromHex("#5C261E"),
 		liquid = {
 			color = Color3.fromHex("#FF7A2A"),
 			material = Enum.Material.Neon,
@@ -1080,34 +1094,36 @@ local LOOKS: { [string]: Look } = {
 		detail = desertDetail,
 		deco = desert,
 		horizon = {
-			ground = Color3.fromHex("#CF955C"),
+			ground = Color3.fromHex("#E6AF5A"),
 			rock = {
-				Color3.fromHex("#A86A3A"),
-				Color3.fromHex("#8A5230"),
-				Color3.fromHex("#6B3A26"),
+				Color3.fromHex("#C0602E"),
+				Color3.fromHex("#9A4426"),
+				Color3.fromHex("#7A321E"),
 			},
-			cap = Color3.fromHex("#D9A066"),
+			cap = Color3.fromHex("#F0BE6A"),
 			height = 34,
 			shrink = 0.92, -- mesas
 		},
 	},
 	sky_islands = {
-		top = { Color3.fromHex("#D6CEBD"), Color3.fromHex("#CBC2B0") },
-		edge = Color3.fromHex("#B8A57A"),
-		soil = Color3.fromHex("#B8C4D6"),
-		cliff = Color3.fromHex("#9AA8BE"),
+		top = { Color3.fromHex("#EDE2C8"), Color3.fromHex("#E0D2B4") },
+		edge = Color3.fromHex("#E0AE3A"),
+		lane = Color3.fromHex("#F2C85A"),
+		soil = Color3.fromHex("#9CB8EC"),
+		cliff = Color3.fromHex("#7F9CDA"),
 		particles = { color = Color3.new(1, 1, 1), rate = 10, speed = 3, size = 0.35 },
 		accent = goldInlay,
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
-		horizon = { ground = Color3.fromHex("#E6ECF4"), rock = {}, kind = "clouds", height = 30 },
+		horizon = { ground = Color3.fromHex("#EEF4FF"), rock = {}, kind = "clouds", height = 30 },
 	},
 	altered_world = {
-		top = { Color3.fromHex("#3A2A52"), Color3.fromHex("#33244A") },
+		top = { Color3.fromHex("#40266A"), Color3.fromHex("#36205C") },
 		edge = Color3.fromHex("#B98CFF"),
-		soil = Color3.fromHex("#1E1530"),
-		cliff = Color3.fromHex("#2A1E3E"),
+		lane = Color3.fromHex("#6A40B0"),
+		soil = Color3.fromHex("#180E30"),
+		cliff = Color3.fromHex("#2A1650"),
 		liquid = {
 			color = Color3.fromHex("#FF5AD0"),
 			material = Enum.Material.Neon,
@@ -1125,11 +1141,11 @@ local LOOKS: { [string]: Look } = {
 		detail = riftDetail,
 		deco = rift,
 		horizon = {
-			ground = Color3.fromHex("#1E1530"),
+			ground = Color3.fromHex("#180E30"),
 			rock = {
-				Color3.fromHex("#2A1E3E"),
-				Color3.fromHex("#33244A"),
-				Color3.fromHex("#3A2A52"),
+				Color3.fromHex("#2A1650"),
+				Color3.fromHex("#36205C"),
+				Color3.fromHex("#40266A"),
 			},
 			cap = Color3.fromHex("#FF5AD0"),
 			capMaterial = Enum.Material.Neon,
