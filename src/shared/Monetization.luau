@@ -128,7 +128,7 @@ local PASSES: { Pass } = {
 		name = "VIP",
 		text = "+25% gold and +25% XP forever.",
 		robux = 299,
-		icon = "crown",
+		icon = "pass_vip",
 		bonus = { gold = 25, xp = 25 },
 	},
 	{
@@ -137,7 +137,7 @@ local PASSES: { Pass } = {
 		name = "Pet Slot",
 		text = "A second pet joins you.",
 		robux = 199,
-		icon = "companion",
+		icon = "pass_pet_slot",
 		bonus = {},
 		attr = "PassPetSlot",
 	},
@@ -147,7 +147,7 @@ local PASSES: { Pass } = {
 		name = "Loot Magnet",
 		text = "+8 studs pickup radius and +10% item chance.",
 		robux = 149,
-		icon = "chest",
+		icon = "pass_magnet",
 		bonus = { magnet = 8, items = 10 },
 	},
 }
