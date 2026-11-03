@@ -17,6 +17,7 @@ EliteMods.List = table.freeze({
 	{ id = "vampiric", name = "Vampiric", color = Color3.fromRGB(220, 50, 70) },
 	{ id = "frozen_aura", name = "Frozen", color = Color3.fromRGB(150, 235, 255) },
 	{ id = "exploding", name = "Exploding", color = Color3.fromRGB(255, 120, 40) },
+	{ id = "mortar", name = "Mortar", color = Color3.fromRGB(255, 80, 60) },
 } :: { Mod })
 
 local byId: { [string]: Mod } = {}
@@ -35,6 +36,13 @@ EliteMods.AURA_SLOW = 35 -- % move speed lost inside the aura
 EliteMods.BLAST_RADIUS = 8 -- exploding: telegraphed blast where it died
 EliteMods.BLAST_DELAY = 1.2 -- seconds of warning
 EliteMods.BLAST_DAMAGE = 1.5 -- factor of the elite's hit damage
+-- Mortar (also used by every boss from phase 2): telegraphed shells around the player's path
+EliteMods.MORTAR_EVERY = 5 -- seconds between volleys (shorter with depth, Balance.tempo)
+EliteMods.MORTAR_SHELLS = 3
+EliteMods.MORTAR_RADIUS = 4.5
+EliteMods.MORTAR_SPREAD = 9 -- studs: extra shells land this far around the aimed one
+EliteMods.MORTAR_DELAY = 1.3 -- seconds of warning (never below 85 % of it)
+EliteMods.MORTAR_DAMAGE = 0.7 -- factor of the hit damage per shell
 
 -- How many modifiers an elite gets in this World Tier (1 on Normal, +1 per tier)
 function EliteMods.count(tier: number?): number

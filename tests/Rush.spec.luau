@@ -109,7 +109,9 @@ describe("Stud Rush", function()
 
 	it("starts the moment a kill fills the meter", function()
 		server(function(req, player)
-			req("ServerScriptService.Server.Systems.Rush").add(player, Rush.METER - 1)
+			-- rift enemies hunt the player and may already have been killed: top up to one short
+			local R = req("ServerScriptService.Server.Systems.Rush")
+			R.add(player, Rush.METER - 1 - R.meter(player))
 		end)
 		expect(sim.player:GetAttribute("Rushing")).toBe(false)
 		kill()

@@ -170,12 +170,31 @@ local function mark(r: Run, model: Model?)
 	end
 end
 
-local function spawnPoint(r: Run): Vector3
+local function spawnPoint(r: Run, at: Vector3?, spread: number?): Vector3
 	local angle = rng:NextNumber(0, math.pi * 2)
-	local radius = rng:NextNumber(0, Config.ENEMY_ZONE_RADIUS)
-	return r.center
-		+ Config.ENEMY_ZONE
+	local radius = rng:NextNumber(0, spread or Config.ENEMY_ZONE_RADIUS)
+	return (at or (r.center + Config.ENEMY_ZONE))
 		+ Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+end
+
+-- A wave arrives as 2-3 packs from different sides (docs/balancing.md "Enemy pressure"), never
+-- right on top of the player: they close in together instead of standing in one blob.
+local function packCenters(r: Run, count: number): { Vector3 }
+	local _, root = character(r.owner)
+	local player = if root then Vector3.new(root.Position.X, 0, root.Position.Z) else nil
+	local packs = if count >= 12 then 3 else 2
+	local start = rng:NextNumber(0, math.pi * 2)
+	local out = {}
+	for i = 1, packs do
+		local a = start + (i - 1) * (math.pi * 2 / packs)
+		local offset = Vector3.new(math.cos(a), 0, math.sin(a)) * Config.PACK_DISTANCE
+		local at = r.center + offset
+		if player and (at - player).Magnitude < Config.PACK_DISTANCE * 0.6 then
+			at = r.center - offset -- too close to the player: come from the other side
+		end
+		table.insert(out, at)
+	end
+	return out
 end
 
 local function spawn(r: Run, kind: string, pos: Vector3, elite: boolean?, goblin: boolean?)
@@ -290,8 +309,10 @@ local function play(r: Run)
 		local mix = r.region.enemies
 		-- the last RIFT_ELITES waves open with elites: one, plus one per World Tier above Normal
 		local elite = r.variant == "elite_hunt" or wave > Config.RIFT_WAVES - Config.RIFT_ELITES
+		local packs = packCenters(r, count)
 		for i = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], spawnPoint(r), elite and i <= r.tier)
+			local at = spawnPoint(r, packs[(i - 1) % #packs + 1], Config.PACK_RADIUS)
+			spawn(r, mix[rng:NextInteger(1, #mix)], at, elite and i <= r.tier)
 		end
 		if r.variant == "goblin" and wave == 1 then
 			spawn(r, mix[1], spawnPoint(r), false, true)

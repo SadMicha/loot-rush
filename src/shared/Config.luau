@@ -47,7 +47,9 @@ return table.freeze({
 	-- Enemies
 	ENEMY_ZONE = Vector3.new(0, 0, -20), -- center of the spawn area
 	ENEMY_ZONE_RADIUS = 16,
-	AGGRO_RADIUS = 45,
+	AGGRO_RADIUS = 75, -- whole arena: a wave hunts the player instead of waiting to be picked off
+	PACK_RADIUS = 7, -- studs: a wave spawns as packs this wide (Systems/Rift)
+	PACK_DISTANCE = 28, -- studs from the arena center to each pack
 
 	-- Metrics (M5): debug overlay with F3 or the "Dbg" button bottom left
 	DEBUG_OVERLAY = true,
@@ -56,7 +58,7 @@ return table.freeze({
 	RIFT_START = Vector3.new(0, 4, 16), -- the player lands here on entering
 	HUB_ORIGIN = Vector3.new(-1200, 0, 0), -- center of the Hub map "Lumenhaven" (far from every arena)
 	HUB_POS = Vector3.new(-1200, 4, 60), -- spawn in the Hub and return from the Rift
-	RIFT_WAVES = 3, -- waves before the boss
+	RIFT_WAVES = 4, -- waves before the boss (was 3, docs/balancing.md "Pacing")
 	RIFT_WAVE_BASE = 6, -- enemies in wave 1 at depth 1
 	RIFT_WAVE_STEP = 2, -- extra enemies per wave and per depth
 	RIFT_WAVE_MAX = 24, -- cap on enemies per wave (server/network load at high depth)

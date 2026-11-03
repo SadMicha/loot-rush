@@ -6,6 +6,10 @@
 --   ranged  - keeps distance, circle under the target, projectile lands there (ranged)
 --   summon  - keeps distance and calls minis (summoner)
 -- Bosses call helpers once at half life (`adds`); `summonEvery` calls some regularly.
+-- Pressure (2026-11-03, docs/balancing.md "Enemy pressure"): melee enemies spread out around the
+-- player, `leap` kinds jump at the player from range (circle at the landing spot), ranged shots
+-- lead a moving target, `pool` kinds leave burning ground, Mortar elites and bosses from phase 2
+-- rain extra telegraphed shells. Deeper enemies wind up faster (Balance.tempo).
 -- Spawning only happens on demand (Systems/Rift, enemy mix per region in Shared/Atlas).
 -- Life/XP/gold/color live as attributes on the model; damage to enemies is done by Systems/Combat.
 -- Values per depth from Shared/Balance (LootRush_Balancing.xlsx); health/damage/xp/gold of a type
@@ -52,6 +56,8 @@ type Kind = {
 	boss: boolean,
 	adds: string?, -- enemy type bosses/summoners call
 	summonEvery: number?, -- seconds between summons (nil = only boss at half life)
+	leap: number?, -- slam: jumps at the player from up to this distance (gap closer)
+	pool: number?, -- seconds the hit area keeps burning (area denial)
 	color: Color3, -- color for the death effect and hit display
 	build: (s: number) -> Model,
 }
@@ -83,11 +89,25 @@ type Enemy = {
 	windup: number, -- attack wind-up in seconds (kind.windup, shorter when Fast)
 	nextAura: number, -- Frozen aura: next slow pulse
 	goblinUntil: number, -- Treasure Goblin: escapes at this time (0 = no goblin)
+	tempo: number, -- windup/cooldown factor of the depth (Balance.tempo)
+	moveMult: number, -- move speed factor of the depth (Balance.enemySpeed)
+	leaping: boolean, -- the current windup is a jump from dashFrom to dashTo
+	nextMortar: number, -- Mortar elites / bosses from phase 2: next shell volley
+}
+
+type Pool = {
+	part: Part,
+	at: Vector3,
+	radius: number,
+	damage: number,
+	untilT: number,
+	nextTick: number,
+	run: number,
 }
 
 local Enemies = {}
 
-local BASE_SPEED = 9.2
+local BASE_SPEED = 11.5 -- was 9.2: running away from everything was too easy (player walks 20)
 -- Life ×, damage ×, speed ×, gold/XP × (LootRush_Balancing.xlsx, sheet "Archetypes")
 local ARCH = {
 	swarm = { 0.5, 0.6, 1.2, 0.5 },
@@ -96,9 +116,16 @@ local ARCH = {
 	charger = { 1.2, 1.6, 1.4, 1.2 },
 	summoner = { 1, 0.6, 0.9, 1.5 },
 }
-local CHARGE_LENGTH = 18
+local CHARGE_LENGTH = 22
 local CHARGE_TIME = 0.3
 local MAX_MINIONS = 4
+local LEAD = 0.75 -- ranged/charge aim: share of the player's movement during the windup
+local LEAD_MAX = 12 -- studs: never aim further ahead than this
+local LEAP_WINDUP = 1.15 -- a jump from range gets a little more warning than a slam
+local LEAP_HEIGHT = 5 -- studs of arc at the middle of the jump
+local POOL_TICK = 0.5 -- seconds between burns
+local POOL_DAMAGE = 0.2 -- share of the hit damage per burn
+local POOL_COLOR = Color3.fromHex("#FF9A2A")
 local BASE_BODY_Y = Creatures.BODY_Y
 -- Walking area: arena grid without the raised north edge and side cliffs (see Systems/World)
 local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
@@ -150,6 +177,7 @@ local KINDS: { [string]: Kind } = {
 		windup = 0.9,
 		cooldown = 2,
 		scale = 1,
+		leap = 14,
 		color = hex("#49D8D8"),
 		build = function(s)
 			return Creatures.slime(s, hex("#49D8D8"), hex("#4FD8F5"))
@@ -179,6 +207,7 @@ local KINDS: { [string]: Kind } = {
 		windup = 1.3,
 		cooldown = 3,
 		scale = 3,
+		leap = 24,
 		adds = "slime",
 		color = hex("#9B6BFF"),
 		build = function(s)
@@ -273,6 +302,7 @@ local KINDS: { [string]: Kind } = {
 		windup = 0.8,
 		cooldown = 2,
 		scale = 0.6,
+		leap = 10,
 		color = hex("#E85AA8"),
 		build = function(s)
 			return Creatures.slime(s, hex("#E85AA8"), hex("#FFE27A"))
@@ -289,6 +319,8 @@ local KINDS: { [string]: Kind } = {
 		windup = 1.3,
 		cooldown = 3.2,
 		scale = 2.4,
+		leap = 18,
+		pool = 4,
 		adds = "sporeling",
 		summonEvery = 9,
 		color = hex("#E85AA8"),
@@ -321,6 +353,7 @@ local KINDS: { [string]: Kind } = {
 		cooldown = 2.2,
 		scale = 0.8,
 		hover = 2,
+		pool = 3,
 		color = hex("#FF8A3D"),
 		build = function(s)
 			return Creatures.imp(s)
@@ -337,6 +370,8 @@ local KINDS: { [string]: Kind } = {
 		windup = 1.2,
 		cooldown = 2.8,
 		scale = 2.6,
+		leap = 24,
+		pool = 3,
 		adds = "imp",
 		color = hex("#FF8A3D"),
 		build = function(s)
@@ -355,6 +390,7 @@ local KINDS: { [string]: Kind } = {
 		cooldown = 2.4,
 		scale = 0.9,
 		hover = 3,
+		shots = 2,
 		color = hex("#9CE5FF"),
 		build = function(s)
 			return Creatures.wisp(s)
@@ -406,6 +442,8 @@ local KINDS: { [string]: Kind } = {
 		windup = 1.2,
 		cooldown = 2.6,
 		scale = 3.2,
+		leap = 26,
+		pool = 3,
 		adds = "beetle",
 		summonEvery = 12,
 		color = hex("#FF4FD8"),
@@ -424,6 +462,7 @@ local list: { Enemy } = {}
 local folder: Folder
 -- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
 local knock: { [Model]: Vector3 } = {}
+local pools: { Pool } = {}
 local rng = Random.new()
 
 local function flat(
@@ -595,6 +634,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	CollectionService:AddTag(model, "Enemy")
 	model.Parent = folder
 	local now = os.clock()
+	local tempo = Balance.tempo(depth)
 	table.insert(list, {
 		model = model,
 		kind = kind,
@@ -608,7 +648,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		speedMult = 1,
 		cdMult = 1,
 		phase = rng:NextNumber(0, 6),
-		nextAttack = now + 1,
+		nextAttack = now + rng:NextNumber(0.8, 1.8), -- staggered: a pack does not hit in one beat
 		nextSummon = now + (kind.summonEvery or 0) / 2,
 		minions = {},
 		windupEnd = 0,
@@ -620,8 +660,12 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		dashEnd = 0,
 		mods = mods,
 		goblinUntil = if o.goblin then now + RiftVariants.GOBLIN_TIME else 0,
-		windup = kind.windup * (if mods.fast then EliteMods.FAST_WINDUP else 1),
+		windup = kind.windup * tempo * (if mods.fast then EliteMods.FAST_WINDUP else 1),
 		nextAura = now,
+		tempo = tempo,
+		moveMult = Balance.enemySpeed(depth),
+		leaping = false,
+		nextMortar = now + EliteMods.MORTAR_EVERY * rng:NextNumber(0.5, 1),
 	})
 	return model
 end
@@ -643,6 +687,13 @@ function Enemies.clear(run: number?)
 			e.model:Destroy() -- step() cleans up the list and telegraphs on the next frame
 		end
 	end
+	for i = #pools, 1, -1 do
+		local p = pools[i]
+		if run == nil or p.run == run then
+			p.part:Destroy()
+			table.remove(pools, i)
+		end
+	end
 end
 
 -- Living enemies of a run
@@ -656,9 +707,10 @@ function Enemies.count(run: number): number
 	return n
 end
 
-local function nearestPlayer(from: Vector3): (Player?, Vector3?, number)
+local function nearestPlayer(from: Vector3): (Player?, Vector3?, number, Vector3)
 	local best: Player? = nil
 	local bestPos: Vector3? = nil
+	local bestVel = Vector3.zero
 	local bestD = Config.AGGRO_RADIUS
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
@@ -670,10 +722,21 @@ local function nearestPlayer(from: Vector3): (Player?, Vector3?, number)
 				bestD = d
 				best = player
 				bestPos = root.Position
+				local v = root.AssemblyLinearVelocity
+				bestVel = Vector3.new(v.X, 0, v.Z)
 			end
 		end
 	end
-	return best, bestPos, bestD
+	return best, bestPos, bestD, bestVel
+end
+
+-- Where a target moving with `vel` will roughly be after `time` seconds (capped, flat)
+local function lead(at: Vector3, vel: Vector3, time: number): Vector3
+	local ahead = vel * time * LEAD
+	if ahead.Magnitude > LEAD_MAX then
+		ahead = ahead.Unit * LEAD_MAX
+	end
+	return at + ahead
 end
 
 -- Calls fn(player, flat distance to the point, position) for every living player body
@@ -695,7 +758,7 @@ end
 
 local ROT = CFrame.Angles(0, 0, math.rad(90))
 
-local function circle(e: Enemy, at: Vector3, radius: number)
+local function circle(e: Enemy, at: Vector3, radius: number, time: number?)
 	local d = radius * 2
 	local outer =
 		flat(CFrame.new(at.X, 0.2, at.Z) * ROT, Vector3.new(0.2, d, d), DANGER, 0.7, folder)
@@ -705,7 +768,7 @@ local function circle(e: Enemy, at: Vector3, radius: number)
 	inner.Shape = Enum.PartType.Cylinder
 	TweenService:Create(
 		inner,
-		TweenInfo.new(e.windup, Enum.EasingStyle.Linear),
+		TweenInfo.new(time or e.windup, Enum.EasingStyle.Linear),
 		{ Size = Vector3.new(0.25, d, d) }
 	):Play()
 	table.insert(e.telegraphs, outer)
@@ -731,13 +794,29 @@ local function line(e: Enemy, from: Vector3, dir: Vector3)
 	table.insert(e.telegraphs, outer)
 end
 
-local function beginWindup(e: Enemy, pos: Vector3, targetPos: Vector3, now: number)
+local function beginWindup(
+	e: Enemy,
+	pos: Vector3,
+	targetPos: Vector3,
+	vel: Vector3,
+	now: number,
+	jump: boolean
+)
 	local kind = e.kind
-	e.windupEnd = now + e.windup
+	local windup = if jump then e.windup * LEAP_WINDUP else e.windup
+	e.windupEnd = now + windup
+	e.leaping = jump
 	table.clear(e.targets)
 	local ground = Vector3.new(pos.X, 0, pos.Z)
-	local goal = Vector3.new(targetPos.X, 0, targetPos.Z)
-	if kind.ai == "charge" then
+	local goal = lead(Vector3.new(targetPos.X, 0, targetPos.Z), vel, windup)
+	goal = clampArena(e, goal)
+	if jump then
+		-- gap closer: the circle sits where the enemy will land
+		e.dashFrom = ground
+		e.dashTo = goal
+		table.insert(e.targets, goal)
+		circle(e, goal, kind.radius, windup)
+	elseif kind.ai == "charge" then
 		local d = goal - ground
 		e.dir = if d.Magnitude > 0.1 then d.Unit else Vector3.zAxis
 		table.insert(e.targets, ground)
@@ -776,9 +855,10 @@ local function heal(e: Enemy, amount: number)
 	end
 end
 
--- Exploding: a telegraphed blast where the elite died
-local function blast(at: Vector3, damage: number)
-	local r = EliteMods.BLAST_RADIUS
+-- Telegraphed blast: Exploding elites where they died, Mortar shells (radius/delay optional)
+local function blast(at: Vector3, damage: number, radius: number?, delay: number?)
+	local r = radius or EliteMods.BLAST_RADIUS
+	local wait = delay or EliteMods.BLAST_DELAY
 	local d = r * 2
 	local outer =
 		flat(CFrame.new(at.X, 0.2, at.Z) * ROT, Vector3.new(0.2, d, d), DANGER, 0.6, folder)
@@ -786,12 +866,14 @@ local function blast(at: Vector3, damage: number)
 	local inner =
 		flat(CFrame.new(at.X, 0.25, at.Z) * ROT, Vector3.new(0.25, 1, 1), DANGER_CORE, 0.4, outer)
 	inner.Shape = Enum.PartType.Cylinder
-	TweenService:Create(
-		inner,
-		TweenInfo.new(EliteMods.BLAST_DELAY, Enum.EasingStyle.Linear),
-		{ Size = Vector3.new(0.25, d, d) }
-	):Play()
-	task.delay(EliteMods.BLAST_DELAY, function()
+	TweenService
+		:Create(
+			inner,
+			TweenInfo.new(wait, Enum.EasingStyle.Linear),
+			{ Size = Vector3.new(0.25, d, d) }
+		)
+		:Play()
+	task.delay(wait, function()
 		outer:Destroy()
 		Net.Fx:FireAllClients(
 			"nova",
@@ -805,10 +887,71 @@ local function blast(at: Vector3, damage: number)
 	end)
 end
 
+-- Burning ground where a `pool` attack landed: hurts whoever stands in it every POOL_TICK
+local function pool(e: Enemy, at: Vector3, radius: number, now: number)
+	local d = radius * 2
+	local part =
+		flat(CFrame.new(at.X, 0.15, at.Z) * ROT, Vector3.new(0.15, d, d), POOL_COLOR, 0.55, folder)
+	part.Shape = Enum.PartType.Cylinder
+	part.Name = "Pool"
+	table.insert(pools, {
+		part = part,
+		at = Vector3.new(at.X, 0, at.Z),
+		radius = radius,
+		damage = math.max(1, math.floor(e.damage * POOL_DAMAGE + 0.5)),
+		untilT = now + (e.kind.pool or 0),
+		nextTick = now + POOL_TICK,
+		run = e.run,
+	})
+end
+
+local function stepPools(now: number)
+	for i = #pools, 1, -1 do
+		local p = pools[i]
+		if now >= p.untilT or not p.part.Parent then
+			p.part:Destroy()
+			table.remove(pools, i)
+		elseif now >= p.nextTick then
+			p.nextTick = now + POOL_TICK
+			eachPlayer(function(player, at)
+				if (at - p.at).Magnitude <= p.radius then
+					Combat.hurtPlayer(player, p.damage)
+				end
+			end)
+		end
+	end
+end
+
+-- Mortar elites and bosses from phase 2: a volley of shells around where the player is heading
+local function mortar(e: Enemy, targetPos: Vector3, vel: Vector3, now: number)
+	e.nextMortar = now + EliteMods.MORTAR_EVERY * e.tempo * e.cdMult
+	local delay = EliteMods.MORTAR_DELAY * math.max(e.tempo, 0.85)
+	local aim = lead(Vector3.new(targetPos.X, 0, targetPos.Z), vel, delay)
+	for i = 1, EliteMods.MORTAR_SHELLS do
+		local at = aim
+		if i > 1 then
+			local a = rng:NextNumber(0, math.pi * 2)
+			at += Vector3.new(math.cos(a), 0, math.sin(a)) * rng:NextNumber(
+				4,
+				EliteMods.MORTAR_SPREAD
+			)
+		end
+		at = clampArena(e, at)
+		Net.Fx:FireAllClients("proj", {
+			from = e.model:GetPivot().Position,
+			to = at + Vector3.new(0, 0.5, 0),
+			time = delay,
+			color = DANGER,
+			size = 0.9,
+		})
+		blast(at, e.damage * EliteMods.MORTAR_DAMAGE, EliteMods.MORTAR_RADIUS, delay)
+	end
+end
+
 local function resolveAttack(e: Enemy, now: number)
 	clearTelegraph(e)
 	e.windupEnd = 0
-	e.nextAttack = now + e.kind.cooldown * e.cdMult
+	e.nextAttack = now + e.kind.cooldown * e.cdMult * e.tempo
 	local kind = e.kind
 	local hit: { [Player]: boolean } = {}
 	if kind.ai == "charge" then
@@ -825,6 +968,14 @@ local function resolveAttack(e: Enemy, now: number)
 		e.dashTo = clampArena(e, from + e.dir * CHARGE_LENGTH)
 		e.dashEnd = now + CHARGE_TIME
 	else
+		if e.leaping then
+			e.leaping = false
+			Net.Fx:FireAllClients("nova", {
+				pos = Vector3.new(e.dashTo.X, 0.5, e.dashTo.Z),
+				radius = kind.radius,
+				color = kind.color,
+			})
+		end
 		for _, center in e.targets do
 			eachPlayer(function(player, at)
 				if (at - center).Magnitude <= kind.radius then
@@ -836,6 +987,11 @@ local function resolveAttack(e: Enemy, now: number)
 	for player in hit do
 		if Combat.hurtPlayer(player, e.damage) and e.mods.vampiric then
 			heal(e, e.damage * EliteMods.LEECH)
+		end
+	end
+	if kind.pool and kind.ai ~= "charge" then
+		for _, center in e.targets do
+			pool(e, center, math.min(kind.radius * 0.6, 8), now)
 		end
 	end
 end
@@ -920,6 +1076,7 @@ end
 
 local function step(dt: number)
 	local now = os.clock()
+	stepPools(now)
 	for i = #list, 1, -1 do
 		local e = list[i]
 		local model = e.model
@@ -933,7 +1090,7 @@ local function step(dt: number)
 		local kind = e.kind
 		local baseY = bodyY(kind)
 		local pos = model:GetPivot().Position
-		local target, targetPos, dist = nearestPlayer(pos)
+		local target, targetPos, dist, vel = nearestPlayer(pos)
 		local y = baseY
 		local dir = Vector3.zero
 
@@ -950,6 +1107,15 @@ local function step(dt: number)
 					{ pos = Vector3.new(pos.X, 0.5, pos.Z), radius = 6, color = kind.color }
 				)
 			end
+		end
+
+		if
+			target
+			and targetPos
+			and (e.mods.mortar or (kind.boss and e.stage >= 2))
+			and now >= e.nextMortar
+		then
+			mortar(e, targetPos, vel, now)
 		end
 
 		if e.goblinUntil > 0 then
@@ -983,6 +1149,17 @@ local function step(dt: number)
 			if now >= e.dashEnd then
 				e.dashEnd = 0
 			end
+		elseif e.windupEnd > 0 and e.leaping then
+			-- Jump: arc from dashFrom to the landing circle, lands when the windup ends
+			local total = e.windup * LEAP_WINDUP
+			local t = math.clamp(1 - (e.windupEnd - now) / total, 0, 1)
+			local p = e.dashFrom:Lerp(e.dashTo, t)
+			pos = Vector3.new(p.X, pos.Y, p.Z)
+			y = baseY + math.sin(t * math.pi) * LEAP_HEIGHT * math.min(kind.scale, 1.6)
+			dir = e.dashTo - e.dashFrom
+			if now >= e.windupEnd then
+				resolveAttack(e, now)
+			end
 		elseif e.windupEnd > 0 then
 			-- Windup: stand still, squash
 			y = baseY - 0.3 * kind.scale * math.sin((1 - (e.windupEnd - now) / e.windup) * math.pi)
@@ -994,23 +1171,40 @@ local function step(dt: number)
 			end
 		elseif target and targetPos then
 			dir = Vector3.new(targetPos.X - pos.X, 0, targetPos.Z - pos.Z)
+			local walk = dir -- where to step (dir stays the facing)
 			local move = 0
-			if dist > kind.attackRange then
+			local ready = kind.ai ~= "summon" and now >= e.nextAttack
+			if ready and kind.leap and dist > kind.attackRange and dist <= kind.leap then
+				beginWindup(e, pos, targetPos, vel, now, true)
+			elseif dist > kind.attackRange then
 				move = 1
-			elseif kind.ai ~= "summon" and now >= e.nextAttack then
-				beginWindup(e, pos, targetPos, now)
+				if kind.keepAway == 0 and dist > 0.01 then
+					-- melee spread out around the player instead of queueing in one line
+					local side = Vector3.new(math.cos(e.phase), 0, math.sin(e.phase))
+					local flank = side * math.min(dist * 0.5, kind.attackRange * 0.8)
+					walk =
+						Vector3.new(targetPos.X + flank.X - pos.X, 0, targetPos.Z + flank.Z - pos.Z)
+				end
+			elseif ready then
+				beginWindup(e, pos, targetPos, vel, now, false)
 			elseif dist < kind.keepAway then
 				move = -1
+			elseif kind.keepAway > 0 then
+				-- ranged/summon circle sideways while reloading (harder to pin down)
+				move = 0.45
+				local sign = if math.floor(e.phase * 10) % 2 == 0 then 1 else -1
+				walk = Vector3.new(-dir.Z, 0, dir.X) * sign
 			end
-			if move ~= 0 and dir.Magnitude > 0.01 then
+			if move ~= 0 and walk.Magnitude > 0.01 then
 				local speed = kind.speed
 					* move
 					* e.speedMult
+					* e.moveMult
 					* (if e.mods.fast then EliteMods.FAST_SPEED else 1)
 				if now < ((model:GetAttribute("SlowUntil") or 0) :: number) then
 					speed *= (model:GetAttribute("SlowFactor") or 1) :: number
 				end
-				local step3 = dir.Unit * speed * dt
+				local step3 = walk.Unit * speed * dt
 				local np = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 7 + e.phase)) * 0.8 * kind.scale
 				pos = np

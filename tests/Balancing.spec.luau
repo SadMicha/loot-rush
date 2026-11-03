@@ -60,6 +60,13 @@ local function score(item)
 	return s.life + s.damage * 4 + s.crit * 6
 end
 
+-- A depth is "ready" when a normal enemy dies fast enough, the player survives enough hits and
+-- the boss is not a slog. Until then the player farms the depth before it (docs/balancing.md).
+local GATE_TTK = 1.0
+local GATE_HITS = 5
+local GATE_BOSS = 40
+local MAX_FARM = 30 -- farm runs per depth before the sim pushes on anyway
+
 local function simulate()
 	local stats, forDepth = server(function(req)
 		local Enemies = req("ServerScriptService.Server.Systems.Enemies")
@@ -72,13 +79,13 @@ local function simulate()
 	local gear = {}
 	local rows = {}
 
-	for d = 1, MAX_DEPTH do
+	-- Player strength and the fight at depth d right now
+	local function measure(d: number)
 		local region = regionFor(d)
 		local since = d - region.depth
 		local loot = forDepth(d, region.id, false)
 		local bossLoot = forDepth(d, region.id, true)
 
-		-- Player
 		local eq = { damage = 0, life = 0, crit = 0 }
 		for _, item in gear do
 			local s = itemStats(item)
@@ -103,7 +110,6 @@ local function simulate()
 		aoe *= mult
 		local maxHp = Balance.life(level) + eq.life
 
-		-- Enemies of this depth
 		local hp, dmg, kxp, kgold, n = 0, 0, 0, 0, 0
 		local mixN = #region.enemies
 		local waveHp = 0
@@ -127,44 +133,44 @@ local function simulate()
 		end
 		local boss = stats(region.bossKind, d)
 		local xpMult = 1 + (region.bonus.xp or 0)
-		local riftXp = (n * kxp + boss.xp) * xpMult
-		local riftGold = (n * kgold + boss.gold) * loot.goldMult
-		local ttk = hp / single
 		local bossTime = boss.health / single
-		local riftTime = waveHp / aoe + Config.RIFT_WAVES * WAVE_OVERHEAD + bossTime
-
-		table.insert(rows, {
+		return {
 			depth = d,
 			region = region.id,
 			level = level,
 			ilvl = if gear.weapon then gear.weapon.ilvl else 0,
 			hp = hp,
 			dps = single,
-			ttk = ttk,
+			ttk = hp / single,
 			bossTime = bossTime,
-			riftTime = riftTime,
+			riftTime = waveHp / aoe + Config.RIFT_WAVES * WAVE_OVERHEAD + bossTime,
 			hits = maxHp / dmg,
 			bossHits = maxHp / boss.damage,
-			xp = riftXp,
-			gold = riftGold,
+			xp = (n * kxp + boss.xp) * xpMult,
+			gold = (n * kgold + boss.gold) * loot.goldMult,
 			goldTotal = gold,
 			items = n * loot.itemChance + bossLoot.bossItems,
-		})
+			n = n,
+			loot = loot,
+			bossLoot = bossLoot,
+		}
+	end
 
-		-- Reward
-		time += riftTime
-		gold += riftGold
-		xp += riftXp
-		while xp >= Balance.xpForLevel(level) do
+	-- One cleared run: time, gold, XP, skill XP and the loot that drops
+	local function play(r)
+		time += r.riftTime
+		gold += r.gold
+		xp += r.xp
+		while xp >= Balance.xpForLevel(level) and level < Balance.P.level_max do
 			xp -= Balance.xpForLevel(level)
 			level += 1
 		end
 		for _, skill in Skills.bar do
-			Progression.addSkillXp(Progression.skillMut(progress, skill.id), riftXp / #Skills.bar)
+			Progression.addSkillXp(Progression.skillMut(progress, skill.id), r.xp / #Skills.bar)
 		end
-		local drops = math.floor(n * loot.itemChance + 0.5)
-		for i = 1, drops + bossLoot.bossItems do
-			local t = if i > drops then bossLoot else loot
+		local drops = math.floor(r.n * r.loot.itemChance + rng:NextNumber())
+		for i = 1, drops + r.bossLoot.bossItems do
+			local t = if i > drops then r.bossLoot else r.loot
 			local item = Items.roll(
 				t.ilvl,
 				rng,
@@ -176,6 +182,27 @@ local function simulate()
 				gear[item.slot] = item
 			end
 		end
+	end
+
+	local function ready(r): boolean
+		return r.ttk <= GATE_TTK and r.hits >= GATE_HITS and r.bossTime <= GATE_BOSS
+	end
+
+	for d = 1, MAX_DEPTH do
+		local first = measure(d) -- how the depth feels on arrival
+		local farm = 0
+		local r = first
+		while d > 1 and not ready(r) and farm < MAX_FARM do
+			play(measure(d - 1))
+			farm += 1
+			r = measure(d)
+		end
+		r.farm = farm
+		r.firstTtk = first.ttk
+		r.firstHits = first.hits
+		play(r)
+		r.minutes = time / 60
+		table.insert(rows, r)
 	end
 	return rows, time
 end
@@ -189,32 +216,33 @@ describe("Balancing depth 1–30", function()
 		sim.quiet = false -- show the table in the test output
 		print(
 			string.format(
-				"\n  Total time depth 1–%d (1 run each): %.0f min",
+				"\n  Time to clear depth 1–%d (with farming until ready): %.0f min",
 				MAX_DEPTH,
 				totalTime / 60
 			)
 		)
 		print(
-			"  Depth Lv  W-Level  Life   DPS     TTK  Boss-s Run-s  Hits    BossHit XP/Run  Gold/Run  GoldSum  Items"
+			"  Depth  Lv W-Lvl   Life     DPS  TTK1  TTK  Boss-s Run-s Hits1 Hits BossHit Farm   Min    Gold/Run"
 		)
 		for _, r in rows do
 			print(
 				string.format(
-					"  %5d %3d %8d %6.0f %7.0f %5.2f %6.1f %6.0f %7.1f %7.1f %7.0f %9.0f %8.0f %5.1f",
+					"  %5d %3d %5d %6.0f %7.0f %5.2f %4.2f %6.1f %5.0f %5.1f %4.1f %7.1f %4d %5.0f %9.0f",
 					r.depth,
 					r.level,
 					r.ilvl,
 					r.hp,
 					r.dps,
+					r.firstTtk,
 					r.ttk,
 					r.bossTime,
 					r.riftTime,
+					r.firstHits,
 					r.hits,
 					r.bossHits,
-					r.xp,
-					r.gold,
-					r.goldTotal,
-					r.items
+					r.farm,
+					r.minutes,
+					r.gold
 				)
 			)
 		end
@@ -254,9 +282,33 @@ describe("Balancing depth 1–30", function()
 		expect(rows[30].bossTime).toBeGreaterThan(rows[20].bossTime)
 	end)
 
-	it("levels along (level at depth 30 between 25 and 70)", function()
+	it("levels along (level at depth 30 between 30 and 90)", function()
 		local last = rows[#rows]
-		expect(last.level).toBeGreaterThan(25)
-		expect(last.level).toBeLessThan(70)
+		expect(last.level).toBeGreaterThan(30)
+		expect(last.level).toBeLessThan(90)
+	end)
+
+	-- Pacing target (docs/balancing.md): a sim player without Star Web/Forge needs 1.5-5 hours of
+	-- pure run time to clear depth 30 on Normal; real play (dodging, walking, menus) is slower.
+	it("takes hours, not half an hour, to clear depth 30", function()
+		expect(totalTime / 60).toBeGreaterThan(90)
+		expect(totalTime / 60).toBeLessThan(300)
+	end)
+
+	it("makes the player farm along the way, not only at the end", function()
+		local early, total = 0, 0
+		for _, r in rows do
+			total += r.farm
+			if r.depth <= 20 then
+				early += r.farm
+			end
+		end
+		expect(total).toBeGreaterThan(30)
+		expect(early).toBeGreaterThan(5)
+	end)
+
+	it("gets harder per depth: fewer hits survived at depth 30 than at depth 10", function()
+		expect(rows[30].firstHits).toBeLessThan(rows[10].firstHits)
+		expect(rows[1].firstHits).toBeLessThan(14) -- even depth 1 hurts a bit
 	end)
 end)

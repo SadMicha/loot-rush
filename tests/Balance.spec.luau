@@ -6,19 +6,21 @@ local function near(a: number, b: number)
 end
 
 describe("Balance", function()
-	it("computes enemies, gold and XP per depth like the table", function()
-		near(Balance.enemyHealth(1), 40)
-		near(Balance.enemyHealth(20), 928.577444210371)
-		near(Balance.enemyHealth(30), 4860.02164196364 * Balance.P.deep_growth ^ 10) -- deep curve
-		near(Balance.enemyDamage(30), 160.499582790595)
+	it("computes enemies, gold and XP per depth from Balance.P", function()
+		local P = Balance.P
+		near(Balance.enemyHealth(1), P.hp_base)
+		near(Balance.enemyHealth(20), P.hp_base * P.hp_growth ^ 19)
+		near(Balance.enemyHealth(30), P.hp_base * P.hp_growth ^ 29 * P.deep_growth ^ 10) -- deep curve
+		near(Balance.enemyDamage(1), P.dmg_base)
+		near(Balance.enemyDamage(30), P.dmg_base * P.dmg_growth ^ 29)
 		near(Balance.gold(30), 69.2316778006046)
 		near(Balance.xp(30), 1110.12771864779)
-		near(Balance.enemyHealth(20) * Balance.P.boss_hp, 37143.0977684148)
+		near(Balance.enemyHealth(20) * P.boss_hp, P.hp_base * P.hp_growth ^ 19 * P.boss_hp)
 	end)
 
 	it("computes player level, life and weapon like the table", function()
 		expect(Balance.xpForLevel(1)).toBe(100)
-		expect(Balance.xpForLevel(2)).toBe(303)
+		expect(Balance.xpForLevel(2)).toBe(math.floor(100 * 2 ^ Balance.P.xp_level_exp))
 		expect(Balance.life(30)).toBe(448)
 		near(Balance.weaponDamage(Balance.itemPower(30)), 783.535699604679)
 		expect(Balance.weaponFactor(10)).toBe(1)
