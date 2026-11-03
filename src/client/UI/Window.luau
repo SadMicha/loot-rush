@@ -21,7 +21,7 @@ local Spring = require(script.Parent.Spring)
 local Window = {}
 
 Window.BODY = Vector2.new(1520, 790) -- content area in design pixels
-local MARGIN = 40 -- margin left/right
+local MARGIN = 20 -- margin left/right
 local HEAD = 48 -- height of the header (title, close)
 
 export type Options = {
@@ -44,6 +44,10 @@ export type Window = {
 }
 
 local current: Window? = nil
+local currentName: string? = nil -- opts.name of `current`
+local reserve = 0 -- screen pixels kept free at the bottom (menu dock over open windows)
+local reserveLeft = 0 -- screen pixels kept free at the left (phones: the dock stands there)
+local arrangers: { () -> () } = {} -- relayout of every window when the reserve changes
 local gate: ((unlockId: string) -> boolean)? = nil -- true = locked (set by QuestController)
 local others: { () -> () } = {} -- further fullscreen windows (inventory) that close when one opens
 local otherOpen: { () -> boolean } = {} -- their "is open" probes
@@ -60,12 +64,52 @@ function Window.closeCurrent()
 	end
 end
 
+local otherNames: { [number]: string } = {} -- index in otherOpen -> name
+
 -- Also close a window outside this module as soon as one from here opens
-function Window.exclusive(close: () -> (), isOpen: (() -> boolean)?)
+function Window.exclusive(close: () -> (), isOpen: (() -> boolean)?, name: string?)
 	table.insert(others, close)
 	if isOpen then
 		table.insert(otherOpen, isOpen)
+		if name then
+			otherNames[#otherOpen] = name
+		end
 	end
+end
+
+-- Name of the open fullscreen window (Options.name / exclusive name) or nil
+function Window.openName(): string?
+	if current then
+		return currentName
+	end
+	for i, probe in otherOpen do
+		if probe() then
+			return otherNames[i]
+		end
+	end
+	return nil
+end
+
+-- Screen pixels the menu dock covers at the bottom / left while a window is open; windows keep clear
+function Window.setReserve(pixels: number, left: number?)
+	local l = left or 0
+	if math.abs(pixels - reserve) < 0.5 and math.abs(l - reserveLeft) < 0.5 then
+		return
+	end
+	reserve = pixels
+	reserveLeft = l
+	for _, fn in arrangers do
+		fn()
+	end
+end
+
+function Window.reserve(): (number, number)
+	return reserve, reserveLeft
+end
+
+-- Relayout hook for windows outside this module (inventory)
+function Window.onReserve(fn: () -> ())
+	table.insert(arrangers, fn)
 end
 
 -- True while any fullscreen window is open (the HUD can pause expensive work behind it)
@@ -349,6 +393,7 @@ function Window.new(opts: Options): Window
 		gui.Enabled = false
 		if current == win then
 			current = nil
+			currentName = nil
 		end
 		if not Window.anyOpen() then
 			Window.blur(false)
@@ -363,6 +408,7 @@ function Window.new(opts: Options): Window
 			closeOther()
 		end
 		current = win
+		currentName = opts.name
 		gui.Enabled = true
 		Window.blur(true)
 		Shape.sound("ui_open")
@@ -419,14 +465,16 @@ function Window.new(opts: Options): Window
 		x.Position = UDim2.new(1, -28, 0, mid)
 
 		local top = math.max(mid + HEAD / 2 + 16, barH + 8)
-		local availW, availH = view.X - 2 * MARGIN, view.Y - top - 16
+		local leftFree = reserveLeft / s
+		local availW, availH = view.X - 2 * MARGIN - leftFree, view.Y - top - 12 - reserve / s
 		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
 		bodyScale.Scale = k
-		restPos = UDim2.fromOffset(view.X / 2, top + availH / 2)
+		restPos = UDim2.fromOffset((view.X + leftFree) / 2, top + availH / 2)
 		Spring.snap(body, { Position = restPos })
 		Kit.refit(root)
 	end
 	arrange()
+	table.insert(arrangers, arrange)
 	scale:GetPropertyChangedSignal("Scale"):Connect(arrange)
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
 	local camera = workspace.CurrentCamera

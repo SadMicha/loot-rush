@@ -1,10 +1,13 @@
 --!strict
 -- Combat HUD after the style reference (assets/style_reference):
---   In combat: life orb + experience orb (bottom center), four round skills in an arc around the
---   dash button (bottom right), compass minimap (top right), resources (top center).
+--   In combat: life orb (bottom center), four round skills in an arc around the dash button (bottom
+--   right, bigger on touch screens), compass minimap (top right), resources (top center).
 --   At rest: the orbs and skills leave, the icon bar (bottom center), settings gear and quests fly
 --   in. The dash button and the minimap stay. Rifts are entered from the Atlas only.
---   Always: buff/debuff bar + Stud Rush meter above the orbs / icon bar (bottom center).
+--   Always: buff/debuff bar + Stud Rush meter above the orbs / icon bar (bottom center), experience
+--   bar along the bottom edge with the level at its left end.
+--   While a menu window is open, a copy of the icon bar sits on top of it (LootRushMenuDock), so
+--   every menu can be reached from any other; the open one is marked.
 -- Combat/rest comes from the server (player attribute "InCombat").
 -- Everything is laid out inside the device safe area (Kit.scaledGui safeArea).
 
@@ -192,18 +195,15 @@ local function orbCaption(parent: GuiObject, x: number, color: Color3): TextLabe
 	return t
 end
 
--- ------------------------------------------------------------------ Orbs (bottom center, combat)
--- Red orb = life (number inside, shield above it), blue orb = experience (level inside, XP above it).
--- There is no mana resource in the game, so the blue orb shows level progress instead.
+-- ------------------------------------------------------------------ Life orb (bottom center, combat)
+-- Red orb = life (number inside, shield above it). Experience is the thin bar along the bottom edge.
 local lifeOrb: Kit.Orb
-local xpOrb: Kit.Orb
 local shieldText: TextLabel
-local xpText: TextLabel
 local lifeHumanoid: Humanoid? = nil
 
 local function buildOrbs()
 	local cap = H.BarCaption
-	local g = group(Vector2.new(2 * H.OrbSize + H.OrbGap, H.OrbSize + cap))
+	local g = group(Vector2.new(H.OrbSize, H.OrbSize + cap))
 	g.Name = "Orbs"
 
 	lifeOrb = Kit.orb(H.OrbSize, "health", C.Life)
@@ -211,12 +211,6 @@ local function buildOrbs()
 	lifeOrb.root.Parent = g
 	shieldText = orbCaption(g, H.OrbSize // 2, C.Cyan)
 	shieldText.Name = "Shield"
-
-	xpOrb = Kit.orb(H.OrbSize, "mana", C.Mana)
-	xpOrb.root.Position = UDim2.fromOffset(H.OrbSize + H.OrbGap, cap)
-	xpOrb.root.Parent = g
-	xpText = orbCaption(g, H.OrbSize + H.OrbGap + H.OrbSize // 2, C.Muted)
-	xpText.Name = "Xp"
 
 	addFly(
 		g,
@@ -226,6 +220,64 @@ local function buildOrbs()
 		1,
 		true
 	)
+end
+
+-- ------------------------------------------------------------------ Experience bar (bottom edge)
+-- Full-width thin bar on the bottom edge of the safe area, level + XP in a small chip at its left end.
+local xpFill: Frame
+local xpTip: Frame
+local xpText: TextLabel
+
+local function buildXpBar()
+	local bar = Instance.new("Frame")
+	bar.Name = "XpBar"
+	bar.AnchorPoint = Vector2.new(0, 1)
+	bar.Position = UDim2.fromScale(0, 1)
+	bar.Size = UDim2.new(1, 0, 0, H.XpBar)
+	bar.BackgroundColor3 = Theme.Flat.Surface0
+	bar.BackgroundTransparency = 0.35
+	bar.BorderSizePixel = 0
+	bar.Active = false
+	bar.Parent = root
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = Color3.new(1, 1, 1)
+	fill.BorderSizePixel = 0
+	Shape.gradient(fill, C.Cyan, C.Mana, 0, 0, 0)
+	fill.Parent = bar
+	xpFill = fill
+	-- Bright tip at the end of the fill
+	local tip = Instance.new("Frame")
+	tip.Name = "Tip"
+	tip.AnchorPoint = Vector2.new(1, 0.5)
+	tip.Position = UDim2.fromScale(1, 0.5)
+	tip.Size = UDim2.new(0, 3, 1, 0)
+	tip.BackgroundColor3 = C.Text
+	tip.BorderSizePixel = 0
+	tip.Parent = fill
+	xpTip = tip
+
+	local chip = Instance.new("Frame")
+	chip.Name = "XpChip"
+	chip.AnchorPoint = Vector2.new(0, 1)
+	chip.Position = UDim2.new(0, 8, 1, -H.XpBar - 2)
+	chip.AutomaticSize = Enum.AutomaticSize.X
+	chip.Size = UDim2.fromOffset(0, 18)
+	chip.BackgroundColor3 = Theme.Flat.Surface1
+	chip.BackgroundTransparency = 0.2
+	chip.BorderSizePixel = 0
+	Kit.corner(chip, Theme.Flat.Radius.S)
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 6)
+	pad.PaddingRight = UDim.new(0, 6)
+	pad.Parent = chip
+	xpText = Kit.label("", 11, C.Text)
+	xpText.Name = "Xp"
+	xpText.AnchorPoint = Vector2.new(0, 0.5)
+	xpText.Position = UDim2.fromScale(0, 0.5)
+	xpText.Parent = chip
+	chip.Parent = root
 end
 
 local function refreshShield()
@@ -281,7 +333,7 @@ local function buildMinimap()
 
 	-- Dark disc behind the dots so they stay readable on any ground
 	local frameImg = Kit.hudImage("minimap_frame", Vector2.new(MAP_SIZE, MAP_SIZE))
-	local discSize = if frameImg then 0.66 else 0.8
+	local discSize = if frameImg then 0.66 else 0.97
 	local disc = Instance.new("Frame")
 	disc.Name = "Disc"
 	disc.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -298,12 +350,13 @@ local function buildMinimap()
 		frameImg.ZIndex = 3
 		frameImg.Parent = mapFrame
 	else
-		mapInner = 0.4
+		-- The map fills the whole circle up to the gold rim; "N" sits on the map at the top
+		mapInner = 0.485
 		ring(mapFrame, MAP_SIZE)
 		local north = Kit.label("N", 14, C.GoldHi, Theme.Font.Title)
 		north.AnchorPoint = Vector2.new(0.5, 0)
-		north.Position = UDim2.new(0.5, 0, 0, 22)
-		Kit.textOutline(north, 0.4)
+		north.Position = UDim2.new(0.5, 0, 0, 6)
+		Kit.textOutline(north, 0.15)
 		north.ZIndex = 4
 		north.Parent = mapFrame
 	end
@@ -400,33 +453,47 @@ end
 local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
 local skillButtons: { ImageButton } = {}
-local shownSkills: { string } = {}
+local shownSkills: { string } = {} -- art key (or skill id) per slot that is on the button now
 local SLOT_KEYS = { "Q", "E", "R", "F" }
+local dashButton: ImageButton
+local shownDash = ""
+local dashSize = H.DashSize -- touch screens use the bigger size (set in buildSkills)
 
--- Loadout changed: new icons
+-- Loadout or class changed: new icons (skill art and the sprint icon depend on the class)
 local function refreshSkillButtons()
 	for i, btn in skillButtons do
 		local skill = SkillController.skill(i)
-		if skill and shownSkills[i] ~= skill.id then
-			shownSkills[i] = skill.id
-			Kit.setRoundIcon(btn, Kit.skillArt(skill.id) or H.SkillArt[skill.id], skill.icon)
+		if skill then
+			local art = Kit.skillArt(skill.id) or H.SkillArt[skill.id]
+			local key = skill.id .. "|" .. (art or "")
+			if shownSkills[i] ~= key then
+				shownSkills[i] = key
+				Kit.setRoundIcon(btn, art, skill.icon)
+			end
 		end
+	end
+	local dashArt = Kit.skillArt("dash") or "skill_dash"
+	if dashButton and shownDash ~= dashArt then
+		shownDash = dashArt
+		Kit.setRoundIcon(dashButton, dashArt, "skill_dash")
 	end
 end
 
 local function buildSkills()
-	local keyboard = not UserInputService.TouchEnabled
-	local S, D, R, M = H.SkillSize, H.DashSize, H.SkillArc, H.Margin
+	local touch = UserInputService.TouchEnabled
+	local keyboard = not touch
+	local S = if touch then H.SkillSizeTouch else H.SkillSize
+	local D = if touch then H.DashSizeTouch else H.DashSize
+	local R = if touch then H.SkillArcTouch else H.SkillArc
+	local M, P = H.Margin, H.SkillPad
+	dashSize = D
 
-	-- Dash
-	local dash = Kit.roundButton(
-		D,
-		"gold",
-		Kit.skillArt("dash") or "skill_dash",
-		"skill_dash",
-		if keyboard then "Space" else nil
-	)
+	-- Dash (sprint icon of the own class, see refreshSkillButtons)
+	shownDash = Kit.skillArt("dash") or "skill_dash"
+	local dash =
+		Kit.roundButton(D, "gold", shownDash, "skill_dash", if keyboard then "Space" else nil)
 	dash.Name = "Dash"
+	dashButton = dash
 	onTap(dash, DashController.dash)
 	-- One diamond per maximum charge above the button: cyan = available, dark = spent
 	local pips, setPips = Kit.chargePips(H.DashDiamond)
@@ -437,11 +504,12 @@ local function buildSkills()
 	updateDashPips = setPips
 	place(dash, Vector2.new(1, 1), UDim2.new(1, -M, 1, -M))
 
-	-- Skill arc: the group's bottom right corner sits S/2 beyond the dash center
-	local side = R + S
+	-- Skill arc: the group's bottom right corner sits S/2 + P beyond the dash center. P keeps the
+	-- glow and the touch growth of the outer buttons inside the group (a CanvasGroup clips)
+	local side = R + S + 2 * P
 	local arc = group(Vector2.new(side, side))
 	arc.Name = "Skills"
-	local cx, cy = side - S / 2, side - S / 2 -- dash center inside the group
+	local cx, cy = P + R + S / 2, P + R + S / 2 -- dash center inside the group
 	for i, skill in Skills.bar do
 		local angle = math.rad(H.SkillAngles[i] or 90)
 		local btn, update = Kit.roundButton(
@@ -452,7 +520,7 @@ local function buildSkills()
 			if keyboard then SLOT_KEYS[i] else nil
 		)
 		btn.Name = "Skill" .. i
-		shownSkills[i] = skill.id
+		shownSkills[i] = skill.id .. "|" .. (Kit.skillArt(skill.id) or H.SkillArt[skill.id] or "")
 		skillButtons[i] = btn
 		btn.AnchorPoint = Vector2.new(0.5, 0.5)
 		btn.Position = UDim2.fromOffset(cx + R * math.cos(angle), cy - R * math.sin(angle))
@@ -462,7 +530,7 @@ local function buildSkills()
 		skillVeils[i] = update
 		btn.Parent = arc
 	end
-	local inset = M + D / 2 - S / 2
+	local inset = M + D / 2 - S / 2 - P
 	addFly(
 		arc,
 		Vector2.new(1, 1),
@@ -687,6 +755,119 @@ local questReward: TextLabel
 local barButtons: { { id: string, button: ImageButton } } = {}
 local RES_WIDTH = 620 -- three capsules with spacing
 
+-- Icon bar (dock with one button per menu). Used by the hub bar and by the menu dock over windows.
+local function buildBar(): (CanvasGroup, number)
+	local cellW = H.BarIcon + 12
+	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap + 2 * H.DockPad
+	local barH = H.BarIcon + H.BarCaption + H.DockPad + math.floor(H.DockPad / 2)
+	local bar = group(Vector2.new(barW, barH))
+	local barRow = Kit.dock(bar, H.DockPad)
+	Kit.list(barRow, Enum.FillDirection.Horizontal, H.BarGap)
+	for i, entry in H.Bar do
+		local b = Kit.hudIconButton(H.BarIcon, entry.art, entry.icon, entry.caption)
+		b.Name = entry.id
+		b.LayoutOrder = i
+		local open = MENU_ACTION[entry.id]
+		if open then
+			local id = entry.id
+			b.Activated:Connect(function()
+				local hint = QuestController.lockHint(id)
+				if hint then
+					QuestController.toast("Locked · " .. hint, C.Muted)
+					return
+				end
+				open()
+			end)
+		end
+		b.Parent = barRow
+		table.insert(barButtons, { id = entry.id, button = b })
+	end
+	return bar, barH
+end
+
+-- ------------------------------------------------------------------ Menu dock (over open windows)
+-- Own ScreenGui above every fullscreen window, shown only while one is open: tap another icon to
+-- switch menus directly. The open menu's icon gets a gold marker; windows end above the dock
+-- (Window.setReserve).
+local WINDOW_OF: { [string]: string } = { -- bar id -> Window name / Window.exclusive name
+	inventory = "Inventory",
+	star_net = "StarNet",
+	skills = "Abilities",
+	forge = "Forge",
+	atlas = "Atlas",
+	pets = "Pets",
+	shop = "Shop",
+}
+local NO_DOCK: { [string]: boolean } = { Class = true } -- first-join class picker: no way out
+local menuGui: ScreenGui
+local menuMarks: { [string]: Frame } = {}
+local menuShown: string? = nil
+local menuBarH = 0
+local menuScale: UIScale
+local menuBar: CanvasGroup
+local menuList: UIListLayout
+local menuBarW = 0
+local menuVertical: boolean? = nil
+-- Phones (short screens): the dock stands as a smaller icon column at the left edge, where the
+-- windows have room to spare, instead of taking height from them at the bottom
+local PHONE_HEIGHT = 500 -- screen points
+local PHONE_DOCK = 0.72
+local PHONE_GAP = 2
+
+local function buildMenuDock()
+	local gui, r = Kit.scaledGui("LootRushMenuDock", 7, false, function()
+		return if UserInputService.TouchEnabled then Theme.HudDesignTouch else Theme.DesignSize
+	end, true)
+	gui.Enabled = false
+	menuGui = gui
+	local first = #barButtons
+	local bar, barH = buildBar()
+	bar.Name = "MenuDock"
+	bar.AnchorPoint = Vector2.new(0.5, 1)
+	bar.Position = UDim2.new(0.5, 0, 1, -H.Margin)
+	bar.Parent = r
+	menuBar = bar
+	menuBarH = barH
+	menuBarW = bar.Size.X.Offset
+	local row = bar:FindFirstChild("Row")
+	menuList = (row and row:FindFirstChildOfClass("UIListLayout")) :: UIListLayout
+	menuScale = Instance.new("UIScale")
+	menuScale.Parent = bar
+	for i = first + 1, #barButtons do
+		local entry = barButtons[i]
+		local mark = Instance.new("Frame")
+		mark.Name = "Open"
+		mark.AnchorPoint = Vector2.new(0.5, 0.5)
+		mark.Position = UDim2.new(0.5, 0, 0, H.BarIcon / 2)
+		mark.Size = UDim2.fromOffset(H.BarIcon + 8, H.BarIcon + 8)
+		mark.BackgroundColor3 = C.Gold
+		mark.BackgroundTransparency = 0.82
+		mark.BorderSizePixel = 0
+		mark.ZIndex = 1
+		mark.Visible = false
+		Kit.corner(mark, Theme.Flat.Radius.L)
+		Kit.stroke(mark, C.GoldHi, 2)
+		mark.Parent = entry.button
+		menuMarks[entry.id] = mark
+	end
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Every frame (cheap): show the dock while a window is open, move the marker to the open one
+local function updateMenuDock()
+	local name = Window.openName()
+	local show = name ~= nil and not NO_DOCK[name :: string]
+	if menuGui.Enabled ~= show then
+		menuGui.Enabled = show
+	end
+	if name ~= menuShown then
+		menuShown = name
+		for id, mark in menuMarks do
+			mark.Visible = name ~= nil and WINDOW_OF[id] == name
+		end
+	end
+end
+
 local function buildCalmPanels()
 	-- Resources at the top center (stays visible in combat too)
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
@@ -724,32 +905,8 @@ local function buildCalmPanels()
 	resGroup = res
 
 	-- Hub icon bar at the bottom center
-	local cellW = H.BarIcon + 12
-	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap + 2 * H.DockPad
-	local barH = H.BarIcon + H.BarCaption + H.DockPad + math.floor(H.DockPad / 2)
-	local bar = group(Vector2.new(barW, barH))
+	local bar, barH = buildBar()
 	bar.Name = "HubBar"
-	local barRow = Kit.dock(bar, H.DockPad)
-	Kit.list(barRow, Enum.FillDirection.Horizontal, H.BarGap)
-	for i, entry in H.Bar do
-		local b = Kit.hudIconButton(H.BarIcon, entry.art, entry.icon, entry.caption)
-		b.Name = entry.id
-		b.LayoutOrder = i
-		local open = MENU_ACTION[entry.id]
-		if open then
-			local id = entry.id
-			b.Activated:Connect(function()
-				local hint = QuestController.lockHint(id)
-				if hint then
-					QuestController.toast("Locked · " .. hint, C.Muted)
-					return
-				end
-				open()
-			end)
-		end
-		b.Parent = barRow
-		table.insert(barButtons, { id = entry.id, button = b })
-	end
 	addFly(
 		bar,
 		Vector2.new(0.5, 1),
@@ -759,7 +916,8 @@ local function buildCalmPanels()
 		false
 	)
 
-	-- Settings gear next to the dash button (opens the Roblox menu)
+	-- Settings gear above the dash button at rest (the skill arc is away then; beside the dash it
+	-- would run into the icon bar on tablets with the bigger touch dash). Opens the Roblox menu.
 	local gearGroup = group(Vector2.new(H.GearSize + 12, H.GearSize))
 	gearGroup.Name = "Settings"
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
@@ -770,73 +928,109 @@ local function buildCalmPanels()
 		end)
 	end)
 	gear.Parent = gearGroup
-	local gearX = -(H.Margin + H.DashSize + 8)
+	local gearX = -(H.Margin + dashSize / 2 - (H.GearSize + 12) / 2)
+	local gearY = -(H.Margin + dashSize + H.DashDiamond + 6)
 	addFly(
 		gearGroup,
 		Vector2.new(1, 1),
-		UDim2.new(1, gearX, 1, -H.Margin),
-		UDim2.new(1, gearX + 200, 1, -H.Margin + 120),
+		UDim2.new(1, gearX, 1, gearY),
+		UDim2.new(1, gearX + 200, 1, gearY),
 		3,
 		false
 	)
 
-	-- Quests on the right
-	local quests = Kit.flyPanel(Vector2.new(260, 170))
+	-- Quest tracker on the right: compact card that grows with the text.
+	--   QUEST 3 / 12                +250 Gold
+	--   Objective text (wraps)
+	--   [=========-------]  2 / 5
+	local W = 240
+	local quests = Kit.flyPanel(Vector2.new(W, 0))
 	questGroup = quests
 	quests.Name = "Quests"
-	Kit.padding(quests, 14)
-	local list = Instance.new("Frame")
-	list.BackgroundTransparency = 1
-	list.Size = UDim2.fromScale(1, 1)
-	list.Parent = quests
-	local l = Instance.new("UIListLayout")
-	l.Padding = UDim.new(0, 6)
-	l.SortOrder = Enum.SortOrder.LayoutOrder
-	l.Parent = list
+	quests.AutomaticSize = Enum.AutomaticSize.Y
+	-- Content in its own frame (the card's Sheen child must stay out of the list layout)
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	body.Size = UDim2.fromOffset(W, 0)
+	body.ZIndex = 2
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 10)
+	pad.PaddingBottom = UDim.new(0, 12)
+	pad.PaddingLeft = UDim.new(0, 12)
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.Parent = body
+	body.Parent = quests
+	local list = Kit.list(body, Enum.FillDirection.Vertical, 6)
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	list.VerticalAlignment = Enum.VerticalAlignment.Top
+
+	local inner = W - 24
 	local headRow = Instance.new("Frame")
+	headRow.Name = "Head"
 	headRow.BackgroundTransparency = 1
-	headRow.Size = UDim2.new(1, 0, 0, 20)
-	headRow.LayoutOrder = 0
-	headRow.Parent = list
-	local head = Kit.icon("quest", 20, C.Muted)
+	headRow.Size = UDim2.fromOffset(inner, 18)
+	headRow.LayoutOrder = 1
+	headRow.Parent = body
+	local head = Kit.icon("quest", 16, C.Gold)
+	head.AnchorPoint = Vector2.new(0, 0.5)
+	head.Position = UDim2.fromScale(0, 0.5)
 	head.Parent = headRow
-	local headText = Kit.label("Quest", 12, C.Muted)
+	local headText = Kit.label("QUEST", 12, C.GoldHi, Theme.Font.Title)
 	headText.Name = "Step"
-	headText.Position = UDim2.fromOffset(26, 2)
+	headText.AnchorPoint = Vector2.new(0, 0.5)
+	headText.Position = UDim2.new(0, 22, 0.5, 0)
+	headText.TextXAlignment = Enum.TextXAlignment.Left
 	headText.Parent = headRow
-	questTitle = Kit.label("", 15, C.Text, Theme.Font.Body)
-	questTitle.Name = "QuestText"
-	questTitle.AutomaticSize = Enum.AutomaticSize.None
-	questTitle.Size = UDim2.new(1, 0, 0, 40)
-	questTitle.TextWrapped = true
-	questTitle.TextYAlignment = Enum.TextYAlignment.Top
-	questTitle.LayoutOrder = 1
-	questTitle.Parent = list
-	local back, fill = Kit.bar(Vector2.new(232, 6), C.Gold)
-	back.LayoutOrder = 2
-	back.Parent = list
-	local foot = Instance.new("Frame")
-	foot.BackgroundTransparency = 1
-	foot.Size = UDim2.new(1, 0, 0, 18)
-	foot.LayoutOrder = 3
-	foot.Parent = list
-	questCount = Kit.label("", 13, C.Muted, Theme.Font.Body)
-	questCount.Parent = foot
-	questReward = Kit.label("", 13, C.Gold, Theme.Font.Body)
-	questReward.AnchorPoint = Vector2.new(1, 0)
-	questReward.Position = UDim2.fromScale(1, 0)
+	questReward = Kit.label("", 12, C.Gold, Theme.Font.UI)
+	questReward.Name = "Reward"
+	questReward.AnchorPoint = Vector2.new(1, 0.5)
+	questReward.Position = UDim2.fromScale(1, 0.5)
 	questReward.TextXAlignment = Enum.TextXAlignment.Right
-	questReward.Parent = foot
+	questReward.Parent = headRow
+
+	questTitle = Kit.label("", 14, C.Text, Theme.Font.Body)
+	questTitle.Name = "QuestText"
+	questTitle.AutomaticSize = Enum.AutomaticSize.Y
+	questTitle.Size = UDim2.fromOffset(inner, 0)
+	questTitle.TextWrapped = true
+	questTitle.TextXAlignment = Enum.TextXAlignment.Left
+	questTitle.TextYAlignment = Enum.TextYAlignment.Top
+	questTitle.LayoutOrder = 2
+	questTitle.Parent = body
+
+	local progress = Instance.new("Frame")
+	progress.Name = "Progress"
+	progress.BackgroundTransparency = 1
+	progress.Size = UDim2.fromOffset(inner, 14)
+	progress.LayoutOrder = 3
+	progress.Parent = body
+	local back, fill = Kit.bar(Vector2.new(inner - 64, 5), C.Gold)
+	back.AnchorPoint = Vector2.new(0, 0.5)
+	back.Position = UDim2.fromScale(0, 0.5)
+	back.Parent = progress
+	questCount = Kit.label("", 12, C.Muted, Theme.Font.UI)
+	questCount.Name = "Count"
+	questCount.AnchorPoint = Vector2.new(1, 0.5)
+	questCount.Position = UDim2.fromScale(1, 0.5)
+	questCount.TextXAlignment = Enum.TextXAlignment.Right
+	questCount.Parent = progress
 	local function refreshQuest()
 		local q = QuestController.state()
 		local text, count, reward = QuestController.lines()
+		local done = QuestController.ready() and not q.text
 		headText.Text = if not QuestController.ready()
-			then "Quest"
-			elseif q.text then string.format("Quest %d / %d", q.step, q.total)
-			else "Quests done"
+			then "QUEST"
+			elseif q.text then string.format("QUEST %d / %d", q.step, q.total)
+			else "QUESTS DONE"
 		questTitle.Text = text
 		questCount.Text = count
 		questReward.Text = reward
+		-- All done: no bar, the best depth stands alone in the footer
+		back.Visible = not done
+		questCount.AnchorPoint = if done then Vector2.new(0, 0.5) else Vector2.new(1, 0.5)
+		questCount.Position = if done then UDim2.fromScale(0, 0.5) else UDim2.fromScale(1, 0.5)
 		local ratio = if not QuestController.ready()
 			then 0
 			elseif q.target > 0 then QuestController.count() / q.target
@@ -922,6 +1116,49 @@ local function layoutHud()
 		resGroup.Position = UDim2.fromOffset(resLeft, 18)
 	end
 	setHome(questGroup, UDim2.new(1, -M, 0, questTop), UDim2.new(1, 300, 0, questTop))
+
+	-- Windows keep clear of the menu dock (screen pixels): bottom row, or left column on phones
+	if camera then
+		local vertical = camera.ViewportSize.Y < PHONE_HEIGHT
+		local dockScale = if vertical then PHONE_DOCK else 1
+		local cellW = H.BarIcon + 12
+		local colW = cellW + 2 * H.DockPad
+		if menuVertical ~= vertical then
+			menuVertical = vertical
+			menuScale.Scale = dockScale
+			menuList.FillDirection = if vertical
+				then Enum.FillDirection.Vertical
+				else Enum.FillDirection.Horizontal
+			menuList.Padding = UDim.new(0, if vertical then PHONE_GAP else H.BarGap)
+			if vertical then
+				local btnH = H.BarIcon + H.BarCaption
+				local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+				menuBar.Size = UDim2.fromOffset(colW, colH)
+				menuBar.AnchorPoint = Vector2.new(0, 1)
+				menuBar.Position = UDim2.new(0, H.Margin, 1, -H.Margin)
+			else
+				menuBar.Size = UDim2.fromOffset(menuBarW, menuBarH)
+				menuBar.AnchorPoint = Vector2.new(0.5, 1)
+				menuBar.Position = UDim2.new(0.5, 0, 1, -H.Margin)
+			end
+			-- Phone column: icons only (the captions would not fit at the smaller size)
+			for _, mark in menuMarks do
+				local button = mark.Parent
+				local caption = button and button:FindFirstChildOfClass("TextLabel")
+				if caption then
+					caption.Visible = not vertical
+				end
+			end
+		end
+		if vertical then
+			local safeLeft = math.max(0, hudGui.AbsolutePosition.X)
+			Window.setReserve(0, safeLeft + (H.Margin + colW * dockScale + 6) * s)
+		else
+			local safeBottom = hudGui.AbsolutePosition.Y + hudGui.AbsoluteSize.Y
+			local below = math.max(0, camera.ViewportSize.Y - safeBottom)
+			Window.setReserve(below + (H.Margin + menuBarH + 6) * s, 0)
+		end
+	end
 end
 
 -- ------------------------------------------------------------------ Fly in/out
@@ -968,10 +1205,12 @@ function HudController.init()
 	end, true)
 
 	buildOrbs()
+	buildXpBar()
 	buildMinimap()
 	buildSkills()
 	buildStatus()
 	buildCalmPanels()
+	buildMenuDock()
 
 	hudGui.Parent = player:WaitForChild("PlayerGui")
 
@@ -992,6 +1231,7 @@ function HudController.start()
 	end)
 
 	ProgressController.changed:Connect(refreshSkillButtons)
+	player:GetAttributeChangedSignal("Class"):Connect(refreshSkillButtons)
 	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
@@ -1005,11 +1245,18 @@ function HudController.start()
 	end)
 
 	local function refreshLevel()
-		xpOrb.text.Text = "Lv. " .. tostring(player:GetAttribute("Level") or 1)
 		local need = math.max((player:GetAttribute("XPNext") or 1) :: number, 1)
 		local xp = (player:GetAttribute("XP") or 0) :: number
-		xpOrb.setRatio(math.clamp(xp / need, 0, 1))
-		xpText.Text = Format.big(xp) .. " / " .. Format.big(need) .. " XP"
+		local ratio = math.clamp(xp / need, 0, 1)
+		Spring.target(xpFill, { Size = UDim2.fromScale(ratio, 1) }, "Soft")
+		xpTip.Visible = ratio > 0.01
+		xpText.Text = "Lv. "
+			.. tostring(player:GetAttribute("Level") or 1)
+			.. "  ·  "
+			.. Format.big(xp)
+			.. " / "
+			.. Format.big(need)
+			.. " XP"
 	end
 	for _, attr in { "Level", "XP", "XPNext" } do
 		player:GetAttributeChangedSignal(attr):Connect(refreshLevel)
@@ -1070,6 +1317,7 @@ function HudController.start()
 			update(SkillController.cooldownRatio(i), SkillController.remaining(i))
 		end
 		updateRushMeter(dt)
+		updateMenuDock()
 		buffAcc += dt
 		if buffAcc >= 0.1 then
 			buffAcc = 0
