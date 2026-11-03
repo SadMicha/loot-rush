@@ -17,6 +17,7 @@ local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
+local Status = require(script.Parent.Status)
 
 type PState = {
 	cdUntil: { [string]: number }, -- per skill id (swapping the bar does not reset cooldowns)
@@ -177,6 +178,7 @@ function Combat.chill(player: Player, untilT: number, pct: number)
 	local fresh = os.clock() >= st.chillUntil
 	st.chill = pct
 	st.chillUntil = math.max(st.chillUntil, untilT)
+	Status.set(player, "chill", st.chillUntil - os.clock())
 	if fresh then
 		applySpeed(player)
 		player:SetAttribute("Chilled", true)
@@ -186,6 +188,7 @@ function Combat.chill(player: Player, untilT: number, pct: number)
 			end
 			if player.Parent then
 				player:SetAttribute("Chilled", nil)
+				Status.clear(player, "chill")
 				applySpeed(player)
 			end
 		end)
@@ -499,6 +502,9 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		st.shield -= absorbed
 		amount -= absorbed
 		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
+		if st.shield <= 0 then
+			Status.clear(player, "shield")
+		end
 		if amount <= 0 then
 			Net.Fx:FireAllClients("dmg", {
 				pos = root.Position + Vector3.new(0, 3, 0),
@@ -771,14 +777,17 @@ local function castBuff(player: Player, root: BasePart, skill: Skills.Skill): bo
 	if skill.buffDamage then
 		st.buffDamage = skill.buffDamage
 		st.buffUntil = now + duration
+		Status.set(player, "damage", duration)
 	end
 	if skill.buffArmor then
 		st.armorBuff = skill.buffArmor
 		st.armorUntil = now + duration
+		Status.set(player, "armor", duration)
 	end
 	if skill.buffHaste then
 		st.haste = skill.buffHaste
 		st.hasteUntil = now + duration
+		Status.set(player, "haste", duration)
 		applySpeed(player)
 		task.delay(duration + 0.05, applySpeed, player)
 	end
@@ -851,6 +860,7 @@ local function castNova(player: Player, root: BasePart, skill: Skills.Skill): bo
 	if st and skill.haste and #hits > 0 then
 		st.haste = skill.haste
 		st.hasteUntil = now + HASTE_TIME
+		Status.set(player, "haste", HASTE_TIME)
 		applySpeed(player)
 		task.delay(HASTE_TIME + 0.05, applySpeed, player)
 	end
@@ -858,6 +868,7 @@ local function castNova(player: Player, root: BasePart, skill: Skills.Skill): bo
 	if st and skill.armorBuff then
 		st.armorBuff = skill.armorBuff
 		st.armorUntil = now + ARMOR_TIME
+		Status.set(player, "armor", ARMOR_TIME)
 	end
 	-- Bloom "Frost Field": ice field at the spot, slows and hits every 0.5 s
 	local field = skill.field
@@ -1043,6 +1054,7 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		end
 		st.shield = math.max(st.shield, humanoid.MaxHealth * pct / 100)
 		st.shieldUntil = now + SHIELD_TIME
+		Status.set(player, "shield", SHIELD_TIME)
 		player:SetAttribute("Shield", math.floor(st.shield + 0.5))
 		task.delay(SHIELD_TIME, function()
 			if states[player] == st and os.clock() >= st.shieldUntil - 0.01 then

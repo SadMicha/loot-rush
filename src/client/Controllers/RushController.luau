@@ -1,14 +1,16 @@
 --!strict
 -- Stud Rush on the client (docs/STUD-RUSH.md): own kills pop studs that are vacuumed to the
--- character (BrickController.stud, purely visual), key G or the HUD Rush button asks the server
--- to start a Rush. Meter and state come from the attributes RushMeter / RushUntil / Rushing.
+-- character (BrickController.stud, purely visual). The server starts the Rush on its own when the
+-- meter is full; the HUD shows the meter bar and the Rush in the buff bar (HudController).
+-- Meter and state come from the attributes RushMeter / RushUntil / Rushing.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rush = require(ReplicatedStorage.Shared.Rush)
+local Status = require(ReplicatedStorage.Shared.Status)
+local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local BrickController = require(script.Parent.BrickController)
 local FeelController = require(script.Parent.FeelController)
 local QuestController = require(script.Parent.QuestController)
@@ -32,16 +34,6 @@ function RushController.remaining(): number
 	return math.max(0, untilT - workspace:GetServerTimeNow())
 end
 
-function RushController.ready(): boolean
-	return RushController.meter() >= 1 and RushController.remaining() <= 0
-end
-
-function RushController.trigger()
-	if RushController.ready() then
-		Net.Rush:FireServer("start")
-	end
-end
-
 function RushController.start()
 	Net.Fx.OnClientEvent:Connect(function(kind: string, d: any)
 		if typeof(d) ~= "table" then
@@ -54,13 +46,9 @@ function RushController.start()
 				BrickController.stud(d.pos, color)
 			end
 		elseif kind == "rush" and d.who == player.UserId then
-			QuestController.toast("RUSH!", Color3.fromRGB(255, 214, 90))
+			-- What the Rush gives, so the player knows why everything got faster
+			QuestController.toast("STUD RUSH! " .. Status.Defs.rush.text, Theme.Color.GoldHi)
 			FeelController.shake(0.4)
-		end
-	end)
-	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if not processed and input.KeyCode == Enum.KeyCode.G then
-			RushController.trigger()
 		end
 	end)
 end
