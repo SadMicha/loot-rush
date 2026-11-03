@@ -539,7 +539,7 @@ local function buildCalmPanels()
 	-- Hub icon bar at the bottom center
 	local cellW = H.BarIcon + 12
 	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap + 2 * H.DockPad
-	local barH = H.BarIcon + H.BarCaption + H.DockPad
+	local barH = H.BarIcon + H.BarCaption + H.DockPad + math.floor(H.DockPad / 2)
 	local bar = group(Vector2.new(barW, barH))
 	bar.Name = "HubBar"
 	local barRow = Kit.dock(bar, H.DockPad)
