@@ -20,6 +20,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Leaderboard)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
+local Movement = require(script.Parent.Movement)
 
 type Cached = {
 	at: number, -- os.clock() of the read
@@ -34,7 +35,7 @@ local WRITE_TRIES = 3
 local LOAD_WAIT = 10 -- seconds a request waits for a read another request started
 
 local allow = RateLimit.new(2, 6)
-local pending: { [Player]: { [string]: number } } = {} -- best values of the running run
+local pending: { [Player]: Pending } = {}
 local cache: { [string]: Cached } = {}
 local names: { [number]: string } = {}
 local stores: { [string]: OrderedDataStore } = {}
@@ -54,6 +55,11 @@ local function storeOf(boardId: string): OrderedDataStore?
 	return nil
 end
 
+-- Pending improvements of the running run: boardId → { value, known (account best before) }.
+-- The account best is raised at once (so the save never misses it, even when the player leaves
+-- and Data ends the session first); the OrderedDataStore write waits for the run end.
+type Pending = { account: Data.Account, boards: { [string]: { value: number, known: number } } }
+
 -- Remembers a cleared depth of the running run (called by Rift after every boss)
 function Leaderboard.note(
 	player: Player,
@@ -63,14 +69,36 @@ function Leaderboard.note(
 	seconds: number
 )
 	local profile = Data.get(player)
-	if not profile or profile.debugged then
+	local account = Data.account(player)
+	if not profile or not account or profile.debugged then
 		return
 	end
-	local best = pending[player] or {}
-	pending[player] = best
+	local found = pending[player]
+	local p: Pending = if found and found.account == account
+		then found
+		else { account = account, boards = {} }
+	pending[player] = p
 	for id, value in Rules.values(tier, class, depth, seconds) do
-		if value > (best[id] or 0) then
-			best[id] = value
+		local known = account.boards[id] or 0
+		if value > known then
+			local entry = p.boards[id]
+			p.boards[id] = { value = value, known = if entry then entry.known else known }
+			account.boards[id] = value
+		end
+	end
+end
+
+-- Drops the running run's pending values and puts the account bests back (a Dbg command or a
+-- movement strike during the run: nothing of it may reach a board)
+function Leaderboard.taint(player: Player)
+	local p = pending[player]
+	pending[player] = nil
+	if not p then
+		return
+	end
+	for id, entry in p.boards do
+		if p.account.boards[id] == entry.value then
+			p.account.boards[id] = if entry.known > 0 then entry.known else nil :: any
 		end
 	end
 end
@@ -101,31 +129,23 @@ local function write(userId: number, boardId: string, value: number): boolean
 	return false
 end
 
--- Writes the run's best values (run end). At most one write per board and run, only improvements.
+-- Writes the run's best values (run end): at most one write per board and run, only improvements
 function Leaderboard.flush(player: Player)
-	local best = pending[player]
+	local p = pending[player]
 	pending[player] = nil
-	if not best then
+	if not p then
 		return
 	end
-	local account = Data.account(player)
 	local userId = player.UserId
-	for boardId, value in best do
-		local known = if account then account.boards[boardId] or 0 else 0
-		if value > known then
-			if account then
-				account.boards[boardId] = value
+	for boardId, entry in p.boards do
+		task.spawn(function()
+			if
+				not write(userId, boardId, entry.value)
+				and p.account.boards[boardId] == entry.value
+			then
+				p.account.boards[boardId] = if entry.known > 0 then entry.known else nil :: any
 			end
-			task.spawn(function()
-				if
-					not write(userId, boardId, value)
-					and account
-					and account.boards[boardId] == value
-				then
-					account.boards[boardId] = if known > 0 then known else nil :: any
-				end
-			end)
-		end
+		end)
 	end
 end
 
@@ -263,6 +283,9 @@ function Leaderboard.init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		Leaderboard.flush(player)
+	end)
+	Movement.Struck.Event:Connect(function(player: Player)
+		Leaderboard.taint(player)
 	end)
 end
 

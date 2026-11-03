@@ -88,6 +88,17 @@ describe("Leaderboard server", function()
 		expect(after).toBe(Leaderboard.encode(5, 200))
 	end)
 
+	it("a strike or Dbg command during a run drops depths it already cleared", function()
+		local best = server(function(req, player)
+			local LB = req("ServerScriptService.Server.Systems.Leaderboard")
+			LB.note(player, 2, "ranger", 7, 100) -- noted, account best raised at once
+			LB.taint(player)
+			LB.flush(player)
+			return req("ServerScriptService.Server.Systems.Data").account(player).boards.t2_ranger
+		end)
+		expect(best).toBeNil()
+	end)
+
 	it("a test command marks the hero as debugged", function()
 		sim:runAs("client", function(req)
 			req("ReplicatedStorage.Shared.Net").Debug:FireServer("gold", 100)

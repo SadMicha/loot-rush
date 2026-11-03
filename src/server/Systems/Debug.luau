@@ -22,6 +22,7 @@ local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
 local Daily = require(script.Parent.Daily)
 local Data = require(script.Parent.Data)
+local Leaderboard = require(script.Parent.Leaderboard)
 local Inventory = require(script.Parent.Inventory)
 local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
@@ -215,6 +216,7 @@ local function onCommand(player: Player, command: any, value: any)
 		if profile then
 			profile.debugged = true
 		end
+		Leaderboard.taint(player) -- depths already cleared in this run are dropped too
 	end
 	entry.run(player, n)
 	print(string.format("[Debug] %s: %s %s", player.Name, command, tostring(value or "")))

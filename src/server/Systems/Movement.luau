@@ -30,7 +30,9 @@ type Live = Track & {
 	moved: RBXScriptConnection,
 }
 
-local Movement = {}
+local Movement = {
+	Struck = Instance.new("BindableEvent"), -- (player) after a pull-back (Leaderboard drops the run)
+}
 
 local tracks: { [Player]: Live } = {}
 local strikes: { [Player]: number } = {}
@@ -138,6 +140,7 @@ local function check(player: Player, now: number)
 	root.AssemblyLinearVelocity = Vector3.zero
 	model:PivotTo(CFrame.new(from) * root.CFrame.Rotation)
 	pulling[player] = nil
+	Movement.Struck:Fire(player)
 end
 
 function Movement.init()
