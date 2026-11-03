@@ -31,6 +31,7 @@ end
 local function remember()
 	local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
 	local clouds = cloudsOf()
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
 	defaults = {
 		clock = Lighting.ClockTime,
 		brightness = Lighting.Brightness,
@@ -41,6 +42,9 @@ local function remember()
 		density = if atmo then atmo.Density else nil,
 		haze = if atmo then atmo.Haze else nil,
 		tint = Color3.new(1, 1, 1),
+		saturation = 0,
+		contrast = 0,
+		bloom = if bloom then bloom.Intensity else nil,
 		clouds = if clouds then clouds.Cover else nil,
 	}
 end
@@ -73,7 +77,16 @@ local function apply(l: Looks.Light, instant: boolean)
 			Haze = pick(l.haze, defaults.haze) or atmo.Haze,
 		})
 	end
-	set(mood, { TintColor = pick(l.tint, defaults.tint) or Color3.new(1, 1, 1) })
+	set(mood, {
+		TintColor = pick(l.tint, defaults.tint) or Color3.new(1, 1, 1),
+		Saturation = pick(l.saturation, defaults.saturation) or 0,
+		Contrast = pick(l.contrast, defaults.contrast) or 0,
+	})
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
+	local glow = pick(l.bloom, defaults.bloom)
+	if bloom and glow then
+		set(bloom, { Intensity = glow })
+	end
 	local clouds = cloudsOf()
 	local cover = pick(l.clouds, defaults.clouds)
 	if clouds and cover then

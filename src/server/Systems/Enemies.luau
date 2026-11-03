@@ -135,8 +135,8 @@ local BASE_BODY_Y = Creatures.BODY_Y
 local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
 local MAX_Z = math.floor(Config.ARENA_TILES_Z / 2) * Config.TILE_SIZE - 6
 local MIN_Z = -MAX_Z + 6
-local DANGER = Color3.fromHex("#FF6A3A")
-local DANGER_CORE = Color3.fromHex("#FF3A2A")
+local DANGER = Color3.fromHex("#FF2E3E") -- pure red: reads on every floor (green, sand, purple)
+local DANGER_CORE = Color3.fromHex("#FF0A2E")
 
 local function archetype(arch: string, k: { [string]: any }): Kind
 	local m = ARCH[arch]
