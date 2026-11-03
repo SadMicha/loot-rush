@@ -218,6 +218,7 @@ export type RollOpts = {
 	shift: number?, -- rarity shift (Balance.rarityShift), 1 = depth 0
 	min: string?, -- at least this rarity (boss: "rare")
 	uniques: boolean?, -- may roll a unique (depth ≥ Balance.UNIQUE_FROM)
+	slot: string?, -- force this slot (guaranteed first weapon); no unique then
 }
 
 -- Uniques: fixed name, slot and stat package (factor on the normal roll range, like a tier).
@@ -316,7 +317,11 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 	local boost = 1 + math.max(0, find or 0)
 	local shift = math.max(1, opts and opts.shift or 1)
 	local minRank = opts and opts.min and RANK[opts.min] or 1
-	local uniques = opts ~= nil and opts.uniques == true
+	local forced = opts and opts.slot
+	if forced and not BASE[forced] then
+		forced = nil
+	end
+	local uniques = opts ~= nil and opts.uniques == true and forced == nil
 	local function weight(i: number): number
 		if i < minRank or (RARITIES[i].id == "unique" and not uniques) then
 			return 0
@@ -344,7 +349,7 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 		return Items.makeUnique(Items.Uniques[rng:NextInteger(1, #Items.Uniques)], ilvl, rng)
 	end
 
-	local slot = Items.Slots[rng:NextInteger(1, #Items.Slots)]
+	local slot = forced or Items.Slots[rng:NextInteger(1, #Items.Slots)]
 	local bases = BASE[slot]
 	local base = bases[rng:NextInteger(1, #bases)]
 

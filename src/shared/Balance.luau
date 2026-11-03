@@ -172,4 +172,14 @@ Balance.Daily = table.freeze({
 	table.freeze({ gold = 1000, candy = 8, shards = 40, dust = 3, stones = 1, soulstars = 15 }),
 })
 
+-- Guaranteed first drops (docs/ROADMAP-1.0.md O3): the first `kills` normal kills of a new
+-- character each drop an item, so the first loot moment never depends on Balance.P.drop_normal.
+-- The very first one is at least Magic and a weapon. (The first boss already drops a Rare:
+-- the first of Balance.P.drops_boss items is always at least Rare.)
+Balance.FirstDrops = table.freeze({
+	kills = 3,
+	firstMin = "magic",
+	firstSlot = "weapon",
+})
+
 return table.freeze(Balance)
