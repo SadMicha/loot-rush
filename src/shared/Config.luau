@@ -57,7 +57,7 @@ return table.freeze({
 	-- Enemies
 	ENEMY_ZONE = Vector3.new(0, 0, -20), -- center of the spawn area
 	ENEMY_ZONE_RADIUS = 16,
-	AGGRO_RADIUS = 45,
+	AGGRO_RADIUS = 75, -- a pack notices the player early and closes in (was 45, docs/balancing.md)
 
 	-- Metrics (M5): debug overlay with F3 or the "Dbg" button bottom left
 	DEBUG_OVERLAY = true,

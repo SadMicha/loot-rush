@@ -3,8 +3,68 @@
 The values of the spreadsheet (sheet "Parameter") live in `Balance.P` in `src/shared/Balance.luau`.
 The keys are English translations of the (German) spreadsheet names; the mapping is below. If the
 spreadsheet changes, look up the German name in the table and update the English key there.
-`tests/Balancing.spec.luau` plays depth 1–30 once and fails if something is out of range
-(`bash tools/check.sh test`, the table is in the output).
+`tests/Balancing.spec.luau` plays depth 1–30 (farming a depth until the next one is "ready", see
+below) and fails if something is out of range (`lune run tools/lune/test Balancing`, the table is
+in the output).
+
+## Pacing and difficulty targets (2026-11-03)
+
+Playtest feedback: the feel is right, but it was too easy. From some point on the player never got
+hit, running away dodged everything, and all regions were done in 30-40 minutes (the old sim: one
+run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without cheap deaths.
+
+**Targets**
+
+| What | Target |
+|---|---|
+| Depth 30 on Normal (end of the region path) | ~3-4 hours of real play; sim 1.5-5 h of pure run time without Star Web/Forge (now ~3.4 h) |
+| Max level 100 | not on the first pass (sim: ~level 65-70 at depth 30); World Tiers carry the rest |
+| World Tiers Veteran → Mythic | several more hours each (unchanged factors, `docs/WORLD-TIERS.md`) |
+| One run (Rift Trail: 3 clearings + boss) | 1-1.5 minutes, fits a phone session |
+| Farming | the next depth is "ready" when a normal enemy dies in ≤ 1 s, the player survives ≥ 5 hits and the boss takes ≤ 40 s; until then the sim farms the depth before. Some farming from region 2 on, more in the Altered World |
+
+**Per-depth difficulty (sim, on arrival, Normal)**
+
+| Depth | Region | Hits survived (normal / boss) | Normal enemy TTK | Boss s |
+|---|---|---|---|---|
+| 1 | Green Plains | 10 / 6 | 0.6 s | 38 |
+| 5-10 | Green Plains → Crystal Caves | 15-20 / 9-12 | 0.4-1.0 s | 25-30 |
+| 11-15 | Mushroom Swamp | 8-10 / 8-11 | 0.7-1.1 s | 28-38 |
+| 16-20 | Fire Desert | 8-12 / 5-7 | 0.8-1.2 s | 25-34 |
+| 21-25 | Sky Islands | 7-9 / 5-6 | 0.9-1.1 s | 23-29 |
+| 26-30 | Altered World | 6-7 / 4 | 1.0-1.1 s | 34-39 |
+
+Hits are a ceiling: the real danger is that several enemies now attack at once and from range.
+
+**Numbers changed**
+
+| Value | before | now |
+|---|---|---|
+| Enemy life | 40 × 1.18^(d−1), deep ×1.06 from 20 | 55 × 1.22^(d−1), deep ×1.02 from 20 |
+| Enemy damage | 6 × 1.12^(d−1) | 12 × 1.12^(d−1) (depth 1 now hurts) |
+| Level XP | 100 × L^1.6 | 100 × L^1.9 |
+| Item chance per normal kill | 12 % | 8 % |
+| Enemy walk speed | 9.2 base | 11.5 base, up to ×1.2 deeper (`Balance.enemySpeed`) |
+| Wind-up / cooldown | fixed per type | × `Balance.tempo(depth)`: 1 at depth 1, toward 0.7 (never lower) |
+| Aggro radius | 45 studs | 75 (a clearing's pack closes in as soon as you show up) |
+| Charge line | 18 studs | 22 studs |
+
+**Enemy pressure (Systems/Enemies)**
+
+- **Surround:** melee enemies approach at their own angle and spread around the player.
+- **Gap closers:** slimes, sporelings and the slam bosses leap at the player from range; the red
+  circle sits where they will land (wind-up × 1.15 so it stays readable).
+- **Leading shots:** ranged shots and charges aim where the player is heading (75 % of their
+  movement during the wind-up, at most 12 studs). Running in a straight line gets punished,
+  dashing or changing direction still dodges. Wind Spirits fire 2 shots.
+- **Area denial:** Spark Imps, Spore Mother, Furnace Lord and The Rift leave burning ground for
+  3-4 s where they hit (20 % of the hit every 0.5 s).
+- **Ranged kite:** ranged enemies and summoners strafe sideways while reloading.
+- **Staggered attacks:** first attacks are spread over 0.8-1.8 s so a pack does not hit in one beat.
+- **New elite modifier `mortar`**, and every boss from phase 2: a volley of 3 telegraphed shells
+  around the player's path every 5 s (faster when deeper).
+
+Not changed: dash i-frames, player life per level, every attack keeps its telegraph.
 
 ## Spreadsheet name -> `Balance.P` key
 
@@ -57,7 +117,7 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 
 ## Our own assumptions (not in the spreadsheet)
 
-- **Rift length:** 3 waves of 6–24 enemies + boss instead of 150 enemies + 3 elites. Per minute,
+- **Rift length:** 3 Rift Trail clearings of 6–24 enemies + boss instead of 150 enemies + 3 elites. Per minute,
   XP, gold and items still come close to the spreadsheet (depth 1: ~800 XP, ~100 gold, ~7 items per minute;
   spreadsheet ~900 / ~120 / ~9).
 - **Elites** exist since the loot PR (see `docs/LOOT.md`); the simulation table above does not count them yet.
@@ -78,43 +138,32 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 - **Old saves:** migration v3 halves the item level of old items (depth × 2 − 1 → depth).
   Their affix values stay, so they're slightly better than new rolls.
 
-## Simulation result (1 run per depth, without stars/forge)
+## Simulation result (farming until ready, without stars/forge)
 
-TTK = seconds per normal enemy (single target). Hits = how many hits the player survives.
-Regenerated from `tests/Balancing.spec.luau` (`lune run tools/lune/test Balancing`) after the
-nine gear slots: the simulated player fills all nine slots (best piece per slot), crit uncapped
-with overcrit (see below). Total for depths 1-30: 25 min.
+Regenerated 2026-11-03 from `tests/Balancing.spec.luau` (Rift Trail: 3 clearings, 10 s walk/pause each). TTK1/Hits1 = on arrival at the depth,
+TTK/Hits = after farming. Farm = extra runs of the depth before. Min = minutes since the start.
+The simulated player fills all nine slots (best piece per slot), crit uncapped with overcrit
+(`Shared/Crit`, the sim uses `Crit.expectedMult`).
 
-No caps: gear + Star Net move speed and crit chance are uncapped. Crit chance above 100% overcrits:
-floor(total) crit tiers are guaranteed, the remainder is the chance of one more tier, and every
-tier multiplies the damage by the crit multiplier again (`Shared/Crit`; 130% = every hit tier 1
-and 30% tier 2, damage `base * critMult^tier`). The simulation uses the average factor
-(`Crit.expectedMult`). Best nine-piece set uncapped: ~98% speed (WalkSpeed ~40) and ~77% gear crit.
-
-| Depth | Level | TTK | Boss s | Run s | Hits normal | Hits boss | Gold/run |
+| Depth | Level | TTK1 | Boss s | Hits1 | Boss hits | Farm | Min |
 |---|---|---|---|---|---|---|---|
-| 1 | 1 | 0.47 | 27.9 | 51 | 18.2 | 12.5 | 91 |
-| 5 | 6 | 0.29 | 17.3 | 41 | 39.0 | 26.8 | 206 |
-| 6 | 7 | 0.56 | 17.3 | 41 | 39.0 | 19.1 | 207 |
-| 10 | 10 | 0.57 | 17.4 | 47 | 33.1 | 16.5 | 525 |
-| 11 | 11 | 0.49 | 20.2 | 43 | 19.4 | 22.2 | 377 |
-| 15 | 15 | 0.30 | 12.2 | 36 | 15.6 | 17.7 | 954 |
-| 16 | 16 | 0.42 | 14.7 | 37 | 20.3 | 12.5 | 733 |
-| 20 | 22 | 0.47 | 16.4 | 44 | 18.0 | 11.0 | 1880 |
-| 21 | 24 | 0.55 | 16.0 | 39 | 16.3 | 11.6 | 1351 |
-| 23 | 26 | 0.88 | 25.8 | 57 | 14.7 | 10.5 | 2219 |
-| 25 | 30 | 1.37 | 39.9 | 84 | 12.5 | 8.9 | 3465 |
-| 26 | 32 | 0.87 | 34.0 | 60 | 11.4 | 6.9 | 3047 |
-| 28 | 35 | 0.89 | 34.7 | 65 | 10.3 | 6.2 | 5023 |
-| 30 | 39 | 1.00 | 39.2 | 76 | 8.0 | 4.8 | 7859 |
+| 1 | 1 | 0.64 | 38.3 | 10.0 | 6.2 | 0 | 1 |
+| 5 | 5 | 0.49 | 29.5 | 17.2 | 10.8 | 0 | 6 |
+| 6 | 8 | 1.20 | 29.2 | 16.5 | 9.6 | 5 | 12 |
+| 10 | 10 | 0.90 | 27.5 | 14.2 | 7.0 | 0 | 17 |
+| 15 | 14 | 0.99 | 40.0 | 7.0 | 8.1 | 1 | 27 |
+| 20 | 24 | 1.16 | 32.6 | 7.9 | 5.6 | 5 | 50 |
+| 24 | 32 | 1.18 | 24.4 | 7.0 | 5.7 | 8 | 72 |
+| 26 | 43 | 1.21 | 38.8 | 6.7 | 4.4 | 13 | 98 |
+| 27 | 50 | 1.24 | 39.6 | 6.5 | 4.2 | 30 | 135 |
+| 30 | 67 | 1.13 | 35.1 | 5.2 | 3.7 | 30 | 204 |
 
-- Up to depth 20 normal enemies take 0.3–0.6 s, bosses 12–28 s. After that the soft wall kicks in:
-  at depth 25-30 ~1-1.4 s per enemy and ~40 s per boss with a single run per depth (spreadsheet: wall from 2 s).
-  Anyone who farms, forges and assigns stars is faster.
-- It gets dangerous via damage: at depth 30 the player survives ~8 normal or ~5 boss hits
-  (spreadsheet: enemy damage ×1.12 per depth, health only +12 per level).
-- Jumps: Crystal Caves (from 6) have enemies twice as tough as the Green Plains (many tanks),
-  Mushroom Swamp (from 11) deals more damage (charger ×1.6). Both stay within range.
+- Real play is slower than the sim (dodging, walking, menus; the old sim said 24 minutes, the
+  playtest took 30-40), while Star Web and Forge make the player stronger than the sim. Together
+  that lands around 3-4 hours to depth 30.
+- The Altered World (26+) is the farm zone before Veteran: most of the farming happens there.
+- Early depths are still forgiving on raw hits (15-20); the pressure there comes from leaps,
+  packs and leading shots, not from damage.
 
 ## Shop prices scale
 

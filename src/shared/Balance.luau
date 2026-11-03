@@ -8,15 +8,17 @@ local Balance = {}
 
 Balance.P = table.freeze({
 	-- Enemies (normal enemy, archetype factor 1)
-	hp_base = 40,
-	hp_growth = 1.18,
-	dmg_base = 6,
+	-- Retuned 2026-11-03 (docs/balancing.md "Pacing"): the spreadsheet had 40 / 1.18 / 6 / 1.12,
+	-- which let one run per depth clear everything in ~25 minutes.
+	hp_base = 55,
+	hp_growth = 1.22,
+	dmg_base = 12,
 	dmg_growth = 1.12,
 	boss_hp = 40,
 	-- Deep curve (own assumption): past this depth enemy life grows a bit faster, so deeper
 	-- depths stay harder than gear progress. Not a prestige wall: World Tiers carry the rest.
 	deep_from = 20,
-	deep_growth = 1.06,
+	deep_growth = 1.02,
 	-- Rewards
 	gold_base = 2,
 	gold_growth = 1.13,
@@ -30,14 +32,14 @@ Balance.P = table.freeze({
 	drops_elite = 2,
 	-- Player
 	xp_level_base = 100,
-	xp_level_exp = 1.6,
+	xp_level_exp = 1.9, -- spreadsheet 1.6; slower levels so farming does not overlevel
 	level_max = 100,
 	life_base = 100,
 	life_per_level = 12,
 	weapon_base = 12,
 	weapon_growth = 1.155,
 	-- Loot
-	drop_normal = 0.12,
+	drop_normal = 0.08, -- spreadsheet 0.12; upgrades stay a find, not a given
 	drops_boss = 3,
 	loot_depth = 50,
 	ip_per_depth = 10,
@@ -112,6 +114,22 @@ end
 -- depth cleared, so gold does not become worthless (own assumption, docs/balancing.md)
 function Balance.shopFactor(bestDepth: number): number
 	return P.gold_growth ^ steps(math.max(1, bestDepth))
+end
+
+-- Enemy tempo (own assumption, 2026-11-03): deeper enemies wind up faster, attack more often and
+-- move a bit faster. 1 at depth 1, approaching TEMPO_MIN (never below, telegraphs stay readable).
+Balance.TEMPO_MIN = 0.7 -- windup/cooldown factor at the deepest depths
+Balance.TEMPO_DEPTH = 25 -- depths until most (~63 %) of the speed-up is reached
+Balance.SPEED_MAX = 1.2 -- move speed factor at the deepest depths
+
+function Balance.tempo(depth: number): number
+	local k = 1 - math.exp(-steps(depth) / Balance.TEMPO_DEPTH)
+	return 1 - (1 - Balance.TEMPO_MIN) * k
+end
+
+function Balance.enemySpeed(depth: number): number
+	local k = 1 - math.exp(-steps(depth) / Balance.TEMPO_DEPTH)
+	return 1 + (Balance.SPEED_MAX - 1) * k
 end
 
 -- Rarity shift: 1 + depth / loot_depth
