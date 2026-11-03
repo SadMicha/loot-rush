@@ -76,7 +76,8 @@ end
 
 local function refreshChoiceStats()
 	local s = lastSummary
-	if not s then
+	-- Only the summary of this depth's clear (no matter which arrives first, it or the phase)
+	if not s or s.depth ~= player:GetAttribute("RiftDepth") then
 		choiceStats.Text = ""
 		return
 	end
@@ -129,9 +130,6 @@ local function refresh()
 	end
 
 	local showChoice = p == "clear"
-	if p ~= "clear" then
-		lastSummary = nil -- a new depth (or the end): the next clear brings its own summary
-	end
 	if showChoice and not choice.Visible then
 		Flat.pop(choice)
 	end
