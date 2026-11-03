@@ -44,14 +44,17 @@ describe("Store rules", function()
 		end
 	end)
 
-	it("placeholder IDs show Coming soon, owned things show Owned", function()
-		expect(Store.anyLive()).toBe(false)
-		expect(Store.state(Store.ById.soulstars_m, owner())).toBe("soon")
+	it("every offer has a real ID, owned things show Owned", function()
+		expect(Store.anyLive()).toBe(true)
+		for _, offer in Store.Offers do
+			expect(Store.idOf(offer)).toBeGreaterThan(0)
+		end
+		expect(Store.state(Store.ById.soulstars_m, owner())).toBe("buy")
 		expect(Store.state(Store.ById.vip, owner({ vip = true }))).toBe("owned")
 		expect(Store.state(Store.ById.starter, owner(nil, nil, { starter = true }))).toBe("owned")
 		local both = { ember_trail = true, ember_aura = true }
 		expect(Store.state(Store.ById.pack_ember, owner(nil, both))).toBe("owned")
-		expect(Store.state(Store.ById.pack_ember, owner(nil, { ember_trail = true }))).toBe("soon")
+		expect(Store.state(Store.ById.pack_ember, owner(nil, { ember_trail = true }))).toBe("buy")
 		-- Soulstar packs can always be bought again
 		expect(Store.owned(Store.ById.soulstars_l, owner({ vip = true }, both))).toBe(false)
 	end)
@@ -88,13 +91,19 @@ end)
 
 local IDS = { pack_ember = 801, starter = 802, gold_s = 803 }
 
--- Gives some products real IDs in the sandbox's copy of Shared/Monetization (before boot)
+-- Gives some products fixed test IDs in the sandbox's copy of Shared/Monetization (before boot)
 local function liveProducts()
 	local native = sim:nativeOf(sim:find("ReplicatedStorage.Shared.Monetization"))
 	local source = native.Source
 	for key, id in IDS do
 		local count
-		source, count = string.gsub(source, "\t" .. key .. " = 0,", `\t{key} = {id},`, 1)
+		source, count = string.gsub(source, "\t" .. key .. " = %d+,", `\t{key} = {id},`, 1)
+		assert(count == 1, key .. " ID not found in Shared/Monetization")
+	end
+	-- Passes have real IDs; zero them so joining does not query ownership in the sandbox
+	for _, key in { "vip", "pet_slot", "magnet" } do
+		local count
+		source, count = string.gsub(source, "\t" .. key .. " = %d+,", `\t{key} = 0,`, 1)
 		assert(count == 1, key .. " ID not found in Shared/Monetization")
 	end
 	native.Source = source
