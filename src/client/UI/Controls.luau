@@ -157,7 +157,12 @@ function Controls.slider(
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		local d = dragging
-		if d and (input == d or input.UserInputType == d.UserInputType) then
+		-- only the finger (or mouse button) that started the drag ends it; a second finger
+		-- lifting (movement stick) must not
+		local mouse = d ~= nil
+			and d.UserInputType == Enum.UserInputType.MouseButton1
+			and input.UserInputType == Enum.UserInputType.MouseButton1
+		if d and (input == d or mouse) then
 			finish()
 		end
 	end)

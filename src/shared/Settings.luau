@@ -42,6 +42,9 @@ Settings.Defs = table.freeze({
 	camera = { kind = "number", default = 1, min = 0.5, max = 2, step = 0.1 }, -- turn speed
 } :: { [string]: Def })
 
+-- Net.Setting key that puts every setting back to its default in one request (Defaults button)
+Settings.RESET = "defaults"
+
 Settings.VOLUMES = table.freeze({ "master", "music", "sfx", "ambience", "ui" })
 
 -- Shown under "About" in the window (the build number comes from game.PlaceVersion)

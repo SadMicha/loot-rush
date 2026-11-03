@@ -19,6 +19,7 @@ local Prefs = {}
 local values: Settings.Data = Settings.fresh()
 local changedEvent = Instance.new("BindableEvent")
 local loaded = false
+local dirty: { [string]: boolean } = {} -- changed before the save arrived (sent again after)
 
 Prefs.changed = changedEvent.Event
 
@@ -74,9 +75,26 @@ end
 function Prefs.set(key: string, value: any): any
 	local v = Prefs.preview(key, value)
 	if v ~= nil then
+		if not loaded then
+			dirty[key] = true -- the server has no save yet and ignores it: resend after loading
+		end
 		Net.Setting:FireServer(key, v)
 	end
 	return v
+end
+
+-- Every setting back to its default, saved with one request (Defaults button)
+function Prefs.reset()
+	for key, def in Settings.Defs do
+		Prefs.preview(key, def.default)
+	end
+	if loaded then
+		Net.Setting:FireServer(Settings.RESET)
+	else
+		for key in Settings.Defs do
+			dirty[key] = true
+		end
+	end
 end
 
 -- Effects level "low" | "medium" | "high" ("auto" resolved for this device)
@@ -101,9 +119,15 @@ function Prefs.load(raw: any)
 	local data = Settings.reconcile(raw)
 	loaded = true
 	for key, v in data do
-		values[key] = v
-		apply(key, v)
+		if dirty[key] then
+			-- changed while the save was loading: the player's choice wins and is stored now
+			Net.Setting:FireServer(key, values[key])
+		elseif values[key] ~= v then
+			values[key] = v
+			apply(key, v)
+		end
 	end
+	table.clear(dirty)
 end
 
 -- Start values for the audio channels, then the save from the server

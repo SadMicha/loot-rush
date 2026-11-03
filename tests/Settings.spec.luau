@@ -134,5 +134,11 @@ describe("Settings remote", function()
 		sim:click(find(gui.LootRushSettings, "Reset"))
 		sim:run(0.5)
 		expect(math.abs(hudScale.Scale - before)).toBeLessThan(1e-6)
+		local resetHud, resetShake = server(function(req, player)
+			local st = req("ServerScriptService.Server.Systems.Data").account(player).settings
+			return st.hudScale, st.shake
+		end)
+		expect(resetHud).toBe(1)
+		expect(resetShake).toBe(1)
 	end)
 end)

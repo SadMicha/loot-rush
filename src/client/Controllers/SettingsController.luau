@@ -242,11 +242,7 @@ local function build()
 	reset.Name = "Reset"
 	reset.LayoutOrder = 1
 	reset.Activated:Connect(function()
-		for key, def in Settings.Defs do
-			if Prefs.get(key) ~= def.default then
-				Prefs.set(key, def.default)
-			end
-		end
+		Prefs.reset()
 		refresh()
 	end)
 	reset.Parent = buttons

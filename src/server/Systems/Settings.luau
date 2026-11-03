@@ -22,6 +22,10 @@ function Settings.set(player: Player, key: any, value: any): boolean
 	if not account or not allow(player) then
 		return false
 	end
+	if key == Rules.RESET then
+		account.settings = Rules.fresh()
+		return true
+	end
 	local v = Rules.validate(key, value)
 	if v == nil then
 		return false
