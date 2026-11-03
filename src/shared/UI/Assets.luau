@@ -386,6 +386,9 @@ local ICON_ALIAS: { [string]: string } = {
 	soulstars_l = "soulstar",
 	soulstars_xl = "soulstar",
 	starter_pack = "chest",
+	pet_crystal_beetle = "companion",
+	pet_firefly = "companion",
+	pet_moss_frog = "companion",
 	trail_ember = "fire",
 	trail_void = "portal",
 	aura_void = "whirl",
@@ -645,6 +648,9 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	aura_void = { id = "rbxassetid://133312664956652", size = Vector2.new(256, 256) },
 	trail_void = { id = "rbxassetid://138884461442290", size = Vector2.new(256, 256) },
 	trail_ember = { id = "rbxassetid://134456301548595", size = Vector2.new(256, 256) },
+	pet_moss_frog = { id = "rbxassetid://91835194884455", size = Vector2.new(256, 256) },
+	pet_firefly = { id = "rbxassetid://117562730191418", size = Vector2.new(256, 256) },
+	pet_crystal_beetle = { id = "rbxassetid://104285913069347", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
 }
 local iconImage: { [string]: Fixed } = {}
