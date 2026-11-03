@@ -749,6 +749,24 @@
     1024
    ],
    "registry": "Assets.Weapon"
+  },
+  {
+   "key": "menu_pets",
+   "file": "assets/ui/icons/pets.png",
+   "size": [
+    400,
+    396
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_daily",
+   "file": "assets/ui/icons/daily.png",
+   "size": [
+    400,
+    395
+   ],
+   "registry": "Assets.Hud"
   }
  ]
 }
