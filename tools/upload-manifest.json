@@ -848,6 +848,51 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "aura_void",
+   "file": "assets/ui/icons/store/aura_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "trail_void",
+   "file": "assets/ui/icons/store/trail_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "trail_ember",
+   "file": "assets/ui/icons/store/trail_ember.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_frost",
+   "file": "assets/ui/icons/store/pack_frost.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pack_void",
+   "file": "assets/ui/icons/store/pack_void.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
