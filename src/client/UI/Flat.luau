@@ -306,20 +306,28 @@ function Flat.toggle(
 	Kit.touchTarget(b)
 	Flat.corner(b, F.Radius.M)
 	local edge = Flat.stroke(b, F.Edge)
+	-- Content sits in its own row: the press ripple adds a full-size child to the button, and a
+	-- list layout directly on an auto-sized button would lay it out too and grow without end.
+	local row = Instance.new("Frame")
+	row.Name = "Row"
+	row.BackgroundTransparency = 1
+	row.BorderSizePixel = 0
+	row.AutomaticSize = Enum.AutomaticSize.X
+	row.Size = UDim2.fromOffset(0, 44)
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 12)
 	pad.PaddingRight = UDim.new(0, 12)
-	pad.Parent = b
-	local layout = Kit.list(b, Enum.FillDirection.Horizontal, 10)
+	pad.Parent = row
+	local layout = Kit.list(row, Enum.FillDirection.Horizontal, 10)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	if iconName then
 		local ic = Kit.icon(iconName, 24)
 		ic.LayoutOrder = 1
-		ic.Parent = b
+		ic.Parent = row
 	end
 	local t = Flat.text(string.upper(text), 13, C.Text)
 	t.LayoutOrder = 2
-	t.Parent = b
+	t.Parent = row
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -338,7 +346,8 @@ function Flat.toggle(
 	knob.BorderSizePixel = 0
 	Flat.corner(knob, 9)
 	knob.Parent = track
-	track.Parent = b
+	track.Parent = row
+	row.Parent = b
 
 	local on = false
 	local function apply(animate: boolean)

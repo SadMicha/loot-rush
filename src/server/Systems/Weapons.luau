@@ -17,7 +17,8 @@ local Data = require(script.Parent.Data)
 local WeaponSystem = {}
 
 local NAME = "HeldWeapon"
-local meshCache: { [string]: BasePart } = {}
+-- Loaded mesh per weapon plus the turn that points its long axis along +Y
+local meshCache: { [string]: { part: BasePart, align: CFrame } } = {}
 local tried: { [string]: boolean } = {}
 local loading: { [string]: boolean } = {} -- LoadAsset in flight: other callers wait for it
 
@@ -26,7 +27,7 @@ local function assetId(raw: string): number?
 end
 
 -- First MeshPart of the uploaded model, scaled to the weapon length, texture applied
-local function loadMesh(w: Weapons.Weapon): BasePart?
+local function loadMesh(w: Weapons.Weapon): { part: BasePart, align: CFrame }?
 	while loading[w.id] do
 		task.wait(0.1)
 	end
@@ -66,26 +67,30 @@ local function loadMesh(w: Weapons.Weapon): BasePart?
 	if longest > 0 then
 		mesh.Size = size * (w.length / longest)
 	end
-	meshCache[w.id] = mesh
-	return mesh
+	-- The pack is Y-up (head/tip at +Y); should an import lie on its side, stand it up
+	local align = CFrame.identity
+	if longest == size.X and size.X > size.Y then
+		align = CFrame.Angles(0, 0, math.rad(90))
+	elseif longest == size.Z and size.Z > size.Y then
+		align = CFrame.Angles(math.rad(-90), 0, 0)
+	end
+	local entry = { part = mesh :: BasePart, align = align }
+	meshCache[w.id] = entry
+	return entry
 end
 
--- Part fallback: the weapon's long axis runs along -Y from the grip (y = 0)
+-- Part fallback in weapon space: grip point at the origin, head/tip toward +Y
 local function buildParts(w: Weapons.Weapon, model: Model): BasePart
 	local L = w.length
 	local handle: BasePart
 	if w.id == "warrior_sword" then
-		handle = Kit.block(
-			model,
-			Vector3.new(0.3, 0.9, 0.3),
-			CFrame.new(0, 0.45, 0),
-			Kit.shade(w.color, -0.4)
-		)
-		Kit.block(model, Vector3.new(1.2, 0.2, 0.3), CFrame.new(0, 0, 0), w.accent)
+		handle =
+			Kit.block(model, Vector3.new(0.3, 0.9, 0.3), CFrame.new(), Kit.shade(w.color, -0.4))
+		Kit.block(model, Vector3.new(1.2, 0.2, 0.3), CFrame.new(0, 0.55, 0), w.accent)
 		Kit.block(
 			model,
 			Vector3.new(0.4, L - 1, 0.12),
-			CFrame.new(0, -(L - 1) / 2, 0),
+			CFrame.new(0, 0.65 + (L - 1) / 2, 0),
 			w.color,
 			Enum.Material.Metal
 		)
@@ -120,19 +125,21 @@ local function buildParts(w: Weapons.Weapon, model: Model): BasePart
 		)
 	else
 		-- staff / scepter: shaft with a glowing head
+		local head = if w.id == "druid_scepter" then 1.1 else 0.8
+		local bottom = -w.gripAt * L
+		local top = bottom + L - head
 		handle = Kit.cylinder(
 			model,
-			Vector3.new(L, 0.3, 0.3),
-			CFrame.new(0, -L / 2 + 1, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(top - bottom, 0.3, 0.3),
+			CFrame.new(0, (top + bottom) / 2, 0) * CFrame.Angles(0, 0, math.rad(90)),
 			w.color
 		)
-		local head = if w.id == "druid_scepter" then 1.1 else 0.8
-		Kit.ball(model, head, Vector3.new(0, 1 + head / 2, 0), w.accent, Enum.Material.Neon)
+		Kit.ball(model, head, Vector3.new(0, top + head / 2, 0), w.accent, Enum.Material.Neon)
 		if w.id == "druid_scepter" then
 			Kit.cylinder(
 				model,
 				Vector3.new(0.3, 1.6, 1.6),
-				CFrame.new(0, 1 + head, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				CFrame.new(0, top + head * 0.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
 				Kit.shade(w.accent, -0.2)
 			)
 		end
@@ -151,6 +158,16 @@ local function hand(character: Model): BasePart?
 		end
 	end
 	return nil
+end
+
+-- Grip point on the hand part: the rig's RightGripAttachment (R6 arms are 2 studs long, R15
+-- hands small), orientation of the hand part itself (+Y up the arm, -Z forward)
+local function gripOffset(part: BasePart): CFrame
+	local att = part:FindFirstChild("RightGripAttachment")
+	if att and att:IsA("Attachment") then
+		return CFrame.new(att.Position)
+	end
+	return CFrame.new()
 end
 
 -- The avatar loads after the spawn and swaps its body parts (RightHand etc.). A weapon welded to
@@ -249,8 +266,9 @@ function WeaponSystem.equip(player: Player)
 	model:SetAttribute("Weapon", w.id)
 	local root: BasePart
 	if mesh then
-		root = mesh:Clone()
-		root.CFrame = CFrame.new()
+		root = mesh.part:Clone()
+		-- bounding-box center of the mesh sits (0.5 - gripAt) lengths above the grip point
+		root.CFrame = CFrame.new(0, (0.5 - w.gripAt) * w.length, 0) * mesh.align
 		root.Parent = model
 	else
 		root = buildParts(w, model)
@@ -259,7 +277,8 @@ function WeaponSystem.equip(player: Player)
 	-- Joints from fixed offsets (not world positions): the weapon sits right even if the server's
 	-- copy of the hand moved meanwhile. Root → hand via "Grip", every other part → root.
 	local rootCf = root.CFrame
-	local place = grip.CFrame * w.grip
+	local hold = gripOffset(grip) * w.grip -- weapon space → hand space
+	local place = grip.CFrame * hold
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.CanCollide = false
@@ -274,14 +293,14 @@ function WeaponSystem.equip(player: Player)
 				weld.C0 = rootCf:ToObjectSpace(p.CFrame)
 				weld.Parent = p
 			end
-			p.CFrame = place * rootCf:ToObjectSpace(p.CFrame)
+			p.CFrame = place * p.CFrame
 		end
 	end
 	local joint = Instance.new("Weld")
 	joint.Name = "Grip"
 	joint.Part0 = grip
 	joint.Part1 = root
-	joint.C0 = w.grip
+	joint.C0 = hold * rootCf
 	joint.Parent = model
 	model.Parent = character
 	watch(player, character)

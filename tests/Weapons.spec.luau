@@ -50,6 +50,13 @@ describe("Held weapon in game", function()
 		expect(class).toBe("mage")
 		expect(weapon).toBe("mage_staff")
 		expect(welded).toBeGreaterThan(0)
+		-- held upright: the staff's center sits above the grip point, close to the hand
+		local up, side = server(function(_, player)
+			local joint = player.Character.HeldWeapon.Grip
+			return joint.C0.Position.Y, math.abs(joint.C0.Position.X)
+		end)
+		expect(up).toBeGreaterThan(0.5)
+		expect(side).toBeLessThan(0.5)
 		local after, count = server(function(req, player)
 			player:SetAttribute("Class", "warrior")
 			req("ServerScriptService.Server.Systems.Weapons").equip(player)
