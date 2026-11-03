@@ -4,7 +4,9 @@
 -- (Shared/Atlas). Cleared depths go into the save (atlas) and unlock follow-up regions.
 -- Every player has their own Rift on their own arena slot (World, Config.RIFT_SLOTS);
 -- enemies carry the run number and only count for their run. State lives as attributes on the
--- owner (see Types.luau), the client only reads. Death, leaving or aborting end the run.
+-- owner (see Types.luau), the client only reads. Leaving or aborting end the run. Dying inside a
+-- trail costs one of Config.RIFT_REVIVES per depth: the player respawns at the last lit waypoint
+-- (or the start pad) and the run goes on; dying without a revive left fails the run.
 -- Along the way the server counts kills, XP, gold, items and materials and sends a summary
 -- after every boss and at the end via Net.RiftResult (Shared/RiftRun) - data for the
 -- reward screen. At the end, loot left lying around is collected.
@@ -44,6 +46,9 @@ type Run = {
 	restored: number, -- The Smoothing: how far the owner restored this region (0..1)
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
+	respawned: RBXScriptConnection?, -- waits for the new character after a death with a revive left
+	revives: number, -- revives left in this depth (Config.RIFT_REVIVES)
+	downed: boolean, -- dead and waiting for the respawn; the run keeps going
 	checkpoint: Vector3?, -- last lit waypoint shrine (FallGuard puts the player back there)
 }
 
@@ -74,6 +79,9 @@ end
 local function alive(r: Run): boolean
 	if runs[r.owner] ~= r or not r.owner.Parent then
 		return false
+	end
+	if r.downed then
+		return true -- respawning: the packs wait, the run is not over
 	end
 	local _, _, humanoid = character(r.owner)
 	return humanoid ~= nil and humanoid.Health > 0
@@ -228,9 +236,18 @@ local function waitClear(r: Run): boolean
 	return false
 end
 
+-- Loads the map around `pos` for the player before a teleport (StreamingEnabled: otherwise the
+-- character can land before the floor has streamed in). Yields; failures are harmless.
+local function streamAround(player: Player, pos: Vector3)
+	pcall(function()
+		player:RequestStreamAroundAsync(pos, Config.STREAM_AROUND_TIMEOUT)
+	end)
+end
+
 local function returnToHub(player: Player)
 	local model = character(player)
 	if model then
+		streamAround(player, Config.HUB_POS)
 		model:PivotTo(CFrame.new(Config.HUB_POS))
 		Combat.refreshStats(player, true)
 		CombatState.reset(player)
@@ -246,6 +263,10 @@ local function finish(r: Run, reason: EndReason)
 	if r.died then
 		r.died:Disconnect()
 		r.died = nil
+	end
+	if r.respawned then
+		r.respawned:Disconnect()
+		r.respawned = nil
 	end
 	local failed = reason == "failed"
 	Metrics.report(
@@ -270,6 +291,8 @@ local function finish(r: Run, reason: EndReason)
 		release()
 	end
 	owner:SetAttribute("RiftRegion", nil)
+	owner:SetAttribute("RiftRevives", nil)
+	owner:SetAttribute("RiftDowned", nil)
 	if reason == "gone" or not owner.Parent then
 		return
 	end
@@ -286,6 +309,80 @@ local function finish(r: Run, reason: EndReason)
 		owner:SetAttribute("RiftPhase", "")
 		returnToHub(owner)
 	end
+end
+
+local function setRevives(r: Run)
+	r.owner:SetAttribute("RiftRevives", r.revives)
+end
+
+local onDied: (r: Run) -> ()
+
+local function watchDeath(r: Run, humanoid: Humanoid)
+	if r.died then
+		r.died:Disconnect()
+	end
+	r.died = humanoid.Died:Connect(function()
+		onDied(r)
+	end)
+end
+
+-- The new character after a death with a revive left: back to the last lit waypoint (or the
+-- start pad), full life, and the run goes on.
+local function revive(r: Run, model: Model)
+	if runs[r.owner] ~= r or not r.downed then
+		return
+	end
+	local humanoid = model:WaitForChild("Humanoid", 5)
+	local root = model:WaitForChild("HumanoidRootPart", 5)
+	if runs[r.owner] ~= r or r.owner.Character ~= model then
+		return
+	end
+	if not (humanoid and humanoid:IsA("Humanoid") and root and root:IsA("BasePart")) then
+		return finish(r, "failed")
+	end
+	local spot = r.checkpoint or World.startOf(r.slot) -- same as Rift.safeSpot
+	streamAround(r.owner, spot)
+	task.wait() -- after the engine has placed the new character on its spawn
+	if runs[r.owner] ~= r or r.owner.Character ~= model then
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	model:PivotTo(CFrame.new(spot))
+	watchDeath(r, humanoid)
+	r.downed = false
+	r.owner:SetAttribute("RiftDowned", nil)
+	Combat.refreshStats(r.owner, true)
+	CombatState.reset(r.owner)
+end
+
+-- Death inside a running Rift: spend a revive, or fail the run when none is left
+onDied = function(r: Run)
+	if runs[r.owner] ~= r or r.downed then
+		return
+	end
+	if r.revives <= 0 then
+		return finish(r, "failed")
+	end
+	r.revives -= 1
+	r.downed = true
+	setRevives(r)
+	r.owner:SetAttribute("RiftDowned", true)
+	if r.respawned then
+		r.respawned:Disconnect()
+	end
+	r.respawned = r.owner.CharacterAdded:Connect(function(model: Model)
+		if r.respawned then
+			r.respawned:Disconnect()
+			r.respawned = nil
+		end
+		revive(r, model)
+	end)
+	-- Safety net: no new character in time (respawn blocked, left mid-load) ends the run
+	task.delay(Config.RESPAWN_TIME + Config.RIFT_REVIVE_GRACE, function()
+		if runs[r.owner] == r and r.downed then
+			finish(r, "failed")
+		end
+	end)
 end
 
 local function play(r: Run)
@@ -399,15 +496,21 @@ local function begin(player: Player, regionId: any)
 		variant = "",
 		restored = Smoothing.restored(region.depth, bestOf(player)(region.id)),
 		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
+		revives = Config.RIFT_REVIVES,
+		downed = false,
 	}
 	runs[player] = r
 	slots[slot] = r
-	-- Death ends the run immediately, also during pauses and the choice after the boss
-	r.died = humanoid.Died:Connect(function()
-		finish(r, "failed")
-	end)
+	-- Death costs a revive (back to the last waypoint) or ends the run, also during pauses and
+	-- the choice after the boss
+	watchDeath(r, humanoid)
+	setRevives(r)
 	World.build(region, slot, Trail.seed(region.id, r.depth))
 	World.smooth(slot, Smoothing.arenaShare(r.restored))
+	streamAround(player, World.startOf(slot))
+	if runs[player] ~= r then
+		return -- left or died while the map streamed in
+	end
 	model:PivotTo(CFrame.new(World.startOf(slot)))
 	task.spawn(play, r)
 	Actions.fire(player, "rift")
@@ -421,9 +524,15 @@ local function deeper(player: Player)
 	r.depth += 1
 	r.wave = 0
 	r.checkpoint = nil
+	r.revives = Config.RIFT_REVIVES -- every depth refills the revives
+	setRevives(r)
 	-- every depth is a new trail: rebuild the map, back to its start pad
 	World.build(r.region, r.slot, Trail.seed(r.region.id, r.depth))
 	World.smooth(r.slot, Smoothing.arenaShare(r.restored))
+	streamAround(player, World.startOf(r.slot))
+	if runs[player] ~= r then
+		return
+	end
 	local model = character(player)
 	if model then
 		model:PivotTo(CFrame.new(World.startOf(r.slot)))

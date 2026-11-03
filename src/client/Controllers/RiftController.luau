@@ -115,7 +115,9 @@ local function refresh()
 	infoVariant.Visible = variant ~= nil
 	infoTitle.Text = string.format("%s · D%d", regionName, depth)
 	infoTitle.TextColor3 = if p == "failed" then C.Danger else C.GoldHi
-	if p == "wave" then
+	if player:GetAttribute("RiftDowned") == true and (p == "wave" or p == "boss") then
+		infoLine.Text = "Respawning at the waypoint…"
+	elseif p == "wave" then
 		local wave = (player:GetAttribute("RiftWave") or 1) :: number
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
@@ -303,7 +305,17 @@ function RiftController.init()
 end
 
 function RiftController.start()
-	for _, attr in { "RiftPhase", "RiftRegion", "RiftDepth", "RiftWave", "RiftWaves", "RiftLeft" } do
+	for _, attr in
+		{
+			"RiftPhase",
+			"RiftRegion",
+			"RiftDepth",
+			"RiftWave",
+			"RiftWaves",
+			"RiftLeft",
+			"RiftDowned",
+		}
+	do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
 	Net.RiftResult.OnClientEvent:Connect(function(summary: any)

@@ -121,11 +121,24 @@ Bigger maps also make **StreamingEnabled** worth turning on (place setting, owne
 
 1. **Rift shape**: **decided (Micha, 2026-11-03): Rift Trail per depth** (section 4). Rejected:
    one big open region per Atlas area; bigger arenas only.
-2. **Death inside a trail**: back to the last waypoint shrine once per depth (recommended) or
-   the run fails as today.
-3. **StreamingEnabled** on for the place once trails exist (recommended; it is a place setting).
-4. **Hub look**: the walled valley town in section 3 is built; say if you want a different
-   theme instead (e.g. a floating sky town).
+2. **Death inside a trail**: **decided (Micha, 2026-11-03): back to the last waypoint.** One
+   revive per depth (`Config.RIFT_REVIVES`): the player respawns at the last lit waypoint (start
+   pad before the first one), the pack/boss waits, the run goes on. A second death in the same
+   depth fails the run as before; "Deeper" refills the revive. The HUD shows "Respawning at the
+   waypoint…" while it happens (attributes `RiftRevives`, `RiftDowned`).
+3. **StreamingEnabled**: **decided (Micha, 2026-11-03): on.** Code side: enemy and loot models
+   stream `Atomic` (the client always gets the whole body), every server teleport (Rift start,
+   Deeper, revive, back to the Hub) calls `RequestStreamAroundAsync` first, the client clamp and
+   the minimap read folder attributes / spatial queries only. Place side: `Workspace.StreamingEnabled`
+   with target radius 1024 (covers a whole trail plus its horizon), min radius 128 and
+   `MinimumRadiusPause` (nobody runs into unloaded ground), `StreamOutBehavior` Opportunistic
+   (the other 11 rift slots and the Hub leave a phone's memory).
+4. **Hub look**: **decided (2026-11-03, Micha left it to Claude): keep the walled valley town.**
+   It is the classic ARPG town shape (a safe walled haven, the dangerous rifts beyond the gate),
+   every station sits on one flat level around the plaza (phones never fight stairs or edges),
+   and the Rift Gate on the north terrace is the landmark you see from the spawn. A floating sky
+   town was rejected: it would repeat the Sky Islands region, show open edges everywhere, and
+   fight the "never fall off" rule.
 
 ## 6. Build order
 

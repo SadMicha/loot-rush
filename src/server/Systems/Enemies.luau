@@ -646,6 +646,9 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		model:SetAttribute("Boss", true)
 	end
 	CollectionService:AddTag(model, "Enemy")
+	-- StreamingEnabled: the client gets the whole body at once (health bar, brick shatter and
+	-- animations read its parts the moment the tag appears)
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	model.Parent = folder
 	local now = os.clock()
 	local tempo = Balance.tempo(depth)

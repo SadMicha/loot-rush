@@ -61,6 +61,7 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	local target = Vector3.new(pos.X + rng:NextNumber(-3, 3), 0.2, pos.Z + rng:NextNumber(-3, 3))
 	local yaw = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	model:PivotTo(CFrame.new(target + Vector3.new(0, 3, 0)) * yaw)
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- label and box arrive together
 	model.Parent = folder
 	TweenService:Create(
 		part,

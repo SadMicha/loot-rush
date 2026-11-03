@@ -1148,6 +1148,10 @@ function Sandbox:installCustom()
 			self:spawnCharacter()
 		end,
 	})
+	-- StreamingEnabled: the sandbox has no streaming, the whole world is always there
+	self:custom("Player", "RequestStreamAroundAsync", {
+		method = function() end,
+	})
 	self:custom("Player", "GetNetworkPing", {
 		method = function()
 			return 0.05
