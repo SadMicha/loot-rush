@@ -26,6 +26,8 @@ local Window = require(script.Parent.Parent.UI.Window)
 local MiniMapView = require(script.Parent.Parent.UI.MiniMapView)
 local CameraController = require(script.Parent.CameraController)
 local DashController = require(script.Parent.DashController)
+local RushController = require(script.Parent.RushController)
+local RushRules = require(ReplicatedStorage.Shared.Rush)
 local SkillController = require(script.Parent.SkillController)
 local InventoryController = require(script.Parent.InventoryController)
 local RiftController = require(script.Parent.RiftController)
@@ -397,6 +399,8 @@ end
 local updateDashPips: (available: number, max: number) -> ()
 local skillVeils: { (number, number) -> () } = {}
 local skillButtons: { ImageButton } = {}
+local updateRush: (number, number) -> ()
+local rushButton: ImageButton
 local shownSkills: { string } = {}
 local SLOT_KEYS = { "Q", "E", "R", "F" }
 
@@ -459,6 +463,19 @@ local function buildSkills()
 		skillVeils[i] = update
 		btn.Parent = arc
 	end
+	-- Stud Rush: in the free corner of the arc; the veil shows the unfilled part of the meter,
+	-- the seconds only while a Rush runs (Shared/Rush)
+	local rush, rushVeil = Kit.roundButton(S, "gold", nil, "fire", if keyboard then "G" else nil)
+	rush.Name = "Rush"
+	rush.AnchorPoint = Vector2.new(0.5, 0.5)
+	local diag = math.rad(135)
+	local rushR = math.min(R + S * 0.95, (cx - S / 2) / -math.cos(diag))
+	rush.Position = UDim2.fromOffset(cx + rushR * math.cos(diag), cy - rushR * math.sin(diag))
+	onTap(rush, RushController.trigger)
+	rush.Parent = arc
+	rushButton = rush
+	updateRush = rushVeil
+
 	local inset = M + D / 2 - S / 2
 	addFly(
 		arc,
@@ -522,7 +539,7 @@ local function buildCalmPanels()
 	-- Hub icon bar at the bottom center
 	local cellW = H.BarIcon + 12
 	local barW = #H.Bar * cellW + (#H.Bar - 1) * H.BarGap + 2 * H.DockPad
-	local barH = H.BarIcon + H.BarCaption + H.DockPad
+	local barH = H.BarIcon + H.BarCaption + H.DockPad + math.floor(H.DockPad / 2)
 	local bar = group(Vector2.new(barW, barH))
 	bar.Name = "HubBar"
 	local barRow = Kit.dock(bar, H.DockPad)
@@ -858,6 +875,18 @@ function HudController.start()
 	RunService.Heartbeat:Connect(function(dt: number)
 		for i, update in skillVeils do
 			update(SkillController.cooldownRatio(i), SkillController.remaining(i))
+		end
+		if updateRush then
+			local left = RushController.remaining()
+			local text = rushButton:FindFirstChild("CooldownText")
+			if text and text:IsA("GuiObject") then
+				text.Visible = left > 0
+			end
+			if left > 0 then
+				updateRush(math.clamp(left / RushRules.DURATION, 0.01, 1), left) -- drains
+			else
+				updateRush(1 - RushController.meter(), 0)
+			end
 		end
 		if Window.anyOpen() then
 			return -- a fullscreen window covers the minimap: no terrain or dot work behind it

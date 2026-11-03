@@ -139,6 +139,68 @@ describe("Star Net", function()
 		expect((Progression.canRemove(data, "m2"))).toBe(true)
 	end)
 
+	it("has 100 stars, a start point per class and every star reachable", function()
+		expect(#StarNet.Stars).toBe(101) -- 100 stars + the heart
+		local Classes = require("ReplicatedStorage.Shared.Classes")
+		for _, c in Classes.List do
+			local id = StarNet.startOf(c.id)
+			expect(id).never.toBeNil()
+			expect(StarNet.ById[id :: string].kind).toBe("start")
+		end
+		local seen = { heart = true }
+		local queue = { "heart" }
+		local i = 1
+		while i <= #queue do
+			for _, other in StarNet.Adjacent[queue[i]] do
+				expect(StarNet.ById[other]).never.toBeNil()
+				if not seen[other] then
+					seen[other] = true
+					table.insert(queue, other)
+				end
+			end
+			i += 1
+		end
+		expect(#queue).toBe(#StarNet.Stars)
+	end)
+
+	it("keeps stars apart and inside the canvas", function()
+		local size = { core = 100, small = 46, big = 72, start = 64 }
+		for a, s in StarNet.Stars do
+			local r = size[s.kind] / 2
+			expect(s.pos.X - r >= 0 and s.pos.Y - r >= 0).toBe(true)
+			expect(s.pos.X + r <= StarNet.Size.X and s.pos.Y + r + 30 <= StarNet.Size.Y).toBe(true)
+			for b = a + 1, #StarNet.Stars do
+				local o = StarNet.Stars[b]
+				local gap = (s.pos - o.pos).Magnitude - r - size[o.kind] / 2
+				if gap < 24 then
+					error(string.format("%s and %s are only %d px apart", s.id, o.id, gap))
+				end
+			end
+		end
+	end)
+
+	it(
+		"starts each class at its own start point and cuts off the rest on a class change",
+		function()
+			local data = Progression.fresh()
+			local own = StarNet.startOf("warrior") :: string
+			expect(Progression.isAllocated(data, own, "warrior")).toBe(true)
+			expect((Progression.canAllocate(data, own, 10, "warrior"))).toBe(false)
+			expect((Progression.canAllocate(data, own, 10, "mage"))).toBe(false) -- not connected
+			local next1 = StarNet.Adjacent[own][2] -- a star further out
+			expect((Progression.canAllocate(data, next1, 2, "warrior"))).toBe(true)
+			data.stars[next1] = true
+			data.stars.w1 = true
+			expect(Progression.fitStars(data, "mage")).toBe(true)
+			expect(data.stars[next1]).toBeNil() -- hung on the warrior start point
+			expect(data.stars.w1).toBe(true)
+			local mageStart = StarNet.startOf("mage") :: string
+			expect(data.stars[mageStart]).toBe(true) -- free and counted in the effects
+			expect(Progression.starMods(data).skillDamage).toBe(3 + 5)
+			expect((Progression.canRemove(data, mageStart, "mage"))).toBe(false)
+		end
+	)
+
 	it("protection stars give armor, block, shards and shield", function()
 		local data = Progression.fresh()
 		data.stars =
@@ -160,7 +222,7 @@ describe("Star Net", function()
 			for key in s.mods or {} do
 				local id, stat = string.match(key, "^([%w_]+)%.(%w+)$")
 				if id then
-					expect(Skills.BarIndex[id]).never.toBeNil()
+					expect(Skills.ById[id]).never.toBeNil()
 					expect(stat).toBeA("string")
 				else
 					expect(Progression.StarStats[key]).never.toBeNil()

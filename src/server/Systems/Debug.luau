@@ -14,7 +14,9 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local RushRules = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
@@ -23,6 +25,7 @@ local Inventory = require(script.Parent.Inventory)
 local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
 local Rift = require(script.Parent.Rift)
+local Rush = require(script.Parent.Rush)
 local Shop = require(script.Parent.Shop)
 
 local Debug = {}
@@ -144,6 +147,25 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			profile.tier.unlocked = math.min(profile.tier.unlocked + 1, WorldTiers.MAX)
 			profile.tier.selected = profile.tier.unlocked
 			Rift.publishBest(player)
+		end,
+	},
+	stones = {
+		-- One of every spell stone (Shared/SpellStones)
+		run = function(player)
+			local profile = Data.get(player)
+			if not profile then
+				return
+			end
+			for _, stone in SpellStones.List do
+				profile.progress.stones[stone.id] = (profile.progress.stones[stone.id] or 0) + 1
+			end
+			Progress.sync(player)
+		end,
+	},
+	rush = {
+		-- Fills the Stud Rush meter (Systems/Rush)
+		run = function(player)
+			Rush.add(player, RushRules.METER)
 		end,
 	},
 	slay = {

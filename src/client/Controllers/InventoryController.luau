@@ -1075,6 +1075,9 @@ function InventoryController.toggle()
 		Flat.pop(window)
 		arrange()
 		refreshViewport()
+		if next(freshIds) ~= nil then
+			InventoryController.render() -- loot that came in while closed gets its reveal now
+		end
 	else
 		Flat.sound("ui_close")
 		if not Window.anyOpen() then

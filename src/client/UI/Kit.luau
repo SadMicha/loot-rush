@@ -888,7 +888,8 @@ end
 -- Dock plate inside a container (hub bar): dark glass that gets denser toward the bottom, a gold
 -- hairline that glows in the middle and fades to the ends, light along the top. The plate is inset
 -- a little so its edge also shows inside a CanvasGroup. Returns the "Row" frame (inner padding
--- `pad`) where the caller puts its layout and buttons.
+-- `pad` left/right/top, half of it at the bottom; the container needs that much extra room)
+-- where the caller puts its layout and buttons.
 function Kit.dock(f: GuiObject, pad: number): Frame
 	local F = Theme.Flat
 	local plate = Instance.new("Frame")
@@ -928,6 +929,7 @@ function Kit.dock(f: GuiObject, pad: number): Frame
 	p.PaddingLeft = UDim.new(0, pad)
 	p.PaddingRight = UDim.new(0, pad)
 	p.PaddingTop = UDim.new(0, pad)
+	p.PaddingBottom = UDim.new(0, math.floor(pad / 2))
 	p.Parent = row
 	row.Parent = f
 	return row

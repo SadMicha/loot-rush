@@ -269,8 +269,11 @@ function Progression.canBloom(sp: SkillProgress, skillId: string, key: string): 
 end
 
 -- ------------------------------------------------------------------ Star Net
-function Progression.isAllocated(data: Data, id: string): boolean
-	return id == "heart" or data.stars[id] == true
+-- Roots: the heart and the class start point of the player's class (free and always allocated)
+function Progression.isAllocated(data: Data, id: string, classId: string?): boolean
+	return id == "heart"
+		or data.stars[id] == true
+		or (classId ~= nil and StarNet.startOf(classId) == id)
 end
 
 function Progression.starSpent(data: Data): number
@@ -289,15 +292,27 @@ function Progression.starPoints(data: Data, level: number): number
 	return math.max(0, level - 1) - Progression.starSpent(data)
 end
 
-function Progression.canAllocate(data: Data, id: string, level: number): (boolean, string?)
+function Progression.canAllocate(
+	data: Data,
+	id: string,
+	level: number,
+	classId: string?
+): (boolean, string?)
 	local s = StarNet.ById[id]
 	if not s or s.kind == "core" then
 		return false, "Unknown star"
 	end
-	if data.stars[id] then
+	if Progression.isAllocated(data, id, classId) then
 		return false, "Already allocated"
 	end
-	if not s.from or not Progression.isAllocated(data, s.from) then
+	local linked = false
+	for _, other in StarNet.Adjacent[id] do
+		if Progression.isAllocated(data, other, classId) then
+			linked = true
+			break
+		end
+	end
+	if not linked then
 		return false, "Not connected"
 	end
 	if Progression.starPoints(data, level) < StarNet.Cost[s.kind] then
@@ -306,17 +321,67 @@ function Progression.canAllocate(data: Data, id: string, level: number): (boolea
 	return true, nil
 end
 
--- Remove only at the end of a branch, so nothing is left dangling
-function Progression.canRemove(data: Data, id: string): (boolean, string?)
+-- Allocated stars that still hang on a root when `without` is taken out
+local function reachable(data: Data, classId: string?, without: string?): { [string]: boolean }
+	local seen: { [string]: boolean } = {}
+	local queue: { string } = { "heart" }
+	local own = StarNet.startOf(classId)
+	if own and own ~= without then
+		table.insert(queue, own)
+	end
+	for _, id in queue do
+		seen[id] = true
+	end
+	local i = 1
+	while i <= #queue do
+		local id = queue[i]
+		i += 1
+		local links: { string } = StarNet.Adjacent[id] or {}
+		for _, other in links do
+			if not seen[other] and other ~= without and data.stars[other] then
+				seen[other] = true
+				table.insert(queue, other)
+			end
+		end
+	end
+	return seen
+end
+
+-- Remove only if every other allocated star stays connected to a root
+function Progression.canRemove(data: Data, id: string, classId: string?): (boolean, string?)
 	if not data.stars[id] then
 		return false, "Not allocated"
 	end
-	for _, other in StarNet.Stars do
-		if other.from == id and data.stars[other.id] then
-			return false, "Remove the stars behind it first"
+	if id == StarNet.startOf(classId) then
+		return false, "Your class start point"
+	end
+	local seen = reachable(data, classId, id)
+	for other in data.stars do
+		if other ~= id and not seen[other] then
+			return false, "Other stars hang on it"
 		end
 	end
 	return true, nil
+end
+
+-- Makes the stars fit a class (on load, after a class change and a reset): the own start point is
+-- allocated (free, so its effect counts in starMods), stars cut off from the heart and the start
+-- point are refunded. Returns true if something changed.
+function Progression.fitStars(data: Data, classId: string?): boolean
+	local changed = false
+	local own = StarNet.startOf(classId)
+	if own and not data.stars[own] then
+		data.stars[own] = true
+		changed = true
+	end
+	local seen = reachable(data, classId, nil)
+	for id in table.clone(data.stars) do
+		if not seen[id] then
+			data.stars[id] = nil
+			changed = true
+		end
+	end
+	return changed
 end
 
 -- Sum of all star effects

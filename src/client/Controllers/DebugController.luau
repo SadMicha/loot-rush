@@ -38,6 +38,8 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Kill All Enemies", command = "slay" },
 	{ label = "Pet Egg", command = "pet" },
 	{ label = "Next World Tier", command = "tier" },
+	{ label = "Spell Stones", command = "stones" },
+	{ label = "Fill Rush", command = "rush" },
 }
 
 -- Overlay only in Studio or for whitelisted developers (Systems/Debug sets "DebugTools")
