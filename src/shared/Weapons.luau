@@ -12,8 +12,10 @@ export type Weapon = {
 	class: string, -- Shared/Classes id
 	folder: string, -- folder in assets/weapons/
 	length: number, -- studs: longest side once held (the mesh is scaled to it)
-	-- Grip relative to the hand: the weapon's long axis runs along -Y of the hand (down to the
-	-- floor for a staff, forward for a sword after the swing animation). Tune in Studio.
+	-- Where the hand holds the weapon: share of the length from the butt (measured on the FBX).
+	gripAt: number,
+	-- Pose in the hand frame (hand +Y = up the arm, -Z = forward). Weapon space: the grip point is
+	-- the origin and the head/tip points to +Y. Identity = held upright beside the body.
 	grip: CFrame,
 	color: Color3, -- main color of the part fallback
 	accent: Color3, -- glow/accent color of the part fallback
@@ -28,7 +30,8 @@ Weapons.List = table.freeze({
 		class = "warrior",
 		folder = "Warrior_Sword",
 		length = 4.2,
-		grip = CFrame.new(0, -1.6, -0.4) * CFrame.Angles(math.rad(-90), 0, 0),
+		gripAt = 0.07,
+		grip = CFrame.Angles(math.rad(-70), 0, 0),
 		color = Color3.fromHex("#C9D2DE"),
 		accent = Color3.fromHex("#E8B04A"),
 	}),
@@ -38,7 +41,8 @@ Weapons.List = table.freeze({
 		class = "ranger",
 		folder = "Ranger_Bow",
 		length = 4.4,
-		grip = CFrame.new(0, -0.9, 0) * CFrame.Angles(0, math.rad(90), 0),
+		gripAt = 0.45,
+		grip = CFrame.Angles(0, math.rad(90), 0),
 		color = Color3.fromHex("#8A5A34"),
 		accent = Color3.fromHex("#7FD27A"),
 	}),
@@ -48,7 +52,8 @@ Weapons.List = table.freeze({
 		class = "mage",
 		folder = "Mage_Staff",
 		length = 5.2,
-		grip = CFrame.new(0, -0.9, 0),
+		gripAt = 0.29,
+		grip = CFrame.Angles(math.rad(-8), 0, 0),
 		color = Color3.fromHex("#6B4A8E"),
 		accent = Color3.fromHex("#4FD8F5"),
 	}),
@@ -58,7 +63,8 @@ Weapons.List = table.freeze({
 		class = "mushroom",
 		folder = "Druid_Scepter",
 		length = 3.6,
-		grip = CFrame.new(0, -0.8, 0),
+		gripAt = 0.25,
+		grip = CFrame.Angles(math.rad(-8), 0, 0),
 		color = Color3.fromHex("#5E7A3A"),
 		accent = Color3.fromHex("#E86FB5"),
 	}),
