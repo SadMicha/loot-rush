@@ -340,17 +340,19 @@ local function revive(r: Run, model: Model)
 	if not (humanoid and humanoid:IsA("Humanoid") and root and root:IsA("BasePart")) then
 		return finish(r, "failed")
 	end
+	-- Watch the new body before anything yields: FallGuard may already put it on the trail, and
+	-- a death from here on must count (no revive left = the run fails)
+	watchDeath(r, humanoid)
+	r.downed = false
+	r.owner:SetAttribute("RiftDowned", nil)
 	local spot = r.checkpoint or World.startOf(r.slot) -- same as Rift.safeSpot
 	streamAround(r.owner, spot)
 	task.wait() -- after the engine has placed the new character on its spawn
-	if runs[r.owner] ~= r or r.owner.Character ~= model then
+	if runs[r.owner] ~= r or r.owner.Character ~= model or humanoid.Health <= 0 then
 		return
 	end
 	root.AssemblyLinearVelocity = Vector3.zero
 	model:PivotTo(CFrame.new(spot))
-	watchDeath(r, humanoid)
-	r.downed = false
-	r.owner:SetAttribute("RiftDowned", nil)
 	Combat.refreshStats(r.owner, true)
 	CombatState.reset(r.owner)
 end
@@ -518,8 +520,8 @@ end
 
 local function deeper(player: Player)
 	local r = runs[player]
-	if not r or player:GetAttribute("RiftPhase") ~= "clear" then
-		return
+	if not r or r.downed or player:GetAttribute("RiftPhase") ~= "clear" then
+		return -- dead and respawning: the choice waits for the new character
 	end
 	r.depth += 1
 	r.wave = 0
