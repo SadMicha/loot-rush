@@ -250,7 +250,7 @@ end
 -- ------------------------------------------------------------------ Board in the hub
 local function renderHub()
 	local rows, st = hubRows, hubStatus
-	if not rows or not st or not rows:IsDescendantOf(workspace) then
+	if not rows or not st or rows.Parent == nil or not rows:IsDescendantOf(workspace) then
 		return -- no board, or its part streamed out (rebuilt when it streams back in)
 	end
 	clear(rows)
@@ -322,7 +322,7 @@ local function bindScreen(screen: Instance)
 	if screen.Name ~= "LeaderboardScreen" or not screen:IsA("BasePart") then
 		return
 	end
-	if hubRows and hubRows:IsDescendantOf(screen) then
+	if hubRows and hubRows.Parent ~= nil and hubRows:IsDescendantOf(screen) then
 		return -- already bound (the stream-in signal and the first lookup can both see it)
 	end
 	buildHubBoard(screen)

@@ -36,7 +36,12 @@ end
 
 -- Station part for a window name (cached while it stays streamed in)
 local function find(window: string): BasePart?
-	if station and stationWindow == window and station:IsDescendantOf(workspace) then
+	if
+		station
+		and stationWindow == window
+		and station.Parent ~= nil
+		and station:IsDescendantOf(workspace)
+	then
 		return station
 	end
 	station, stationWindow = nil, window
@@ -48,18 +53,36 @@ local function find(window: string): BasePart?
 	return station
 end
 
+-- A respawn or stream-out destroys the attachments with their parent: forget such a rig. Only
+-- properties are read here (a destroyed instance has Parent nil and takes no method calls).
+local function alive(r: Rig): boolean
+	return r.from.Parent == r.root
+		and r.to.Parent == r.part
+		and r.root.Parent ~= nil
+		and r.part.Parent ~= nil
+end
+
 local function drop()
-	if rig then
-		rig.from:Destroy()
-		rig.to:Destroy()
-		rig = nil
+	local r = rig
+	rig = nil
+	if r then
+		-- an attachment whose parent is gone was destroyed with it (Parent nil, locked);
+		-- detach the rest
+		for _, a in { r.from, r.to } do
+			if a.Parent ~= nil then
+				a.Parent = nil
+			end
+		end
 	end
 end
 
 local function hide()
 	target = nil
-	if rig then
-		rig.beam.Enabled = false
+	local r = rig
+	if r and not alive(r) then
+		rig = nil
+	elseif r then
+		r.beam.Enabled = false
 	end
 end
 
@@ -114,7 +137,7 @@ local function update()
 	end
 	target = part.Position
 	local r: Rig? = rig
-	if not r or r.root ~= root or r.part ~= part or not r.from:IsDescendantOf(workspace) then
+	if not r or r.root ~= root or r.part ~= part or not alive(r) then
 		r = build(root, part)
 	end
 	local live = r :: Rig
