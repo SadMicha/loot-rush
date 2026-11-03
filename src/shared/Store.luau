@@ -212,7 +212,7 @@ local OFFERS: { Offer } = {
 		key = "magnet",
 		name = "Loot Magnet",
 		text = "+8 studs pickup radius and +10% item chance.",
-		icon = "chest",
+		icon = "pass_magnet",
 		rarity = "rare",
 	},
 }

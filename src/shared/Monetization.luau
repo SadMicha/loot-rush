@@ -147,7 +147,7 @@ local PASSES: { Pass } = {
 		name = "Loot Magnet",
 		text = "+8 studs pickup radius and +10% item chance.",
 		robux = 149,
-		icon = "chest",
+		icon = "pass_magnet",
 		bonus = { magnet = 8, items = 10 },
 	},
 }

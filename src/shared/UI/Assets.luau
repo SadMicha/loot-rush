@@ -387,6 +387,7 @@ local ICON_ALIAS: { [string]: string } = {
 	soulstars_xl = "soulstar",
 	starter_pack = "chest",
 	pass_vip = "crown",
+	pass_magnet = "chest",
 }
 for name, code in ICON_ALIAS do
 	icon[name] = icon[code]
@@ -628,6 +629,7 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	soulstars_m = { id = "rbxassetid://95605756220230", size = Vector2.new(256, 256) },
 	soulstars_l = { id = "rbxassetid://120495636577171", size = Vector2.new(256, 256) },
 	soulstars_xl = { id = "rbxassetid://129298297527669", size = Vector2.new(256, 256) },
+	pass_magnet = { id = "rbxassetid://83134635006465", size = Vector2.new(256, 256) },
 	pass_vip = { id = "rbxassetid://137405036075950", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
 }
