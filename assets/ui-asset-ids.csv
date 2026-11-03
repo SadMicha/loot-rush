@@ -98,3 +98,8 @@ weapon_druid_scepter_model,100336404154752,assets/weapons/Druid_Scepter/Standard
 weapon_druid_scepter_texture,106110248003359,assets/weapons/Druid_Scepter/Color.png
 menu_pets,77889190601004,assets/ui/icons/pets.png
 menu_daily,87505829317379,assets/ui/icons/daily.png
+soulstars_s,77736787215851,assets/ui/icons/store/soulstars_s.png
+soulstars_m,95605756220230,assets/ui/icons/store/soulstars_m.png
+soulstars_l,120495636577171,assets/ui/icons/store/soulstars_l.png
+soulstars_xl,129298297527669,assets/ui/icons/store/soulstars_xl.png
+starter_pack,70917385823543,assets/ui/icons/store/starter_pack.png
