@@ -129,6 +129,7 @@ describe("Stud Rush", function()
 		expect(list[1].def.id).toBe("rush")
 		expect(list[1].left).toBe(8)
 		expect(list[1].stacks).toBe(3)
+		expect(list[1].total).toBe(8) -- no StatusFrom: the time left counts as full
 		expect(list[2].def.id).toBe("chill")
 		expect(list[2].def.debuff).toBe(true)
 	end)

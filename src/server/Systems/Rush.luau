@@ -75,7 +75,7 @@ function Rush.add(player: Player, amount: number)
 	if Rush.isRushing(player) then
 		st.untilT = math.min(st.untilT + RushRules.CHAIN, st.startedAt + RushRules.MAX_DURATION)
 		player:SetAttribute("RushUntil", st.untilT)
-		Status.setUntil(player, "rush", st.untilT)
+		Status.setUntil(player, "rush", st.untilT, nil, st.startedAt)
 		return
 	end
 	st.meter = math.min(RushRules.METER, st.meter + amount)
@@ -115,7 +115,7 @@ function trigger(player: Player): boolean
 	player:SetAttribute("RushMeter", 0)
 	player:SetAttribute("RushUntil", st.untilT)
 	player:SetAttribute("Rushing", true)
-	Status.setUntil(player, "rush", st.untilT)
+	Status.setUntil(player, "rush", st.untilT, nil, st.startedAt)
 	glow(player, true)
 	Combat.speedChanged(player)
 	Net.Fx:FireAllClients("rush", { who = player.UserId })

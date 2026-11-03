@@ -483,9 +483,7 @@ type BuffCell = {
 	time: TextLabel,
 	stacks: TextLabel,
 	scale: UIScale,
-	total: number, -- seconds that count as "full" for the veil
-	left: number, -- last shown seconds and when (to spot a re-application)
-	at: number,
+	total: number, -- full length from the server (StatusFrom_<id>), for the veil and the Rush meter
 }
 local buffRow: Frame
 local buffCells: { [string]: BuffCell } = {}
@@ -561,8 +559,6 @@ local function buffCell(def: StatusRules.Def): BuffCell
 		stacks = stacks,
 		scale = scale,
 		total = 0,
-		left = 0,
-		at = 0,
 	}
 end
 
@@ -638,17 +634,9 @@ local function updateBuffs()
 			cell = buffCell(a.def)
 			buffCells[id] = cell
 		end
-		-- A new application (any jump in the end time, also a shorter one) starts a new "full";
-		-- small additions (Rush chain kills) only raise it
-		local t = os.clock()
-		local jump = a.left - (cell.left - (t - cell.at))
-		if cell.total <= 0 or jump < -0.25 or jump > 1 then
-			cell.total = a.left
-		else
-			cell.total = math.max(cell.total, a.left)
-		end
-		cell.left, cell.at = a.left, t
-		cell.veil.Size = UDim2.fromScale(1, 1 - math.clamp(a.left / cell.total, 0, 1))
+		cell.total = a.total
+		cell.veil.Size =
+			UDim2.fromScale(1, 1 - math.clamp(a.left / math.max(cell.total, 0.01), 0, 1))
 		cell.time.Text = seconds(a.left)
 		cell.stacks.Text = if a.stacks > 1 then "×" .. a.stacks else ""
 	end
