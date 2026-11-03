@@ -42,7 +42,8 @@ end
 
 local GAP = 24
 local HEROES_H = 120
-local HERO_W = 236
+local HERO_W = 320
+local PLAY_W = 112 -- Play button on a hero card
 local NAME_Y = HEROES_H + 20
 local NAME_H = 56
 local CARDS_Y = NAME_Y + NAME_H + 20
@@ -103,10 +104,12 @@ local function renderHeroes()
 		local name =
 			Kit.label(if entry.name ~= "" then entry.name else player.DisplayName, 22, C.Text)
 		name.AutomaticSize = Enum.AutomaticSize.None
-		name.Size = UDim2.fromOffset(HERO_W - 28, 28)
+		name.Size = UDim2.fromOffset(HERO_W - PLAY_W - 40, 30)
 		name.TextScaled = true
 		name.TextXAlignment = Enum.TextXAlignment.Left
-		name.Position = UDim2.fromOffset(14, 10)
+		name.TextTruncate = Enum.TextTruncate.AtEnd
+		name.AnchorPoint = Vector2.new(0, 1)
+		name.Position = UDim2.new(0, 16, 0.5, -2)
 		name.Parent = card
 		local info = Kit.label(
 			string.format("%s · Lv %d", if class then class.hero else entry.class, entry.level),
@@ -114,17 +117,19 @@ local function renderHeroes()
 			accent,
 			Theme.Font.Body
 		)
-		info.Position = UDim2.fromOffset(14, 40)
+		info.Position = UDim2.new(0, 16, 0.5, 4)
 		info.Parent = card
 		local b = Kit.button(
 			if mine then "Playing" else "Play",
 			if mine then C.Muted else C.Gold,
-			Vector2.new(HERO_W - 28, 40),
+			Vector2.new(PLAY_W, 56),
 			nil
 		)
 		b.Name = "Play"
-		b.AnchorPoint = Vector2.new(0.5, 1)
-		b.Position = UDim2.new(0.5, 0, 1, -10)
+		-- Right side, vertically centered: grows around its center to touch size on phones
+		-- and never covers the name
+		b.AnchorPoint = Vector2.new(1, 0.5)
+		b.Position = UDim2.new(1, -12, 0.5, 0)
 		local inRift = (player:GetAttribute("RiftPhase") or "") ~= ""
 		Kit.setEnabled(b, not mine and not inRift and not waiting)
 		b.Activated:Connect(function()
@@ -295,7 +300,7 @@ end
 function CharacterController.init()
 	win = Window.new({ name = "Heroes", title = "Your heroes", icon = "crown" })
 
-	-- Up to 12 heroes: a sideways scrolling row (6 fit at once)
+	-- Up to 12 heroes: a sideways scrolling row (4 fit at once)
 	local strip = Instance.new("ScrollingFrame")
 	strip.Name = "Heroes"
 	strip.BackgroundTransparency = 1

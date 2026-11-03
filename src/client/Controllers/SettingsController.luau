@@ -15,6 +15,7 @@ local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
+local CharacterController = require(script.Parent.CharacterController)
 
 local SettingsController = {}
 
@@ -24,6 +25,7 @@ local F = Theme.Flat
 local GAP = 24
 local PAD = 28
 local FOOT_H = 96 -- About strip at the bottom
+local FOOT_BUTTONS_W = 760 -- Switch Hero, Defaults, Roblox Menu
 local ROW_H = 80
 local LABEL_W = 250
 
@@ -239,7 +241,8 @@ local function build()
 	local foot = Kit.panel(Vector2.new(body.X, FOOT_H))
 	foot.Name = "About"
 	foot.Position = UDim2.fromOffset(0, body.Y - FOOT_H)
-	local info = Flat.frame(UDim2.fromOffset(body.X - 560, FOOT_H), UDim2.fromOffset(PAD, 0))
+	local info =
+		Flat.frame(UDim2.fromOffset(body.X - FOOT_BUTTONS_W - 40, FOOT_H), UDim2.fromOffset(PAD, 0))
 	local il = Kit.list(info, Enum.FillDirection.Vertical, 4)
 	il.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local buildNo = if game.PlaceVersion > 0 then ` · Build {game.PlaceVersion}` else ""
@@ -247,7 +250,7 @@ local function build()
 	title.LayoutOrder = 1
 	title.Parent = info
 	local credits = Flat.text(
-		`{Settings.CREDITS} · The game language follows your Roblox language setting.`,
+		Settings.CREDITS, -- short: the Switch Hero button needs the room on phones
 		13,
 		C.Muted,
 		Theme.Font.Body
@@ -256,12 +259,21 @@ local function build()
 	credits.Parent = info
 	info.Parent = foot
 
-	local buttons = Flat.frame(UDim2.fromOffset(520, FOOT_H))
+	local buttons = Flat.frame(UDim2.fromOffset(FOOT_BUTTONS_W, FOOT_H))
 	buttons.Name = "Buttons"
 	buttons.AnchorPoint = Vector2.new(1, 0)
 	buttons.Position = UDim2.new(1, -PAD, 0, 0)
 	local bl = Kit.list(buttons, Enum.FillDirection.Horizontal, 12)
 	bl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	-- Heroes: switch to another hero or create a new one (the class belongs to the hero)
+	local heroes = Flat.button("Switch Hero", "primary", Vector2.new(240, 56), "crown")
+	heroes.Name = "SwitchHero"
+	heroes.LayoutOrder = 0
+	heroes.Activated:Connect(function()
+		win.close()
+		CharacterController.open()
+	end)
+	heroes.Parent = buttons
 	local reset = Flat.button("Defaults", "ghost", Vector2.new(190, 56))
 	reset.Name = "Reset"
 	reset.LayoutOrder = 1

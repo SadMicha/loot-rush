@@ -17,7 +17,6 @@ local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
-local CharacterController = require(script.Parent.CharacterController)
 local ProgressController = require(script.Parent.ProgressController)
 
 local AbilitiesController = {}
@@ -37,6 +36,8 @@ local detail: Frame
 local hint: TextLabel
 
 local player = Players.LocalPlayer
+local LIST_TOP = 44 -- skill list below the header
+local PICK_W, PICK_ROW = 560, 66 -- stone picker card and its rows
 local ROW_H = 82 -- 8 rows must stay touchable on phones (Phone.spec)
 local selected = Skills.DefaultBar[1] -- skill id (kept inside the current class, see kit())
 local selectedNode: string? = nil -- bloom node, e.g. "trunk2"
@@ -90,23 +91,13 @@ end
 local function renderList()
 	clear(listPanel)
 
-	local head = Window.heading("Skills", 20, C.Text)
+	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
 	head.Position = UDim2.fromOffset(PAD, PAD - 6)
 	head.Parent = listPanel
-	-- Heroes: the class belongs to the hero; another class = another hero (switch outside rifts)
-	local change = Kit.button("Heroes", C.Gold, Vector2.new(124, 40), "crown")
-	change.Name = "Heroes"
-	change.AnchorPoint = Vector2.new(1, 0)
-	change.Position = UDim2.new(1, -PAD, 0, PAD - 10)
-	change.Activated:Connect(function()
-		win.close()
-		CharacterController.open()
-	end)
-	change.Parent = listPanel
 
 	local list = Window.frame(
-		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - 44),
-		UDim2.fromOffset(PAD, PAD + 44)
+		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - LIST_TOP),
+		UDim2.fromOffset(PAD, PAD + LIST_TOP)
 	)
 	Kit.list(list, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top)
 	local level = playerLevel()
@@ -326,6 +317,144 @@ local function statTile(iconName: string, value: string, label: string, order: n
 	return f
 end
 
+-- ------------------------------------------------------------------ Stone picker
+-- Small menu over the bloom tree: tap a socket, pick one of the fitting stones you own (with a
+-- spare copy), or take the socketed one out. Gone with the next render or a tap outside.
+local picker: Frame? = nil
+
+local function closePicker()
+	if picker then
+		picker:Destroy()
+		picker = nil
+	end
+end
+
+local function openPicker(skill: Skills.Skill, socket: number, current: string?)
+	closePicker()
+	local data = ProgressController.data()
+	local body = Window.BODY
+	local layer = Window.frame(UDim2.fromOffset(body.X, body.Y))
+	layer.Name = "StonePicker"
+	layer.ZIndex = 20
+	-- Tap outside closes
+	local shade = Instance.new("TextButton")
+	shade.Name = "Shade"
+	shade.Text = ""
+	shade.AutoButtonColor = false
+	shade.BackgroundColor3 = Color3.new(0, 0, 0)
+	shade.BackgroundTransparency = 0.45
+	shade.BorderSizePixel = 0
+	shade.Size = UDim2.fromScale(1, 1)
+	shade.ZIndex = 20
+	shade.Activated:Connect(closePicker)
+	shade.Parent = layer
+
+	local options: { SpellStones.Stone } = {}
+	for _, st in SpellStones.List do
+		local owned = ((data.stones or {})[st.id] or 0) :: number
+		local spare = owned - Progression.stonesUsed(data, st.id)
+		if SpellStones.fits(st.id, skill.kind) and spare > 0 and st.id ~= current then
+			table.insert(options, st)
+		end
+	end
+	local rows = #options + (if current then 1 else 0)
+	local w = PICK_W - 2 * PAD
+	local h = PAD + 56 + math.max(1, rows) * (PICK_ROW + 8) + 28 + PAD
+	local card = Kit.panel(Vector2.new(PICK_W, h), C.Gold)
+	card.Name = "Card"
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.ZIndex = 21
+	card.Active = true -- taps on the card do not reach the shade
+	local title = Window.heading(string.format("Socket %d · %s", socket, skill.name), 20, C.Text)
+	title.Position = UDim2.fromOffset(PAD, PAD - 4)
+	title.ZIndex = 22
+	title.Parent = card
+	local tip = Kit.label("Tap outside to close", 13, C.Muted, Theme.Font.Body)
+	tip.AnchorPoint = Vector2.new(0.5, 1)
+	tip.Position = UDim2.new(0.5, 0, 1, -PAD + 6)
+	tip.ZIndex = 22
+	tip.Parent = card
+
+	local list =
+		Window.frame(UDim2.fromOffset(w, h - 2 * PAD - 84), UDim2.fromOffset(PAD, PAD + 52))
+	Kit.list(list, Enum.FillDirection.Vertical, 8, Enum.VerticalAlignment.Top)
+	local function pick(stoneId: string)
+		local args: { any } = { socket, stoneId }
+		Net.Loadout:FireServer("socket", skill.id, args)
+		closePicker()
+	end
+	local function row(order: number, name: string, text: string, color: Color3, onPick: () -> ())
+		local r = Instance.new("ImageButton")
+		r.Name = "Option" .. order
+		r.AutoButtonColor = false
+		r.BackgroundTransparency = 1
+		r.Size = UDim2.fromOffset(w, PICK_ROW)
+		r.LayoutOrder = order
+		r.ZIndex = 22
+		Kit.skin(r, "stat_tile", PICK_ROW, 0.5)
+		Kit.touchTarget(r)
+		local gem = Instance.new("Frame")
+		gem.Name = "Gem"
+		gem.BackgroundColor3 = color
+		gem.BorderSizePixel = 0
+		gem.Rotation = 45
+		gem.AnchorPoint = Vector2.new(0.5, 0.5)
+		gem.Position = UDim2.new(0, 30, 0.5, 0)
+		gem.Size = UDim2.fromOffset(22, 22)
+		gem.ZIndex = 23
+		Kit.corner(gem, Theme.Radius.S)
+		gem.Parent = r
+		local n = Kit.label(name, 18, color)
+		n.AutomaticSize = Enum.AutomaticSize.None
+		n.Size = UDim2.fromOffset(w - 76, 24)
+		n.TextXAlignment = Enum.TextXAlignment.Left
+		n.TextTruncate = Enum.TextTruncate.AtEnd
+		n.Position = UDim2.fromOffset(60, 10)
+		n.ZIndex = 23
+		n.Parent = r
+		local t = Kit.label(text, 14, C.Muted, Theme.Font.Body)
+		t.AutomaticSize = Enum.AutomaticSize.None
+		t.Size = UDim2.fromOffset(w - 76, 20)
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextTruncate = Enum.TextTruncate.AtEnd
+		t.Position = UDim2.fromOffset(60, 38)
+		t.ZIndex = 23
+		t.Parent = r
+		r.Activated:Connect(onPick)
+		r.Parent = list
+	end
+	for i, st in options do
+		local spare = ((data.stones or {})[st.id] or 0) - Progression.stonesUsed(data, st.id)
+		row(i, string.format("%s  ×%d", st.name, spare), st.text, st.color, function()
+			pick(st.id)
+		end)
+	end
+	if current then
+		row(#options + 1, "Remove stone", "Back into your stones", C.Danger, function()
+			pick("")
+		end)
+	end
+	if rows == 0 then
+		local none = Kit.label(
+			"No fitting stones yet. Bosses and elites drop them.",
+			16,
+			C.Muted,
+			Theme.Font.Body
+		)
+		none.AutomaticSize = Enum.AutomaticSize.Y
+		none.Size = UDim2.fromOffset(w, 0)
+		none.TextWrapped = true
+		none.TextXAlignment = Enum.TextXAlignment.Left
+		none.ZIndex = 22
+		none.Parent = list
+	end
+	list.Parent = card
+	card.Parent = layer
+	layer.Parent = win.body
+	picker = layer
+end
+
 local function renderDetail()
 	clear(detail)
 	local skill = Skills.ById[selected]
@@ -414,7 +543,7 @@ local function renderDetail()
 	end)
 	reset.Parent = detail
 
-	-- Spell stone sockets (Shared/SpellStones): tap cycles through owned stones that fit.
+	-- Spell stone sockets (Shared/SpellStones): tap opens the stone picker.
 	-- (Skills level up by defeating enemies: +5% damage and a bloom point per level.)
 	local data = ProgressController.data()
 	local socketed: { string } = (data.sockets or {})[skill.id] or {}
@@ -433,31 +562,8 @@ local function renderDetail()
 		local usable = i <= #socketed + 1
 		Kit.setEnabled(b, usable)
 		b.Activated:Connect(function()
-			if not b.Active then
-				return
-			end
-			-- next fitting stone with a free copy after the current one; "" after the last
-			local options: { string } = {}
-			for _, st in SpellStones.List do
-				local owned = ((data.stones or {})[st.id] or 0) :: number
-				local spare = owned - Progression.stonesUsed(data, st.id)
-				if SpellStones.fits(st.id, skill.kind) and (spare > 0 or st.id == id) then
-					table.insert(options, st.id)
-				end
-			end
-			local pick = ""
-			for k, optionId in options do
-				if optionId == id then
-					pick = options[k + 1] or ""
-					break
-				end
-			end
-			if not id then
-				pick = options[1] or ""
-			end
-			if pick ~= "" or id then
-				local args: { any } = { i, pick }
-				Net.Loadout:FireServer("socket", skill.id, args)
+			if b.Active then
+				openPicker(skill, i, id)
 			end
 		end)
 		b.Parent = detail
@@ -523,6 +629,7 @@ end
 
 -- ------------------------------------------------------------------ Flow
 function AbilitiesController.render()
+	closePicker()
 	renderList()
 	renderTree()
 	renderDetail()

@@ -369,6 +369,13 @@ if args.clicks then
 			Progress.addMaterials(sb.player, { shards = 120 })
 			Progress.sync(sb.player)
 			Inventory.addGold(sb.player, 300) -- Shop: some things affordable, some too expensive
+			-- Spell stones: the Abilities stone picker has options to show
+			local profile = req("ServerScriptService.Server.Systems.Data").get(sb.player)
+			if profile then
+				profile.progress.stones.power = 2
+				profile.progress.stones.haste = 1
+				profile.progress.stones.wide = 1
+			end
 			-- Past the onboarding: every window unlocked (otherwise locked ones only show a toast)
 			sb.player:SetAttribute("Level", 99)
 			sb.player:SetAttribute("BestDepth", 99)
@@ -387,6 +394,24 @@ if args.clicks then
 				snapshot(sb, profile, "full " .. name, "With items: " .. name)
 			end
 			sb:setViewport(PROFILES[1].size, false)
+			-- Abilities: tap the first stone socket -> stone picker
+			if name == "skills" then
+				sb:runAs("server", function(req)
+					req("ServerScriptService.Server.Systems.Progress").sync(sb.player)
+				end)
+				sb:run(0.3)
+				for _, b in clickable(sb) do
+					if b.path:match("%.Socket1$") then
+						sb:click(find(sb, b.key))
+						sb:run(0.5)
+						for _, profile in PROFILES do
+							snapshot(sb, profile, "skills stones", "Abilities: stone picker")
+						end
+						sb:setViewport(PROFILES[1].size, false)
+						break
+					end
+				end
+			end
 		end
 		collect(sb, "Scenario " .. name, baseline)
 	end

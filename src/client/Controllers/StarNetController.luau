@@ -23,6 +23,8 @@ local C = Theme.Color
 local player = Players.LocalPlayer
 local PAD = 28
 local SIDE_W = 420
+local WEB_ORDER = { "wisdom", "finesse", "might", "nature" } -- sector rows in the side panel
+local WEB_ROW = 30
 local SIZE: { [string]: number } = { core = 100, small = 46, big = 72, start = 64 }
 local BRANCH_COLOR: { [string]: Color3 } = {
 	might = Theme.Rarity.unique,
@@ -252,19 +254,45 @@ local function renderSide()
 		c.Parent = side
 	end
 
-	local note = Kit.label(
-		"One point per level from level 2. Your class starts at its own start point; bridges lead into other sectors. Resetting refunds all points.",
-		14,
-		C.Muted,
-		Theme.Font.Body
-	)
-	note.AutomaticSize = Enum.AutomaticSize.Y
-	note.Size = UDim2.fromOffset(w, 0)
-	note.TextWrapped = true
-	note.TextXAlignment = Enum.TextXAlignment.Left
-	note.AnchorPoint = Vector2.new(0, 1)
-	note.Position = UDim2.new(0, PAD, 1, -PAD - 140)
-	note.Parent = side
+	-- Your web: allocated stars per sector (fills the panel with the build at a glance)
+	local webY = PAD + 400
+	local webHead = Kit.label("YOUR WEB", 15, C.Gold)
+	webHead.Position = UDim2.fromOffset(PAD, webY)
+	webHead.Parent = side
+	local total: { [string]: number } = {}
+	local taken: { [string]: number } = {}
+	for _, star in StarNet.Stars do
+		local b = star.branch
+		if b and star.kind ~= "start" then
+			total[b] = (total[b] or 0) + 1
+			if allocated[star.id] then
+				taken[b] = (taken[b] or 0) + 1
+			end
+		end
+	end
+	local cls = classId()
+	local mine = if cls then StarNet.ClassBranch[cls] else nil
+	for i, b in WEB_ORDER do
+		local rowY = webY + 28 + (i - 1) * WEB_ROW
+		local color = BRANCH_COLOR[b] or C.Gold
+		local label = Kit.label(StarNet.BranchName[b], 15, if b == mine then color else C.Text)
+		label.Position = UDim2.fromOffset(PAD, rowY)
+		label.Parent = side
+		local back2, fill2 = Kit.bar(Vector2.new(w - 170, 10), color)
+		back2.AnchorPoint = Vector2.new(0, 0.5)
+		back2.Position = UDim2.fromOffset(PAD + 110, rowY + 11)
+		fill2.Size = UDim2.fromScale((taken[b] or 0) / math.max(1, total[b] or 1), 1)
+		back2.Parent = side
+		local n = Kit.label(
+			string.format("%d/%d", taken[b] or 0, total[b] or 0),
+			14,
+			C.Muted,
+			Theme.Font.Body
+		)
+		n.AnchorPoint = Vector2.new(1, 0)
+		n.Position = UDim2.new(1, -PAD, 0, rowY)
+		n.Parent = side
+	end
 
 	-- Actions
 	local remove = allocated[s.id] == true

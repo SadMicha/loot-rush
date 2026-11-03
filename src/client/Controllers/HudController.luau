@@ -873,6 +873,12 @@ local function updateMenuDock()
 	if menuGui.Enabled ~= show then
 		menuGui.Enabled = show
 	end
+	-- The coin bar would show through behind window titles: hidden while any window is open
+	-- (windows that spend currency show their own wallet)
+	local res = if resList then resList.Parent :: GuiObject? else nil
+	if res and res.Visible ~= (name == nil) then
+		res.Visible = name == nil
+	end
 	if name ~= menuShown then
 		menuShown = name
 		for id, mark in menuMarks do
