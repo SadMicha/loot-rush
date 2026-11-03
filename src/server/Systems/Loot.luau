@@ -18,6 +18,7 @@ local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Combat = require(script.Parent.Combat)
+local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 
 type Drop = {
@@ -134,6 +135,19 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 	}
 end
 
+-- Roll options of a guaranteed first drop (Balance.FirstDrops), nil once all were given (pure)
+-- given = drops this character already got from normal kills while the guarantee ran
+function Loot.starter(given: number, shift: number): Items.RollOpts?
+	local rule = Balance.FirstDrops
+	if given >= rule.kills then
+		return nil
+	end
+	if given == 0 then
+		return { shift = shift, min = rule.firstMin, slot = rule.firstSlot }
+	end
+	return { shift = shift }
+end
+
 local function onKilled(
 	player: any,
 	pos: any,
@@ -201,13 +215,19 @@ local function onKilled(
 		end
 		return
 	end
-	if rng:NextNumber() < itemChance then
+	-- A new character's first kills always drop (Balance.FirstDrops); a random drop counts too
+	local profile = Data.get(owner)
+	local starter = if profile then Loot.starter(profile.starters, t.shift) else nil
+	if starter or rng:NextNumber() < itemChance then
 		makeDrop(
 			pos,
 			owner,
 			0,
-			Items.roll(t.ilvl, rng, nil, { shift = t.shift, uniques = t.uniques })
+			Items.roll(t.ilvl, rng, nil, starter or { shift = t.shift, uniques = t.uniques })
 		)
+		if profile and starter then
+			profile.starters += 1
+		end
 	end
 end
 
