@@ -64,6 +64,12 @@ describe("Stud Rush", function()
 		sim:runAs("client", function(req)
 			req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", "green_plains")
 		end)
+		-- rift enemies now hunt the player: keep the hero alive so the run (and the Rush) lasts
+		server(function(_, player)
+			local humanoid = player.Character.Humanoid
+			humanoid.MaxHealth = 1e6
+			humanoid.Health = 1e6
+		end)
 		sim:run(0.5)
 		expect(sim.player:GetAttribute("Rushing")).toBe(true)
 		expect(sim.player:GetAttribute("RushMeter")).toBe(0)
