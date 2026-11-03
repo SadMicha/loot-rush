@@ -31,6 +31,7 @@ end)
 
 local STORE = "LootRush_Profile_v3/global"
 local PRODUCT_ID = 777 -- test ID for soulstars_s (the real IDs are still 0 = no product)
+local PASS_ID = 4243 -- test ID for the magnet pass (last in the list, so join loading stays quick)
 
 -- Gives soulstars_s a real product ID in the sandbox's copy of Shared/Monetization (before boot)
 local function liveProduct()
@@ -38,6 +39,8 @@ local function liveProduct()
 	local source, count =
 		string.gsub(native.Source, "soulstars_s = 0,", `soulstars_s = {PRODUCT_ID},`)
 	assert(count == 1, "soulstars_s ID not found in Shared/Monetization")
+	source, count = string.gsub(source, "magnet = 0,", `magnet = {PASS_ID},`)
+	assert(count == 1, "magnet ID not found in Shared/Monetization")
 	native.Source = source
 	-- The rules tests above already loaded the old source: start the game with empty module caches
 	sim.modules.server = {}
@@ -123,6 +126,51 @@ describe("Monetization in game", function()
 		expect(attr).toBe(true)
 		expect(gold).toBeGreaterThanOrEqual(25)
 		expect(slots).toBe(2)
+	end)
+
+	it("saves a pass bought in game only once Roblox confirms the purchase", function()
+		local CUSTOM_KEY = "MarketplaceService.UserOwnsGamePassAsync"
+		local confirmed = false
+		sim:custom("MarketplaceService", "UserOwnsGamePassAsync", {
+			method = function()
+				return confirmed
+			end,
+		})
+		sim.customCache[CUSTOM_KEY] = nil
+		local forgedAttr, forgedSaved, real, saved, pass, ownedBefore, err
+		sim:runAs("server", function(req)
+			local M = req("ServerScriptService.Server.Systems.Monetization")
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local player = sim.player -- the joined test player (the next spec swaps in a leaver)
+			pass = req("ReplicatedStorage.Shared.Monetization").passById(PASS_ID)
+			ownedBefore = M.owns(player, "magnet")
+			local ok, e = pcall(function()
+				-- Not confirmed (a faked signal or a cached answer): this session only, never saved
+				M.passPurchased(player, PASS_ID, true)
+				forgedAttr = player:GetAttribute("Pass_magnet")
+				forgedSaved = Data.account(player).passes.magnet
+				-- Next session (rejoin): Roblox confirms the purchase, now it is saved
+				player:SetAttribute("Pass_magnet", nil)
+				M.forget(player)
+				confirmed = true
+				M.passPurchased(player, PASS_ID, true)
+				real = player:GetAttribute("Pass_magnet")
+				saved = Data.account(player).passes.magnet
+			end)
+			if not ok then
+				err = tostring(e)
+			end
+		end)
+		sim:run(3)
+		expect(err).toBeNil()
+		expect(pass).never.toBeNil()
+		expect(ownedBefore).toBe(false)
+		sim.customs.MarketplaceService.UserOwnsGamePassAsync = nil
+		sim.customCache[CUSTOM_KEY] = nil
+		expect(forgedAttr).toBe(true)
+		expect(forgedSaved).toBeNil()
+		expect(real).toBe(true)
+		expect(saved).toBe(true)
 	end)
 
 	it("leaves no ownership entry behind when the player leaves while loading", function()
