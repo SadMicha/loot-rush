@@ -22,7 +22,10 @@ local Headshot = {}
 
 local urls: { [number]: string } = {}
 local ready: { [number]: boolean } = {} -- userId → image fetched
-local waiting: { [number]: { () -> () } } = {} -- userId → hide callbacks of placeholders
+local fetching: { [number]: boolean } = {} -- userId → a PreloadAsync is running
+-- userId → hide callbacks of placeholders still showing; kept across failed fetches, so a later
+-- successful fetch (asked by the next row of that user) hides the older rows too
+local waiting: { [number]: { () -> () } } = {}
 
 local function markReady(userId: number)
 	ready[userId] = true
@@ -44,20 +47,22 @@ local function fetch(userId: number, url: string, hide: () -> ())
 	local list = waiting[userId]
 	if list then
 		table.insert(list, hide)
-		return -- already fetching
+	else
+		waiting[userId] = { hide }
 	end
-	waiting[userId] = { hide }
+	if fetching[userId] then
+		return
+	end
+	fetching[userId] = true
 	task.spawn(function()
-		local ok = pcall(function()
+		pcall(function()
 			ContentProvider:PreloadAsync({ url }, function(_: string, status: Enum.AssetFetchStatus)
 				if status == Enum.AssetFetchStatus.Success then
 					markReady(userId)
 				end
 			end)
 		end)
-		if not ok or not ready[userId] then
-			waiting[userId] = nil -- failed: placeholders stay; the next row asks again
-		end
+		fetching[userId] = nil -- failed: placeholders stay listed; the next row asks again
 	end)
 end
 
