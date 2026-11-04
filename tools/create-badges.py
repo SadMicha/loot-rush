@@ -150,12 +150,13 @@ def main():
             print(f"no icon {k}: put {icon} in the repo first")
             continue
         fields = {
-            "request.name": name,
-            "request.description": desc,
-            "request.paymentSourceType": "1",  # user funds (only used if it would cost Robux)
-            "request.expectedCost": "0",  # never pay: refused once the free quota is used up
+            "name": name,
+            "description": desc,
+            "paymentSourceType": "1",  # user funds (only used if it would cost Robux)
+            "expectedCost": "0",  # never pay: refused once the free quota is used up
+            "isActive": "true",
         }
-        body, headers = multipart(fields, "request.files", icon)
+        body, headers = multipart(fields, "files", icon)
         status, res = request("POST", CREATE.format(u=universe), key, body, headers)
         bid = res.get("id") if isinstance(res, dict) else None
         if status not in (200, 201) or not str(bid or "").isdigit():
