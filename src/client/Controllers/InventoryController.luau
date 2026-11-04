@@ -923,7 +923,7 @@ local function renderGrid()
 	footNormal.Visible = not salvageMode
 	footSalvage.Visible = salvageMode
 	salvageLabel.Text = if salvagedCount > 0
-		then string.format("Salvaged %d · +%s Gold", salvagedCount, Format.big(salvagedGold))
+		then string.format("Salvaged %d - +%s Gold", salvagedCount, Format.big(salvagedGold))
 		else "Tap items to salvage"
 	salvageLabel.TextColor3 = if salvagedCount > 0 then C.Gold else F.Faint
 	quickNormal.Text = if quickArmed == "normal"
@@ -1137,7 +1137,7 @@ local function buildGrid(parent: Frame)
 	autoButton.LayoutOrder = 3
 	autoButton.Activated:Connect(function()
 		if not QuestController.isOpen("auto_salvage") then
-			QuestController.toast("Locked · " .. (QuestController.lockHint("auto_salvage") or ""))
+			QuestController.toast("Locked - " .. (QuestController.lockHint("auto_salvage") or ""))
 			return
 		end
 		local now = (player:GetAttribute("AutoSalvage") or "") :: string

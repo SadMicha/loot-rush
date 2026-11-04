@@ -94,7 +94,7 @@ end
 local function renderList()
 	clear(listPanel)
 
-	local head = Window.heading("Skills · 4 on the bar", 20, C.Text)
+	local head = Window.heading("Skills - 4 on the bar", 20, C.Text)
 	head.Position = UDim2.fromOffset(PAD, PAD - 6)
 	head.Parent = listPanel
 
@@ -135,7 +135,7 @@ local function renderList()
 			if locked
 				then string.format("Unlocks at level %d", skill.unlock or 1)
 				else string.format(
-					"Lv %d · %s dmg · %s s",
+					"Lv %d - %s dmg - %s s",
 					progressOf(skill).level,
 					fmt(math.floor(eff.damage + 0.5)),
 					fmt(eff.cooldown)
@@ -290,7 +290,7 @@ local function renderTree()
 			"%s: %s%s",
 			node.name,
 			node.text,
-			if why and not maxed then " · " .. why else ""
+			if why and not maxed then " - " .. why else ""
 		)
 	else
 		hint.Text = "Tap a node. Each skill level grants a bloom point."
@@ -369,7 +369,7 @@ local function openPicker(skill: Skills.Skill, socket: number, current: string?)
 	card.Position = UDim2.fromScale(0.5, 0.5)
 	card.ZIndex = 21
 	card.Active = true -- taps on the card do not reach the shade
-	local title = Window.heading(string.format("Socket %d · %s", socket, skill.name), 20, C.Text)
+	local title = Window.heading(string.format("Socket %d - %s", socket, skill.name), 20, C.Text)
 	title.Position = UDim2.fromOffset(PAD, PAD - 4)
 	title.ZIndex = 22
 	title.Parent = card
@@ -491,8 +491,8 @@ local function renderDetail()
 	local slot = slotOf(skill.id)
 	local key = Kit.label(
 		if slot
-			then string.format("Key %s · Level %d", KEYS[slot], sp.level)
-			else string.format("Not on the bar · Level %d", sp.level),
+			then string.format("Key %s - Level %d", KEYS[slot], sp.level)
+			else string.format("Not on the bar - Level %d", sp.level),
 		16,
 		C.Muted,
 		Theme.Font.Body

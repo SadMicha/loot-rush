@@ -94,7 +94,7 @@ local function refreshChoiceStats()
 	end
 	local items = if typeof(s.items) == "table" then #s.items else 0
 	choiceStats.Text = string.format(
-		"%s kills  ·  +%s Gold  ·  %d items  ·  %s",
+		"%s kills - +%s Gold - %d items - %s",
 		Format.int(tonumber(s.kills) or 0),
 		Format.big(tonumber(s.gold) or 0),
 		items,
@@ -126,7 +126,7 @@ local function refresh()
 	end
 	infoVariant.Text = if variant then variant.name else ""
 	infoVariant.Visible = variant ~= nil
-	infoTitle.Text = string.format("%s · D%d", regionName, depth)
+	infoTitle.Text = string.format("%s - D%d", regionName, depth)
 	infoTitle.TextColor3 = if p == "failed" then C.Danger else C.GoldHi
 	if downed and (p == "wave" or p == "boss" or p == "clear") then
 		infoLine.Text = "Respawning at the waypoint…"
@@ -134,7 +134,7 @@ local function refresh()
 		local wave = (player:GetAttribute("RiftWave") or 1) :: number
 		local waves = (player:GetAttribute("RiftWaves") or 1) :: number
 		local left = (player:GetAttribute("RiftLeft") or 0) :: number
-		infoLine.Text = string.format("Area %d/%d  ·  %d left", wave, waves, left)
+		infoLine.Text = string.format("Area %d/%d - %d left", wave, waves, left)
 	elseif p == "boss" then
 		infoLine.Text = "Boss"
 	elseif p == "failed" then
@@ -149,8 +149,8 @@ local function refresh()
 	end
 	choice.Visible = showChoice
 	if showChoice then
-		choiceTitle.Text = string.format("%s · Depth %d cleared", regionName, depth)
-		deeperLabel.Text = string.format("Deeper · D%d", depth + 1)
+		choiceTitle.Text = string.format("%s - Depth %d cleared", regionName, depth)
+		deeperLabel.Text = string.format("Deeper - D%d", depth + 1)
 		refreshChoiceStats()
 	end
 end
@@ -173,12 +173,11 @@ local function refreshBoss(): boolean
 				"Soft"
 			)
 			if broken then
-				bossState.Text =
-					string.format("BROKEN  ·  +%d%% damage", Bosses.BREAK_DAMAGE * 100)
+				bossState.Text = string.format("BROKEN - +%d%% damage", Bosses.BREAK_DAMAGE * 100)
 				bossState.TextColor3 = C.GoldHi
 			elseif enemy:GetAttribute("Opening") == true then
 				bossState.Text =
-					string.format("OPENING  ·  +%d%% damage", Bosses.OPENING_DAMAGE * 100)
+					string.format("OPENING - +%d%% damage", Bosses.OPENING_DAMAGE * 100)
 				bossState.TextColor3 = C.Cyan
 			else
 				bossState.Text = "Break"
@@ -326,14 +325,14 @@ local function showVictory(d: { [string]: any })
 	local counters = math.floor(tonumber(d.counters) or 0)
 	local name = if typeof(d.name) == "string" then d.name else "Boss"
 	fightLine = string.format(
-		"Boss %s  ·  %s  ·  %s",
+		"Boss %s - %s - %s",
 		clock(seconds),
 		plural(breaks, "Break"),
 		plural(counters, "Counter")
 	)
 	fightDepth = (player:GetAttribute("RiftDepth") or 0) :: number
 	bannerTitle.Text = "VICTORY"
-	bannerLine.Text = name .. " defeated  ·  " .. fightLine
+	bannerLine.Text = name .. " defeated - " .. fightLine
 	for _, t in { bannerTitle, bannerLine } do
 		t.TextTransparency = 0
 	end
