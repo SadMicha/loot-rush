@@ -956,6 +956,51 @@
     128
    ],
    "registry": "Assets.Vfx"
+  },
+  {
+   "key": "egg_star",
+   "file": "assets/ui/icons/store/egg_star.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "egg_meadow",
+   "file": "assets/ui/icons/store/egg_meadow.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_rune_dragon",
+   "file": "assets/ui/icons/store/pet_rune_dragon.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_cloud_whale",
+   "file": "assets/ui/icons/store/pet_cloud_whale.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "pet_star_cat",
+   "file": "assets/ui/icons/store/pet_star_cat.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
