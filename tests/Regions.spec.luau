@@ -272,7 +272,7 @@ describe("Hub Lumenhaven", function()
 		expect(info.hub).toBe(true)
 		expect(info.spawnDist).toBeLessThan(1)
 		expect(info.apart).toBeGreaterThan(300)
-		for _, w in { "Atlas", "Forge", "Shop", "Inventory" } do
+		for _, w in { "Atlas", "Forge", "Shop", "Stash" } do
 			expect(info.windows[w]).toBe(true)
 		end
 	end)

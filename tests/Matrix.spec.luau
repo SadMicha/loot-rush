@@ -13,6 +13,7 @@ local SCREENS = {
 	"rift-clear",
 	"inventory",
 	"inventory-compare",
+	"stash",
 	"skills",
 	"skills-stones",
 	"star-net",

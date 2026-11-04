@@ -35,6 +35,7 @@ One line each: what to do → what should happen.
 
 - [ ] **Stance (Motor6D, Avatar Joint Upgrade off):** equip each class weapon, stand, run, attack → arms hold the weapon pose, no T-pose or snapping; Output has no joint warnings.
 - [ ] **Nameplates + station labels:** walk the hub with 2 players → name over each hero, floating labels over Rift Gate, Forge, Market, Stash, Pet Stable; readable, not over the HUD.
+- [ ] **Stash:** walk to the Stash in the hub, press Open → Stash window with 4 tabs and your bag; tap a bag item → it lands in the open tab; tap it again → back in the bag; "Store All" fills the tab; switch hero → the same items are in the stash; walk away → the window closes.
 - [ ] **Inventory upgrade icons:** pick up a better and a worse item → green up arrow / red down arrow on the bag cells, counter and "Upgrades" sort match.
 - [ ] **Boss start (d1–5):** fight bosses at depth 1, 3, 4, 5 → d1 phase 1 only + Break callout; d3 Counter/Openings; d4 Pursuit (ranged class at its own range is not jumped); d5 adds + enrage.
 - [ ] **Mobile layouts, all HUD sizes:** Settings → each HUD size on 844×390 and a tablet → no overlap of skills, joystick, minimap, capsules, buff bar, Rush meter; every window opens and closes.
