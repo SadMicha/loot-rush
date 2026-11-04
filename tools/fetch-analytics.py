@@ -63,10 +63,10 @@ def operation_url(universe, path):
         return HOST + path
     if path.startswith("analytics-query-api/"):
         return HOST + "/" + path
-    if path.startswith("/"):
-        path = path[1:]
-    if path.startswith("universes/"):
-        return BASE + "/" + path
+    # Relative forms such as "v1/universes/..." or "universes/...": keep everything from "universes/"
+    i = path.find("universes/")
+    if i >= 0:
+        return BASE + "/" + path[i:]
     # Bare operation id
     return f"{BASE}/universes/{universe}/operations/metrics/{path}"
 
