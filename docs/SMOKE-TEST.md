@@ -15,3 +15,4 @@ Setup: `bash tools/packages.sh`, `rojo serve`, Studio → Connect → Play (Stud
 - [ ] Fresh save (Settings → Defaults brings hints back): no Daily popup before the first Rift; in the Rift a gold callout points at a skill button, the dash (first red zone), the Rush meter and the boss Break bar, each only when no enemy is close; back in the hub it points at Inventory; tap closes it
 - [ ] Leave the Rift, rejoin the game: class, gold, level and equipped items are still there
 - [ ] Phone emulator 844x390: nothing under the notch, buttons tappable
+- [ ] Replay the start: Dbg "Reset Account" (tap twice) → kicked, rejoin → hero setup, first quest and hints again

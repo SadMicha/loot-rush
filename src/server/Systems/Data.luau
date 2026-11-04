@@ -209,11 +209,9 @@ function Data.account(player: Player): Account?
 	return session and session.account
 end
 
--- Save immediately. true only once this save is stored in the DataStore (Robux purchases are
--- confirmed only then); false on timeout, failure, lost session or mock save.
-function Data.saveNow(player: Player): boolean
-	local session = sessions[player]
-	if not session or session.mock or not session.profile:IsActive() then
+-- One save of this session, waited for (see Data.saveNow)
+local function saveSession(session: Session): boolean
+	if session.mock or not session.profile:IsActive() then
 		return false
 	end
 	local index = session.started + 1 -- OnSave of this save counts it
@@ -227,6 +225,37 @@ function Data.saveNow(player: Player): boolean
 		and session.results[index] == true
 		and session.profile:IsActive()
 	session.results[index] = nil
+	return stored
+end
+
+-- Save immediately. true only once this save is stored in the DataStore (Robux purchases are
+-- confirmed only then); false on timeout, failure, lost session or mock save.
+function Data.saveNow(player: Player): boolean
+	local session = sessions[player]
+	return session ~= nil and saveSession(session)
+end
+
+-- Dev tool (Systems/Debug "reset"): the whole account becomes a brand-new save (Profile.migrate(nil),
+-- same as a first join), is stored, the session ends and the player is kicked with `message`, so
+-- the next join runs the real first-join flow. The session is detached first: from here on every
+-- system sees no save (Data.get = nil) and nothing writes into the fresh record before the kick.
+-- Only touches this player's own session. Returns true once the fresh save is stored.
+function Data.reset(player: Player, message: string): boolean
+	local session = sessions[player]
+	if not session then
+		return false
+	end
+	sessions[player] = nil
+	session.leaving = true -- our own session end: no "opened on another server" kick
+	local record = ProfileSchema.migrate(nil)
+	session.profile.Data = record :: any
+	session.account = record.data
+	session.data = ProfileSchema.active(record.data)
+	local stored = saveSession(session)
+	session.profile:EndSession()
+	if player.Parent then
+		player:Kick(message)
+	end
 	return stored
 end
 

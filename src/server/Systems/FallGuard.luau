@@ -1,10 +1,12 @@
 --!strict
 -- Server-side defence against leaving a map (the first are the invisible walls from Util/Fence and
 -- the client clamp in BoundsController). Every Config.FALL_TICK the server checks each living
--- character: in a Rift it must stay on its own Rift Trail map, otherwise inside the Hub (or a map
--- slot). Anyone a little past a wall is pushed back to the edge; anyone below the floor or far
--- outside is put back on a safe spot (last lit waypoint / start pad, or Hub spawn). No damage, no
--- run penalty.
+-- character: in a Rift it must stay on its own Rift Trail map (or the Hub, where it waits while the
+-- map streams in), otherwise inside the Hub only. Anyone a little past a wall is pushed back to the
+-- edge; anyone below the floor, on a roof or far outside is put back on a safe spot (last lit
+-- waypoint / start pad, or Hub spawn). No damage, no run penalty. This is the authoritative Hub
+-- clamp: the client owns its character's physics, so walls and the client clamp alone can be beaten
+-- (lag spike, exploit); the server always has the last word.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,21 +25,20 @@ local function rect(center: Vector3, halfX: number, halfZ: number, top: number?)
 	return { center = center, halfX = halfX, halfZ = halfZ, top = top }
 end
 
--- The rectangles the player may stand in: in a Rift only their own map (rescue: last lit waypoint
--- or the start pad); outside a Rift the Hub or any built map slot (slot 1 always holds the Green
--- Plains). Also returns the full-rescue spot.
+local HUB = rect(Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF, Config.HUB_TOP)
+
+-- The rectangles the player may stand in: in a Rift their own map (rescue: last lit waypoint or
+-- the start pad) plus the Hub (the run starts there while the map streams in); outside a Rift
+-- only the Hub. Idle map slots never count (slot 1 always holds an empty Green Plains: a player
+-- left standing there is brought home). Also returns the full-rescue spot.
 local function allowed(player: Player): ({ Bounds.Rect }, Vector3)
 	local slot = Rift.slotOf(player)
 	if slot then
-		return World.areasOf(slot), Rift.safeSpot(player) or World.startOf(slot)
+		local rects = World.areasOf(slot)
+		table.insert(rects, HUB)
+		return rects, Rift.safeSpot(player) or World.startOf(slot)
 	end
-	local rects = { rect(Config.HUB_ORIGIN, Config.HUB_HALF, Config.HUB_HALF, Config.HUB_TOP) }
-	for i = 1, Config.RIFT_SLOTS do
-		for _, r in World.areasOf(i) do
-			table.insert(rects, r)
-		end
-	end
-	return rects, Config.HUB_POS
+	return { HUB }, Config.HUB_POS
 end
 
 -- nil if the player is standing somewhere safe; a point just inside the edge if they slipped a
@@ -91,7 +92,13 @@ function FallGuard.start()
 	while true do
 		task.wait(Config.FALL_TICK)
 		for _, player in Players:GetPlayers() do
-			check(player)
+			-- One failing check (a character torn down mid-tick) must never stop the guard for good
+			local ok, err = pcall(function()
+				check(player)
+			end)
+			if not ok then
+				warn("[FallGuard] check failed:", err)
+			end
 		end
 	end
 end

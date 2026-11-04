@@ -107,11 +107,18 @@ function SkillController.remaining(slot: number): number
 	return if skill then math.max(0, (cdUntil[skill.id] or 0) - os.clock()) else 0
 end
 
+-- Skills only work in a running Rift (the server refuses them in the Hub too, Combat.inRift)
+function SkillController.inRift(): boolean
+	local phase = player:GetAttribute("RiftPhase")
+	return phase == "wave" or phase == "boss" or phase == "clear"
+end
+
 function SkillController.cast(slot: number)
 	local skill = SkillController.skill(slot)
 	local now = os.clock()
 	if
-		not skill
+		not SkillController.inRift()
+		or not skill
 		or not SkillController.unlocked(slot)
 		or now < (cdUntil[skill.id] or 0)
 		or not rootPart()

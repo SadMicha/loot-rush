@@ -32,7 +32,7 @@ describe("Lighting", function()
 				:GetPlayers()[1].Character
 				:PivotTo(CFrame.new(Config.RIFT_START))
 		end)
-		sim:run(1)
+		-- read at once: without a run, FallGuard brings a player on an idle map slot home
 		sim:runAs("client", function(req)
 			place =
 				req("StarterPlayer.StarterPlayerScripts.Client.Controllers.LightController").place()

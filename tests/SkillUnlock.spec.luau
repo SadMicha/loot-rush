@@ -104,6 +104,9 @@ local function casts(): number
 end
 
 local function castAll()
+	server(function(_, player)
+		player:SetAttribute("RiftPhase", "wave") -- skills only work in a Rift (Combat.inRift)
+	end)
 	sim:runAs("client", function(req)
 		local Net = req("ReplicatedStorage.Shared.Net")
 		local root = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position
