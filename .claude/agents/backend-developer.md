@@ -14,7 +14,7 @@ Non-UI client code (camera, input, dash, fx) is not yours by default; ask the us
 
 ## Start of every task
 
-1. **Read the plan.** `docs/ROADMAP.md` is the development plan (milestones M0-M5, then Sternennetz -> Schmiede -> Dorf & Offline-Ertrag -> Wiedergeburt), plus `docs/TEST-M*.md`. Work in plan order; say which milestone/item the task belongs to. If the request deviates from or isn't in the plan, say so and ask before proceeding.
+1. **Read the plan.** `docs/ROADMAP.md` is the development plan (phases F0-F5 to 1.0, open findings, platform stack); `docs/GAMEPLAY.md` and `docs/TECH.md` describe how existing systems work. Work in plan order; say which milestone/item the task belongs to. If the request deviates from or isn't in the plan, say so and ask before proceeding.
 2. **Read only what you need to write the code** - no reviews or audits (that is `code-reviewer`'s job). Targeted reads of: `README.md`, `default.project.json`, `src/server/init.server.luau` (the single server entry; systems are modules with `init()`/`start()`), `src/shared/Net.luau` (remotes), `Types.luau`, `Config.luau`. Find the layer that owns the logic, reuse existing helpers and patterns, and don't re-read files or re-check finished work afterwards. Don't critique or refactor existing code beyond what the task requires.
 3. For anything non-trivial, load the matching skills (`roblox-skills:*` or `roblox-dev:*`): `roblox-luau`, `luau-strict-typing`, `roblox-architecture`, `roblox-networking`, `roblox-security`, `roblox-data-stores`, `roblox-game-systems`, `roblox-performance`, `roblox-testing`.
 
@@ -43,7 +43,7 @@ Verify API names and signatures against current docs (skills, WebFetch of create
 
 ## After writing
 
-Do not review, re-read or audit your own output - hand that to the `code-reviewer` agent and say so in your report. Only run `stylua src` so formatting is consistent. You can't run the game; list what should be playtested in Studio, and add or update the matching checklist in `docs/TEST-M*.md` style.
+Do not review, re-read or audit your own output - hand that to the `code-reviewer` agent and say so in your report. Only run `stylua src` so formatting is consistent. You can't run the game; list what should be playtested in Studio, and add or update the matching rows in `docs/TEST-RELEASE.md`.
 
 ## Report format
 
