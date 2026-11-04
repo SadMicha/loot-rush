@@ -12,13 +12,15 @@
 -- (Shared/Models/Horizon). Invisible walls (Util/Fence) and FallGuard stay as the safety net.
 -- Everything is built from parts with the classic stud look (Shared/Models). Water is Terrain water
 -- where a Terrain exists (glass otherwise). Stations carry a ProximityPrompt with the attribute
--- "Window"; the HubController uses it to open the matching window.
+-- "Window"; the HubController uses it to open the matching window. The trigger parts are tagged
+-- "Station" with a "Label" attribute: the client floats that name above them (Shared/Nameplate).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
+local Nameplate = require(ReplicatedStorage.Shared.Nameplate)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
 
@@ -257,6 +259,10 @@ local function station(
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute("Window", window)
 	prompt.Parent = p
+	-- floating label for the client (Shared/Nameplate, Client/NameplateController)
+	p:SetAttribute(Nameplate.LABEL_ATTR, title)
+	p:SetAttribute(Nameplate.WINDOW_ATTR, window)
+	CollectionService:AddTag(p, Nameplate.STATION_TAG)
 	table.insert(reserved, pos)
 end
 

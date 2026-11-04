@@ -374,4 +374,27 @@ Theme.Callout = table.freeze({
 	PopTime = 0.22,
 })
 
+-- World nameplates (client/NameplateController, Shared/Nameplate): BillboardGuis in screen px, times
+-- the HUD size setting. Player: name + level over a thin life bar (shield = cyan strip on top).
+-- Station: uppercase label with a gold diamond; the active quest's station is gold and larger.
+Theme.Nameplate = table.freeze({
+	Width = 150, -- player plate
+	NameSize = 15,
+	LevelSize = 13,
+	BarWidth = 92,
+	BarHeight = 7,
+	OwnBarWidth = 64, -- local player's plate: bar only, a bit smaller
+	OwnBarHeight = 6,
+	ShieldHeight = 3, -- cyan strip on top of the life bar
+	BarBack = 0.25, -- background transparency of the bar track
+	LowLife = 0.3, -- below this fill the bar flashes brighter
+	LabelWidth = 220,
+	LabelSize = 18,
+	LabelSizeQuest = 22, -- the station the quest waypoint points to
+	SubSize = 12, -- "Locked · Clear depth 5" under a locked station
+	Stroke = 0.15, -- text outline transparency
+	Rule = 2, -- gold rule under a station label (px)
+	TouchScale = 1.15, -- phones: a little larger
+})
+
 return table.freeze(Theme)
