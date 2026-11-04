@@ -113,8 +113,10 @@ end
 
 local function addItems(player: Player, n: number)
 	local ilvl = (player:GetAttribute("Level") or 1) :: number
+	local profile = Data.get(player)
+	local opts: Items.RollOpts = { class = if profile then profile.class else nil }
 	for _ = 1, n do
-		if not Inventory.add(player, Items.roll(ilvl, rng)) then
+		if not Inventory.add(player, Items.roll(ilvl, rng, nil, opts)) then
 			break
 		end
 	end

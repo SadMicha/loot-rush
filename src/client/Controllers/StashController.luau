@@ -97,9 +97,9 @@ local function heroLevel(): number
 	return (player:GetAttribute("Level") or 1) :: number
 end
 
--- Hero level the item still needs (Items.requiredLevel), nil when this hero can wear it
-local function lockOf(item: Items.Item): number?
-	return if Items.canWear(item, heroLevel()) then nil else Items.requiredLevel(item)
+-- Why this hero cannot wear the item (Items.lockOf): class name or level needed, nil when it can
+local function lockOf(item: Items.Item): (number | string)?
+	return Items.lockOf(item, heroLevel(), Kit.playerClass())
 end
 
 local function showInfo(item: Items.Item?, note: string?)
@@ -115,7 +115,9 @@ local function showInfo(item: Items.Item?, note: string?)
 	local slot = Items.SlotName[item.slot] or item.slot
 	local meta = `{rarityName(item.rarity)} {slot} - Item Level {Format.int(item.ilvl)}`
 	local need = lockOf(item)
-	if need then
+	if typeof(need) == "string" then
+		meta ..= ` - {need} Only`
+	elseif need then
 		meta ..= ` - Requires Level {Format.int(need)}`
 	end
 	infoMeta.Text = if note then `{meta} - {note}` else meta
@@ -137,7 +139,7 @@ local function canSend(id: string): boolean
 end
 
 local function itemCell(item: Items.Item, mark: Items.UpgradeMark?, toStash: boolean): TextButton
-	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot), {
+	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot, item), {
 		rarity = item.rarity,
 		upgrade = mark,
 		locked = lockOf(item),
@@ -164,7 +166,7 @@ end
 local function fill(parent: Frame, list: { Items.Item }, slots: number, toStash: boolean)
 	clear(parent)
 	local _, equipped = InventoryController.snapshot()
-	local marks = Items.upgradeMarks(list, equipped, heroLevel())
+	local marks = Items.upgradeMarks(list, equipped, heroLevel(), Kit.playerClass())
 	for i, item in list do
 		local b = itemCell(item, marks[item.id], toStash)
 		b.LayoutOrder = i

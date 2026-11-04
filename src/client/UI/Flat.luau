@@ -445,7 +445,9 @@ export type CellOptions = {
 	caption: string?, -- equipment slot name next to the cell
 	captionSide: "left" | "right" | "below" | nil, -- where the caption sits (default below)
 	upgrade: "up" | "down" | nil, -- corner icon: beats the worn piece (green arrow up) or not (red down)
-	locked: number?, -- hero level the item needs (Items.requiredLevel): dark veil + red "Lv N" chip
+	-- hero level the item needs (Items.requiredLevel): dark veil + red "Lv N" chip; a string
+	-- (class name of a class-locked item, Items.classLock) is shown as the chip text instead
+	locked: (number | string)?,
 }
 
 -- Upgrade corner icon of a cell (top left): painted green arrow up for upgrades, red arrow down
@@ -487,7 +489,7 @@ end
 
 -- Level lock of a cell (the hero is below Items.requiredLevel): dark veil and a red "Lv N" chip
 -- bottom left; nil removes it. Changed in place.
-function Flat.setCellLock(b: GuiObject, size: number, level: number?)
+function Flat.setCellLock(b: GuiObject, size: number, level: (number | string)?)
 	local old = b:FindFirstChild("Lock")
 	if old and old:GetAttribute("Level") == level then
 		return
@@ -507,8 +509,12 @@ function Flat.setCellLock(b: GuiObject, size: number, level: number?)
 	veil.Size = UDim2.fromScale(1, 1)
 	veil.ZIndex = 4
 	Flat.corner(veil, F.Radius.M)
-	local t =
-		Flat.text(`Lv {level}`, math.max(11, math.floor(size * 0.17)), C.Danger, Theme.Font.UI)
+	local t = Flat.text(
+		if typeof(level) == "number" then `Lv {level}` else tostring(level),
+		math.max(11, math.floor(size * 0.17)),
+		C.Danger,
+		Theme.Font.UI
+	)
 	t.Name = "Level"
 	t.AnchorPoint = Vector2.new(0, 1)
 	t.Position = UDim2.new(0, 6, 1, -4)

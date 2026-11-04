@@ -145,6 +145,14 @@ end
 
 -- Roll options of a guaranteed first drop (Balance.FirstDrops), nil once all were given (pure)
 -- given = drops this character already got from normal kills while the guarantee ran
+-- Roll options for a drop of this hero: its class (Item.class, class base names)
+local function forHero(owner: Player, opts: Items.RollOpts): Items.RollOpts
+	local profile = Data.get(owner)
+	local out = table.clone(opts)
+	out.class = if profile then profile.class else nil
+	return out
+end
+
 function Loot.starter(given: number, shift: number): Items.RollOpts?
 	local rule = Balance.FirstDrops
 	if given >= rule.kills then
@@ -199,7 +207,7 @@ local function onKilled(
 		for i = 1, t.bossItems do
 			local opts =
 				{ shift = t.shift, min = if i == 1 then "rare" else nil, uniques = t.uniques }
-			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, opts))
+			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, forHero(owner, opts)))
 		end
 		return
 	end
@@ -217,7 +225,7 @@ local function onKilled(
 					t.ilvl,
 					rng,
 					nil,
-					{ shift = t.shift, min = "magic", uniques = t.uniques }
+					forHero(owner, { shift = t.shift, min = "magic", uniques = t.uniques })
 				)
 			)
 		end
@@ -231,7 +239,12 @@ local function onKilled(
 			pos,
 			owner,
 			0,
-			Items.roll(t.ilvl, rng, nil, starter or { shift = t.shift, uniques = t.uniques })
+			Items.roll(
+				t.ilvl,
+				rng,
+				nil,
+				forHero(owner, starter or { shift = t.shift, uniques = t.uniques })
+			)
 		)
 		if profile and starter then
 			profile.starters += 1
@@ -247,7 +260,12 @@ function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string
 			pos,
 			owner,
 			0,
-			Items.roll(t.ilvl, rng, nil, { shift = t.shift, min = "rare", uniques = t.uniques })
+			Items.roll(
+				t.ilvl,
+				rng,
+				nil,
+				forHero(owner, { shift = t.shift, min = "rare", uniques = t.uniques })
+			)
 		)
 	end
 end
@@ -294,7 +312,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 		local profile = Data.get(d.owner)
 		upgrade = not salvaged
 			and profile ~= nil
-			and Items.canWear(item, profile.level)
+			and Items.canWear(item, profile.level, profile.class)
 			and Items.isUpgrade(item, profile.equipped[item.slot])
 	else
 		Inventory.addGold(d.owner, d.gold)

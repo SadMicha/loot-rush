@@ -277,6 +277,19 @@ function Profile.reconcile(raw: any): Data
 	data.quests = Quests.reconcile(data.quests)
 	data.journey = Journey.reconcile(data.journey)
 	data.class = Classes.valid(data.class)
+	-- Gear this hero owns belongs to its class (Item.class): older items had none and took the
+	-- look of whoever viewed them in the shared stash
+	local function stamp(item: any)
+		if typeof(item) == "table" and Items.classOf(item) == nil then
+			item.class = data.class
+		end
+	end
+	for _, item in data.inventory do
+		stamp(item)
+	end
+	for _, item in data.equipped do
+		stamp(item)
+	end
 	if
 		data.autoSalvage ~= ""
 		and (Items.rank(data.autoSalvage) == 0 or data.autoSalvage == "unique")

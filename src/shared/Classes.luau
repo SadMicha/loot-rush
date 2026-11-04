@@ -7,6 +7,7 @@ export type ClassId = string -- "warrior" | "ranger" | "mage" | "mushroom"
 export type Class = {
 	id: ClassId,
 	name: string, -- class name shown in the game
+	short: string, -- one word for tight spots (class-lock chip on item cells)
 	hero: string, -- the hero's name (concept)
 	role: string,
 	weapon: string, -- key in Shared/Weapons
@@ -20,6 +21,7 @@ Classes.List = table.freeze({
 	table.freeze({
 		id = "warrior",
 		name = "Knight",
+		short = "Knight",
 		hero = "Brix",
 		role = "Melee, tank",
 		weapon = "warrior_sword",
@@ -27,6 +29,7 @@ Classes.List = table.freeze({
 	table.freeze({
 		id = "ranger",
 		name = "Ranger",
+		short = "Ranger",
 		hero = "Fynn",
 		role = "Ranged, movement",
 		weapon = "ranger_bow",
@@ -34,6 +37,7 @@ Classes.List = table.freeze({
 	table.freeze({
 		id = "mage",
 		name = "Spark Mage",
+		short = "Mage",
 		hero = "Zap",
 		role = "Elemental caster",
 		weapon = "mage_staff",
@@ -41,6 +45,7 @@ Classes.List = table.freeze({
 	table.freeze({
 		id = "mushroom",
 		name = "Mushroom Shaman",
+		short = "Shaman",
 		hero = "Mora",
 		role = "Summoner",
 		weapon = "druid_scepter",

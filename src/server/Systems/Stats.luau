@@ -48,7 +48,7 @@ function Stats.refresh(player: Player, fill: boolean)
 	local sum: { [string]: number } = { damage = 0, life = 0, crit = 0, speed = 0 }
 	local level = Stats.level(player)
 	for _, item in profile.equipped do
-		if not Items.canWear(item, level) then
+		if not Items.canWear(item, level, profile.class) then
 			continue
 		end
 		for _, a in item.affixes do
@@ -65,7 +65,7 @@ function Stats.refresh(player: Player, fill: boolean)
 		player:SetAttribute(attr, mods[stat] or 0)
 	end
 	local worn: Items.Item? = profile.equipped.weapon
-	local weapon = if worn and Items.canWear(worn, level) then worn else nil
+	local weapon = if worn and Items.canWear(worn, level, profile.class) then worn else nil
 	player:SetAttribute(
 		"StatWeapon",
 		Balance.weaponFactor(if weapon then Items.itemPower(weapon) else Balance.P.ip_per_depth)
