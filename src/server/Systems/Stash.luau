@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Stash)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -106,6 +107,9 @@ local function onStash(player: Player, action: any, a: any, b: any)
 	send(player, if result == "ok" then nil else Rules.Text[result])
 	if result == "ok" then
 		Inventory.sync(player)
+		if action ~= "take" then
+			Actions.fire(player, "stash") -- badge "Hoarder" (Systems/Badges)
+		end
 	end
 end
 
