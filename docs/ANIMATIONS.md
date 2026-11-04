@@ -24,6 +24,14 @@ from `C0` (or `Attachment0.CFrame`). If the own character has no joint it can dr
 `Anim.JOINT_WARN` seconds, the Output shows one `[AnimController] no animatable joints` warning
 with the joint classes it found. `tests/AnimRig.spec.luau` covers both rig kinds.
 
+**The upgrade is switched off** (`StarterPlayer.AvatarJointUpgrade = Disabled` in
+`default.project.json`, 2026-11-04). On upgraded rigs, writing `AnimationConstraint.Transform`
+from a script reads back fine but does not move the limb: the Dbg "Dump Joints" view on a live
+playtest showed our stance values in `T` while the arm stayed in the tool-hold pose. Classic
+`Motor6D` rigs are what the whole procedural layer (moves, stances) needs. If Rojo's live sync
+cannot set the property in Studio (Roblox-only security), set StarterPlayer → Avatar Joint
+Upgrade → Disabled by hand once; the published place is built from the project file.
+
 ## Moves (`Shared/Anim.Moves`)
 
 | Moment | Move | Notes |
