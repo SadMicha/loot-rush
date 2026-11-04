@@ -1154,6 +1154,24 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "journey",
+   "file": "assets/ui/icons/store/journey.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "season_beta",
+   "file": "assets/ui/icons/store/season_beta.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
