@@ -294,6 +294,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 		local profile = Data.get(d.owner)
 		upgrade = not salvaged
 			and profile ~= nil
+			and Items.canWear(item, profile.level)
 			and Items.isUpgrade(item, profile.equipped[item.slot])
 	else
 		Inventory.addGold(d.owner, d.gold)

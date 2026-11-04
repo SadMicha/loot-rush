@@ -106,11 +106,12 @@ local function onEquip(player: Player, id: any)
 	if not index then
 		return
 	end
-	local item = table.remove(profile.inventory, index) :: Items.Item
-	if not Items.SlotName[item.slot] then
-		table.insert(profile.inventory, item)
+	local item = profile.inventory[index]
+	-- unknown slot, or above the hero's level (a stash twink, Items.requiredLevel)
+	if not Items.SlotName[item.slot] or not Items.canWear(item, profile.level) then
 		return
 	end
+	table.remove(profile.inventory, index)
 	local old = profile.equipped[item.slot]
 	profile.equipped[item.slot] = item
 	if old then

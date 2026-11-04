@@ -37,7 +37,8 @@ local function gearSet(speed: number?, crit: number?)
 		if crit then
 			table.insert(affixes, { stat = "crit", value = crit, tier = 1 })
 		end
-		set[slot] = { slot = slot, ilvl = 10, rarity = "epic", affixes = affixes }
+		-- item level 1: a fresh level 1 hero can wear it (Items.requiredLevel)
+		set[slot] = { slot = slot, ilvl = 1, rarity = "epic", affixes = affixes }
 	end
 	return set
 end
