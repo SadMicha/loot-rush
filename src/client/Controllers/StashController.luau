@@ -4,6 +4,8 @@
 -- the other side (the server checks and answers with both snapshots); "Store All" empties the bag
 -- into the open tab. Hover (PC) or the last tap (touch) shows the item's details at the bottom.
 -- The window closes by itself when the hero walks away from the stash.
+-- Items above this hero's level (Items.requiredLevel) can be stored and taken, but show a lock:
+-- the server refuses to equip them until the hero reaches that level.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -91,10 +93,20 @@ local function rarityName(rarity: string): string
 	return string.upper(string.sub(rarity, 1, 1)) .. string.sub(rarity, 2)
 end
 
+local function heroLevel(): number
+	return (player:GetAttribute("Level") or 1) :: number
+end
+
+-- Hero level the item still needs (Items.requiredLevel), nil when this hero can wear it
+local function lockOf(item: Items.Item): number?
+	return if Items.canWear(item, heroLevel()) then nil else Items.requiredLevel(item)
+end
+
 local function showInfo(item: Items.Item?, note: string?)
 	if not item then
 		infoName.Text = ""
 		infoMeta.Text = note or "Tap an item to move it. Hover to see its stats."
+		infoMeta.TextColor3 = C.Muted
 		infoAffixes.Text = ""
 		return
 	end
@@ -102,7 +114,12 @@ local function showInfo(item: Items.Item?, note: string?)
 	infoName.TextColor3 = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 	local slot = Items.SlotName[item.slot] or item.slot
 	local meta = `{rarityName(item.rarity)} {slot} - Item Level {Format.int(item.ilvl)}`
+	local need = lockOf(item)
+	if need then
+		meta ..= ` - Requires Level {Format.int(need)}`
+	end
 	infoMeta.Text = if note then `{meta} - {note}` else meta
+	infoMeta.TextColor3 = if need then C.Danger else C.Muted
 	local lines = {}
 	for _, a in item.affixes do
 		table.insert(lines, Items.affixText(a))
@@ -123,6 +140,7 @@ local function itemCell(item: Items.Item, mark: Items.UpgradeMark?, toStash: boo
 	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot), {
 		rarity = item.rarity,
 		upgrade = mark,
+		locked = lockOf(item),
 	})
 	b.Name = if toStash then "BagItem" else "StashItem"
 	b.MouseEnter:Connect(function()
@@ -146,7 +164,7 @@ end
 local function fill(parent: Frame, list: { Items.Item }, slots: number, toStash: boolean)
 	clear(parent)
 	local _, equipped = InventoryController.snapshot()
-	local marks = Items.upgradeMarks(list, equipped)
+	local marks = Items.upgradeMarks(list, equipped, heroLevel())
 	for i, item in list do
 		local b = itemCell(item, marks[item.id], toStash)
 		b.LayoutOrder = i

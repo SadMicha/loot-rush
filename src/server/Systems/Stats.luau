@@ -7,7 +7,10 @@
 -- Skill-related stars (skill damage, cooldown …) are applied directly by Progression.effectiveSkill.
 -- No stat is capped; StatCrit above 100% overcrits (Shared/Crit).
 -- Call Stats.refresh after every change to gear or stars.
+-- Worn gear above the hero's level (Items.canWear; an older save, or a stash twink worn before
+-- the rule) gives nothing until the hero reaches its level; a level change refreshes.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Balance = require(ReplicatedStorage.Shared.Balance)
@@ -43,7 +46,11 @@ function Stats.refresh(player: Player, fill: boolean)
 		return
 	end
 	local sum: { [string]: number } = { damage = 0, life = 0, crit = 0, speed = 0 }
+	local level = Stats.level(player)
 	for _, item in profile.equipped do
+		if not Items.canWear(item, level) then
+			continue
+		end
 		for _, a in item.affixes do
 			if sum[a.stat] then
 				sum[a.stat] += a.value
@@ -57,12 +64,46 @@ function Stats.refresh(player: Player, fill: boolean)
 	for stat, attr in STAR_ATTR do
 		player:SetAttribute(attr, mods[stat] or 0)
 	end
-	local weapon = profile.equipped.weapon
+	local worn: Items.Item? = profile.equipped.weapon
+	local weapon = if worn and Items.canWear(worn, level) then worn else nil
 	player:SetAttribute(
 		"StatWeapon",
 		Balance.weaponFactor(if weapon then Items.itemPower(weapon) else Balance.P.ip_per_depth)
 	)
 	Combat.refreshStats(player, fill)
+end
+
+-- Hero level for gear requirements: the live attribute (set first on a level-up), else the save
+function Stats.level(player: Player): number
+	local attr = player:GetAttribute("Level")
+	if typeof(attr) == "number" then
+		return attr
+	end
+	local profile = Data.get(player)
+	return if profile then profile.level else 1
+end
+
+-- A level change can wake worn gear that was above the hero's level
+local function watch(player: Player)
+	player:GetAttributeChangedSignal("Level"):Connect(function()
+		local profile = Data.get(player)
+		if not profile then
+			return
+		end
+		for _, item in profile.equipped do
+			if Items.requiredLevel(item) > 1 then
+				Stats.refresh(player, false)
+				return
+			end
+		end
+	end)
+end
+
+function Stats.start()
+	for _, player in Players:GetPlayers() do
+		watch(player)
+	end
+	Players.PlayerAdded:Connect(watch)
 end
 
 return Stats

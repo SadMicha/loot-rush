@@ -43,6 +43,9 @@ Balance.P = table.freeze({
 	drops_boss = 3,
 	loot_depth = 50,
 	ip_per_depth = 10,
+	-- Gear can be worn from hero level (item level − this); the sim's hero is at least as high
+	-- as the depth it farms, so own drops always fit, while a stash twink needs the level first
+	equip_level_grace = 3,
 })
 
 -- Rarity weights at depth 1 and exponent of the shift (sheet "Loot").

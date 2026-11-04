@@ -445,6 +445,7 @@ export type CellOptions = {
 	caption: string?, -- equipment slot name next to the cell
 	captionSide: "left" | "right" | "below" | nil, -- where the caption sits (default below)
 	upgrade: "up" | "down" | nil, -- corner icon: beats the worn piece (green arrow up) or not (red down)
+	locked: number?, -- hero level the item needs (Items.requiredLevel): dark veil + red "Lv N" chip
 }
 
 -- Upgrade corner icon of a cell (top left): painted green arrow up for upgrades, red arrow down
@@ -484,6 +485,42 @@ function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "down" | n
 	mark.Parent = b
 end
 
+-- Level lock of a cell (the hero is below Items.requiredLevel): dark veil and a red "Lv N" chip
+-- bottom left; nil removes it. Changed in place.
+function Flat.setCellLock(b: GuiObject, size: number, level: number?)
+	local old = b:FindFirstChild("Lock")
+	if old and old:GetAttribute("Level") == level then
+		return
+	end
+	if old then
+		old:Destroy()
+	end
+	if not level then
+		return
+	end
+	local veil = Instance.new("Frame")
+	veil.Name = "Lock"
+	veil:SetAttribute("Level", level)
+	veil.BackgroundColor3 = F.Surface0
+	veil.BackgroundTransparency = 0.45
+	veil.BorderSizePixel = 0
+	veil.Size = UDim2.fromScale(1, 1)
+	veil.ZIndex = 4
+	Flat.corner(veil, F.Radius.M)
+	local t =
+		Flat.text(`Lv {level}`, math.max(11, math.floor(size * 0.17)), C.Danger, Theme.Font.UI)
+	t.Name = "Level"
+	t.AnchorPoint = Vector2.new(0, 1)
+	t.Position = UDim2.new(0, 6, 1, -4)
+	t.ZIndex = 5
+	local st = Instance.new("UIStroke")
+	st.Color = F.Surface0
+	st.Thickness = 1.5
+	st.Parent = t
+	t.Parent = veil
+	veil.Parent = b
+end
+
 -- Salvage mark of a cell (red veil with a cross), changed in place
 function Flat.setCellMarked(b: GuiObject, on: boolean)
 	local old = b:FindFirstChild("Mark")
@@ -517,6 +554,7 @@ function Flat.setCell(b: GuiButton, size: number, opts: CellOptions)
 	Shape.cellState(b, { rarity = opts.rarity, selected = opts.selected, marked = opts.marked })
 	Flat.setCellUpgrade(b, size, opts.upgrade)
 	Flat.setCellMarked(b, opts.marked == true)
+	Flat.setCellLock(b, size, opts.locked)
 	Shape.setRest(b, if opts.selected then F.SelectScale else 1)
 end
 
@@ -558,6 +596,7 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 
 	Flat.setCellUpgrade(b, size, o.upgrade)
 	Flat.setCellMarked(b, o.marked == true)
+	Flat.setCellLock(b, size, o.locked)
 
 	if o.caption then
 		local side = o.captionSide or "below"

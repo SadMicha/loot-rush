@@ -277,3 +277,73 @@ describe("Stash server and window", function()
 		expect(sim.player.PlayerGui.LootRushStash.Enabled).toBe(false)
 	end)
 end)
+
+-- Twink guard: gear an over-levelled hero stored in the shared stash needs the level first
+describe("Item level requirement", function()
+	it("needs item level minus the grace, at least level 1", function()
+		local Balance = require("ReplicatedStorage.Shared.Balance")
+		local grace = Balance.P.equip_level_grace
+		local low = item("low")
+		low.ilvl = 1
+		expect(Items.requiredLevel(low)).toBe(1)
+		local deep = item("deep")
+		deep.ilvl = 31
+		expect(Items.requiredLevel(deep)).toBe(31 - grace)
+		expect(Items.canWear(deep, 31 - grace - 1)).toBe(false)
+		expect(Items.canWear(deep, 31 - grace)).toBe(true)
+		local broken = item("nan")
+		broken.ilvl = 0 / 0
+		expect(Items.requiredLevel(broken)).toBe(1)
+		-- an item the hero cannot wear yet gets no upgrade marker
+		local marks = Items.upgradeMarks({ deep }, {}, 5)
+		expect(marks.deep).toBeNil()
+		expect(Items.upgradeMarks({ deep }, {})["deep"]).toBe("up")
+	end)
+
+	local function stat(name)
+		return server(function(_, player)
+			return player:GetAttribute(name)
+		end)
+	end
+
+	it("a low hero cannot equip, and worn over-level gear gives nothing until the level", function()
+		local id = server(function(req, player)
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			req("ServerScriptService.Server.Systems.Combat").setLevel(player, 2, 0)
+			local profile = Data.get(player)
+			profile.equipped = {}
+			local big = {
+				id = "twink-ring",
+				slot = "ring",
+				rarity = "rare",
+				name = "Twink Ring",
+				ilvl = 40,
+				affixes = { { stat = "damage", value = 500 } },
+			}
+			req("ServerScriptService.Server.Systems.Inventory").add(player, big)
+			req("ServerScriptService.Server.Systems.Stats").refresh(player, false)
+			return big.id
+		end)
+		local before = stat("StatDamage")
+		client(function(Net)
+			Net.Equip:FireServer(id)
+		end)
+		local worn = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").get(player).equipped.ring
+		end)
+		expect(worn).toBeNil()
+		-- worn anyway (a save from before the rule): no stats until level 37
+		server(function(req, player)
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local profile = Data.get(player)
+			profile.equipped.ring = table.remove(profile.inventory, #profile.inventory)
+			req("ServerScriptService.Server.Systems.Stats").refresh(player, false)
+		end)
+		expect(stat("StatDamage")).toBe(before)
+		server(function(req, player)
+			req("ServerScriptService.Server.Systems.Combat").setLevel(player, 37, 0)
+		end)
+		sim:run(0.3)
+		expect(stat("StatDamage")).toBe(before + 500)
+	end)
+end)

@@ -254,6 +254,17 @@ function Items.isUpgrade(item: Item, worn: Item?): boolean
 	return Items.upgradeGain(item, worn) > 1e-6
 end
 
+-- Hero level needed to wear an item (item level − Balance equip_level_grace, at least 1).
+-- Stops a low hero from wearing gear an over-levelled hero stored in the shared stash.
+function Items.requiredLevel(item: Item): number
+	local ilvl = if typeof(item.ilvl) == "number" and item.ilvl == item.ilvl then item.ilvl else 1
+	return math.max(1, math.floor(ilvl) - Balance.P.equip_level_grace)
+end
+
+function Items.canWear(item: Item, level: number): boolean
+	return level >= Items.requiredLevel(item)
+end
+
 export type UpgradeMark = "up" | "down"
 
 -- Upgrade marker per bag item against the worn gear (same rule as the drop label), at most one
@@ -263,14 +274,16 @@ export type UpgradeMark = "up" | "down"
 -- that do not get "down", items without an equipment slot get none. Equipping the marked item
 -- makes the rest "down" once the marks are recomputed against the new worn piece.
 -- Also returns how many bag items are marked "up" (= slots with an upgrade waiting).
+-- `level` given: items the hero cannot wear yet (Items.canWear) get no marker.
 function Items.upgradeMarks(
 	bag: { Item },
-	equipped: { [string]: Item }
+	equipped: { [string]: Item },
+	level: number?
 ): ({ [string]: UpgradeMark }, number)
 	local marks: { [string]: UpgradeMark } = {}
 	local best: { [string]: Item } = {}
 	for _, it in bag do
-		if Items.SlotName[it.slot] then
+		if Items.SlotName[it.slot] and (level == nil or Items.canWear(it, level)) then
 			if Items.isUpgrade(it, equipped[it.slot]) then
 				local top = best[it.slot]
 				if not top or Items.isUpgrade(it, top) then

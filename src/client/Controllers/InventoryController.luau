@@ -105,6 +105,12 @@ local function slotArt(slot: string): string
 	return Kit.equipIcon(slot, SLOT_ICON[slot] or "pouch")
 end
 
+-- Hero level an item still needs (Items.requiredLevel), nil when it can be worn
+local function lockOf(item: Items.Item): number?
+	local level = (player:GetAttribute("Level") or 1) :: number
+	return if Items.canWear(item, level) then nil else Items.requiredLevel(item)
+end
+
 -- ------------------------------------------------------------------ State
 local gui: ScreenGui
 local window: Frame
@@ -328,6 +334,7 @@ local function renderDoll()
 				rarity = if item then item.rarity else nil,
 				selected = isSel,
 				dim = item == nil,
+				locked = if item then lockOf(item) else nil,
 				caption = Items.SlotName[slot] or slot,
 				captionSide = side,
 			})
@@ -346,7 +353,11 @@ local function renderDoll()
 			entry = { cell = b, key = key }
 			dollCells[slot] = entry
 		elseif item then
-			Flat.setCell(entry.cell, DOLL_CELL, { rarity = item.rarity, selected = isSel })
+			Flat.setCell(
+				entry.cell,
+				DOLL_CELL,
+				{ rarity = item.rarity, selected = isSel, locked = lockOf(item) }
+			)
 		end
 		local e = entry :: DollEntry
 		e.cell.Position = UDim2.fromOffset(x, dollTop + (row - 1) * dollStep)
@@ -636,9 +647,21 @@ local function renderCompare()
 		actions.AnchorPoint = Vector2.new(0, 1)
 		local al = Kit.list(actions, Enum.FillDirection.Horizontal, 8)
 		al.HorizontalAlignment = Enum.HorizontalAlignment.Left
-		local equip = Flat.button("Equip", "primary", Vector2.new(COL_W - 118, buttonH()))
+		local need = lockOf(bagItem)
+		local equip = Flat.button(
+			if need then `Needs Level {need}` else "Equip",
+			"primary",
+			Vector2.new(COL_W - 118, buttonH())
+		)
 		equip.LayoutOrder = 1
+		if need then
+			Flat.setEnabled(equip, false)
+		end
 		equip.Activated:Connect(function()
+			if need then
+				QuestController.toast(`Reach level {need} to wear this item.`, Theme.Color.Danger)
+				return
+			end
 			Net.Equip:FireServer(bagItem.id)
 			selected = nil
 		end)
@@ -684,7 +707,8 @@ local marks: { [string]: Items.UpgradeMark } = {}
 local upgradeTotal = 0
 
 local function refreshMarks()
-	marks, upgradeTotal = Items.upgradeMarks(items, equipped)
+	marks, upgradeTotal =
+		Items.upgradeMarks(items, equipped, (player:GetAttribute("Level") or 1) :: number)
 end
 
 local function visibleItems(): { Items.Item }
@@ -883,6 +907,7 @@ local function renderItems(): number
 			selected = isSel,
 			marked = isMarked,
 			upgrade = marks[item.id],
+			locked = lockOf(item),
 		}
 		-- Only a new look (rarity, slot icon, cell size) builds a new cell; selection, salvage
 		-- mark and upgrade icon change in place, so its light sweep and glow keep running
@@ -1499,7 +1524,7 @@ InventoryController.upgradeChanged = upgradeEvent.Event
 
 function InventoryController.upgradeWaiting(): boolean
 	for _, it in items do
-		if not upgradeSeen[it.id] and Items.SlotName[it.slot] then
+		if not upgradeSeen[it.id] and Items.SlotName[it.slot] and lockOf(it) == nil then
 			if Items.isUpgrade(it, equipped[it.slot]) then
 				return true
 			end
@@ -1616,6 +1641,13 @@ function InventoryController.init()
 end
 
 function InventoryController.start()
+	-- A level-up can unlock gear (Items.requiredLevel): locks and upgrade marks follow it
+	player:GetAttributeChangedSignal("Level"):Connect(function()
+		refreshMarks()
+		if gui.Enabled then
+			InventoryController.render()
+		end
+	end)
 	Net.Inv.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" then
 			return
