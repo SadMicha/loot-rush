@@ -45,10 +45,12 @@ local AtlasController = require(script.Parent.AtlasController)
 local MarketController = require(script.Parent.MarketController)
 local StoreController = require(script.Parent.StoreController)
 local PetWindowController = require(script.Parent.PetWindowController)
+local SeasonController = require(script.Parent.SeasonController)
 local QuestController = require(script.Parent.QuestController)
 local ProgressController = require(script.Parent.ProgressController)
 local SettingsController = require(script.Parent.SettingsController)
 local DailyController = require(script.Parent.DailyController)
+local JourneyController = require(script.Parent.JourneyController)
 local LeaderboardController = require(script.Parent.LeaderboardController)
 local Prefs = require(script.Parent.Parent.Prefs)
 
@@ -805,6 +807,9 @@ local hubBarH = 0
 local hubBarScale: UIScale -- shrinks the hub icon bar so it stays clear of the dash button
 local gearGroup: CanvasGroup
 local gearW = 0
+local GEAR_CELLS = 5 -- trophy, Journey, season, chest, gear
+local GEAR_MIN_SCALE = 0.7 -- smallest share the row may shrink to next to the status block
+local gearScale: UIScale
 local questTitle: TextLabel
 local questCount: TextLabel
 local questReward: TextLabel
@@ -1031,11 +1036,13 @@ local function buildCalmPanels()
 	-- Settings gear above the dash button at rest (the skill arc is away then; beside the dash it
 	-- would run into the icon bar on tablets with the bigger touch dash). Opens the settings window
 	-- (SettingsController; the Roblox menu is one button in there).
-	-- Left of it: the leaderboard (trophy) and the daily rewards (chest, gold dot while a reward
-	-- waits), both at rest only.
+	-- Left of it: the leaderboard (trophy), the Journey, the season badge and the daily rewards
+	-- (chest); a gold dot while something waits to be claimed. All at rest only.
 	local cellW = H.GearSize + 12
-	gearGroup = group(Vector2.new(3 * cellW, H.GearSize))
-	gearW = 3 * cellW
+	gearGroup = group(Vector2.new(GEAR_CELLS * cellW, H.GearSize))
+	gearW = GEAR_CELLS * cellW
+	gearScale = Instance.new("UIScale")
+	gearScale.Parent = gearGroup
 	gearGroup.Name = "Settings"
 	local gearList = Kit.list(gearGroup, Enum.FillDirection.Horizontal, 0)
 	gearList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -1044,15 +1051,37 @@ local function buildCalmPanels()
 	board.LayoutOrder = 1
 	board.Activated:Connect(LeaderboardController.toggle)
 	board.Parent = gearGroup
+	local journey = Kit.hudIconButton(H.GearSize, "hud_journey", "journey", nil)
+	journey.Name = "Journey"
+	journey.LayoutOrder = 2
+	journey.Activated:Connect(JourneyController.toggle)
+	journey.Parent = gearGroup
+	local journeyDot = noticeDot(journey, "Ready", C.GoldHi)
+	JourneyController.changed.Event:Connect(function()
+		journeyDot.Visible = JourneyController.readyCount() > 0
+	end)
+	local season = Kit.hudIconButton(H.GearSize, "hud_season", "season_beta", nil)
+	season.Name = "Season"
+	season.LayoutOrder = 3
+	season.Activated:Connect(SeasonController.toggle)
+	season.Parent = gearGroup
+	local seasonDot = noticeDot(season, "Ready", C.GoldHi)
+	SeasonController.changed.Event:Connect(function()
+		seasonDot.Visible = SeasonController.readyCount() > 0
+	end)
 	local chest = Kit.hudIconButton(H.GearSize, "hud_daily", "chest", nil)
 	chest.Name = "Daily"
-	chest.LayoutOrder = 2
+	chest.LayoutOrder = 4
 	chest.Activated:Connect(DailyController.toggle)
 	chest.Parent = gearGroup
 	local ready = noticeDot(chest, "Ready", C.GoldHi)
 	local function refreshDot()
 		ready.Visible = DailyController.claimable()
+		-- also catches a Journey/Season state that arrived before these dots existed
+		journeyDot.Visible = JourneyController.readyCount() > 0
+		seasonDot.Visible = SeasonController.readyCount() > 0
 	end
+	refreshDot()
 	DailyController.changed.Event:Connect(refreshDot)
 	task.spawn(function()
 		while ready.Parent do
@@ -1062,7 +1091,7 @@ local function buildCalmPanels()
 	end)
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
-	gear.LayoutOrder = 3
+	gear.LayoutOrder = 5
 	gear.Activated:Connect(SettingsController.toggle)
 	gear.Parent = gearGroup
 	local gearX = -(H.Margin + dashSize / 2 - cellW / 2)
@@ -1071,7 +1100,7 @@ local function buildCalmPanels()
 		gearGroup,
 		Vector2.new(1, 1),
 		UDim2.new(1, gearX, 1, gearY),
-		UDim2.new(1, 3 * cellW + 10, 1, gearY), -- fully off the right edge
+		UDim2.new(1, gearW + 10, 1, gearY), -- fully off the right edge
 		3,
 		false
 	)
@@ -1288,8 +1317,15 @@ local function layoutHud()
 	local gearCell = H.GearSize + 12
 	local gearX = -(M + dashSize / 2 - gearCell / 2)
 	local gearY = -(M + dashSize + H.DashDiamond + 6)
+	-- The row must not reach the centered status block (Rush meter, buffs): on narrow screens it
+	-- shrinks to the room between its right edge and the block
+	local function fitGear(rightEdge: number)
+		local gearRoom = rightEdge - (width / 2 + H.RushBarWidth / 2 + GAP)
+		gearScale.Scale = math.clamp(gearRoom / gearW, GEAR_MIN_SCALE, 1)
+	end
 	if rightTop + questH + GAP > gearTop then
 		local x = -(M + questW + GAP)
+		fitGear(width - M - questW - GAP)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 0),
@@ -1297,6 +1333,7 @@ local function layoutHud()
 			UDim2.new(1, gearW + 10, 0, rightTop) -- fully off the right edge
 		)
 	else
+		fitGear(width + gearX)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 1),

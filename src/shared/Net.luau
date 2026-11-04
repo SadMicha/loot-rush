@@ -39,6 +39,11 @@
 --                    paid? } - calendar state; paid = calendar index just claimed
 --   Board     (C→S): boardId: string - ask for one leaderboard page (Shared/Leaderboard ids)
 --   BoardData (S→C): Leaderboard.Page - top entries + the asking player's own best
+--   Journey   (C→S): "claim", milestoneId: string | "sync" - claim a finished milestone (Systems/Journey)
+--   JourneyState (S→C): { facts = Journey.Facts, claimed = { milestoneId }, paid? } - hero milestones
+--   Season    (C→S): "claim", step: number | "sync" - claim a reward of the season track (Systems/Seasons)
+--   SeasonState (S→C): { id, phase, secondsLeft, counts = { [challengeId] = n }, claimed = { step },
+--                    paid?, finished? = { challengeId } } - Season Journey state
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -80,6 +85,10 @@ local NAMES = {
 	"DailyState",
 	"Board",
 	"BoardData",
+	"Journey",
+	"JourneyState",
+	"Season",
+	"SeasonState",
 	"Debug",
 }
 
@@ -139,5 +148,9 @@ return table.freeze({
 	DailyState = get("DailyState"),
 	Board = get("Board"),
 	BoardData = get("BoardData"),
+	Journey = get("Journey"),
+	JourneyState = get("JourneyState"),
+	Season = get("Season"),
+	SeasonState = get("SeasonState"),
 	Debug = get("Debug"),
 })

@@ -45,6 +45,7 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Spell Stones", command = "stones" },
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
+	{ label = "Season: Next Challenge", command = "season" },
 	{ label = "All Cosmetics", command = "cosmetics" },
 	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
 }

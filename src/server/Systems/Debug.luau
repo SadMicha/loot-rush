@@ -31,6 +31,7 @@ local Pets = require(script.Parent.Pets)
 local Progress = require(script.Parent.Progress)
 local Rift = require(script.Parent.Rift)
 local Rush = require(script.Parent.Rush)
+local Seasons = require(script.Parent.Seasons)
 local Shop = require(script.Parent.Shop)
 
 local Debug = {}
@@ -197,6 +198,12 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 		-- Daily reward: pretend the last claim was yesterday (claim again)
 		run = function(player)
 			Daily.rewind(player)
+		end,
+	},
+	season = {
+		-- Season Journey: finishes the next unfinished challenge (Systems/Seasons)
+		run = function(player)
+			Seasons.completeNext(player)
 		end,
 	},
 	slay = {

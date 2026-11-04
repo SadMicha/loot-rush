@@ -11,6 +11,7 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Daily)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -85,6 +86,7 @@ function Daily.claim(player: Player): number?
 	if reward.soulstars > 0 then
 		Shop.grant(player, "soulstars", reward.soulstars)
 	end
+	Actions.fire(player, "daily") -- Season Journey counter (Systems/Seasons)
 	return index
 end
 
