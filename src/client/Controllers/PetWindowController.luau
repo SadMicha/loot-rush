@@ -16,6 +16,7 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local Flat = require(script.Parent.Parent.UI.Flat)
 local HubController = require(script.Parent.HubController)
 local QuestController = require(script.Parent.QuestController)
 local PetController = require(script.Parent.PetController)
@@ -139,7 +140,16 @@ local function renderTabs()
 		b.Parent = panel
 	end
 
-	-- Slot counter on the right
+	-- Right side: slot counter plus the wallet (same pills as the Shop header), so the player sees
+	-- what they can afford. Re-rendered on every Gold/Soulstars change, so the values stay live.
+	local right = Window.frame(UDim2.fromOffset(0, TAB_H))
+	right.Name = "Wallet"
+	right.AutomaticSize = Enum.AutomaticSize.X
+	right.AnchorPoint = Vector2.new(1, 0)
+	right.Position = UDim2.fromOffset(Window.BODY.X - PAD, PAD)
+	local rl = Kit.list(right, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Center)
+	rl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+
 	local used = #equippedList()
 	local counter = Kit.label(
 		string.format("Companions equipped  %d/%d", used, slotCount()),
@@ -147,9 +157,18 @@ local function renderTabs()
 		if used >= slotCount() then C.Gold else C.Text
 	)
 	counter.Name = "SlotCounter"
-	counter.AnchorPoint = Vector2.new(1, 0.5)
-	counter.Position = UDim2.new(1, -PAD, 0, PAD + TAB_H / 2)
-	counter.Parent = panel
+	counter.LayoutOrder = 1
+	counter.Visible = tab == "pets"
+	counter.Parent = right
+	local stars, starLabel = Flat.currency("soulstar", Theme.Rarity.epic)
+	stars.LayoutOrder = 2
+	starLabel.Text = Format.currency(walletOf("soulstars"))
+	stars.Parent = right
+	local gold, goldLabel = Flat.currency("gold", C.Gold)
+	gold.LayoutOrder = 3
+	goldLabel.Text = Format.currency(walletOf("gold"))
+	gold.Parent = right
+	right.Parent = panel
 end
 
 local function renderFooter()
