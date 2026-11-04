@@ -120,7 +120,11 @@ end
 
 local function publishAttrs()
 	ReplicatedStorage:SetAttribute("GreatBuildTotal", GreatBuild.total())
-	ReplicatedStorage:SetAttribute("GreatBuildStages", GreatBuild.stages())
+	-- Stages only once the record was read: a jump from a placeholder 0 to the real count would
+	-- look like freshly finished stages to the clients (toast)
+	if loaded then
+		ReplicatedStorage:SetAttribute("GreatBuildStages", GreatBuild.stages())
+	end
 end
 
 -- ------------------------------------------------------------------ Monument
