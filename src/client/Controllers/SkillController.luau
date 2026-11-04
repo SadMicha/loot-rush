@@ -76,6 +76,19 @@ function SkillController.skill(slot: number): Skills.Skill?
 	return Progression.barSkill(ProgressController.data(), slot)
 end
 
+-- Has the hero learned the skill in this slot? (new heroes unlock their starting skills one by
+-- one, Skills.StartUnlock; the HUD hides locked slots)
+function SkillController.unlocked(slot: number): boolean
+	local skill = SkillController.skill(slot)
+	local level = player:GetAttribute("Level")
+	return skill ~= nil
+		and Progression.isUnlocked(
+			skill,
+			if typeof(level) == "number" then level else 1,
+			ProgressController.data()
+		)
+end
+
 -- 0 = ready ... 1 = just started
 function SkillController.cooldownRatio(slot: number): number
 	local skill = SkillController.skill(slot)
@@ -97,7 +110,12 @@ end
 function SkillController.cast(slot: number)
 	local skill = SkillController.skill(slot)
 	local now = os.clock()
-	if not skill or now < (cdUntil[skill.id] or 0) or not rootPart() then
+	if
+		not skill
+		or not SkillController.unlocked(slot)
+		or now < (cdUntil[skill.id] or 0)
+		or not rootPart()
+	then
 		return
 	end
 	cdStart[skill.id] = now

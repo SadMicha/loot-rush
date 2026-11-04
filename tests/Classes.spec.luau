@@ -167,6 +167,10 @@ describe("Classes in game", function()
 	end)
 
 	it("leaps to the aim with Charge", function()
+		-- a new hero learns Charge (starting skill 3) at a later level (Skills.StartUnlock)
+		server(function(_, player)
+			player:SetAttribute("Level", Skills.StartUnlock[Skills.SLOTS])
+		end)
 		local before = server(function(_, player)
 			return player.Character.HumanoidRootPart.Position
 		end)
