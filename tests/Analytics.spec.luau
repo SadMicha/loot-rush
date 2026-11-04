@@ -34,7 +34,11 @@ describe("Analytics", function()
 		expect(joined.name).toBe("joined")
 		expect(joined.userId).toBe(sim.player.UserId)
 		sim:runAs("client", function(req)
-			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Stat Hero", "warrior")
+			req("ReplicatedStorage.Shared.Net").Character:FireServer(
+				"setup",
+				"Stat Hero",
+				"warrior"
+			)
 		end)
 		sim:run(1)
 		local hero = find("funnel", function(e)
@@ -51,6 +55,11 @@ describe("Analytics", function()
 		end)
 		expect(quest).toBeTruthy()
 		expect(quest.name).toBe("enter_rift")
+		local pay = find("economy", function(e)
+			return e.name == "Gold:Onboarding"
+		end)
+		expect(pay).toBeTruthy()
+		expect(pay.value).toBeGreaterThan(0)
 		local start = find("rift_start")
 		expect(start).toBeTruthy()
 		expect(start.value).toBe(1)
@@ -65,6 +74,41 @@ describe("Analytics", function()
 		expect(find("rift_fail")).toBeNil()
 	end)
 
+	it("logs economy flows only with a transaction type, sinks negative", function()
+		local before = #recent()
+		server(function(req, player)
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			local Shop = req("ServerScriptService.Server.Systems.Shop")
+			Inventory.addGold(player, 5) -- a pickup: not logged
+			Shop.grant(player, "gold", -3, "Shop", "test_offer")
+			Shop.grant(player, "soulstars", 10, "IAP", "test_product")
+		end)
+		local after = recent()
+		local new = {}
+		for i = before + 1, #after do
+			table.insert(new, after[i])
+		end
+		expect(#new).toBe(2)
+		expect(new[1].name).toBe("Gold:Shop")
+		expect(new[1].value).toBe(-3)
+		expect(new[2].name).toBe("Soulstars:IAP")
+		expect(new[2].value).toBe(10)
+	end)
+
+	it("sends pooled salvage shards before a later shard sink", function()
+		local before = #recent()
+		server(function(req, player)
+			local A = req("ServerScriptService.Server.Systems.Analytics")
+			A.pool(player, "Shards", 4, 10, "Gameplay", "salvage")
+			A.pool(player, "Shards", 6, 16, "Gameplay", "salvage")
+			A.economy(player, "Shards", -5, 11, "Gameplay", "forge")
+		end)
+		local after = recent()
+		expect(#after - before).toBe(2)
+		expect(after[before + 1].value).toBe(10) -- the pooled source first
+		expect(after[before + 2].value).toBe(-5)
+	end)
+
 	it("logs a fail only for an open depth, and LevelUp on level gains", function()
 		server(function(req, player)
 			local A = req("ServerScriptService.Server.Systems.Analytics")
@@ -74,7 +118,9 @@ describe("Analytics", function()
 			A.riftStart(player, 5, "green_plains")
 			A.riftEnd(player, true, "green_plains")
 			local level = player:GetAttribute("Level") or 1
-			player:SetAttribute("Level", level + 1)
+			player:SetAttribute("Level", level + 3) -- a join restore: no LevelUp
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			Combat.addXP(player, Combat.xpFor(level + 3)) -- a real level-up
 		end)
 		sim:run(0.2)
 		local fails = 0
@@ -88,9 +134,12 @@ describe("Analytics", function()
 		expect(find("rift_clear", function(e)
 			return e.value == 4
 		end)).toBeTruthy()
-		local up = find("custom", function(e)
-			return e.name == "LevelUp"
-		end)
-		expect(up).toBeTruthy()
+		local ups = {}
+		for _, e in recent() do
+			if e.kind == "custom" and e.name == "LevelUp" then
+				table.insert(ups, e.value)
+			end
+		end
+		expect(#ups).toBe(1)
 	end)
 end)

@@ -114,7 +114,8 @@ local function skillButton(slot: number?): GuiObject?
 	return if slot then find(hudRoot(), "Skills", "Skill" .. slot) else nil
 end
 
-local newSlot: number? = nil -- slot of the skill the newSkill hint points at
+local newSlot: number? = nil -- slot of the skill the newSkill hint points at (= newSlots[1])
+local newSlots: { number } = {} -- unlocked slots still waiting for their callout, in order
 
 local HINTS: { Hint } = {
 	{
@@ -359,6 +360,12 @@ local function finish(c: Current)
 		end
 		if c.hint.key == "hintBreak" then
 			breakBoss = boss()
+		elseif c.hint.key == "newSkill" then
+			table.remove(newSlots, 1)
+			newSlot = newSlots[1]
+			if newSlot then
+				HintsController.queue("newSkill") -- the next unlocked skill gets its own callout
+			end
 		end
 	end
 end
@@ -483,8 +490,10 @@ local function watchUnlocks()
 	end
 	for id in now do
 		local slot = table.find(data.bar, id)
-		if not before[id] and slot then
-			newSlot = slot -- one at a time; a multi-level jump points at one of them
+		if not before[id] and slot and not table.find(newSlots, slot) then
+			-- one callout per new skill, in unlock order; the shown one keeps its slot
+			table.insert(newSlots, slot)
+			newSlot = newSlots[1]
 			HintsController.queue("newSkill")
 		end
 	end

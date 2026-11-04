@@ -14,7 +14,9 @@ Balance.P = table.freeze({
 	hp_growth = 1.22,
 	dmg_base = 12,
 	dmg_growth = 1.12,
-	boss_hp = 40,
+	-- 40 → 26 (2026-11-04, CRITERIA-AUDIT R2): bosses took 25–39 s, 36–44 % of every run;
+	-- now about 18–26 s (sim), so a run is not "30 s trash, 30 s boss"
+	boss_hp = 26,
 	-- Deep curve (own assumption): past this depth enemy life grows a bit faster, so deeper
 	-- depths stay harder than gear progress. Not a prestige wall: World Tiers carry the rest.
 	deep_from = 20,
@@ -40,6 +42,9 @@ Balance.P = table.freeze({
 	weapon_growth = 1.155,
 	-- Loot
 	drop_normal = 0.08, -- spreadsheet 0.12; upgrades stay a find, not a given
+	-- depth 1 to Balance.EARLY_DROP_DEPTH: a bit more loot while the player decides to stay
+	-- (CRITERIA-AUDIT R6: minutes 3–10 were mostly boss loot)
+	drop_early = 0.11,
 	drops_boss = 3,
 	loot_depth = 50,
 	ip_per_depth = 10,
@@ -57,6 +62,7 @@ Balance.Rarity = table.freeze({
 	{ id = "epic", weight = 2, exp = 1.5 },
 	{ id = "unique", weight = 0.45, exp = 2 },
 })
+Balance.EARLY_DROP_DEPTH = 10 -- drop_early applies up to this depth, drop_normal after it
 Balance.UNIQUE_FROM = 10 -- uniques only drop from this depth on (own assumption)
 
 -- IP bonus per rarity (sheet "Loot · Affixes & Salvage")

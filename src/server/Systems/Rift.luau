@@ -308,6 +308,14 @@ local function finish(r: Run, reason: EndReason)
 		r.tally.gold += gold
 		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
 	end
+	-- the run's gold as one economy event, also on a disconnect (pickups are not logged one by
+	-- one; shards come from salvage, pooled in Progress.salvage)
+	-- (on a disconnect Data may already have dropped the profile: the Gold attribute stays set)
+	local profile = Data.get(owner)
+	local balance = if profile then profile.gold else owner:GetAttribute("Gold")
+	if typeof(balance) == "number" then
+		Analytics.economy(owner, "Gold", r.tally.gold, balance, "Gameplay", "rift")
+	end
 	Enemies.clear(r.id)
 	-- After death the body stays in the arena until respawn: only tear down the floor after that
 	local function release()

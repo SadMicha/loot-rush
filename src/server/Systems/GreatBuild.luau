@@ -501,7 +501,7 @@ function GreatBuild.donate(player: Player, want: number): (number, string?, { nu
 		return 0, if Rules.dailyLeft(account.greatBuild, now) <= 0 then Text.cap else Text.empty, {}
 	end
 	-- same step as the booking above: the shards are gone before anything can yield
-	Progress.addMaterials(player, { shards = -n })
+	Progress.addMaterials(player, { shards = -n }, "Gameplay", "great_build")
 	buffer += n
 	local total = account.greatBuild.total
 	if not profile.debugged then
@@ -510,7 +510,7 @@ function GreatBuild.donate(player: Player, want: number): (number, string?, { nu
 	end
 	local paid = {}
 	for _, m in Rules.collect(account.greatBuild) do -- marked paid before granting: never twice
-		Journey.grant(player, m.reward)
+		Journey.grant(player, m.reward, "great_build")
 		table.insert(paid, m.amount)
 	end
 	Progress.sync(player)

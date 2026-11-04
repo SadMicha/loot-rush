@@ -141,7 +141,7 @@ function Seasons.claim(player: Player, index: any): number?
 	if not s then
 		return nil
 	end
-	Journey.grant(player, s.reward) -- booked before paying: never twice
+	Journey.grant(player, s.reward, "season") -- booked before paying: never twice
 	return index
 end
 

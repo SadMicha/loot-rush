@@ -10,6 +10,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Quests)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
@@ -25,11 +26,15 @@ local Quests = {}
 
 local rng = Random.new()
 
+-- Level and best depth; the depth also from the save, since the BestDepth attribute may not be
+-- published yet at join (an old save would otherwise get its unlocks later, with a "New:" toast)
 local function stateOf(player: Player): (number, number)
 	local level = player:GetAttribute("Level")
 	local depth = player:GetAttribute("BestDepth")
+	local profile = Data.get(player)
+	local saved = if profile then Atlas.bestDepth(profile.atlas) else 0
 	return if typeof(level) == "number" then level else 1,
-		if typeof(depth) == "number" then depth else 0
+		math.max(if typeof(depth) == "number" then depth else 0, saved)
 end
 
 local function unlockList(data: Rules.Data): { string }
@@ -67,7 +72,9 @@ local function grant(player: Player, q: Rules.Quest)
 	end
 	Progress.addMaterials(
 		player,
-		{ candy = r.candy or 0, shards = r.shards or 0, dust = r.dust or 0 }
+		{ candy = r.candy or 0, shards = r.shards or 0, dust = r.dust or 0 },
+		"Onboarding",
+		q.id
 	)
 	for _ = 1, r.stones or 0 do
 		local id = SpellStones.roll(rng)
@@ -98,7 +105,7 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	table.sort(unlocked)
 	local doneTexts = {}
 	for i, q in finished do
-		Inventory.addGold(player, q.gold)
+		Inventory.addGold(player, q.gold, "Onboarding", q.id)
 		grant(player, q)
 		table.insert(doneTexts, q.text)
 		Analytics.quest(player, stepBefore + i - 1, q.id)

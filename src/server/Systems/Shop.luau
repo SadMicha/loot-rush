@@ -13,6 +13,7 @@ local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Shop)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 local Progress = require(script.Parent.Progress)
@@ -49,20 +50,32 @@ function Shop.wallet(player: Player): Rules.Wallet?
 end
 
 -- Change stock (negative = deduct, never below 0) and show it to the client
-function Shop.grant(player: Player, kind: string, amount: number)
+-- txn/sku: Analytics transaction type and item ("Shop", offer id; "IAP", product key)
+function Shop.grant(player: Player, kind: string, amount: number, txn: string?, sku: string?)
 	local profile = Data.get(player)
 	local account = Data.account(player)
 	if not profile or not account then
 		return
 	end
 	if kind == "gold" then
-		Inventory.addGold(player, math.max(amount, -profile.gold))
+		Inventory.addGold(player, math.max(amount, -profile.gold), txn, sku)
 	elseif MATERIAL[kind] then
-		Progress.addMaterials(player, { [kind] = amount })
+		Progress.addMaterials(player, { [kind] = amount }, txn, sku)
 		Progress.sync(player)
 	elseif kind == "soulstars" then
+		local before = account.soulstars
 		account.soulstars = math.max(0, account.soulstars + math.floor(amount))
 		player:SetAttribute("Soulstars", account.soulstars)
+		if txn then
+			Analytics.economy(
+				player,
+				"Soulstars",
+				account.soulstars - before,
+				account.soulstars,
+				txn,
+				sku
+			)
+		end
 	end
 end
 
@@ -84,8 +97,8 @@ local function onBuy(player: Player, offerId: any)
 		return
 	end
 	local amount = Rules.amount(offer, best)
-	Shop.grant(player, price.kind, -price.amount)
-	Shop.grant(player, offer.give, amount)
+	Shop.grant(player, price.kind, -price.amount, "Shop", offer.id)
+	Shop.grant(player, offer.give, amount, "Shop", offer.id)
 	reply(player, true, string.format("+%d %s", amount, Rules.KindName[offer.give]), offerId)
 end
 

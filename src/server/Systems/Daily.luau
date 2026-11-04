@@ -72,11 +72,13 @@ function Daily.claim(player: Player): number?
 		return nil
 	end
 	if reward.gold > 0 then
-		Inventory.addGold(player, reward.gold)
+		Inventory.addGold(player, reward.gold, "TimedReward", "daily")
 	end
 	Progress.addMaterials(
 		player,
-		{ candy = reward.candy, shards = reward.shards, dust = reward.dust }
+		{ candy = reward.candy, shards = reward.shards, dust = reward.dust },
+		"TimedReward",
+		"daily"
 	)
 	for _ = 1, reward.stones do
 		local id = SpellStones.roll(rng)
@@ -84,7 +86,7 @@ function Daily.claim(player: Player): number?
 	end
 	Progress.sync(player)
 	if reward.soulstars > 0 then
-		Shop.grant(player, "soulstars", reward.soulstars)
+		Shop.grant(player, "soulstars", reward.soulstars, "TimedReward", "daily")
 	end
 	Actions.fire(player, "daily") -- Season Journey counter (Systems/Seasons)
 	return index

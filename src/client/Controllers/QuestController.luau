@@ -162,11 +162,16 @@ local function onQuest(payload: any)
 			end
 		end
 		if typeof(payload.unlocked) == "table" then
+			-- one toast for everything unlocked at once (a level jump can open several windows)
+			local names = {}
 			for _, id in payload.unlocked do
 				local name = if typeof(id) == "string" then Rules.Names[id] else nil
 				if name then
-					QuestController.toast("New: " .. name, C.Cyan)
+					table.insert(names, name)
 				end
+			end
+			if #names > 0 then
+				QuestController.toast("New: " .. table.concat(names, ", "), C.Cyan)
 			end
 		end
 	end

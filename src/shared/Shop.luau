@@ -31,7 +31,7 @@ export type Offer = {
 Shop.KindName = table.freeze({
 	gold = "Gold",
 	soulstars = "Soulstars",
-	candy = "Rune Candy",
+	candy = "Forge Candy",
 	shards = "Crystal Shards",
 	dust = "Glitter Dust",
 } :: { [string]: string })
@@ -66,7 +66,7 @@ local OFFERS: { Offer } = {
 	{
 		id = "candy_1",
 		tab = "material",
-		name = "Rune Candy",
+		name = "Forge Candy",
 		text = "Adds a new affix in the Forge.",
 		icon = "candy_big",
 		art = "shop_candy",
