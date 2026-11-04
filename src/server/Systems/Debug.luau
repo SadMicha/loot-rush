@@ -33,6 +33,8 @@ local Rift = require(script.Parent.Rift)
 local Rush = require(script.Parent.Rush)
 local Seasons = require(script.Parent.Seasons)
 local Shop = require(script.Parent.Shop)
+local Weapons = require(script.Parent.Weapons)
+local WeaponList = require(ReplicatedStorage.Shared.Weapons).List
 
 local Debug = {}
 
@@ -188,6 +190,22 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Cosmetics.sync(player)
 		end,
 	},
+	stance = {
+		-- Preview the holding stances (Shared/Anim STANCE): puts the next weapon of the list into the
+		-- hand (player attribute "StanceWeapon"), after the last one back to the class weapon
+		run = function(player)
+			local now = player:GetAttribute("StanceWeapon")
+			local index = 0
+			for i, w in WeaponList do
+				if w.id == now then
+					index = i
+				end
+			end
+			local nextWeapon = WeaponList[index + 1]
+			player:SetAttribute("StanceWeapon", nextWeapon and nextWeapon.id)
+			task.spawn(Weapons.equip, player)
+		end,
+	},
 	rush = {
 		-- Fills the Stud Rush meter (Systems/Rush)
 		run = function(player)
@@ -240,8 +258,9 @@ local function onCommand(player: Player, command: any, value: any)
 		n = checked
 	end
 	-- A hero touched by a test command never reaches a leaderboard (Systems/Leaderboard).
-	-- "day" and "cosmetics" only change the account (calendar, looks), not the hero's power.
-	if command ~= "day" and command ~= "cosmetics" then
+	-- "day", "cosmetics" and "stance" only change the account or the looks (calendar, cosmetics,
+	-- the weapon shown in the hand), not the hero's power.
+	if command ~= "day" and command ~= "cosmetics" and command ~= "stance" then
 		local profile = Data.get(player)
 		if profile then
 			profile.debugged = true

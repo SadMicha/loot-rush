@@ -21,6 +21,7 @@ local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Spring = require(script.Parent.Parent.UI.Spring)
 local Window = require(script.Parent.Parent.UI.Window)
+local AnimController = require(script.Parent.AnimController)
 local ProgressController = require(script.Parent.ProgressController)
 local QuestController = require(script.Parent.QuestController)
 
@@ -211,12 +212,15 @@ local function refreshViewport()
 	world.Parent = viewport
 	clone:PivotTo(CFrame.new(0, 0, 0) * CFrame.Angles(0, math.rad(20), 0))
 	clone.Parent = world
-	-- Clones carry no playing animations: raise the weapon arm like in game (Systems/Weapons)
+	-- Clones carry no playing animations: strike the class holding stance like in game
+	-- (Anim.STANCE via AnimController); only a rig without Motor6D joints raises the weapon arm
+	-- with Roblox's tool-hold animation (Systems/Weapons)
 	local held = clone:FindFirstChild("HeldWeapon")
 	local weapon = held and Weapons.ById[tostring(held:GetAttribute("Weapon") or "")]
 	local humanoid = clone:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-	if weapon and weapon.ready and humanoid and animator then
+	local posed = weapon ~= nil and AnimController.posePreview(clone, weapon.id, 0)
+	if weapon and weapon.ready and not posed and humanoid and animator then
 		local anim = Instance.new("Animation")
 		anim.AnimationId = if humanoid.RigType == Enum.HumanoidRigType.R6
 			then Weapons.HOLD_ANIM.R6
@@ -236,6 +240,9 @@ local function refreshViewport()
 			return
 		end
 		local t = os.clock() - t0
+		if posed and weapon then
+			AnimController.posePreview(clone, weapon.id, t)
+		end
 		clone:PivotTo(
 			base
 				* CFrame.new(0, math.sin(t * 1.6) * 0.04, 0)

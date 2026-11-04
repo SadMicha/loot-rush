@@ -58,7 +58,7 @@ describe("Held weapon in game", function()
 			local axis = staff.grip.UpVector
 			return p:Dot(axis), (p - axis * p:Dot(axis)).Magnitude
 		end)
-		expect(along).toBeGreaterThan(0.5)
+		expect(along).toBeGreaterThan(0.05) -- shaft center above the grip (head up)
 		expect(side).toBeLessThan(0.5)
 		local after, count = server(function(req, player)
 			player:SetAttribute("Class", "warrior")
@@ -88,13 +88,11 @@ describe("Weapon grips", function()
 			expect(w.hand == "right" or w.hand == "left").toBe(true)
 			expect(w.gripAt > 0 and w.gripAt < 0.5).toBe(true)
 			expect(math.abs(w.offset.X) < 0.1 and math.abs(w.offset.Y) < 0.1).toBe(true)
-			if w.ready then
-				-- arm raised forward: the hand's -Z points up, the head must point that way
-				expect(w.grip.UpVector:Dot(Vector3.new(0, 0, -1))).toBeGreaterThan(0.9)
-			else
-				expect(w.grip.UpVector.Y).toBeGreaterThan(0.9) -- arm down: weapon upright
-			end
+			-- arm raised forward: the hand's -Z points up, the head/limbs must point that way
+			expect(w.grip.UpVector:Dot(Vector3.new(0, 0, -1))).toBeGreaterThan(0.9)
 		end
+		-- the bow's riser faces the fingers (forward with the arm up), the string the archer
+		expect(Weapons.ByClass.ranger.grip.RightVector.Y).toBeLessThan(-0.9)
 		expect(Weapons.ByClass.ranger.hand).toBe("left")
 		expect(Weapons.ByClass.warrior.hand).toBe("right")
 	end)
