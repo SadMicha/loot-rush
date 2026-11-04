@@ -25,6 +25,9 @@ describe("Icons", function()
 		for _, p in Pets.List do
 			check("pet " .. p.id, Pets.iconOf(p))
 		end
+		for _, e in Pets.Eggs do
+			check("egg " .. e.id, Pets.eggIconOf(e))
+		end
 		for _, o in Shop.Offers do
 			check("shop " .. o.id, o.icon)
 		end

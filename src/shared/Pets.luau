@@ -30,6 +30,7 @@ export type Egg = {
 	text: string,
 	price: { kind: string, amount: number }, -- "gold" (grows with depth) or "soulstars"
 	weights: { [string]: number }, -- rarity → weight
+	icon: string?, -- Assets.Icon/IconImage key for the egg card; nil = the generic companion icon
 }
 export type Data = { owned: { [string]: number }, equipped: { string } }
 
@@ -106,6 +107,7 @@ local LIST: { Pet } = {
 	{
 		id = "cloud_whale",
 		name = "Cloud Whale",
+		icon = "pet_cloud_whale",
 		rarity = "rare",
 		text = "Finds items more often.",
 		bonus = { items = 15 },
@@ -116,6 +118,7 @@ local LIST: { Pet } = {
 	{
 		id = "star_cat",
 		name = "Star Cat",
+		icon = "pet_star_cat",
 		rarity = "epic",
 		text = "Brings luck with gold and XP.",
 		bonus = { gold = 15, xp = 15 },
@@ -126,6 +129,7 @@ local LIST: { Pet } = {
 	{
 		id = "rune_dragon",
 		name = "Rune Dragon",
+		icon = "pet_rune_dragon",
 		rarity = "legend",
 		text = "Ancient and mighty: more damage and more loot.",
 		bonus = { damage = 15, items = 10 },
@@ -139,6 +143,7 @@ local EGGS: { Egg } = {
 	{
 		id = "meadow_egg",
 		name = "Meadow Egg",
+		icon = "egg_meadow",
 		text = "Mostly common companions, rarely something special.",
 		price = { kind = "gold", amount = 600 },
 		weights = { normal = 60, magic = 28, rare = 10, epic = 2 },
@@ -146,6 +151,7 @@ local EGGS: { Egg } = {
 	{
 		id = "star_egg",
 		name = "Star Egg",
+		icon = "egg_star",
 		text = "Better odds - even for the Rune Dragon.",
 		price = { kind = "soulstars", amount = 75 },
 		weights = { normal = 20, magic = 40, rare = 28, epic = 10, legend = 2 },
@@ -180,12 +186,18 @@ Pets.ById = table.freeze(byId)
 Pets.Eggs = table.freeze(EGGS)
 Pets.EggById = table.freeze(eggById)
 
--- Price of an egg for a player with this best depth (gold grows like in the shop,
--- Soulstars stay fixed). Systems/Pets charges exactly this; the UI shows it.
 -- Icon for a pet in the UI (falls back to the generic companion icon)
 function Pets.iconOf(pet: Pet): string
 	return pet.icon or "companion"
 end
+
+-- Icon for an egg card (falls back to the generic companion icon)
+function Pets.eggIconOf(egg: Egg): string
+	return egg.icon or "companion"
+end
+
+-- Price of an egg for a player with this best depth (gold grows like in the shop,
+-- Soulstars stay fixed). Systems/Pets charges exactly this; the UI shows it.
 
 function Pets.eggPrice(egg: Egg, bestDepth: number): number
 	if egg.price.kind ~= "gold" then

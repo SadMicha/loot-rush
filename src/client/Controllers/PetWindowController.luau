@@ -212,7 +212,7 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	Kit.skin(f, "stat_tile", 96, 0.4)
 	local inner = w - 2 * CARD_PAD
 
-	local art = Kit.itemSlot(ART, "companion", { rarity = topRarity(egg) })
+	local art = Kit.itemSlot(ART, Pets.eggIconOf(egg), { rarity = topRarity(egg) })
 	art.Active = false
 	art.Position = UDim2.fromOffset(CARD_PAD, CARD_PAD)
 	art.ZIndex = 2
