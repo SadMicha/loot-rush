@@ -1642,11 +1642,10 @@ end
 
 function InventoryController.start()
 	-- A level-up can unlock gear (Items.requiredLevel): locks and upgrade marks follow it
+	-- (also while closed: the cells persist, and the first snapshot can come before the save's level)
 	player:GetAttributeChangedSignal("Level"):Connect(function()
-		refreshMarks()
-		if gui.Enabled then
-			InventoryController.render()
-		end
+		InventoryController.render()
+		upgradeEvent:Fire()
 	end)
 	Net.Inv.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" then
