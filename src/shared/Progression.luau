@@ -480,6 +480,12 @@ function Progression.equip(
 		return false
 	end
 	local old = data.bar[slot]
+	-- A slot whose skill this hero has not learned yet stays shut: a swap would move the locked
+	-- skill onto an open key (new heroes, Skills.StartUnlock)
+	local oldSkill = if old then Skills.ById[old] else nil
+	if oldSkill and not Progression.isUnlocked(oldSkill, playerLevel, data) then
+		return false
+	end
 	for i, id in data.bar do
 		if id == skillId then
 			data.bar[i] = old

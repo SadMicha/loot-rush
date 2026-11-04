@@ -622,11 +622,14 @@ local function renderDetail()
 	Kit.list(row, Enum.FillDirection.Horizontal, gap)
 	for i = 1, Skills.SLOTS do
 		local here = slot == i
+		-- a key whose skill is still locked (new heroes) cannot be swapped onto
+		local held = Progression.barSkill(data, i)
+		local shut = held ~= nil and not Progression.isUnlocked(held, playerLevel(), data)
 		local b = Kit.button(KEYS[i], if here then C.Gold else C.Cyan, Vector2.new(bw, 60))
 		b.Name = "Slot" .. i
 		b.LayoutOrder = i
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
-		Kit.setEnabled(b, not here)
+		Kit.setEnabled(b, not here and not shut)
 		b.Activated:Connect(function()
 			if b.Active then
 				Net.Loadout:FireServer("equip", i, skill.id)

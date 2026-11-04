@@ -51,6 +51,14 @@ describe("Skill unlock rules", function()
 		expect(why).toBe(string.format("Unlocks at level %d", need))
 		expect(Progression.equip(data, 1, fourth, need - 1, "mage")).toBe(false)
 		expect(Progression.equip(data, 1, fourth, need, "mage")).toBe(true)
+		-- an open skill cannot be swapped onto a key that still holds a locked skill
+		local early = Progression.fresh()
+		early.gradual = true
+		local locked = Skills.StartUnlock[4]
+		expect(Progression.equip(early, 4, Skills.DefaultBar[1], locked - 1, "mage")).toBe(false)
+		expect(early.bar[1]).toBe(Skills.DefaultBar[1])
+		expect(early.bar[4]).toBe(Skills.DefaultBar[4])
+		expect(Progression.equip(early, 2, Skills.DefaultBar[1], 1, "mage")).toBe(true) -- open keys swap
 	end)
 
 	it("keeps old heroes open and marks new heroes gradual", function()

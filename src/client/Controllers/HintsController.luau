@@ -56,6 +56,7 @@ type Hint = {
 	done: (() -> boolean)?, -- the player did it: close
 	press: { Enum.KeyCode }?, -- PC keys that count as doing it
 	text: (() -> (string, string))?, -- dynamic (touch, keys) texts instead of touch/keys
+	pressNow: (() -> { Enum.KeyCode })?, -- dynamic keys instead of press
 	transient: boolean?, -- not a saved one-time hint: queued by code each time its moment comes
 }
 
@@ -96,6 +97,7 @@ local function dashButton(): GuiObject?
 end
 
 local SLOT_KEYS = { "Q", "E", "R", "F" }
+local SLOT_CODES = { Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F }
 
 -- Bar slots whose skill the hero has learned (new heroes start with one, Skills.StartUnlock)
 local function openSlots(): { number }
@@ -149,7 +151,14 @@ local HINTS: { Hint } = {
 		end,
 		round = true,
 		valid = inRift,
-		press = { Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F },
+		-- only the keys of learned skills count (a locked key does nothing)
+		pressNow = function()
+			local out = {}
+			for _, slot in openSlots() do
+				table.insert(out, SLOT_CODES[slot])
+			end
+			return out
+		end,
 	},
 	{
 		key = "newSkill",
@@ -375,7 +384,7 @@ local function open(h: Hint, target: GuiObject)
 			c.did = true
 		end
 	end)
-	local keys = h.press
+	local keys = if h.pressNow then h.pressNow() else h.press
 	if keys then
 		inputConn = UserInputService.InputBegan:Connect(
 			function(input: InputObject, processed: boolean)
