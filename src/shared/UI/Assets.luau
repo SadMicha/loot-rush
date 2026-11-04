@@ -490,7 +490,7 @@ local HUD: { [string]: Fixed } = {
 	menu_forge = { id = "rbxassetid://80101622482185", size = Vector2.new(405, 395) },
 	menu_shop = { id = "rbxassetid://113985532990245", size = Vector2.new(362, 384) },
 	menu_pets = { id = "rbxassetid://77889190601004", size = Vector2.new(400, 396) }, -- assets/ui/icons/pets.png
-	-- Daily rewards button (1.0, ROADMAP-1.0 §4.2); no hub bar entry until the feature ships
+	-- Daily rewards button (1.0, docs/ROADMAP.md §4.2); no hub bar entry until the feature ships
 	menu_daily = { id = "rbxassetid://87505829317379", size = Vector2.new(400, 395) }, -- assets/ui/icons/daily.png
 	-- Dash charge diamonds (Icons_256): cyan = charge available, dark = spent
 	hud_diamond_cyan = { id = "rbxassetid://101631660350220", size = Vector2.new(256, 256) },
@@ -699,7 +699,7 @@ for name, c in ICON_IMAGE do
 end
 Assets.IconImage = table.freeze(iconImage)
 
--- Held weapon meshes per class (Shared/Weapons, docs/WEAPONS.md). Paste the ids from
+-- Held weapon meshes per class (Shared/Weapons, docs/TECH.md "Weapons"). Paste the ids from
 -- assets/ui-asset-ids.csv after the upload: model = "weapon_<id>_model" (Model asset from the FBX),
 -- texture = "weapon_<id>_texture" (Image asset from Color.png). Empty = part-built fallback.
 Assets.Weapon = table.freeze({

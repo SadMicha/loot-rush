@@ -1,5 +1,5 @@
 --!strict
--- Journey (docs/ROADMAP-1.0.md R5 "next goals", U5): a permanent milestone track per hero. Every
+-- Journey (docs/ROADMAP.md R5 "next goals", U5): a permanent milestone track per hero. Every
 -- milestone reads a fact the save already holds (best depth, World Tier, level, region bosses,
 -- quest chain, Star Web), so nothing new is counted; the player claims each finished milestone
 -- once for a small reward. Pure rules shared by the server (Systems/Journey) and the window

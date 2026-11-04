@@ -1,5 +1,5 @@
 --!strict
--- Seasons (Shared/Seasons, docs/ROADMAP-1.0.md §6): the season clock and the Season Journey.
+-- Seasons (Shared/Seasons, docs/ROADMAP.md §6): the season clock and the Season Journey.
 -- Challenge progress lives on the account (account.season) and only moves while the season is
 -- live; it is fed from server events only (kills, Rift clears, pickups, player actions) plus hero
 -- facts read from the save. The client only says "claim <step>"; the server checks the points.

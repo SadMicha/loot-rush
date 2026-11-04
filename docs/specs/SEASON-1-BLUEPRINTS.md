@@ -2,7 +2,7 @@
 
 As of 2026-11-02. Status: **plan, nothing built**. Owner request (Micha, 2026-11-02): maps like Path
 of Exile's as a repeatable endgame system, run as a season mechanic. Framework: `docs/specs/SEASONS.md`.
-Merges `docs/IDEAS.md` #5 (Rift Cards) in as the modifier layer.
+Merges `docs/DECISIONS.md §7` #5 (Rift Cards) in as the modifier layer.
 
 ## 1. The idea in one sentence
 

@@ -1,5 +1,5 @@
 --!strict
--- Stud Rush (docs/STUD-RUSH.md, owner decision 2026-11-02: in 1.0): kills pop studs that fill the
+-- Stud Rush (docs/GAMEPLAY.md "Stud Rush", owner decision 2026-11-02: in 1.0): kills pop studs that fill the
 -- Rush meter; a full meter lets the player trigger a Rush burst. The server owns meter and state
 -- (Systems/Rush, attributes RushMeter / RushUntil); the client only shows studs flying in.
 

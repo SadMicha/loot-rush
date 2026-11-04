@@ -1,5 +1,5 @@
 --!strict
--- Leaderboards (docs/ROADMAP-1.0.md §4.1): pure rules shared by the server (Systems/Leaderboard
+-- Leaderboards (docs/ROADMAP.md §4.1): pure rules shared by the server (Systems/Leaderboard
 -- writes and reads OrderedDataStores) and the client (window, hub board).
 --
 -- Boards:

@@ -1,5 +1,5 @@
 --!strict
--- Loading screen (docs/ROADMAP-1.0.md O2): replaces the Roblox default as soon as the theme has
+-- Loading screen (docs/ROADMAP.md O2): replaces the Roblox default as soon as the theme has
 -- replicated, shows the game name and a pulsing status line, and fades out once the client
 -- preloaded the HUD art (Client/Controllers/PreloadController sets the local player attribute
 -- "ClientReady") or after MAX_WAIT seconds, whichever comes first. Purely client-side.

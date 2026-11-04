@@ -155,7 +155,7 @@ function Balance.rarityOdds(shift: number, uniques: boolean?): { [string]: numbe
 	return out
 end
 
--- Daily rewards (docs/ROADMAP-1.0.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
+-- Daily rewards (docs/ROADMAP.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
 -- with Balance.shopFactor(best depth) like shop prices, so it stays worth claiming. Missing a day
 -- never resets the cycle (no loss mechanics). Day 7 is the big one, then the cycle repeats.
 --   gold      base gold before the depth factor
@@ -172,7 +172,7 @@ Balance.Daily = table.freeze({
 	table.freeze({ gold = 1000, candy = 8, shards = 40, dust = 3, stones = 1, soulstars = 15 }),
 })
 
--- Guaranteed first drops (docs/ROADMAP-1.0.md O3): the first `kills` normal kills of a new
+-- Guaranteed first drops (docs/ROADMAP.md O3): the first `kills` normal kills of a new
 -- character each drop an item, so the first loot moment never depends on Balance.P.drop_normal.
 -- The very first one is at least Magic and a weapon. (The first boss already drops a Rare:
 -- the first of Balance.P.drops_boss items is always at least Rare.)

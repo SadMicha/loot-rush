@@ -36,7 +36,7 @@ character at most `Config.DASH_MAX_RISE` studs/s. The Hub `Bounds` folder also h
 (attribute `Top` = `Config.HUB_TOP`): a root higher above the Hub floor (on a roof, wall or cliff)
 is put back on the spawn by FallGuard.
 
-## 2. Hiding the world edge (slice 1, this PR)
+## 2. Hiding the world edge (slice 1, PR #71)
 
 Three layers around every map, built by `Shared/Models/Horizon` and themed per place:
 
@@ -57,7 +57,7 @@ caps.
 Map slots move further apart (`ARENA_SPACING` 400 → 1000, hub at x = −1200) so no map ever sees
 its neighbour's scenery. Cost per map: about 150–250 extra parts, all without collision or shadow.
 
-## 3. New Lumenhaven hub (slice 1, this PR)
+## 3. New Lumenhaven hub (slice 1, PR #71)
 
 A walled valley town, 20 × 20 cells of 8 studs, everything on one level except the Rift terrace,
 so a phone player never fights stairs on the way to a station:
@@ -96,33 +96,7 @@ change is needed.
 
 Not built yet: side pockets (chests, shrines), death → last waypoint, minimap path hint.
 
-Original proposal:
-
-**Recommended shape: a "Rift Trail" per depth.** Each depth is one generated path map built from
-biome chunks (like Diablo/PoE zones, but short and mobile-sized):
-
-```
-[Start] ── corridor ── [Clearing 1: pack] ── corridor ── [Clearing 2: elite] ── … ── [Boss arena]
-                \── side pocket: chest / shrine / breakable props
-```
-
-- 3–4 clearings (about 64×64) linked by corridors at least 24 studs wide, ~400–600 studs long in
-  total, 3–4 minutes per depth. Same chunk grid as today (8-stud tiles), so props and looks carry over.
-- **Encounters instead of waves**: enemy packs are placed along the path and activate when the
-  player comes within ~50 studs. Server cost stays at "packs near the player", not "whole map".
-- **Waypoint shrine** at each clearing: dying sends you back to the last shrine once per depth
-  (instead of failing the run), later usable as a resume point.
-- **Boss arena** at the trail end keeps today's arena logic (phases, adds, enrage), so the boss
-  code barely changes.
-- Edges: the trail is cut into a canyon or plateau; its walls are the natural barrier, and the
-  horizon from section 2 sits outside. FallGuard keeps working (bounds become per chunk).
-- Rift variants map cleanly: swarm = more packs, elite hunt = elite per clearing, treasure goblin
-  = runs along the trail, timed = race to the boss.
-
-Code impact: `World` gets a chunk assembler (`World.buildTrail(region, slot, seed)`), `Rift.play`
-switches from waves to "packs along the path → boss", `Enemies` gains pack activation,
-FallGuard/Fence take a list of rectangles, the minimap already follows the player.
-Bigger maps also make **StreamingEnabled** worth turning on (place setting, owner).
+Original proposal (canyon chunks, side pockets, 3–4 min per depth): in git history.
 
 ## 5. Decisions for Micha
 
@@ -147,14 +121,7 @@ Bigger maps also make **StreamingEnabled** worth turning on (place setting, owne
    town was rejected: it would repeat the Sky Islands region, show open edges everywhere, and
    fight the "never fall off" rule.
 
-## 6. Build order
-
-1. PR #70: never fall off (merged first).
-2. This PR: Horizon builder for all maps, new Lumenhaven layout, slot spacing.
-3. After the decision: Rift Trail chunks + assembler (looks only, test via debug), then packs and
-   waypoints in `Rift`, then variants, then minimap path hint and StreamingEnabled.
-
-## 7. Color and contrast
+## 6. Color and contrast
 
 Micha (2026-11-03): "The world has to be more colorful, contrast with great colors." Rules:
 
