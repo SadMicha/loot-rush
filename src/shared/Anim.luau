@@ -593,27 +593,27 @@ Anim.STANCE = table.freeze({
 		--          braced behind and turned out, the weight on its deeply bent knee; `lift` lowers
 		--          the body so both soles stay on the ground
 		hold = table.freeze({
-			lShoulder = v(84, 38, 0),
-			lElbow = v(4, 0, 0),
+			lShoulder = v(76, 38, 0),
+			lElbow = v(12, 0, 0),
 			lWrist = v(-8, 0, 0),
 		}),
 		off = table.freeze({
 			rShoulder = v(-60, 60, 30),
-			rElbow = v(-150, 0, 0),
+			rElbow = v(-140, 0, 0),
 			rWrist = v(0, 0, 0),
 		}),
-		pose = table.freeze({ waist = v(4, -38, 0), neck = v(8, 36, 0) }),
+		pose = table.freeze({ waist = v(-4, -38, 0), neck = v(-10, 36, 0) }),
 		-- the shot starts from `ref` alone: none of the rest pose's arm turn leaks into the aim
 		acting = 0,
 		legs = table.freeze({
-			lHip = v(44, -10, -10),
-			lKnee = v(-26, 0, 0),
-			lAnkle = v(-16, 0, 0),
-			rHip = v(6, -35, 14),
-			rKnee = v(-48, 0, 0),
-			rAnkle = v(38, 0, 0),
+			lHip = v(30, -10, -10),
+			lKnee = v(-11, 0, 0),
+			lAnkle = v(-19, 0, 0),
+			rHip = v(10, -35, 14),
+			rKnee = v(-40, 0, 0),
+			rAnkle = v(30, 0, 0),
 		}),
-		lift = v(0, -0.33, 0),
+		lift = v(0, -0.18, 0),
 	}),
 	mage_staff = table.freeze({
 		hand = "right",

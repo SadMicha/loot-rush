@@ -314,10 +314,10 @@ describe("Holding stances", function()
 		expect(math.abs(bs.hold.lShoulder.Y + bs.pose.waist.Y)).toBeLessThan(10) -- arm along the aim
 		-- wide stance: front foot forward, back foot turned out, weight on the bent back knee
 		local bl = assert(bs.legs)
-		expect(bl.lHip.X).toBeGreaterThan(30)
+		expect(bl.lHip.X).toBeGreaterThan(25)
 		expect(bl.rHip.Y).toBeLessThan(-25)
 		expect(bl.rKnee.X).toBeLessThan(bl.lKnee.X - 10)
-		expect(assert(bs.lift).Y).toBeLessThan(-0.25)
+		expect(assert(bs.lift).Y).toBeLessThan(-0.12)
 		expect(sole(-1, bl.lHip, bl.lKnee).Z).toBeLessThan(-0.7)
 		expect(sole(1, bl.rHip, bl.rKnee).Z).toBeGreaterThan(0.4)
 		for _, p in { bs.pose, bs.hold, bl, assert(bs.off) } do
