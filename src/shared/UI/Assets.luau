@@ -484,20 +484,20 @@ local HUD: { [string]: Fixed } = {
 	skill_nova = { id = "rbxassetid://110139009058803", size = Vector2.new(128, 128) },
 	skill_dash = { id = "rbxassetid://125754218329440", size = Vector2.new(128, 128) },
 	-- Hub icon bar (assets/ui/icons/*.png, native size)
-	menu_inventory = { id = "rbxassetid://84376860245263", size = Vector2.new(376, 380) },
-	menu_star_net = { id = "rbxassetid://125186955183258", size = Vector2.new(377, 370) },
-	menu_skills = { id = "rbxassetid://89943484818795", size = Vector2.new(445, 379) },
-	menu_hub = { id = "rbxassetid://119271064945748", size = Vector2.new(441, 417) }, -- assets/ui/icons/city.png
-	menu_atlas = { id = "rbxassetid://104595046752790", size = Vector2.new(416, 362) },
-	menu_forge = { id = "rbxassetid://80101622482185", size = Vector2.new(405, 395) },
-	menu_shop = { id = "rbxassetid://113985532990245", size = Vector2.new(362, 384) },
+	menu_inventory = { id = "rbxassetid://84136238176131", size = Vector2.new(383, 400) },
+	menu_star_net = { id = "rbxassetid://136756846212342", size = Vector2.new(389, 400) },
+	menu_skills = { id = "rbxassetid://117271248256066", size = Vector2.new(394, 400) },
+	menu_hub = { id = "rbxassetid://93459009336607", size = Vector2.new(367, 400) }, -- assets/ui/icons/city.png
+	menu_atlas = { id = "rbxassetid://78423416722635", size = Vector2.new(400, 395) },
+	menu_forge = { id = "rbxassetid://81445057582388", size = Vector2.new(392, 400) },
+	menu_shop = { id = "rbxassetid://100688622296241", size = Vector2.new(360, 400) },
 	menu_pets = { id = "rbxassetid://77889190601004", size = Vector2.new(400, 396) }, -- assets/ui/icons/pets.png
 	-- Daily rewards button (1.0, docs/ROADMAP.md §4.2); no hub bar entry until the feature ships
 	menu_daily = { id = "rbxassetid://87505829317379", size = Vector2.new(400, 395) }, -- assets/ui/icons/daily.png
 	-- Dash charge diamonds (Icons_256): cyan = charge available, dark = spent
 	hud_diamond_cyan = { id = "rbxassetid://101631660350220", size = Vector2.new(256, 256) },
 	hud_diamond_dark = { id = "rbxassetid://113509830744033", size = Vector2.new(256, 256) },
-	hud_settings = { id = "rbxassetid://96002533781558", size = Vector2.new(373, 368) },
+	hud_settings = { id = "rbxassetid://128673325472229", size = Vector2.new(399, 400) },
 }
 local hud: { [string]: Fixed } = {}
 for name, h in HUD do
