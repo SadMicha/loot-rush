@@ -26,6 +26,9 @@ describe("Pet rules", function()
 		expect(Pets.eggPrice(meadow, 40)).toBeGreaterThanOrEqual(Pets.eggPrice(meadow, 0))
 		expect(Pets.eggPrice(star, 0)).toBe(star.price.amount)
 		expect(Pets.eggPrice(star, 40)).toBe(star.price.amount)
+		expect(Pets.eggPrice(meadow, 40, 0)).toBe(0) -- first pet is free
+		expect(Pets.eggPrice(star, 0, 0)).toBe(star.price.amount) -- Soulstar eggs never
+		expect(Pets.eggPrice(meadow, 0, 1)).toBe(Pets.eggPrice(meadow, 0))
 	end)
 
 	it("rolls, raises levels and only sums occupied slots", function()
@@ -237,24 +240,30 @@ local function state()
 end
 
 describe("Pets in game", function()
-	it("only hatches with enough gold and equips the first pet", function()
+	it("hatches the first gold egg for free, then only with enough gold", function()
 		sim:boot({ seconds = 2 })
-		send("hatch", "meadow_egg")
-		expect(state().owned).toBe(0)
-		server(function(req, player)
-			req("ServerScriptService.Server.Systems.Inventory").addGold(player, 1000)
-		end)
-		send("hatch", "meadow_egg")
+		local gold0 = state().gold
+		send("hatch", "meadow_egg") -- first pet: free
 		local s = state()
 		expect(s.owned).toBe(1)
+		expect(s.gold).toBe(gold0)
+		local before = s.owned
+		send("hatch", "meadow_egg") -- not enough gold now
+		expect(state().gold).toBe(gold0)
+		server(function(req, player)
+			req("ServerScriptService.Server.Systems.Inventory").addGold(player, 1000 - gold0)
+		end)
+		send("hatch", "meadow_egg")
+		s = state()
 		expect(s.gold).toBe(400)
+		expect(s.owned).toBeGreaterThanOrEqual(before) -- a duplicate levels up instead
 		expect(#s.equipped).toBe(1)
 		expect(s.attr).toBe(s.equipped[1])
 		expect(s.slots).toBe(1)
 		local last = lastResult()
 		expect(last.kind).toBe("hatch")
 		expect(last.ok).toBe(true)
-		expect(last.pet).toBe(s.equipped[1])
+		expect(last.pet).never.toBeNil() -- the second hatch (the first stays equipped)
 		-- the bonus arrives
 		local bonus = server(function(_, player)
 			local total = 0

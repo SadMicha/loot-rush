@@ -30,7 +30,7 @@ local C = Theme.Color
 local F = Theme.Flat
 local player = Players.LocalPlayer
 
-local MAX_ITEMS = 40 -- same as server (Systems/Inventory)
+local MAX_ITEMS = Items.BAG_MAX
 local SALVAGE_GAP = 0.15 -- seconds between salvage requests (server allows 8 per second)
 local SALVAGE_STALE = 3 -- seconds after sending: an item the server kept shows up again
 local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed

@@ -2,7 +2,7 @@
 -- Onboarding quest chain and window unlocks on the server (rules: Shared/Quests).
 --   • count goals come from Util/Actions (other systems fire them) plus kills and item pickups
 --   • state goals (level, best depth) are re-checked when the attributes "Level"/"BestDepth" change
---   • rewards are gold; every finished quest is one onboarding funnel step in AnalyticsService
+--   • rewards are gold plus optional Forge materials / spell stones (Rules reward); every finished quest is one onboarding funnel step in AnalyticsService
 -- The client only reads: snapshots via Net.Quest (no client → server remote).
 -- Unlocks are pacing, not security: the server does not refuse Forge/Star/Pet requests of
 -- locked windows (nothing to gain from it), the client hides them.
@@ -13,13 +13,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Quests)
+local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
 local Loot = require(script.Parent.Loot)
+local Progress = require(script.Parent.Progress)
 
 local Quests = {}
+
+local rng = Random.new()
 
 local function stateOf(player: Player): (number, number)
 	local level = player:GetAttribute("Level")
@@ -60,6 +64,24 @@ local function logStep(player: Player, step: number, id: string)
 	end)
 end
 
+-- Extra quest reward (Forge materials, spell stones): what the next step teaches
+local function grant(player: Player, q: Rules.Quest)
+	local r = q.reward
+	local profile = Data.get(player)
+	if not r or not profile then
+		return
+	end
+	Progress.addMaterials(
+		player,
+		{ candy = r.candy or 0, shards = r.shards or 0, dust = r.dust or 0 }
+	)
+	for _ = 1, r.stones or 0 do
+		local id = SpellStones.roll(rng)
+		profile.progress.stones[id] = (profile.progress.stones[id] or 0) + 1
+	end
+	Progress.sync(player)
+end
+
 -- Counts an action (goal = nil: only re-check level/depth) and pays finished quests
 function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	local profile = Data.get(player)
@@ -83,6 +105,7 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	local doneTexts = {}
 	for i, q in finished do
 		Inventory.addGold(player, q.gold)
+		grant(player, q)
 		table.insert(doneTexts, q.text)
 		logStep(player, stepBefore + i - 1, q.id)
 	end
