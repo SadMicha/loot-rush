@@ -241,7 +241,7 @@ local function renderSide()
 	local w = SIDE_W - 2 * PAD
 
 	-- Preview image; the fallback (area color + boss) always sits underneath in case the image fails to load
-	local ph = Window.frame(UDim2.fromOffset(w, 200), UDim2.fromOffset(PAD, PAD))
+	local ph = Window.frame(UDim2.fromOffset(w, 160), UDim2.fromOffset(PAD, PAD))
 	ph.Name = "Preview"
 	ph.BackgroundTransparency = 0.8
 	ph.BackgroundColor3 = r.color
@@ -250,7 +250,7 @@ local function renderSide()
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.Parent = ph
-	local picture = Window.art("region_" .. r.id, Vector2.new(w, 200))
+	local picture = Window.art("region_" .. r.id, Vector2.new(w, 160))
 	if picture then
 		picture.ScaleType = Enum.ScaleType.Crop
 		picture.Size = UDim2.fromScale(1, 1)
@@ -260,33 +260,33 @@ local function renderSide()
 	ph.Parent = side
 
 	local name = Window.heading(r.name, 26, C.GoldHi)
-	name.Position = UDim2.fromOffset(PAD, PAD + 214)
+	name.Position = UDim2.fromOffset(PAD, PAD + 174)
 	name.Parent = side
 
 	local half = (w - 10) / 2
-	local top = row(PAD + 262, w)
+	local top = row(PAD + 222, w)
 	local record = best(r.id)
 	local depthText = if record > 0
 		then string.format("Best: Depth %d", record)
 		else string.format("From Depth %d", r.depth)
 	infoTile("portal", depthText, half, 1).Parent = top
 	infoTile(r.bossIcon, r.boss, half, 2).Parent = top
-	local mods = row(PAD + 328, w)
+	local mods = row(PAD + 288, w)
 	for i, m in r.mods do
 		infoTile(m.icon, m.text, half, i).Parent = mods
 	end
 
 	local desc = wrapLabel(r.desc, 15, C.Muted, w)
-	desc.Position = UDim2.fromOffset(PAD, PAD + 398)
+	desc.Position = UDim2.fromOffset(PAD, PAD + 358)
 	desc.Parent = side
 
 	local rewardHead = Window.heading("Possible Rewards", 16, C.Text)
-	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 464)
+	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 450)
 	rewardHead.Parent = side
-	local rewards = row(PAD + 492, w)
-	rewards.Size = UDim2.fromOffset(w, 48)
+	local rewards = row(PAD + 484, w)
+	rewards.Size = UDim2.fromOffset(w, 56)
 	for i, rw in r.rewards do
-		local s = Kit.itemSlot(48, rw.icon, { rarity = rw.rarity })
+		local s = Kit.itemSlot(52, rw.icon, { rarity = rw.rarity })
 		s.Active = false
 		s.LayoutOrder = i
 		s.Parent = rewards
