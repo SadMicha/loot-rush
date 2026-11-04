@@ -1,0 +1,47 @@
+name: Create badges
+
+# Creates the Roblox badges (tools/create-badges.py) in the universe from the "Roblox" environment
+# and commits their IDs to src/shared/Badges.luau. Needs the icons in assets/badges/<key>.png.
+# Idempotent: keys that already have an ID, or a badge with the same name, are not created again.
+# Never spends Robux (expectedCost = 0): past the free daily quota, run it again the next day.
+# Key scope needed: legacy-universe.badge (write + manage).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: create-badges
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Roblox
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create
+        shell: bash -eo pipefail {0}
+        run: python3 -u tools/create-badges.py | tee create.log
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat create.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit IDs
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add src/shared/Badges.luau
+          git diff --cached --quiet || (git commit -m "Badges: badge IDs from Open Cloud" && git push)

@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Stash)
+local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -81,6 +82,7 @@ local function onStash(player: Player, action: any, a: any, b: any)
 		return
 	end
 	local result: Rules.Reason
+	local stored = false -- at least one item went into the stash (badge "Hoarder")
 	if action == "open" then
 		send(player)
 		return
@@ -89,6 +91,7 @@ local function onStash(player: Player, action: any, a: any, b: any)
 			return
 		end
 		result = Rules.deposit(account.stash, profile.inventory, a, b)
+		stored = result == "ok"
 	elseif action == "take" then
 		if not validId(a) then
 			return
@@ -100,12 +103,16 @@ local function onStash(player: Player, action: any, a: any, b: any)
 		end
 		local moved = Rules.depositAll(account.stash, profile.inventory, a)
 		result = if moved > 0 or #profile.inventory == 0 then "ok" else "full"
+		stored = moved > 0
 	else
 		return
 	end
 	send(player, if result == "ok" then nil else Rules.Text[result])
 	if result == "ok" then
 		Inventory.sync(player)
+	end
+	if stored then
+		Actions.fire(player, "stash") -- badge "Hoarder" (Systems/Badges)
 	end
 end
 
