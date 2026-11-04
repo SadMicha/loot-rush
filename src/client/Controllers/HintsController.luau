@@ -1,9 +1,16 @@
 --!strict
--- One-time contextual hints (docs/ROADMAP-1.0.md O4), shown as a toast (QuestController.toast)
--- the first time something happens, then never again on this account:
---   hintSkills  first enemy within Config.HINT_SKILL_RANGE in a Rift  → how to use skills
---   hintDodge   first enemy telegraph within Config.HINT_TELEGRAPH_RANGE → dash out of red zones
---   hintRush    first Stud Rush (attribute Rushing)                     → what the Rush is
+-- One-time tutorial hints (docs/CRITERIA-AUDIT.md §3 #2). Each hint is a callout (client/UI/Callout)
+-- next to the HUD element it explains, with a pulsing ring around that element. A hint is queued
+-- when its moment comes and shown at the next calm moment (no enemy or enemy telegraph close, no
+-- window open, alive), one at a time. It stays until the player does the thing, taps the card or
+-- Config.HINT_SHOW_TIME runs out, and only then counts as seen: a hint that never reached the screen
+-- (or was only up for a blink) comes back later.
+--   hintSkills   in a Rift, the first enemy within Config.HINT_SKILL_RANGE   → skill button 1
+--   hintDodge    the first enemy telegraph within Config.HINT_TELEGRAPH_RANGE → dash button
+--   hintRush     Rush meter at Config.HINT_RUSH_AT (or the first Rush)       → Rush meter
+--   hintBreak    the first boss                                              → boss Break bar
+--   hintCounter  the first Counter, or the next boss after the Break hint    → dash button
+--   hintEquip    quest "Equip an item" active, back at rest                  → Inventory button
 -- "Seen" is a hidden account setting (Shared/Settings, saved through Client/Prefs); the Defaults
 -- button in the settings window clears them. Nothing shows before the saved settings arrived.
 -- Texts follow the input: touch buttons on phones, keys on PC.
@@ -11,46 +18,195 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Config = require(ReplicatedStorage.Shared.Config)
-local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Momentum = require(ReplicatedStorage.Shared.Momentum)
+local Net = require(ReplicatedStorage.Shared.Net)
+local Quests = require(ReplicatedStorage.Shared.Quests)
+local Rush = require(ReplicatedStorage.Shared.Rush)
+local Callout = require(script.Parent.Parent.UI.Callout)
+local Window = require(script.Parent.Parent.UI.Window)
 local Prefs = require(script.Parent.Parent.Prefs)
 local QuestController = require(script.Parent.QuestController)
 
 local HintsController = {}
 
-local TICK = 0.5
+local TICK = 0.25
 
 local player = Players.LocalPlayer
 
-local TEXTS = {
-	hintSkills = {
-		touch = "Tap a skill button to attack!",
-		keys = "Press Q, E, R or F to use your skills!",
+type Hint = {
+	key: string,
+	title: string,
+	touch: string,
+	keys: string,
+	target: () -> GuiObject?,
+	round: boolean, -- round button: round pulse ring
+	valid: (() -> boolean)?, -- still makes sense (e.g. a boss lives); pending hints wait for it
+	done: (() -> boolean)?, -- the player did it: close
+	press: { Enum.KeyCode }?, -- PC keys that count as doing it
+}
+
+local function inRift(): boolean
+	return player:GetAttribute("RiftRegion") ~= nil
+end
+
+local function hudRoot(): Instance?
+	local gui = player:FindFirstChild("PlayerGui")
+	local hud = gui and gui:FindFirstChild("LootRushHUD")
+	return hud and hud:FindFirstChild("Root")
+end
+
+local function find(parent: Instance?, ...: string): GuiObject?
+	local node = parent
+	for _, name in { ... } do
+		node = node and node:FindFirstChild(name, true)
+	end
+	return if node and node:IsA("GuiObject") then node else nil
+end
+
+local function boss(): Model?
+	for _, enemy in CollectionService:GetTagged("Enemy") do
+		if enemy:IsA("Model") and enemy:GetAttribute("Boss") == true and enemy.Parent then
+			return enemy
+		end
+	end
+	return nil
+end
+
+local function questId(): string?
+	local q = Quests.Chain[QuestController.state().step]
+	return if q then q.id else nil
+end
+
+local function dashButton(): GuiObject?
+	return find(hudRoot(), "Dash")
+end
+
+local HINTS: { Hint } = {
+	{
+		key = "hintDodge",
+		title = "DODGE",
+		touch = "Red zones are enemy attacks. Tap Dash to roll out of them.",
+		keys = "Red zones are enemy attacks. Press Space to dash out of them.",
+		target = dashButton,
+		round = true,
+		valid = inRift,
+		press = { Enum.KeyCode.Space },
 	},
-	hintDodge = {
-		touch = "Red zone! Tap the dash button to dodge.",
-		keys = "Red zone! Press Space to dash out.",
+	{
+		key = "hintSkills",
+		title = "SKILLS",
+		touch = "Your hero attacks on its own. Tap your skill buttons for big hits!",
+		keys = "Your hero attacks on its own. Press Q, E, R or F for big hits!",
+		target = function()
+			return find(hudRoot(), "Skills", "Skill1")
+		end,
+		round = true,
+		valid = inRift,
+		press = { Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F },
 	},
-	hintRush = {
-		touch = "Stud Rush! Kills fill the meter, a full meter makes you faster and stronger.",
-		keys = "Stud Rush! Kills fill the meter, a full meter makes you faster and stronger.",
+	{
+		key = "hintRush",
+		title = "STUD RUSH",
+		touch = "Kills fill this meter. When it is full, you get faster and stronger for a few seconds.",
+		keys = "Kills fill this meter. When it is full, you get faster and stronger for a few seconds.",
+		target = function()
+			return find(hudRoot(), "RushMeter")
+		end,
+		round = false,
+	},
+	{
+		key = "hintBreak",
+		title = "BREAK THE BOSS",
+		touch = string.format(
+			"Every hit drains this gold bar. Empty = BROKEN: the boss stands still and takes +%d%% damage.",
+			Bosses.BREAK_DAMAGE * 100
+		),
+		keys = string.format(
+			"Every hit drains this gold bar. Empty = BROKEN: the boss stands still and takes +%d%% damage.",
+			Bosses.BREAK_DAMAGE * 100
+		),
+		target = function()
+			local gui = player:FindFirstChild("PlayerGui")
+			return find(gui and gui:FindFirstChild("LootRushRift"), "BossBar", "Poise")
+		end,
+		round = false,
+		valid = function()
+			return boss() ~= nil
+		end,
+	},
+	{
+		key = "hintCounter",
+		title = "COUNTER",
+		touch = string.format(
+			"Dash into an attack right before it hits: Counter! Cooldowns -%d s and +%d%% damage.",
+			Momentum.COUNTER_CDR,
+			Momentum.FOCUS_DAMAGE
+		),
+		keys = string.format(
+			"Dash (Space) into an attack right before it hits: Counter! Cooldowns -%d s and +%d%% damage.",
+			Momentum.COUNTER_CDR,
+			Momentum.FOCUS_DAMAGE
+		),
+		target = dashButton,
+		round = true,
+		valid = inRift,
+	},
+	{
+		key = "hintEquip",
+		title = "NEW GEAR",
+		touch = "You picked up gear! Open your Inventory and tap an item to equip it.",
+		keys = "You picked up gear! Open your Inventory and click an item to equip it.",
+		target = function()
+			return find(hudRoot(), "HubBar", "inventory")
+		end,
+		round = false,
+		valid = function()
+			return not inRift() and questId() == "equip"
+		end,
+		done = function()
+			return Window.openName() == "Inventory"
+		end,
 	},
 }
 
--- Shows a hint once (true = shown now)
-function HintsController.show(key: string): boolean
-	local text = TEXTS[key]
-	if not text or not Prefs.loaded() or Prefs.get(key) ~= false then
+local byKey: { [string]: Hint } = {}
+for _, h in HINTS do
+	byKey[h.key] = h
+end
+
+local pending: { [string]: boolean } = {}
+type Current = { hint: Hint, callout: Callout.Callout, shown: number, hidden: number, did: boolean }
+local current: Current? = nil
+local breakBoss: Model? = nil -- the boss the Break hint was shown on (Counter waits for the next)
+local inputConn: RBXScriptConnection? = nil
+local targetConn: RBXScriptConnection? = nil
+
+local function unseen(key: string): boolean
+	return Prefs.loaded() and Prefs.get(key) == false
+end
+
+-- Queues a hint for the next calm moment (true = queued now)
+function HintsController.queue(key: string): boolean
+	if not byKey[key] or not unseen(key) or pending[key] then
 		return false
 	end
-	Prefs.set(key, true)
-	QuestController.toast(
-		if UserInputService.TouchEnabled then text.touch else text.keys,
-		Theme.Color.GoldHi
-	)
+	pending[key] = true
 	return true
+end
+
+-- Old name (kept for callers): queue it
+function HintsController.show(key: string): boolean
+	return HintsController.queue(key)
+end
+
+function HintsController.current(): string?
+	local c = current
+	return if c then c.hint.key else nil
 end
 
 local function root(): BasePart?
@@ -64,15 +220,177 @@ local function near(pos: Vector3, range: number): boolean
 	return r ~= nil and (pos - r.Position).Magnitude <= range
 end
 
-local function checkEnemies()
-	if Prefs.get("hintSkills") ~= false or player:GetAttribute("RiftRegion") == nil then
+local function enemyNear(range: number): boolean
+	for _, enemy in CollectionService:GetTagged("Enemy") do
+		if enemy:IsA("Model") and enemy.Parent and near(enemy:GetPivot().Position, range) then
+			return true
+		end
+	end
+	return false
+end
+
+local function telegraphNear(): boolean
+	local folder = workspace:FindFirstChild("Enemies")
+	if not folder then
+		return false
+	end
+	for _, child in folder:GetChildren() do
+		if child:IsA("BasePart") and near(child.Position, Config.HINT_TELEGRAPH_RANGE) then
+			return true
+		end
+	end
+	return false
+end
+
+-- A calm moment: alive, not downed, no window, nothing about to hit the player
+function HintsController.calm(): boolean
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 or root() == nil then
+		return false
+	end
+	if player:GetAttribute("SetupDone") ~= true or player:GetAttribute("RiftDowned") == true then
+		return false
+	end
+	if Window.anyOpen() then
+		return false
+	end
+	return not enemyNear(Config.HINT_CALM_RANGE) and not telegraphNear()
+end
+
+local function disconnect()
+	if inputConn then
+		inputConn:Disconnect()
+		inputConn = nil
+	end
+	if targetConn then
+		targetConn:Disconnect()
+		targetConn = nil
+	end
+end
+
+-- Ends the shown hint. Seen = the player did it, tapped it, or it was up long enough to read.
+local function finish(c: Current)
+	disconnect()
+	c.callout.close()
+	current = nil
+	if c.did or c.callout.tapped() or c.shown >= Config.HINT_MIN_SEEN then
+		pending[c.hint.key] = nil
+		Prefs.set(c.hint.key, true)
+		if c.hint.key == "hintBreak" then
+			breakBoss = boss()
+		end
+	end
+end
+
+local function open(h: Hint, target: GuiObject)
+	local text = if UserInputService.TouchEnabled then h.touch else h.keys
+	local c: Current = {
+		hint = h,
+		callout = Callout.new(target, h.title, text, h.round),
+		shown = 0,
+		hidden = 0,
+		did = false,
+	}
+	current = c
+	-- Pressing the explained button (or its key) counts as doing it
+	targetConn = target.InputBegan:Connect(function(input: InputObject)
+		local t = input.UserInputType
+		if t == Enum.UserInputType.Touch or t == Enum.UserInputType.MouseButton1 then
+			c.did = true
+		end
+	end)
+	local keys = h.press
+	if keys then
+		inputConn = UserInputService.InputBegan:Connect(
+			function(input: InputObject, processed: boolean)
+				if not processed and table.find(keys, input.KeyCode) then
+					c.did = true
+				end
+			end
+		)
+	end
+	c.callout.update()
+end
+
+-- Every frame while a hint is up: follow the target, close when done
+local function step(dt: number)
+	local c = current
+	if not c then
 		return
 	end
-	for _, enemy in CollectionService:GetTagged("Enemy") do
-		if enemy:IsA("Model") and near(enemy:GetPivot().Position, Config.HINT_SKILL_RANGE) then
-			HintsController.show("hintSkills")
-			return
+	local h = c.hint
+	local valid = h.valid
+	if (valid and not valid()) or (h.done and h.done()) then
+		if h.done and h.done() then
+			c.did = true
 		end
+		finish(c)
+		return
+	end
+	if c.did or c.callout.tapped() then
+		finish(c)
+		return
+	end
+	if c.callout.update() then
+		c.shown += dt
+		c.hidden = 0
+		if c.shown >= Config.HINT_SHOW_TIME then
+			finish(c)
+		end
+	else
+		c.hidden += dt
+		if c.hidden >= Config.HINT_HIDDEN_GIVE_UP then
+			finish(c) -- target gone (window, flown out): back to the queue unless it was read
+		end
+	end
+end
+
+-- Next pending hint at a calm moment (list order = priority)
+local function pick()
+	if current or not Prefs.loaded() or not HintsController.calm() then
+		return
+	end
+	for _, h in HINTS do
+		if pending[h.key] then
+			if not unseen(h.key) then
+				pending[h.key] = nil
+			elseif h.valid == nil or h.valid() then
+				local target = h.target()
+				if target and Callout.visible(target) then
+					open(h, target)
+					return
+				end
+			end
+		end
+	end
+end
+
+-- Moments that queue a hint (polled)
+local function triggers()
+	if not Prefs.loaded() then
+		return
+	end
+	if inRift() and unseen("hintSkills") and enemyNear(Config.HINT_SKILL_RANGE) then
+		HintsController.queue("hintSkills")
+	end
+	local meter = player:GetAttribute("RushMeter")
+	if
+		unseen("hintRush")
+		and typeof(meter) == "number"
+		and meter >= Rush.METER * Config.HINT_RUSH_AT
+	then
+		HintsController.queue("hintRush")
+	end
+	local b = boss()
+	if b then
+		HintsController.queue("hintBreak")
+		if Prefs.get("hintBreak") == true and b ~= breakBoss then
+			HintsController.queue("hintCounter") -- one lesson per boss: Counter on the next one
+		end
+	end
+	if questId() == "equip" and not inRift() then
+		HintsController.queue("hintEquip")
 	end
 end
 
@@ -81,10 +399,10 @@ local function watchTelegraphs(folder: Instance)
 	folder.ChildAdded:Connect(function(child)
 		if
 			child:IsA("BasePart")
-			and Prefs.get("hintDodge") == false
+			and unseen("hintDodge")
 			and near(child.Position, Config.HINT_TELEGRAPH_RANGE)
 		then
-			HintsController.show("hintDodge")
+			HintsController.queue("hintDodge")
 		end
 	end)
 end
@@ -92,7 +410,17 @@ end
 function HintsController.start()
 	player:GetAttributeChangedSignal("Rushing"):Connect(function()
 		if player:GetAttribute("Rushing") == true then
-			HintsController.show("hintRush")
+			HintsController.queue("hintRush")
+		end
+	end)
+	Net.Fx.OnClientEvent:Connect(function(kind: any, data: any)
+		if
+			kind == "dmg"
+			and typeof(data) == "table"
+			and data.counter
+			and data.who == player.UserId
+		then
+			HintsController.queue("hintCounter")
 		end
 	end)
 	task.spawn(function()
@@ -101,9 +429,11 @@ function HintsController.start()
 			watchTelegraphs(folder)
 		end
 	end)
+	RunService.RenderStepped:Connect(step)
 	task.spawn(function()
 		while true do
-			checkEnemies()
+			triggers()
+			pick()
 			task.wait(TICK)
 		end
 	end)

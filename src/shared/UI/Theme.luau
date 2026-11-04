@@ -353,4 +353,24 @@ Theme.Tween = table.freeze({
 })
 Theme.Stagger = 0.06 -- seconds of offset between panels flying in
 
+-- Tutorial callouts (client/UI/Callout, HintsController): a card next to the button it explains and
+-- a pulsing ring around that button. Sizes in HUD design px (the callout layer scales like the HUD).
+Theme.Callout = table.freeze({
+	Width = 300, -- card width
+	WidthTouch = 340, -- phones: a little wider, the text is bigger there
+	Pad = 14,
+	Gap = 18, -- between the target and the card
+	Margin = 12, -- min distance to the screen edge
+	TitleSize = 20,
+	BodySize = 16,
+	BodySizeTouch = 18,
+	FootSize = 12,
+	Ring = 10, -- the pulse ring is this much larger than the target on each side
+	RingStroke = 3,
+	RingGrow = 1.18, -- pulse: ring scale at the peak
+	PulseTime = 0.55, -- seconds per half pulse
+	Pointer = 16, -- the little diamond that points at the target
+	PopTime = 0.22,
+})
+
 return table.freeze(Theme)
