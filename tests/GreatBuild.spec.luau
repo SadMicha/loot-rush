@@ -265,6 +265,10 @@ describe("Great Build server and window", function()
 	end)
 
 	it("shows the window and fits phone and tablet (touch)", function()
+		-- skip the top builders cache (DONOR_READ) instead of simulating a minute: the server loop
+		-- wakes on the next frame and reads the list with this donor in it
+		sim.sched.now += GreatBuild.DONOR_READ
+		sim:run(1)
 		sim:runAs("client", function(req)
 			req(
 				"Players."
@@ -277,6 +281,18 @@ describe("Great Build server and window", function()
 		expect(gui.Enabled).toBe(true)
 		local stage = gui:FindFirstChild("Stage", true)
 		expect(stage.Text).toBe("Stage 3 / " .. GreatBuild.STAGES)
+		-- top builders carry the donor's Roblox headshot (placeholder letter underneath)
+		local row = gui:FindFirstChild("Row1", true)
+		expect(row).toBeTruthy()
+		local face = row:FindFirstChild("Headshot")
+		expect(face).toBeTruthy()
+		expect(face.Initial.Text ~= "").toBe(true)
+		local id = sim.player.UserId
+		if id > 0 then
+			expect(face.Image.Image).toBe(
+				`rbxthumb://type=AvatarHeadShot&id={id}&w=150&h=150`
+			)
+		end
 		local strict = {
 			offscreen = true,
 			["text-small"] = true,

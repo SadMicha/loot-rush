@@ -378,6 +378,18 @@ Theme.Callout = table.freeze({
 	PopTime = 0.22,
 })
 
+-- Player headshots in rankings (client/UI/Headshot): the Roblox profile headshot in a gold ring,
+-- a placeholder with the name's initial underneath while it loads or when it fails.
+Theme.Headshot = table.freeze({
+	Row = 40, -- leaderboard window rows (ROW_H 52)
+	Small = 34, -- Great Build top builders (ROW_H 46)
+	Hub = 24, -- hub board rows (28 px)
+	Stroke = 2,
+	StrokeTop = 2.5, -- ranks 1-3
+	Res = 150, -- thumbnail pixels (rbxthumb accepts 48, 60, 150)
+	InitialScale = 0.5, -- placeholder letter size relative to the ring
+})
+
 -- World nameplates (client/NameplateController, Shared/Nameplate): BillboardGuis in screen px, times
 -- the HUD size setting. Player: name + level over a thin life bar (shield = cyan strip on top).
 -- Station: uppercase label with a gold diamond; the active quest's station is gold and larger.
