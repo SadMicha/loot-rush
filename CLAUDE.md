@@ -51,6 +51,7 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
   (translations, docs, adding tests, small fixes). The main session may override per task.
 - Review per PR: a read-only `code-reviewer` pass on every PR that touches server, shared logic,
   saving, purchases or remotes; cosmetic UI PRs share one review. Reviews use the committed state.
+- After a merge, pull `main` into the main checkout (`git pull`) so Studio (Rojo) shows the same code that is live. Agents work in worktrees; Studio only sees merged, pulled code.
 - Do not commit unless asked. Commit messages end with the Co-Authored-By line from the session.
 - Ask the user (AskUserQuestion) only for real design decisions; collect them in one question.
 
