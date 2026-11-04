@@ -246,29 +246,92 @@ describe("Items.upgradeMarks", function()
 		expect(ups).toBe(2)
 	end)
 
-	it("matches Items.isUpgrade (the drop label) for rolled gear", function()
-		local rng = Random.new(7)
-		local equipped: { [string]: any } = {}
-		for slot in Items.SlotName do
-			equipped[slot] = Items.roll(10, rng, nil, { slot = slot })
-		end
-		local bag = {}
-		for i = 1, 60 do
-			local it = Items.roll(rng:NextInteger(1, 20), rng)
-			it.id = "bag" .. i
-			table.insert(bag, it)
-		end
-		local marks, ups = Items.upgradeMarks(bag, equipped)
-		local count = 0
-		for _, it in bag do
-			local up = Items.isUpgrade(it, equipped[it.slot])
-			expect(marks[it.id]).toBe(if up then "up" else "down")
-			if up then
-				count += 1
+	it("marks only the best upgrade per slot, other upgrades get no marker", function()
+		local worn = item("w", "ring", { { stat = "crit", value = 4 } })
+		local good = item("a", "ring", { { stat = "crit", value = 6 } })
+		local best = item("b", "ring", { { stat = "crit", value = 9 } })
+		local fine = item("c", "ring", { { stat = "crit", value = 5 } })
+		local marks, ups = Items.upgradeMarks({ good, best, fine }, { ring = worn })
+		expect(marks.b).toBe("up")
+		expect(marks.a).toBe(nil)
+		expect(marks.c).toBe(nil)
+		expect(ups).toBe(1)
+	end)
+
+	it("an empty slot marks only its best item", function()
+		local low = item("a", "boots", { { stat = "speed", value = 1 } })
+		local high = item("b", "boots", { { stat = "speed", value = 3 } })
+		local mid = item("c", "boots", { { stat = "speed", value = 2 } })
+		local marks, ups = Items.upgradeMarks({ low, high, mid }, {})
+		expect(marks.b).toBe("up")
+		expect(marks.a).toBe(nil)
+		expect(marks.c).toBe(nil)
+		expect(ups).toBe(1)
+	end)
+
+	it("after equipping the marked item the others turn down", function()
+		local worn = item("w", "ring", { { stat = "crit", value = 4 } })
+		local a = item("a", "ring", { { stat = "crit", value = 6 } })
+		local b = item("b", "ring", { { stat = "crit", value = 9 } })
+		local marks = Items.upgradeMarks({ a, b }, { ring = worn })
+		expect(marks.b).toBe("up")
+		-- equip b: the old ring goes back to the bag, marks are recomputed against b
+		local after, ups = Items.upgradeMarks({ a, worn }, { ring = b })
+		expect(after.a).toBe("down")
+		expect(after.w).toBe("down")
+		expect(ups).toBe(0)
+	end)
+
+	it("slots are judged separately (one upgrade per slot)", function()
+		local ring = item("a", "ring", { { stat = "crit", value = 9 } })
+		local amulet = item("b", "amulet", { { stat = "crit", value = 9 } })
+		local marks, ups = Items.upgradeMarks({ ring, amulet }, {})
+		expect(marks.a).toBe("up")
+		expect(marks.b).toBe("up")
+		expect(ups).toBe(2)
+	end)
+
+	it(
+		"rolled gear: one up per slot at most, it beats the worn piece and every other upgrade",
+		function()
+			local rng = Random.new(7)
+			local equipped: { [string]: any } = {}
+			for slot in Items.SlotName do
+				equipped[slot] = Items.roll(10, rng, nil, { slot = slot })
+			end
+			local bag = {}
+			for i = 1, 80 do
+				local it = Items.roll(rng:NextInteger(1, 20), rng)
+				it.id = "bag" .. i
+				table.insert(bag, it)
+			end
+			local marks, ups = Items.upgradeMarks(bag, equipped)
+			local perSlot: { [string]: any } = {}
+			local count = 0
+			for _, it in bag do
+				local up = Items.isUpgrade(it, equipped[it.slot])
+				if not up then
+					expect(marks[it.id]).toBe("down") -- same rule as the drop label
+				elseif marks[it.id] == "up" then
+					expect(perSlot[it.slot]).toBe(nil)
+					perSlot[it.slot] = it
+					count += 1
+				else
+					expect(marks[it.id]).toBe(nil)
+				end
+			end
+			expect(ups).toBe(count)
+			for _, it in bag do
+				local top = perSlot[it.slot]
+				if Items.isUpgrade(it, equipped[it.slot]) then
+					expect(top).never.toBe(nil) -- a slot with upgrades always shows one
+					if top ~= it then
+						expect(Items.isUpgrade(it, top)).toBe(false)
+					end
+				end
 			end
 		end
-		expect(ups).toBe(count)
-	end)
+	)
 
 	it("upgradeGain is positive exactly for upgrades and huge for an empty slot", function()
 		local a = item("a", "ring", { { stat = "crit", value = 8 } })

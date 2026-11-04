@@ -355,3 +355,122 @@ describe("Fullscreen windows", function()
 		expect(dotShown()).toBe(false)
 	end)
 end)
+
+describe("Inventory clicks", function()
+	local Theme = require("ReplicatedStorage.Shared.UI.Theme")
+
+	local function cellsById(inv)
+		local out = {}
+		for _, b in gridButtons(inv) do
+			out[b] = true
+		end
+		return out
+	end
+
+	local function dollSlots(inv)
+		local out = {}
+		for _, d in inv:GetDescendants() do
+			if d:IsA("GuiButton") and d.Name == "Slot" then
+				out[d] = true
+			end
+		end
+		return out
+	end
+
+	local function sameSet(a, b)
+		for k in a do
+			if not b[k] then
+				return false
+			end
+		end
+		for k in b do
+			if not a[k] then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function amulet(id, crit)
+		return {
+			id = id,
+			slot = "amulet",
+			rarity = "epic",
+			name = id,
+			ilvl = 3,
+			affixes = { { stat = "crit", value = crit, implicit = true } },
+		}
+	end
+
+	it("selecting an item keeps every cell and its light sweep (no rebuild)", function()
+		local pg = sim.player.PlayerGui
+		local inv = pg.LootRushInventory
+		sim:runAs("server", function(req)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(sim.player)
+			profile.equipped.amulet = nil
+			profile.inventory = {}
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			Inventory.add(sim.player, amulet("amu-good", 3))
+			Inventory.add(sim.player, amulet("amu-best", 6))
+			Inventory.add(sim.player, amulet("amu-low", 1))
+		end)
+		sim:run(0.5)
+		inv.Enabled = true
+		sim:run(0.2)
+		local before = cellsById(inv)
+		local doll = dollSlots(inv)
+		local grid = gridButtons(inv)
+		expect(#grid).toBe(3)
+		-- epic cells carry a light sweep band; remember the instances
+		local shines = {}
+		for _, b in grid do
+			local s = b:FindFirstChild("Shine")
+			expect(s).never.toBeNil()
+			shines[b] = s
+		end
+		-- empty amulet slot: only the best amulet is marked as the upgrade
+		local ups = 0
+		for _, b in grid do
+			if upgradeMark(b) == "up" then
+				ups += 1
+			end
+		end
+		expect(ups).toBe(1)
+		expect(texts(inv)["1 Upgrade"]).toBe(1)
+
+		sim:click(grid[2])
+		sim:run(0.2)
+		sim:click(grid[3])
+		sim:run(0.2)
+		expect(sameSet(before, cellsById(inv))).toBe(true)
+		expect(sameSet(doll, dollSlots(inv))).toBe(true)
+		for b, s in shines do
+			expect(b:FindFirstChild("Shine")).toBe(s)
+		end
+		-- the picked cell shows the selection edge in place
+		local edge = grid[3]:FindFirstChild("Edge")
+		expect(edge.Thickness).toBe(Theme.Flat.SelectStroke)
+		expect(grid[2]:FindFirstChild("Edge").Thickness).toBe(Theme.Flat.Stroke)
+	end)
+
+	it("after equipping the marked upgrade the other items turn down", function()
+		local inv = sim.player.PlayerGui.LootRushInventory
+		local best
+		for _, b in gridButtons(inv) do
+			if upgradeMark(b) == "up" then
+				best = b
+			end
+		end
+		expect(best).never.toBeNil()
+		sim:click(best)
+		sim:run(0.2)
+		sim:click(buttonWithText(inv, "Equip"))
+		sim:run(0.5)
+		local grid = gridButtons(inv)
+		expect(#grid).toBe(2)
+		for _, b in grid do
+			expect(upgradeMark(b)).toBe("down")
+		end
+		expect(inv:FindFirstChild("Upgrades", true).Visible).toBe(false)
+	end)
+end)
