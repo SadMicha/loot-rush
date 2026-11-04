@@ -1,7 +1,8 @@
 --!strict
 -- Loot: enemies drop gold and sometimes items. Drops lie with a ground label (name in rarity color)
 -- and belong to the killer; whoever gets close enough picks them up automatically.
--- Look: items as a poison box in rarity color, gold as a coin (Shared/Models/Loot).
+-- Look: items as a gift box in rarity color (Rare+ bigger, with a light pillar), gold as a coin
+-- (Shared/Models/Loot). Pickup tells the client when the item beats the worn one ("upgrade").
 -- Amount and quality depend on the enemy's Rift depth (Shared/Balance, table) and the bonuses
 -- of the region (Atlas.bonus): deeper = higher item power, more gold, rare items more often.
 -- Gold per kill is carried by the enemy itself (attribute Gold, Systems/Enemies).
@@ -51,7 +52,8 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	if item then
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 		text = item.name
-		model = LootModels.giftBox(color, item.rarity ~= "normal")
+		local glow = LootModels.Glow[item.rarity]
+		model = LootModels.giftBox(color, item.rarity ~= "normal", if glow then glow.box else nil)
 	else
 		color = Theme.Color.Gold
 		text = tostring(gold) .. " Gold"
@@ -93,17 +95,22 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	label.TextStrokeColor3 = Theme.Color.Bg0
 	label.Parent = gui
 
-	if item and (item.rarity == "rare" or item.rarity == "epic" or item.rarity == "unique") then
-		local beam = Instance.new("Part")
-		beam.Anchored = true
-		beam.CanCollide = false
-		beam.CanQuery = false
-		beam.Material = Enum.Material.Neon
-		beam.Color = color
-		beam.Transparency = 0.4
-		beam.Size = Vector3.new(0.35, 16, 0.35)
-		beam.Position = target + Vector3.new(0, 8, 0)
-		beam.Parent = part
+	-- Rare and better: light pillar, glow and ground ring (Models/Loot.Glow), plus one ring pulse
+	-- for the owner when it lands, so a great drop is the loudest thing on screen
+	local pillar = if item then LootModels.pillar(color, item.rarity) else nil
+	if pillar and item then
+		pillar:PivotTo(CFrame.new(target))
+		pillar.Parent = model
+		local glow = LootModels.Glow[item.rarity]
+		task.delay(0.45, function()
+			if owner.Parent and model.Parent then
+				Net.Fx:FireClient(owner, "nova", {
+					pos = target + Vector3.new(0, 0.3, 0),
+					radius = glow.ring * 2.5,
+					color = color,
+				})
+			end
+		end)
 	end
 
 	table.insert(drops, {
@@ -250,6 +257,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 	local item = d.item
 	local text: string
 	local color: Color3
+	local upgrade = false
 	if item then
 		local stored, salvaged = Inventory.add(d.owner, item, true)
 		if not stored then
@@ -257,6 +265,11 @@ local function pickup(d: Drop, at: Vector3?): boolean
 		end
 		text = if salvaged then "Salvaged " .. item.name else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
+		-- Beats the worn piece of its slot (or the slot is empty): the client adds "▲ UPGRADE"
+		local profile = Data.get(d.owner)
+		upgrade = not salvaged
+			and profile ~= nil
+			and Items.isUpgrade(item, profile.equipped[item.slot])
 	else
 		Inventory.addGold(d.owner, d.gold)
 		text = "+" .. tostring(d.gold) .. " Gold"
@@ -268,6 +281,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 			text = text,
 			color = color,
 			pickup = if item then item.rarity else "gold", -- pickup sound (SoundController)
+			upgrade = if upgrade then true else nil,
 		})
 		Loot.Picked:Fire(d.owner, if item then 0 else d.gold, item)
 	end

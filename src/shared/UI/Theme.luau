@@ -190,6 +190,7 @@ Theme.Hud = table.freeze({
 	SkillPad = 16, -- room around the skill arc for glow and touch growth (the group clips)
 	XpBar = 6, -- experience bar along the bottom edge of the screen
 	GearSize = 48,
+	NoticeDot = 14, -- dot on an icon button (daily reward waits, upgrade in the bag)
 	BarIcon = 64, -- hub icon bar: icon edge
 	BarCaption = 16,
 	BarGap = 8,
@@ -211,7 +212,7 @@ Theme.Hud = table.freeze({
 	-- Hub icon bar: menu id, Assets.Hud key, atlas fallback icon, caption
 	Bar = table.freeze({
 		{ id = "inventory", art = "menu_inventory", icon = "inventory", caption = "Inventory" },
-		{ id = "star_net", art = "menu_star_net", icon = "star_net", caption = "Stars" },
+		{ id = "star_net", art = "menu_star_net", icon = "star_net", caption = "Star Web" },
 		{ id = "skills", art = "menu_skills", icon = "skills", caption = "Skills" },
 		{ id = "hub", art = "menu_hub", icon = "hub", caption = "Hub" },
 		{ id = "atlas", art = "menu_atlas", icon = "atlas", caption = "Atlas" },

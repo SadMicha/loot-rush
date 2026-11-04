@@ -562,7 +562,7 @@ export type CellLook = {
 	selected: boolean?,
 	marked: boolean?, -- salvage mark: red edge
 	round: boolean?, -- circle instead of a square tile (tree nodes)
-	tint: Color3?, -- edge/glow color instead of the rarity color (Star Net branches)
+	tint: Color3?, -- edge/glow color instead of the rarity color (Star Web branches)
 }
 
 -- Background, rarity light rising from the bottom, rarity strip along the bottom edge, rarity edge

@@ -140,7 +140,7 @@ local function num(player: Player, attr: string): number
 	return if typeof(v) == "number" then v else 0
 end
 
--- Skill with level, Skill Bloom and Star Net applied (Shared.Progression)
+-- Skill with level, Skill Bloom and Star Web applied (Shared.Progression)
 local function effective(player: Player, skill: Skills.Skill): Skills.Skill
 	local profile = Data.get(player)
 	if not profile then

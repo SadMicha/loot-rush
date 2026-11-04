@@ -6,7 +6,7 @@
 -- Simulation assumptions (not in the game):
 --   • skill hits per cast in waves (TARGETS), the basic attack hits one enemy
 --   • kill XP is split evenly across the 4 skills on the bar (skill levels)
---   • without Star Net and Forge (= lower bound of player strength)
+--   • without Star Web and Forge (= lower bound of player strength)
 --   • all nine gear slots (Items.Slots), best piece per slot by score; crit uncapped with overcrit (Shared/Crit)
 --   • walk/pause time per clearing of the Rift Trail WAVE_OVERHEAD seconds
 local Atlas = require("ReplicatedStorage.Shared.Atlas")

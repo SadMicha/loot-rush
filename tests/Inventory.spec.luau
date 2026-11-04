@@ -234,7 +234,7 @@ describe("Fullscreen windows", function()
 		return nil
 	end
 
-	it("inventory and Star Net are never open at the same time", function()
+	it("inventory and Star Web are never open at the same time", function()
 		local pg = sim.player.PlayerGui
 		sim:runAs("server", function()
 			game:GetService("Players"):GetPlayers()[1]:SetAttribute("Level", 5) -- Star Web unlock
@@ -254,5 +254,46 @@ describe("Fullscreen windows", function()
 		sim:run(0.2)
 		expect(pg.LootRushInventory.Enabled).toBe(true)
 		expect(pg.LootRushStarNet.Enabled).toBe(false)
+	end)
+
+	-- Criteria audit #3: red dot on the Inventory button while an upgrade waits in the bag
+	it("shows the upgrade dot until the Inventory is opened", function()
+		local pg = sim.player.PlayerGui
+		local function dotShown(): boolean
+			for _, d in pg.LootRushHUD:GetDescendants() do
+				if
+					d.Name == "Upgrade"
+					and d.Parent
+					and d.Parent.Name == "inventory"
+					and d.Visible
+				then
+					return true
+				end
+			end
+			return false
+		end
+		if pg.LootRushInventory.Enabled then
+			sim:pressKey(Enum.KeyCode.I)
+		end
+		sim:runAs("server", function(req)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(sim.player)
+			profile.equipped.amulet = nil
+			profile.inventory = {}
+			req("ServerScriptService.Server.Systems.Inventory").add(sim.player, {
+				id = "dot-amulet",
+				slot = "amulet",
+				rarity = "rare",
+				name = "Dot Amulet",
+				ilvl = 3,
+				affixes = { { stat = "crit", value = 2, implicit = true } },
+			})
+		end)
+		sim:run(0.5)
+		expect(pg.LootRushInventory.Enabled).toBe(false)
+		expect(dotShown()).toBe(true)
+		sim:click(menuButton("inventory"))
+		sim:run(0.3)
+		expect(pg.LootRushInventory.Enabled).toBe(true)
+		expect(dotShown()).toBe(false)
 	end)
 end)

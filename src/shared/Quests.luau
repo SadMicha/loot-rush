@@ -62,7 +62,7 @@ Quests.Chain = table.freeze({
 	},
 	{
 		id = "first_star",
-		text = "Place a star in the Star Net",
+		text = "Place a star in the Star Web",
 		goal = "star",
 		target = 1,
 		gold = 80,
@@ -101,7 +101,7 @@ Quests.Unlocks = table.freeze({
 } :: { [string]: { level: number?, depth: number?, caption: string } })
 
 Quests.Names = table.freeze({
-	star_net = "Star Net",
+	star_net = "Star Web",
 	forge = "Forge",
 	pets = "Pets",
 	auto_salvage = "Auto-Salvage",

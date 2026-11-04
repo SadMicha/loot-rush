@@ -1,5 +1,5 @@
 --!strict
--- Forge window after the "Sparkle Forge" mockup (key B or menu button):
+-- Forge window after the "Forge" mockup (key B or menu button):
 --   left: pick an item and its affixes, center: the item on the anvil with status,
 --   right: the actions with costs. Items come from the inventory snapshot.
 -- Forging happens on the server (Systems/Forge): the window sends action + item + affix (Net.ForgeAct),
@@ -298,7 +298,7 @@ local function renderCenter(item: Items.Item?)
 	head.Parent = plaque
 	local subText = if lastResult
 		then lastResult.text
-		elseif item then string.format("Sparkle charges: %d · each action costs 0-2", charges)
+		elseif item then string.format("Forge charges: %d · each action costs 0-2", charges)
 		else "Pick an item"
 	local sub = Kit.label(
 		subText,
@@ -438,7 +438,7 @@ end
 function ForgeController.init()
 	win = Window.new({
 		name = "Forge",
-		title = "Sparkle Forge",
+		title = "Forge",
 		icon = "forge",
 		key = Enum.KeyCode.B,
 		unlock = "forge",

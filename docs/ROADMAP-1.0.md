@@ -96,7 +96,7 @@ screen sizes, but no human has ticked `TEST-HUD` (0/35) or `TEST-UI-WINDOWS` (0/
 |---|---|---|---|
 | U1 | The settings gear only opens the Roblox menu. There is no own settings window. | P1 | **S1 settings window** (Kit): music/effects volume, shake, damage numbers, effects quality (drives `DEBRIS_LOW`, minimap `PartCapTouch`), hints on/off. Account-wide save. |
 | U2 | Item comparison: unknown whether tooltips show "vs. equipped" deltas (needs a look in Studio). | P1 | Green/red stat deltas against the equipped item, on hover (PC) and long-press (touch). |
-| U3 | Many windows (Inventory, Abilities, Star Web, Forge, Atlas, Shop, Pets) compete for the bottom bar on phones. | P2 | After the Studio pass: decide if Pets and Forge move into a "Hub" tab group on phones. |
+| U3 | Many windows (Inventory, Skills, Star Web, Forge, Atlas, Shop, Pets) compete for the bottom bar on phones. | P2 | After the Studio pass: decide if Pets and Forge move into a "Hub" tab group on phones. |
 | U4 | No controller support declared (consoles are off in `RELEASE.md`). | P2 | Keep consoles off for 1.0. |
 | U5 | Leaderboard, daily reward, season badge and Journey need new UI (§4). | P0 (1.0 scope) | Build them in the Gilded Ink look via Kit, one shared "reward card" component. |
 

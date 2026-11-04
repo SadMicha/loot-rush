@@ -6,7 +6,7 @@
 
 export type Stone = {
 	id: string,
-	name: string, -- English, shown in the Abilities window
+	name: string, -- English, shown in the Skills window
 	text: string,
 	add: { [string]: number }, -- stat → value, same keys as bloom effects
 	kinds: { [string]: boolean }?, -- nil = fits every skill

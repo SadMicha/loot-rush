@@ -42,7 +42,7 @@ export type Data = {
 	xp: number,
 	inventory: { Items.Item },
 	equipped: { [string]: Items.Item }, -- slot → item
-	progress: Progression.Data, -- skill levels, Skill Blooms, Star Net
+	progress: Progression.Data, -- skill levels, Skill Blooms, Star Web
 	materials: Progression.Materials, -- Forge materials
 	atlas: { [string]: number }, -- region → highest Rift depth cleared (Shared/Atlas)
 	reach: { [string]: number }, -- "tier:region" → highest depth cleared on that tier (Atlas.maxStart)

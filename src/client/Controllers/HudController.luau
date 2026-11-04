@@ -811,6 +811,32 @@ local questReward: TextLabel
 local barButtons: { { id: string, button: ImageButton } } = {}
 local RES_WIDTH = 620 -- three capsules with spacing
 
+-- Small notice dot in the top right corner of an icon button (daily reward waits, upgrade waits)
+local function noticeDot(parent: GuiObject, name: string, color: Color3): Frame
+	local d = Instance.new("Frame")
+	d.Name = name
+	d.AnchorPoint = Vector2.new(1, 0)
+	d.Position = UDim2.new(1, -4, 0, 2)
+	d.Size = UDim2.fromOffset(H.NoticeDot, H.NoticeDot)
+	d.BackgroundColor3 = color
+	d.BorderSizePixel = 0
+	d.ZIndex = 4
+	d.Visible = false
+	Kit.corner(d, math.floor(H.NoticeDot / 2))
+	Kit.stroke(d, C.Bg0, 2)
+	d.Parent = parent
+	return d
+end
+
+-- Red dot on every Inventory button (hub bar and menu dock) while an upgrade waits in the bag
+local upgradeDots: { Frame } = {}
+local function refreshUpgradeDots()
+	local on = InventoryController.upgradeWaiting()
+	for _, d in upgradeDots do
+		d.Visible = on
+	end
+end
+
 -- Icon bar (dock with one button per menu). Used by the hub bar and by the menu dock over windows.
 local function buildBar(): (CanvasGroup, number)
 	local cellW = H.BarIcon + 12
@@ -823,6 +849,9 @@ local function buildBar(): (CanvasGroup, number)
 		local b = Kit.hudIconButton(H.BarIcon, entry.art, entry.icon, entry.caption)
 		b.Name = entry.id
 		b.LayoutOrder = i
+		if entry.id == "inventory" then
+			table.insert(upgradeDots, noticeDot(b, "Upgrade", C.Danger))
+		end
 		local open = MENU_ACTION[entry.id]
 		if open then
 			local id = entry.id
@@ -1013,18 +1042,7 @@ local function buildCalmPanels()
 	chest.LayoutOrder = 2
 	chest.Activated:Connect(DailyController.toggle)
 	chest.Parent = gearGroup
-	local ready = Instance.new("Frame")
-	ready.Name = "Ready"
-	ready.AnchorPoint = Vector2.new(1, 0)
-	ready.Position = UDim2.new(1, -4, 0, 2)
-	ready.Size = UDim2.fromOffset(14, 14)
-	ready.BackgroundColor3 = C.GoldHi
-	ready.BorderSizePixel = 0
-	ready.ZIndex = 4
-	ready.Visible = false
-	Kit.corner(ready, 7)
-	Kit.stroke(ready, C.Bg0, 2)
-	ready.Parent = chest
+	local ready = noticeDot(chest, "Ready", C.GoldHi)
 	local function refreshDot()
 		ready.Visible = DailyController.claimable()
 	end
@@ -1415,6 +1433,9 @@ function HudController.start()
 	player:GetAttributeChangedSignal("InCombat"):Connect(function()
 		setCalm(player:GetAttribute("InCombat") ~= true, false)
 	end)
+
+	InventoryController.upgradeChanged:Connect(refreshUpgradeDots)
+	refreshUpgradeDots()
 
 	ProgressController.changed:Connect(refreshSkillButtons)
 	player:GetAttributeChangedSignal("Class"):Connect(refreshSkillButtons)
