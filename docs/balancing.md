@@ -27,7 +27,7 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 
 | Depth | Region | Hits survived (normal / boss) | Normal enemy TTK | Boss s |
 |---|---|---|---|---|
-| 1 | Green Plains | 10 / 6 | 0.6 s | 38 |
+| 1 | Green Plains | 10 / 6 | 0.6 s | 21 (boss life ×0.55, `Bosses.EASE_HEALTH`) |
 | 5-10 | Green Plains → Crystal Caves | 15-20 / 9-12 | 0.4-1.0 s | 25-30 |
 | 11-15 | Mushroom Swamp | 8-10 / 8-11 | 0.7-1.1 s | 28-38 |
 | 16-20 | Fire Desert | 8-12 / 5-7 | 0.8-1.2 s | 25-34 |
@@ -147,7 +147,7 @@ The simulated player fills all nine slots (best piece per slot), crit uncapped w
 
 | Depth | Level | TTK1 | Boss s | Hits1 | Boss hits | Farm | Min |
 |---|---|---|---|---|---|---|---|
-| 1 | 1 | 0.64 | 38.3 | 10.0 | 6.2 | 0 | 1 |
+| 1 | 1 | 0.64 | 21.1 | 10.0 | 6.2 | 0 | 1 |
 | 5 | 5 | 0.49 | 29.5 | 17.2 | 10.8 | 0 | 6 |
 | 6 | 8 | 1.20 | 29.2 | 16.5 | 9.6 | 5 | 12 |
 | 10 | 10 | 0.90 | 27.5 | 14.2 | 7.0 | 0 | 17 |
