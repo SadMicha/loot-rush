@@ -466,9 +466,15 @@ function Shape.motion(b: GuiButton, rest: number?): UIScale
 	scale:SetAttribute("Rest", rest or 1)
 	scale.Parent = b
 	local hovering = false
-	local function base(): number
+	-- resting scale, changed by Shape.setRest (kept in a local: handlers may still fire while
+	-- the button is being destroyed)
+	local restNow = rest or 1
+	scale:GetAttributeChangedSignal("Rest"):Connect(function()
 		local r = scale:GetAttribute("Rest")
-		return if typeof(r) == "number" then r else 1
+		restNow = if typeof(r) == "number" then r else 1
+	end)
+	local function base(): number
+		return restNow
 	end
 	b.MouseEnter:Connect(function()
 		hovering = true
