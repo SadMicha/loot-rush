@@ -251,8 +251,9 @@ local function onCommand(player: Player, command: any, value: any)
 		n = checked
 	end
 	-- A hero touched by a test command never reaches a leaderboard (Systems/Leaderboard).
-	-- "day" and "cosmetics" only change the account (calendar, looks), not the hero's power.
-	if command ~= "day" and command ~= "cosmetics" then
+	-- "day", "cosmetics" and "stance" only change the account or the looks (calendar, cosmetics,
+	-- the weapon shown in the hand), not the hero's power.
+	if command ~= "day" and command ~= "cosmetics" and command ~= "stance" then
 		local profile = Data.get(player)
 		if profile then
 			profile.debugged = true

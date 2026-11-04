@@ -182,6 +182,9 @@ describe("Debug menu", function()
 			end
 			return ids
 		end)
+		server(function(req, player)
+			req("ServerScriptService.Server.Systems.Data").get(player).debugged = nil
+		end)
 		local seen = {}
 		for _ = 1, #list + 1 do
 			client(function(_, Net)
@@ -204,5 +207,10 @@ describe("Debug menu", function()
 			expect(seen[i].held).toBe(id)
 		end
 		expect(seen[#list + 1].preview).toBeNil()
+		-- a look-only command: the hero stays on the leaderboards
+		local debugged = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").get(player).debugged
+		end)
+		expect(debugged).never.toBe(true)
 	end)
 end)
