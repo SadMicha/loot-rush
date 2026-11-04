@@ -24,7 +24,9 @@ local Shop = require(script.Parent.Shop)
 local Journey = {}
 
 local SYNC_DELAY = 1 -- seconds: many fact changes in a row go out as one state
-local WATCHED = { "Level", "BestDepth", "WorldTierUnlocked", "SetupDone", "CharacterName" }
+-- RiftPhase: every cleared depth (a region boss beaten without a new best depth still counts)
+local WATCHED =
+	{ "Level", "BestDepth", "WorldTierUnlocked", "SetupDone", "CharacterName", "RiftPhase" }
 
 local allow = RateLimit.new(4, 8)
 local rng = Random.new()

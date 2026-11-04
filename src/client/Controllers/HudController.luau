@@ -1077,7 +1077,11 @@ local function buildCalmPanels()
 	local ready = noticeDot(chest, "Ready", C.GoldHi)
 	local function refreshDot()
 		ready.Visible = DailyController.claimable()
+		-- also catches a Journey/Season state that arrived before these dots existed
+		journeyDot.Visible = JourneyController.readyCount() > 0
+		seasonDot.Visible = SeasonController.readyCount() > 0
 	end
+	refreshDot()
 	DailyController.changed.Event:Connect(refreshDot)
 	task.spawn(function()
 		while ready.Parent do

@@ -203,6 +203,9 @@ function Seasons.init()
 		if isPlayer(player) and typeof(kind) == "string" and COUNTED[kind] then
 			Seasons.add(player, kind, if typeof(amount) == "number" then amount else 1)
 		elseif isPlayer(player) then
+			if kind == "socket" then
+				observe(player) -- read the sockets now: a later unsocket must not lose the count
+			end
 			Seasons.touch(player)
 		end
 	end)
