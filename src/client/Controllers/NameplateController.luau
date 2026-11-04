@@ -6,6 +6,8 @@
 --   stations: floating uppercase labels ("STASH", "FORGE", "RIFT GATE", ...) above the hub's
 --     station triggers (tag "Station"), shown in range and faded out near the ProximityPrompt. The
 --     active quest's station is gold and larger, matching the quest beam (WaypointController).
+--     Decluttered on screen: a label that would overlap a nearer one (or the quest station's) or a
+--     HUD block (Kit.markHudBlock: minimap, quest card, icon rows) fades out until it is clear.
 -- Cheap on phones: one BillboardGui per player / station, engine culling via MaxDistance, one
 -- shared fade loop every Nameplate.TICK seconds, property writes only when a value changed.
 -- Purely client-side; the BillboardGuis live under the character / station part, so a respawn or
@@ -54,12 +56,16 @@ type Label = {
 	sub: TextLabel,
 	rule: Frame,
 	fades: { Fade },
+	subFades: { Fade },
 	window: string?,
 	alpha: number,
+	subShown: number, -- applied alpha of the "Locked" line
+	clear: number, -- declutter share 0..1 (eases towards 1 while nothing is in the way), -1 = off screen
 	quest: boolean,
 	locked: string?,
 }
 
+local screenRect: (camera: Camera, l: Label, withSub: boolean) -> Nameplate.Rect?
 local plates: { [Player]: Plate } = {}
 local labels: { [BasePart]: Label } = {}
 local scale = 1 -- HUD size setting × touch factor, applied to every billboard
@@ -345,7 +351,7 @@ local function styleLabel(l: Label)
 		local g = math.max(4, 6 * scale)
 		gem.Size = UDim2.fromOffset(g, g)
 	end
-	l.sub.Text = if l.locked then "LOCKED - " .. string.upper(l.locked) else ""
+	l.sub.Text = if l.locked then Nameplate.lockText(l.locked) else ""
 	l.sub.Visible = l.locked ~= nil
 	layoutLabel(l)
 end
@@ -408,14 +414,15 @@ local function buildLabel(inst: Instance)
 	gem.Parent = rule
 	fade(fades, gem, "BackgroundTransparency")
 
-	local sub = text(gui, "", N.SubSize, C.Muted, Theme.Font.UI)
+	local subFades: { Fade } = {}
+	local sub = text(gui, "", N.SubSize, C.Muted, Theme.Font.Body)
 	sub.Name = "Sub"
 	sub.AnchorPoint = Vector2.new(0.5, 0)
 	sub.Visible = false
-	fade(fades, sub, "TextTransparency")
+	fade(subFades, sub, "TextTransparency")
 	local subStroke = sub:FindFirstChild("Shadow")
 	if subStroke then
-		fade(fades, subStroke, "Transparency")
+		fade(subFades, subStroke, "Transparency")
 	end
 
 	local l: Label = {
@@ -425,8 +432,11 @@ local function buildLabel(inst: Instance)
 		sub = sub,
 		rule = rule,
 		fades = fades,
+		subFades = subFades,
 		window = Nameplate.windowOf(inst),
 		alpha = -1,
+		subShown = -1,
+		clear = 1,
 		quest = false,
 		locked = nil,
 	}
@@ -438,6 +448,34 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Shared fade loop
 ---------------------------------------------------------------------------------------------------
+
+-- Rough text width when the engine has not measured the label yet (disabled billboard)
+local function textWidth(t: TextLabel, factor: number): number
+	local measured = t.TextBounds.X
+	if measured > 0 then
+		return measured
+	end
+	return (utf8.len(t.Text) or #t.Text) * t.TextSize * factor
+end
+
+-- Where a station label lands on the screen (pixels, viewport space like the HUD's IgnoreGuiInset
+-- guis): the billboard is centered on its world point. nil behind the camera / off screen.
+function screenRect(camera: Camera, l: Label, withSub: boolean): Nameplate.Rect?
+	local world = l.part.Position + Vector3.new(0, Nameplate.LABEL_OFFSET, 0)
+	local p, onScreen = camera:WorldToViewportPoint(world)
+	if not onScreen or p.Z <= 0 then
+		return nil
+	end
+	local h = l.gui.Size.Y.Offset
+	local top = p.Y - h / 2
+	local w = textWidth(l.text, 0.5)
+	local bottom = top + l.text.Size.Y.Offset + 4 * scale -- title and its gold rule
+	if withSub then
+		w = math.max(w, textWidth(l.sub, 0.55))
+		bottom = top + h
+	end
+	return { p.X - w / 2, top, p.X + w / 2, bottom }
+end
 
 local function eye(): Vector3?
 	local character = player.Character
@@ -503,6 +541,12 @@ function NameplateController.tick()
 
 	local quest = questWindow()
 	local inRift = player:GetAttribute("RiftRegion") ~= nil
+	local camera = workspace.CurrentCamera
+	local list: { Label } = {}
+	local base: { number } = {}
+	local subs: { number } = {}
+	local rects: { Nameplate.Rect | false } = {}
+	local priority: { number } = {}
 	for part, l in labels do
 		if l.gui.Parent == nil or part.Parent == nil then
 			dropLabel(part)
@@ -514,13 +558,42 @@ function NameplateController.tick()
 			l.quest, l.locked = isQuest, locked
 			styleLabel(l)
 		end
-		local a = if from and not inRift
-			then Nameplate.labelAlpha(flatDistance(from, part.Position))
-			else 0
+		local dist = if from then flatDistance(from, part.Position) else math.huge
+		local a = if from and not inRift then Nameplate.labelAlpha(dist) else 0
+		local sa = if l.locked then Nameplate.subAlpha(dist) else 0
+		table.insert(list, l)
+		table.insert(base, a)
+		table.insert(subs, sa)
+		local rect = if a > 0 and camera then screenRect(camera, l, sa > 0) else nil
+		table.insert(rects, rect or false)
+		-- the quest station first, then the nearest
+		table.insert(priority, (if isQuest then 1e6 else 0) - dist)
+	end
+
+	local free = Nameplate.declutter(rects, priority, Kit.hudBlockRects(), Nameplate.LABEL_GAP)
+	for i, l in list do
+		local goal = if free[i] then 1 else 0
+		if not rects[i] then
+			-- not on screen / out of range: no known conflict; the next rect decides at once, so
+			-- a label coming back into view follows its distance fade instead of easing in late
+			l.clear = -1
+		elseif l.clear < 0 then
+			l.clear = goal
+		elseif l.clear < goal then
+			l.clear = math.min(goal, l.clear + Nameplate.DECLUTTER_STEP)
+		elseif l.clear > goal then
+			l.clear = math.max(goal, l.clear - Nameplate.DECLUTTER_STEP)
+		end
+		local a = base[i] * math.max(l.clear, 0)
 		if math.abs(a - l.alpha) > 0.02 or (a == 0) ~= (l.alpha == 0) then
 			l.alpha = a
 			setAlpha(l.fades, a)
 			l.gui.Enabled = a > 0
+		end
+		local sa = a * subs[i]
+		if math.abs(sa - l.subShown) > 0.02 or (sa == 0) ~= (l.subShown == 0) then
+			l.subShown = sa
+			setAlpha(l.subFades, sa)
 		end
 	end
 end

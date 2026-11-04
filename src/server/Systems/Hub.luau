@@ -257,6 +257,8 @@ local function station(
 	prompt.ObjectText = title
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
+	-- Drawn by the client in the game's own look (Client/PromptController), not Roblox's grey box
+	prompt.Style = Enum.ProximityPromptStyle.Custom
 	prompt:SetAttribute("Window", window)
 	prompt.Parent = p
 	-- floating label for the client (Shared/Nameplate, Client/NameplateController)
