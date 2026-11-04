@@ -19,11 +19,13 @@ local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
 local Items = require(script.Parent.Items)
+local Journey = require(script.Parent.Journey)
 local Leaderboard = require(script.Parent.Leaderboard)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Seasons = require(script.Parent.Seasons)
 local Settings = require(script.Parent.Settings)
 local WorldTiers = require(script.Parent.WorldTiers)
 
@@ -52,6 +54,7 @@ export type Data = {
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
 	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
 	starters: number, -- guaranteed first drops already given (Balance.FirstDrops, Systems/Loot)
+	journey: Journey.Data, -- Journey milestones claimed (Shared/Journey)
 }
 
 -- The whole save of one Roblox account
@@ -67,6 +70,7 @@ export type Account = {
 	daily: Daily.Data, -- daily reward calendar (Shared/Daily)
 	boards: { [string]: number }, -- best value per leaderboard (Shared/Leaderboard ids)
 	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
+	season: Seasons.Data, -- Season Journey challenges and track claims (Shared/Seasons)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -108,6 +112,7 @@ local DEFAULTS: Data = {
 	autoSalvage = "",
 	debugged = false,
 	starters = 0,
+	journey = {},
 }
 
 local ACCOUNT_DEFAULTS = {
@@ -122,6 +127,7 @@ local ACCOUNT_DEFAULTS = {
 	daily = Daily.fresh(), -- contents checked by Daily.reconcile
 	boards = {},
 	unsent = {},
+	season = Seasons.fresh(), -- contents checked by Seasons.reconcile
 	characters = {},
 	active = "",
 }
@@ -263,6 +269,7 @@ function Profile.reconcile(raw: any): Data
 	data.rebirths = nil -- Rebirth was removed (pure ARPG, 2026-11-02)
 	data.tier = WorldTiers.reconcile(data.tier)
 	data.quests = Quests.reconcile(data.quests)
+	data.journey = Journey.reconcile(data.journey)
 	data.class = Classes.valid(data.class)
 	if
 		data.autoSalvage ~= ""
@@ -368,6 +375,7 @@ function Profile.reconcileAccount(raw: any): Account
 	end
 	data.boards = boardValues(data.boards)
 	data.unsent = boardValues(data.unsent)
+	data.season = Seasons.reconcile(data.season)
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}

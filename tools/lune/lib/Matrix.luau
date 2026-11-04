@@ -285,6 +285,8 @@ Matrix.SCREENS = {
 	},
 	{ name = "daily", open = window("Daily") },
 	{ name = "leaderboard", open = window("Leaderboard") },
+	{ name = "journey", open = window("Journey") },
+	{ name = "season", open = window("Season") },
 }
 
 function Matrix.prepare(sb, screen)

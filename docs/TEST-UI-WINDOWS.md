@@ -42,6 +42,19 @@ As long as the scene images and nodes from ChatGPT are missing (`Assets.Art` emp
 - [ ] Rejoin (or switch hero): every setting is still the same (saved per account)
 - [ ] Phone: sliders drag with a finger, every switch and option is easy to hit
 
+## Journey (Journey button left of the daily chest, at rest)
+- [ ] Opens with the next goal on the left (progress bar, reward), hero facts, "x / 20 milestones claimed"
+- [ ] Finished milestones sit at the top with a gold Claim button; claiming toasts and pays (gold, materials, stones, Soulstars)
+- [ ] Gold dot on the button while a milestone waits; gone after claiming the last one
+- [ ] Switch hero: the list shows the other hero's milestones
+
+## Beta Season (Season button left of the daily chest, at rest)
+- [ ] Badge, "Ends in …" countdown, points bar with 5 ticks and 5 reward cards
+- [ ] Challenges count while playing (kills, cleared depths, salvage, forge, stars …); a toast on each finished one
+- [ ] Dbg "Season: Next Challenge" finishes one; at 20 / 50 points the step's Claim button appears
+- [ ] Claiming "Beta Trail" / "Beta Aura" puts it on the hero (wardrobe in the Shop's Cosmetics tab)
+- [ ] Gold dot on the button while a step waits
+
 ## General
 - [ ] No error in the output at startup and when opening each window
 - [ ] Windows fit with a small and a large Studio window (scaling like the inventory)

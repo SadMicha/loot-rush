@@ -215,6 +215,16 @@ Code steps (subset of SEASONS §9, one PR each):
 Already done: account → characters (`Profile` v4, heroes, PR #68) covers SEASONS §9
 step 1 except the league field and character select across leagues.
 
+**Built (2026-11-04):** step 3 and the clock/badge part of step 2. `Shared/Seasons` (Beta clock,
+15 challenges from the list above, 5-step reward track with the cosmetics `beta_trail` /
+`beta_aura`), `Systems/Seasons` (counts from server events while live, `account.season`),
+`SeasonController` (Season button on the HUD). Also the hero **Journey** (R5 "next goals"):
+`Shared/Journey` (20 permanent milestones read from the save: depth, World Tier, level, region
+bosses, guide, Star Web), `Systems/Journey`, `JourneyController` (Journey button), `character.journey`.
+Both are additive save fields (no version bump). Dbg "Season: Next Challenge". Still open: leagues
+(step 1), season-end migration (step 2), ladder + feedback card (step 4); the Beta dates in
+`Shared/Seasons` are a placeholder until the launch day is set.
+
 ## 7. Season 1 (after the Beta)
 
 Season 1 = **Blueprints** (`docs/specs/SEASON-1-BLUEPRINTS.md`), the first season with a new
