@@ -131,8 +131,11 @@ local function renderTop()
 			end
 		end
 	end
-	-- Season bonus of the finished stages (the server applies the same Rules.bonus)
-	local active = Rules.bonusText(Rules.bonus(done))
+	-- Season bonus of the confirmed stages (GreatBuildStages, what the server applies); `done` may
+	-- already count donations that are not in the global record yet
+	local confirmed = ReplicatedStorage:GetAttribute("GreatBuildStages")
+	local active =
+		Rules.bonusText(Rules.bonus(if typeof(confirmed) == "number" then confirmed else 0))
 	if active ~= "" then
 		buffText.Text = `Season bonus for everyone: {active}`
 		buffText.TextColor3 = C.Good
@@ -286,6 +289,9 @@ local function buildBoard(beacon: BasePart)
 	sc.Scale = 1
 	sc.Parent = back
 	back.Parent = gui
+	if not boardGui then
+		Kit.onHudScale(sizeBoard)
+	end
 	boardGui, boardScale = gui, sc
 	local title = Window.gilded(string.upper(Rules.NAME), 22)
 	title.AnchorPoint = Vector2.new(0.5, 0)

@@ -193,6 +193,11 @@ function Kit.hudScale(): number
 	return hudScale
 end
 
+-- Runs `fn` whenever the HUD scale setting changes (world billboards that follow it)
+function Kit.onHudScale(fn: () -> ())
+	table.insert(hudRescalers, fn)
+end
+
 -- Top-center column: elements that stand at the top middle of the screen (resource capsules, boss
 -- bar, Rift clear card). Toasts and banners drop in below the lowest visible one.
 local topCenter: { GuiObject } = {}
