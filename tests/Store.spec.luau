@@ -45,11 +45,12 @@ describe("Store rules", function()
 		end
 	end)
 
-	it("every trail texture is a registered VFX texture", function()
+	it("every cosmetic texture is a registered VFX texture of the right kind", function()
 		for _, c in Cosmetics.List do
 			if c.texture then
-				expect(c.slot).toBe("trail")
 				expect(Assets.Vfx[c.texture]).never.toBeNil()
+				-- auras are 2x2 sprite sheets, trails are single ribbons
+				expect(Assets.VfxSheet[c.texture] == true).toBe(c.slot == "aura")
 			end
 		end
 	end)
