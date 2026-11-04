@@ -3,6 +3,7 @@ local Assets = require("ReplicatedStorage.Shared.UI.Assets")
 local Cosmetics = require("ReplicatedStorage.Shared.Cosmetics")
 local Pets = require("ReplicatedStorage.Shared.Pets")
 local Shop = require("ReplicatedStorage.Shared.Shop")
+local SpellStones = require("ReplicatedStorage.Shared.SpellStones")
 local Status = require("ReplicatedStorage.Shared.Status")
 local Store = require("ReplicatedStorage.Shared.Store")
 
@@ -27,6 +28,9 @@ describe("Icons", function()
 		end
 		for _, e in Pets.Eggs do
 			check("egg " .. e.id, Pets.eggIconOf(e))
+		end
+		for _, st in SpellStones.List do
+			check("stone " .. st.id, st.icon)
 		end
 		for _, o in Shop.Offers do
 			check("shop " .. o.id, o.icon)

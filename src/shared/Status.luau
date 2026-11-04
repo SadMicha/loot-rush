@@ -53,7 +53,7 @@ Status.Defs = table.freeze({
 		"rush",
 		"Stud Rush",
 		`+{Rush.SPEED}% Move · +{Rush.ATTACK_SPEED}% Attack Speed`,
-		"fire",
+		"buff_rush",
 		false,
 		1
 	),
@@ -62,7 +62,7 @@ Status.Defs = table.freeze({
 	haste = def("haste", "Haste", "More move speed", "buff_haste", false, 4),
 	shield = def("shield", "Arcane Shield", "Absorbs damage", "buff_shield", false, 5),
 	focus = def("focus", "Focus", "Counter! More damage", "target", false, 6),
-	chill = def("chill", "Chilled", "Less move speed (Frozen aura)", "ice", true, 20),
+	chill = def("chill", "Chilled", "Less move speed (Frozen aura)", "buff_chill", true, 20),
 } :: { [string]: Def })
 
 function Status.attr(id: string): string

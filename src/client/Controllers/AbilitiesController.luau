@@ -384,7 +384,14 @@ local function openPicker(skill: Skills.Skill, socket: number, current: string?)
 		Net.Loadout:FireServer("socket", skill.id, args)
 		closePicker()
 	end
-	local function row(order: number, name: string, text: string, color: Color3, onPick: () -> ())
+	local function row(
+		order: number,
+		name: string,
+		text: string,
+		color: Color3,
+		icon: string?,
+		onPick: () -> ()
+	)
 		local r = Instance.new("ImageButton")
 		r.Name = "Option" .. order
 		r.AutoButtonColor = false
@@ -394,17 +401,26 @@ local function openPicker(skill: Skills.Skill, socket: number, current: string?)
 		r.ZIndex = 22
 		Kit.skin(r, "stat_tile", PICK_ROW, 0.5)
 		Kit.touchTarget(r)
-		local gem = Instance.new("Frame")
-		gem.Name = "Gem"
-		gem.BackgroundColor3 = color
-		gem.BorderSizePixel = 0
-		gem.Rotation = 45
-		gem.AnchorPoint = Vector2.new(0.5, 0.5)
-		gem.Position = UDim2.new(0, 30, 0.5, 0)
-		gem.Size = UDim2.fromOffset(22, 22)
-		gem.ZIndex = 23
-		Kit.corner(gem, Theme.Radius.S)
-		gem.Parent = r
+		if icon then
+			local ic = Kit.icon(icon, 48)
+			ic.Name = "Stone"
+			ic.AnchorPoint = Vector2.new(0.5, 0.5)
+			ic.Position = UDim2.new(0, 30, 0.5, 0)
+			ic.ZIndex = 23
+			ic.Parent = r
+		else
+			local gem = Instance.new("Frame")
+			gem.Name = "Gem"
+			gem.BackgroundColor3 = color
+			gem.BorderSizePixel = 0
+			gem.Rotation = 45
+			gem.AnchorPoint = Vector2.new(0.5, 0.5)
+			gem.Position = UDim2.new(0, 30, 0.5, 0)
+			gem.Size = UDim2.fromOffset(22, 22)
+			gem.ZIndex = 23
+			Kit.corner(gem, Theme.Radius.S)
+			gem.Parent = r
+		end
 		local n = Kit.label(name, 18, color)
 		n.AutomaticSize = Enum.AutomaticSize.None
 		n.Size = UDim2.fromOffset(w - 76, 24)
@@ -426,12 +442,12 @@ local function openPicker(skill: Skills.Skill, socket: number, current: string?)
 	end
 	for i, st in options do
 		local spare = ((data.stones or {})[st.id] or 0) - Progression.stonesUsed(data, st.id)
-		row(i, string.format("%s  ×%d", st.name, spare), st.text, st.color, function()
+		row(i, string.format("%s  ×%d", st.name, spare), st.text, st.color, st.icon, function()
 			pick(st.id)
 		end)
 	end
 	if current then
-		row(#options + 1, "Remove stone", "Back into your stones", C.Danger, function()
+		row(#options + 1, "Remove stone", "Back into your stones", C.Danger, nil, function()
 			pick("")
 		end)
 	end
@@ -555,7 +571,7 @@ local function renderDetail()
 			if stone then stone.name else "Empty",
 			if stone then stone.color else C.Muted,
 			Vector2.new(sw, 40),
-			nil
+			if stone then stone.icon else nil
 		)
 		b.Name = "Socket" .. i
 		b.Position = UDim2.fromOffset(PAD + (i - 1) * (sw + 8), PAD + 410) -- above the XP bar
