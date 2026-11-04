@@ -311,7 +311,8 @@ function Sandbox.new(opts: Options)
 	self.jobId = "sandbox"
 	self.actions = {}
 	self.renderSteps = {}
-	self.layout = Layout.new(self.viewport, 58)
+	self.safeInsets = { l = 0, t = 0, r = 0, b = 0 }
+	self.layout = Layout.new(self.viewport, 58, self.safeInsets)
 	self.sourceFiles = opts.sourceFiles or {}
 
 	self:loadApiDump(opts.dumpPath)
@@ -2448,17 +2449,29 @@ function Sandbox:run(seconds: number)
 	self.sched:run(seconds)
 end
 
--- Area of the Roblox buttons top left (width, height) in screen pixels
+-- Area of the Roblox buttons top left (width, height) in screen pixels, measured from the screen's
+-- left edge. On touch devices Roblox places them inside the safe area and the capsule is wider
+-- (menu, chat, voice): iPhone 15 Pro landscape logo starts at ~75 pt, the capsule ends at ~266 pt.
 function Sandbox:topbarButtons(): Vector2
-	return Vector2.new(176, 58)
+	local safe = self.safeInsets
+	if self.touch then
+		return Vector2.new(safe.l + 210, 58)
+	end
+	return Vector2.new(safe.l + 176, 58)
 end
 
-function Sandbox:setViewport(v: Vector2, touch: boolean?)
+-- insets = device safe-area insets { l, t, r, b } (notch / rounded corners / home bar), default none
+function Sandbox:setViewport(
+	v: Vector2,
+	touch: boolean?,
+	insets: { l: number, t: number, r: number, b: number }?
+)
 	self.viewport = v
 	if touch ~= nil then
 		self.touch = touch
 	end
-	self.layout = Layout.new(v, 58)
+	self.safeInsets = insets or { l = 0, t = 0, r = 0, b = 0 }
+	self.layout = Layout.new(v, 58, self.safeInsets)
 	self.sched:step(1 / 30)
 end
 

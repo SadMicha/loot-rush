@@ -129,17 +129,27 @@ function Callout.new(target: GuiObject, title: string, body: string, round: bool
 	pointer.Parent = root
 
 	-- Card: title, text, "Tap to close"
+	-- The texts live in their own Body frame: the card's full-size children (Sheen, the close hit
+	-- area) must stay out of the list layout, or the auto-sized card grows without end on a device
+	-- (it filled the screen from top to bottom at the first boss on an iPad)
 	local card = Kit.panel(Vector2.new(width, 0), C.GoldHi)
 	card.Name = "Callout"
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.Visible = false
-	Kit.padding(card, T.Pad)
-	local list = Kit.list(card, Enum.FillDirection.Vertical, 6, Enum.VerticalAlignment.Top)
+	local content = Instance.new("Frame")
+	content.Name = "Body"
+	content.BackgroundTransparency = 1
+	content.AutomaticSize = Enum.AutomaticSize.Y
+	content.Size = UDim2.fromOffset(width, 0)
+	content.ZIndex = 2
+	content.Parent = card
+	Kit.padding(content, T.Pad)
+	local list = Kit.list(content, Enum.FillDirection.Vertical, 6, Enum.VerticalAlignment.Top)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local head = Flat.text(title, T.TitleSize, C.GoldHi, Theme.Font.Title)
 	head.Name = "Title"
 	head.LayoutOrder = 1
-	head.Parent = card
+	head.Parent = content
 	local text =
 		Flat.text(body, if touch then T.BodySizeTouch else T.BodySize, C.Text, Theme.Font.Body)
 	text.Name = "Body"
@@ -147,11 +157,11 @@ function Callout.new(target: GuiObject, title: string, body: string, round: bool
 	text.TextWrapped = true
 	text.AutomaticSize = Enum.AutomaticSize.Y
 	text.Size = UDim2.fromOffset(width - 2 * T.Pad, 0)
-	text.Parent = card
+	text.Parent = content
 	local foot = Flat.text(if touch then "Tap to close" else "Click to close", T.FootSize, C.Muted)
 	foot.Name = "Foot"
 	foot.LayoutOrder = 3
-	foot.Parent = card
+	foot.Parent = content
 	card.Parent = root
 
 	local closer = Instance.new("TextButton")
@@ -198,16 +208,16 @@ function Callout.new(target: GuiObject, title: string, body: string, round: bool
 		local x, y, px, py
 		if center.Y < screen.Y * 0.35 then -- top of the screen: below the target
 			x, y = center.X - w / 2, pos.Y + size.Y + gap
-			px, py = center.X, y - T.Pointer / 2 + 2
+			px, py = center.X, y - T.Pointer / 2
 		elseif center.X > screen.X * 0.6 then -- right side (skills, dash): to the left
 			x, y = pos.X - gap - w, center.Y - h / 2
-			px, py = x + w + T.Pointer / 2 - 2, center.Y
+			px, py = x + w + T.Pointer / 2, center.Y
 		elseif center.X < screen.X * 0.4 then -- left side: to the right
 			x, y = pos.X + size.X + gap, center.Y - h / 2
-			px, py = x - T.Pointer / 2 + 2, center.Y
+			px, py = x - T.Pointer / 2, center.Y
 		else -- bottom centre (hub bar, Rush meter): above
 			x, y = center.X - w / 2, pos.Y - gap - h
-			px, py = center.X, y + h + T.Pointer / 2 - 2
+			px, py = center.X, y + h + T.Pointer / 2
 		end
 		local m = T.Margin
 		x = math.clamp(x, m, math.max(m, screen.X - w - m))

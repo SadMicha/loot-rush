@@ -949,6 +949,12 @@ local function updateMenuDock()
 	if menuGui.Enabled ~= show then
 		menuGui.Enabled = show
 	end
+	-- The whole HUD steps back while a fullscreen window is open: its minimap, quest card and XP
+	-- chip would otherwise show through the window's scrim next to its close button and title
+	-- (the dock above takes over the navigation)
+	if hudGui.Enabled ~= (name == nil) then
+		hudGui.Enabled = name == nil
+	end
 	-- The coin bar would show through behind window titles: hidden while any window is open
 	-- (windows that spend currency show their own wallet)
 	local res = if resList then resList.Parent :: GuiObject? else nil
@@ -1003,6 +1009,7 @@ local function buildCalmPanels()
 	end
 	place(res, Vector2.new(0, 0), UDim2.new(0.5, -RES_WIDTH / 2, 0, 18))
 	resGroup = res
+	Kit.markTopCenter(res)
 	resScale = Instance.new("UIScale")
 	resScale.Parent = res
 
@@ -1306,24 +1313,32 @@ local function layoutHud()
 	local half = hubBarW * bs / 2
 	local cx = math.clamp(width / 2, minLeft + half, math.max(minLeft + half, maxRight - half))
 	hubBarScale.Scale = bs
+	-- inner scales changed (capsules, hub bar): touch targets and text minimums follow
+	Kit.refit(root)
 	setHome(hubBar, Vector2.new(0.5, 1), UDim2.new(0, cx, 1, -M), UDim2.new(0, cx, 1, hubBarH + 80))
 
 	-- Windows keep clear of the menu dock (screen pixels): bottom row, or left column on phones
 	if camera then
 		local vertical = camera.ViewportSize.Y < PHONE_HEIGHT
-		local dockScale = if vertical then PHONE_DOCK else 1
 		local cellW = H.BarIcon + 12
 		local colW = cellW + 2 * H.DockPad
+		local btnH = H.BarIcon + H.BarCaption
+		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+		-- Phone column: from below the Roblox buttons down to the bottom margin; shrinks further on
+		-- short screens / large HUD sizes instead of running under the Roblox buttons
+		local barBottom = if inset.Height > 0
+			then (inset.Max.Y - hudGui.AbsolutePosition.Y) / s + GAP
+			else M
+		local colRoom = height - math.max(barBottom, M) - M
+		local dockScale = if vertical then math.min(PHONE_DOCK, colRoom / colH) else 1
+		menuScale.Scale = dockScale
 		if menuVertical ~= vertical then
 			menuVertical = vertical
-			menuScale.Scale = dockScale
 			menuList.FillDirection = if vertical
 				then Enum.FillDirection.Vertical
 				else Enum.FillDirection.Horizontal
 			menuList.Padding = UDim.new(0, if vertical then PHONE_GAP else H.BarGap)
 			if vertical then
-				local btnH = H.BarIcon + H.BarCaption
-				local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
 				menuBar.Size = UDim2.fromOffset(colW, colH)
 				menuBar.AnchorPoint = Vector2.new(0, 1)
 				menuBar.Position = UDim2.new(0, H.Margin, 1, -H.Margin)
@@ -1341,13 +1356,14 @@ local function layoutHud()
 				end
 			end
 		end
+		-- Home bar / rounded corners below the safe area: windows keep clear of it as well
+		local safeBottom = hudGui.AbsolutePosition.Y + hudGui.AbsoluteSize.Y
+		local below = math.max(0, camera.ViewportSize.Y - safeBottom)
 		if vertical then
 			local safeLeft = math.max(0, hudGui.AbsolutePosition.X)
-			Window.setReserve(0, safeLeft + (H.Margin + colW * dockScale + 6) * s)
+			Window.setReserve(below, safeLeft + (H.Margin + colW * dockScale + 6) * s, below)
 		else
-			local safeBottom = hudGui.AbsolutePosition.Y + hudGui.AbsoluteSize.Y
-			local below = math.max(0, camera.ViewportSize.Y - safeBottom)
-			Window.setReserve(below + (H.Margin + menuBarH + 6) * s, 0)
+			Window.setReserve(below + (H.Margin + menuBarH + 6) * s, 0, below)
 		end
 	end
 end

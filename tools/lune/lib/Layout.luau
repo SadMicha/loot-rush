@@ -16,12 +16,28 @@ local Layout = {}
 Layout.__index = Layout
 
 export type Layout = typeof(setmetatable(
-	{} :: { viewport: Vector2, inset: number, cache: { [string]: Rect | false } },
+	{} :: {
+		viewport: Vector2,
+		inset: number,
+		safe: { l: number, t: number, r: number, b: number },
+		cache: { [string]: Rect | false },
+	},
 	Layout
 ))
 
-function Layout.new(viewport: Vector2, inset: number?): Layout
-	return setmetatable({ viewport = viewport, inset = inset or 58, cache = {} }, Layout)
+-- safe = device safe-area insets (notch, rounded corners, home bar) in screen pixels; a ScreenGui
+-- with ScreenInsets = DeviceSafeInsets only covers the area inside them (as on a real phone)
+function Layout.new(
+	viewport: Vector2,
+	inset: number?,
+	safe: { l: number, t: number, r: number, b: number }?
+): Layout
+	return setmetatable({
+		viewport = viewport,
+		inset = inset or 58,
+		safe = safe or { l = 0, t = 0, r = 0, b = 0 },
+		cache = {},
+	}, Layout)
 end
 
 local function get(inst: any, prop: string, default: any?): any
@@ -441,6 +457,20 @@ function Layout.rect(self: Layout, inst: any): Rect?
 	if inst:IsA("ScreenGui") then
 		local top = if get(inst, "IgnoreGuiInset", false) then 0 else self.inset
 		result = { x = 0, y = top, w = vw, h = vh - top, s = 1 }
+		local insets = get(inst, "ScreenInsets", nil)
+		local sf = self.safe
+		if insets == Enum.ScreenInsets.DeviceSafeInsets then
+			local t = math.max(top, sf.t)
+			result = { x = sf.l, y = t, w = vw - sf.l - sf.r, h = vh - t - sf.b, s = 1 }
+		elseif
+			get(inst, "SafeAreaCompatibility", Enum.SafeAreaCompatibility.FullscreenExtension)
+			~= Enum.SafeAreaCompatibility.None
+		then
+			-- Roblox's compatibility mode (default): on a device with a notch, a ScreenGui without
+			-- safe insets is letterboxed between the left/right safe edges (full height). Seen on an
+			-- iPhone 15 Pro: the fullscreen inventory ends at the right safe edge, not the screen edge.
+			result = { x = sf.l, y = top, w = vw - sf.l - sf.r, h = vh - top, s = 1 }
+		end
 	elseif inst:IsA("LayerCollector") then
 		local size: UDim2 = get(inst, "Size", UDim2.fromOffset(100, 100))
 		result = {

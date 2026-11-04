@@ -603,6 +603,43 @@ function Render.page(sb, src: ImageSource, title: string, findings): string
 		end
 		table.insert(out, "</div>")
 	end
+	-- Roblox's own buttons (logo, menu/chat capsule) and the device's unsafe edges (notch, home bar)
+	-- drawn on top, so overlaps show in the picture as on a real phone
+	local bar = sb:topbarButtons()
+	local safe = sb.safeInsets or { l = 0, t = 0, r = 0, b = 0 }
+	local z = #guis + 1
+	local overlay = "position:absolute;pointer-events:none;z-index:" .. z .. ";"
+	local function unsafe(x, y, w, h)
+		if w > 0 and h > 0 then
+			table.insert(
+				out,
+				string.format(
+					'<div style="%sleft:%dpx;top:%dpx;width:%dpx;height:%dpx;background:repeating-linear-gradient(45deg,rgba(255,60,60,.28) 0 6px,transparent 6px 12px)"></div>',
+					overlay,
+					x,
+					y,
+					w,
+					h
+				)
+			)
+		end
+	end
+	unsafe(0, 0, safe.l, vh)
+	unsafe(vw - safe.r, 0, safe.r, vh)
+	unsafe(0, vh - safe.b, vw, safe.b)
+	unsafe(0, 0, vw, safe.t)
+	local logoX = if sb.touch then safe.l + 16 else 12
+	table.insert(
+		out,
+		string.format(
+			'<div style="%sleft:%dpx;top:6px;width:%dpx;height:%dpx;border-radius:%dpx;background:rgba(255,255,255,.82)"></div>',
+			overlay,
+			logoX,
+			bar.X - logoX,
+			bar.Y - 12,
+			(bar.Y - 12) // 2
+		)
+	)
 	local items = {}
 	for _, f in findings do
 		table.insert(

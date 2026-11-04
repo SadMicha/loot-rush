@@ -16,6 +16,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local AnimController = require(script.Parent.AnimController)
+local Window = require(script.Parent.Parent.UI.Window)
 
 local DebugController = {}
 
@@ -93,6 +94,7 @@ end
 
 -- Dbg button above the HUD's level/XP chip (bottom left of the safe area), panel above the button
 local DBG_BOTTOM = 48
+local dbgButton: GuiButton? = nil
 
 function DebugController.init()
 	if not Config.DEBUG_OVERLAY then
@@ -161,6 +163,7 @@ function DebugController.init()
 	end
 
 	local button = Kit.button("Dbg", Theme.Color.Bg3, Vector2.new(48, 30))
+	dbgButton = button
 	button.Name = "Dbg"
 	Kit.buttonLabel(button).TextColor3 = Theme.Color.Muted
 	Kit.buttonLabel(button).TextSize = Kit.fontSize(13)
@@ -168,9 +171,6 @@ function DebugController.init()
 	button.Position = UDim2.new(0, 28, 1, -DBG_BOTTOM)
 	button.Activated:Connect(toggle)
 	button.Visible = allowed()
-	player:GetAttributeChangedSignal("DebugTools"):Connect(function()
-		button.Visible = allowed()
-	end)
 	button.Parent = root
 
 	-- Dump view: scrollable text in the middle of the screen, tap "Close" to hide it
@@ -226,6 +226,11 @@ function DebugController.start()
 	RunService.RenderStepped:Connect(function(dt: number)
 		frames += 1
 		elapsed += dt
+		-- Hidden while a fullscreen window is open: the phone menu dock stands where it sits
+		local shown = allowed() and Window.openName() == nil
+		if dbgButton and dbgButton.Visible ~= shown then
+			dbgButton.Visible = shown
+		end
 		if elapsed >= REFRESH then
 			if panel.Visible then
 				render(math.floor(frames / elapsed + 0.5))

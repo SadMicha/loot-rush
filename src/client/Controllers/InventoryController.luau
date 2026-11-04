@@ -129,6 +129,7 @@ local filterLabel: TextLabel
 local upgradeChip: Frame
 local upgradeLabel: TextLabel
 local tabs: Flat.Tabs
+local searchFrame: Frame
 local salvageToggle: Flat.Toggle
 local viewport: ViewportFrame
 local idleConn: RBXScriptConnection?
@@ -276,6 +277,30 @@ end
 
 -- ------------------------------------------------------------------ Equipment (left top)
 local dollTop = 12 -- y of the first equipment row (centered when the card grows)
+local dollStep = DOLL_STEP -- row pitch of the equipment slots (grows with touch-sized slots)
+-- Phones: the window is scaled so far down that text and slots grow to their minimum sizes. The
+-- left column then shows either the figure or (while an item is picked) the comparison, each with
+-- the full column height, instead of both stacked.
+local compact = false
+local COMPACT_UNIT = 0.62 -- screen pixels per window design pixel below which the layout is compact
+local cmpH = CMP_H -- current height of the comparison card
+local lastUnit = 0 -- screen pixels per window design pixel at the last refit
+
+-- Text height and line pitch (window design pixels) of small text at the current scale: small
+-- text is raised to Kit.MIN_TEXT_PX on screen, so rows must open up when the window shrinks
+local function rhythm(): (number, number)
+	local unit = if lastUnit > 0 then lastUnit else 1
+	local t = math.max(Kit.fontSize(11), math.ceil(Kit.MIN_TEXT_PX / unit))
+	return t, t + 4
+end
+
+-- Height of a button row (window design pixels): touch buttons grow to Kit.MIN_TOUCH_PX on screen
+local function buttonH(): number
+	local unit = if lastUnit > 0 then lastUnit else 1
+	return if UserInputService.TouchEnabled
+		then math.max(40, math.ceil(Kit.MIN_TOUCH_PX / unit))
+		else 40
+end
 local function renderDoll()
 	for _, child in dollCard:GetChildren() do
 		if child.Name == "Slot" then
@@ -293,7 +318,7 @@ local function renderDoll()
 			captionSide = side,
 		})
 		b.Name = "Slot"
-		b.Position = UDim2.fromOffset(x, dollTop + (row - 1) * DOLL_STEP)
+		b.Position = UDim2.fromOffset(x, dollTop + (row - 1) * dollStep)
 		b.ZIndex = 3
 		if item then
 			b.Activated:Connect(function()
@@ -378,15 +403,18 @@ local COL_W = (LEFT_W - 3 * PAD) // 2
 -- Header of one comparison column: icon cell, name, rarity · slot, item power
 local function itemHeader(parent: Frame, item: Items.Item)
 	local color = rarityColor(item.rarity)
+	local t, line = rhythm()
+	local top = line + 4 -- below the caption
 	local cell = Flat.cell(52, slotArt(item.slot), { rarity = item.rarity })
 	cell.Active = false
-	cell.Position = UDim2.fromOffset(0, 26)
+	cell.Position = UDim2.fromOffset(0, top + 2)
 	cell.Parent = parent
+	local textW = COL_W - 64
 	local name = Flat.text(item.name, 14, color, Theme.Font.Title)
 	name.AutomaticSize = Enum.AutomaticSize.None
-	name.Size = UDim2.fromOffset(COL_W - 64, 20)
+	name.Size = UDim2.fromOffset(textW, math.max(20, t + 2))
 	name.TextTruncate = Enum.TextTruncate.AtEnd
-	name.Position = UDim2.fromOffset(64, 24)
+	name.Position = UDim2.fromOffset(64, top)
 	name.Parent = parent
 	local sub = Flat.text(
 		string.format(
@@ -398,12 +426,24 @@ local function itemHeader(parent: Frame, item: Items.Item)
 		C.Muted,
 		Theme.Font.Body
 	)
-	sub.Position = UDim2.fromOffset(64, 46)
+	sub.AutomaticSize = Enum.AutomaticSize.None
+	sub.Size = UDim2.fromOffset(textW, t)
+	sub.TextTruncate = Enum.TextTruncate.AtEnd
+	sub.Position = UDim2.fromOffset(64, top + math.max(22, t + 4))
 	sub.Parent = parent
 	local ip =
 		Flat.text("Item Power " .. Format.int(Items.itemPower(item)), 11, C.Text, Theme.Font.Body)
-	ip.Position = UDim2.fromOffset(64, 62)
+	ip.AutomaticSize = Enum.AutomaticSize.None
+	ip.Size = UDim2.fromOffset(textW, t)
+	ip.TextTruncate = Enum.TextTruncate.AtEnd
+	ip.Position = UDim2.fromOffset(64, top + math.max(22, t + 4) + line)
 	ip.Parent = parent
+end
+
+-- y of the first stat row below a caption + item header (or caption + one hint line)
+local function statsTop(): number
+	local t, line = rhythm()
+	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
 end
 
 -- Stat rows with bars; `other` = values to compare against (deltas shown when given)
@@ -413,8 +453,14 @@ local function statRows(
 	other: { [string]: number }?,
 	accent: Color3
 )
+	local t, line = rhythm()
+	local step = math.max(22, line)
+	-- Compact (phones): no bars, the value stands right (left of the delta) so the enlarged label
+	-- keeps its room; wide windows keep the bar layout
+	local deltaW = if other then math.max(54, t * 3) else 0
+	local valueX = if compact then COL_W - deltaW - 4 else 170
 	for i, stat in STAT_ORDER do
-		local y = 88 + (i - 1) * 22
+		local y = statsTop() + (i - 1) * step
 		local info = Items.Stats[stat]
 		local ic = Kit.icon(STAT_ICON[stat], 16)
 		ic.Position = UDim2.fromOffset(0, y + 1)
@@ -426,8 +472,27 @@ local function statRows(
 		local value =
 			Flat.text(statText(stat, v), 12, C.Text, Theme.Font.UI, Enum.TextXAlignment.Right)
 		value.AnchorPoint = Vector2.new(1, 0)
-		value.Position = UDim2.fromOffset(170, y)
+		value.Position = UDim2.fromOffset(valueX, y)
 		value.Parent = parent
+		if compact then
+			if other then
+				local d = v - (other[stat] or 0)
+				if math.abs(d) >= 0.05 then
+					local delta = Flat.text(
+						(if d > 0 then "+" else "−") .. statText(stat, math.abs(d)),
+						12,
+						if d > 0 then C.Good else C.Danger,
+						Theme.Font.UI,
+						Enum.TextXAlignment.Right
+					)
+					delta.Name = "Delta"
+					delta.AnchorPoint = Vector2.new(1, 0)
+					delta.Position = UDim2.fromOffset(COL_W, y)
+					delta.Parent = parent
+				end
+			end
+			continue
+		end
 		local ref = if other then other[stat] or 0 else v
 		local top = math.max(v, ref, 0.0001)
 		local barColor = accent
@@ -466,18 +531,18 @@ end
 
 local function renderCompare()
 	clear(cmpCard)
-	local left = Flat.frame(UDim2.fromOffset(COL_W, CMP_H - 2 * PAD), UDim2.fromOffset(PAD, PAD))
+	local left = Flat.frame(UDim2.fromOffset(COL_W, cmpH - 2 * PAD), UDim2.fromOffset(PAD, PAD))
 	left.Name = "Equipped"
 	left.Parent = cmpCard
 	local right =
-		Flat.frame(UDim2.fromOffset(COL_W, CMP_H - 2 * PAD), UDim2.fromOffset(2 * PAD + COL_W, PAD))
+		Flat.frame(UDim2.fromOffset(COL_W, cmpH - 2 * PAD), UDim2.fromOffset(2 * PAD + COL_W, PAD))
 	right.Name = "Selected"
 	right.Parent = cmpCard
 	local split = Instance.new("Frame")
 	split.BackgroundColor3 = F.Edge
 	split.BorderSizePixel = 0
 	split.Position = UDim2.fromOffset(PAD + COL_W + PAD / 2, PAD)
-	split.Size = UDim2.fromOffset(1, CMP_H - 2 * PAD)
+	split.Size = UDim2.fromOffset(1, cmpH - 2 * PAD)
 	split.Parent = cmpCard
 
 	local item = selected
@@ -490,7 +555,8 @@ local function renderCompare()
 		itemHeader(left, worn)
 		statRows(left, statTotals({ worn }), nil, C.Cyan)
 		if selectedEquipped then
-			local b = Flat.button("Unequip", "secondary", Vector2.new(COL_W, 40))
+			local w = if compact then COL_W - 118 else COL_W
+			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
 			b.AnchorPoint = Vector2.new(0, 1)
 			b.Position = UDim2.fromScale(0, 1)
 			b.Activated:Connect(function()
@@ -507,7 +573,12 @@ local function renderCompare()
 			F.Faint,
 			Theme.Font.Body
 		)
-		hint.Position = UDim2.fromOffset(0, 40)
+		local _, line = rhythm()
+		hint.AutomaticSize = Enum.AutomaticSize.None
+		hint.Size = UDim2.fromOffset(COL_W, 2 * line)
+		hint.TextWrapped = true
+		hint.TextYAlignment = Enum.TextYAlignment.Top
+		hint.Position = UDim2.fromOffset(0, line + 8)
 		hint.Parent = left
 		statRows(left, statTotals(equipped), nil, C.Cyan)
 	end
@@ -535,18 +606,18 @@ local function renderCompare()
 		big.Parent = right
 		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
 
-		local actions = Flat.frame(UDim2.fromOffset(COL_W, 40), UDim2.fromScale(0, 1))
+		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)
 		local al = Kit.list(actions, Enum.FillDirection.Horizontal, 8)
 		al.HorizontalAlignment = Enum.HorizontalAlignment.Left
-		local equip = Flat.button("Equip", "primary", Vector2.new(COL_W - 118, 40))
+		local equip = Flat.button("Equip", "primary", Vector2.new(COL_W - 118, buttonH()))
 		equip.LayoutOrder = 1
 		equip.Activated:Connect(function()
 			Net.Equip:FireServer(bagItem.id)
 			selected = nil
 		end)
 		equip.Parent = actions
-		local sell = Flat.button("Salvage", "danger", Vector2.new(110, 40))
+		local sell = Flat.button("Salvage", "danger", Vector2.new(110, buttonH()))
 		sell.LayoutOrder = 2
 		sell.Activated:Connect(function()
 			selected = nil
@@ -565,6 +636,19 @@ local function renderCompare()
 		hint.AnchorPoint = Vector2.new(0.5, 0.5)
 		hint.Position = UDim2.fromScale(0.5, 0.45)
 		hint.Parent = right
+	end
+
+	-- Compact (phones): the comparison stands in for the figure; Back brings the figure back
+	if compact and item then
+		local back = Flat.button("Back", "secondary", Vector2.new(110, buttonH()))
+		back.Name = "Back"
+		back.AnchorPoint = Vector2.new(1, 1)
+		back.Position = UDim2.fromScale(1, 1)
+		back.Activated:Connect(function()
+			selected = nil
+			InventoryController.render()
+		end)
+		back.Parent = left
 	end
 end
 
@@ -913,6 +997,7 @@ local function buildGrid(parent: Frame)
 
 	-- Search field (flat)
 	local search = Instance.new("Frame")
+	searchFrame = search
 	search.Name = "Search"
 	search.AnchorPoint = Vector2.new(1, 0)
 	search.Position = UDim2.new(1, -PAD, 0, PAD)
@@ -1076,8 +1161,9 @@ local function buildGrid(parent: Frame)
 		end
 		InventoryController.render()
 	end)
-	salvageToggle.frame.AnchorPoint = Vector2.new(1, 0)
-	salvageToggle.frame.Position = UDim2.new(1, 0, 0, 2)
+	-- centered on the footer: a touch-sized toggle grows up and down, not past the screen bottom
+	salvageToggle.frame.AnchorPoint = Vector2.new(1, 0.5)
+	salvageToggle.frame.Position = UDim2.new(1, 0, 0.5, 0)
 	salvageToggle.frame.Parent = foot
 end
 
@@ -1093,22 +1179,47 @@ local CLOSE_SIZE = 48 -- same as Window (top right of the screen, outside the sc
 -- Window height in design pixels: the equipment card takes the extra height (taller figure, slots
 -- centered), the bag grid picks the biggest cells that still show the whole bag without scrolling.
 local shownH = WIN_H
-local lastUnit = 0 -- screen pixels per window design pixel at the last refit
+local shownCompact = false
+local shownUnit = 0
 local function relayout(h: number)
 	h = math.floor(h)
-	if h == shownH then
+	local isCompact = lastUnit > 0 and lastUnit < COMPACT_UNIT
+	if h == shownH and isCompact == shownCompact and math.abs(lastUnit - shownUnit) < 0.005 then
 		return
 	end
 	shownH = h
+	shownUnit = lastUnit
+	shownCompact = isCompact
+	compact = isCompact
 	local extra = h - WIN_H
 	stage.Size = UDim2.fromOffset(WIN_W, h)
-	local dollH = DOLL_H + extra
+	-- Compact: figure and comparison each take the whole left column (one shows at a time)
+	local dollH = if compact then h - BODY_Y else DOLL_H + extra
 	dollCard.Size = UDim2.fromOffset(LEFT_W, dollH)
 	viewport.Size = UDim2.fromOffset(LEFT_W - 180, dollH - 16)
 	stageLight.Position = UDim2.new(0.5, 0, 0, math.floor(dollH * 0.45))
 	stageLight.Size = UDim2.fromOffset(300 + extra // 2, 300 + extra // 2)
-	dollTop = 12 + math.floor(extra / 2)
-	cmpCard.Position = UDim2.fromOffset(0, BODY_Y + dollH + 10)
+	-- Slot rows: at least a touch-sized slot apart, the column centered in the card
+	local unit = if lastUnit > 0 then lastUnit else 1
+	local slotH = math.max(
+		DOLL_CELL,
+		if UserInputService.TouchEnabled then math.ceil(Kit.MIN_TOUCH_PX / unit) else 0
+	)
+	dollStep = math.max(DOLL_STEP, slotH + 4)
+	local column = (#DOLL_LEFT - 1) * dollStep + slotH
+	dollTop = math.max(12, math.floor((dollH - column) / 2))
+	if compact then
+		cmpH = dollH
+		cmpCard.Position = UDim2.fromOffset(0, BODY_Y)
+	else
+		cmpH = CMP_H
+		cmpCard.Position = UDim2.fromOffset(0, BODY_Y + dollH + 10)
+	end
+	cmpCard.Size = UDim2.fromOffset(LEFT_W, cmpH)
+	-- Search field takes what the tabs leave (their text grows on phones); hidden below a usable width
+	local room = RIGHT_W - 2 * PAD - tabs.width() - 10
+	searchFrame.Visible = room >= 120
+	searchFrame.Size = UDim2.fromOffset(math.clamp(room, 120, 190), TAB_H)
 	bagCard.Size = UDim2.fromOffset(RIGHT_W, h - BODY_Y)
 	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - FOOT_H - PAD - 6
 	gridFrame.Size = UDim2.fromOffset(gridFrame.Size.X.Offset, gridH)
@@ -1142,9 +1253,13 @@ local function arrange()
 	if s <= 0 or not camera or camera.ViewportSize.X <= 0 then
 		return
 	end
-	local screen = camera.ViewportSize -- the root covers the whole screen (IgnoreGuiInset)
+	-- The root covers the gui's area: the whole screen, or the part between the side safe edges on
+	-- notched phones (Roblox letterboxes it); everything below is relative to that area
+	local guiX = Kit.guiLeft(gui)
+	local screen = Kit.guiArea(gui)
 	local view = screen / s -- design pixels
 	local barRight, barH = Window.topbar()
+	barRight -= guiX
 	-- Close button like in every Window: right edge, vertically centered on the Roblox bar;
 	-- the window starts below it
 	local mid = math.max(40 + CLOSE_SIZE / 2 - 16, barH / s / 2)
@@ -1152,6 +1267,7 @@ local function arrange()
 	local closeH = math.max(CLOSE_SIZE, closeButton.Size.Y.Offset) -- grows on touch screens
 	local stageTop = math.max(WINDOW_TOP, mid + closeH / 2 + 8)
 	local reserveBottom, reserveLeft = Window.reserve()
+	reserveLeft = math.max(0, reserveLeft - guiX)
 	local leftFree = reserveLeft / s
 	stage.Position = UDim2.new(0.5, leftFree / 2, 0, stageTop)
 
@@ -1305,6 +1421,9 @@ function InventoryController.render()
 	renderGrid()
 	renderDoll()
 	renderCompare()
+	-- Compact (phones): the comparison takes the figure's place while an item is picked
+	dollCard.Visible = not (compact and selected ~= nil)
+	cmpCard.Visible = not compact or selected ~= nil
 	popId = nil
 end
 

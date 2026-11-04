@@ -193,6 +193,51 @@ function Kit.hudScale(): number
 	return hudScale
 end
 
+-- Top-center column: elements that stand at the top middle of the screen (resource capsules, boss
+-- bar, Rift clear card). Toasts and banners drop in below the lowest visible one.
+local topCenter: { GuiObject } = {}
+
+function Kit.markTopCenter(g: GuiObject)
+	table.insert(topCenter, g)
+end
+
+local function shown(g: GuiObject): boolean
+	local node: Instance? = g
+	while node do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		if node:IsA("CanvasGroup") and node.GroupTransparency >= 0.99 then
+			return false
+		end
+		if node:IsA("LayerCollector") then
+			return node.Enabled
+		end
+		node = node.Parent
+	end
+	return false
+end
+
+-- Lowest screen y (pixels) of the visible top-center elements that reach into the middle band of
+-- the screen, 0 when none (capsules stacked at the right edge do not count)
+function Kit.topCenterBottom(): number
+	local camera = workspace.CurrentCamera
+	local vw = if camera then camera.ViewportSize.X else 1600
+	local band0, band1 = vw * 0.3, vw * 0.7
+	local y = 0
+	for i = #topCenter, 1, -1 do
+		local g = topCenter[i]
+		local x0 = g.AbsolutePosition.X
+		local x1 = x0 + g.AbsoluteSize.X
+		if not g.Parent then
+			table.remove(topCenter, i)
+		elseif shown(g) and g.AbsolutePosition.Y < 400 and x1 > band0 and x0 < band1 then
+			y = math.max(y, g.AbsolutePosition.Y + g.AbsoluteSize.Y)
+		end
+	end
+	return y
+end
+
 -- Re-apply minimum sizes after an inner UIScale has changed
 function Kit.refit(root: Frame)
 	local fn = refitters[root]
@@ -218,6 +263,22 @@ function Kit.hudDesign(): Vector2
 	return if math.min(v.X, v.Y) >= Theme.TabletMinSide
 		then Theme.HudDesignTablet
 		else Theme.HudDesignTouch
+end
+
+-- Screen area a ScreenGui really covers (screen pixels): position and size. Falls back to the whole
+-- viewport before the gui has been laid out.
+function Kit.guiArea(gui: LayerCollector): Vector2
+	local size = gui.AbsoluteSize
+	if size.X > 0 and size.Y > 0 then
+		return size
+	end
+	local camera = workspace.CurrentCamera
+	return if camera then camera.ViewportSize else Vector2.new(1600, 900)
+end
+
+-- Left edge of a ScreenGui on the screen (0 unless the device's safe area pushes it in)
+function Kit.guiLeft(gui: LayerCollector): number
+	return if gui.AbsoluteSize.X > 0 then gui.AbsolutePosition.X else 0
 end
 
 function Kit.scaledGui(
@@ -251,10 +312,9 @@ function Kit.scaledGui(
 	local function rescale()
 		local camera = workspace.CurrentCamera
 		if camera then
-			local v = camera.ViewportSize
-			if safeArea and gui.AbsoluteSize.X > 0 then
-				v = gui.AbsoluteSize -- smaller than the viewport by the device insets
-			end
+			-- The gui's own area: smaller than the viewport by the device insets (safe area), and on
+			-- notched phones Roblox letterboxes even inset-free guis between the side safe edges
+			local v = Kit.guiArea(gui)
 			-- HUD scale: a smaller design area makes every element larger
 			local d = if design then design() / hudScale else Theme.DesignSize
 			local s = math.clamp(math.min(v.X / d.X, v.Y / d.Y), if fit then 0.3 else 0.55, 1.4)
@@ -271,9 +331,7 @@ function Kit.scaledGui(
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 	end
-	if safeArea then
-		gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
-	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
 	return gui, root
 end
 
