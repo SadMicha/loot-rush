@@ -26,8 +26,10 @@ Measured on the FBX files (grip point = middle of the handle, `gripAt`, `offset`
 | Bow | left | hanging | limbs vertical, string toward the body |
 
 The arm pose is Roblox's default `toolnone` animation (`Weapons.HOLD_ANIM`), played by the server
-(replicates) and again on the inventory figure. Tune `grip` per weapon in Studio if a mesh still
-sits off.
+(replicates) and again on the inventory figure. Near the camera the client then replaces the
+weapon arm with the class holding stance (`Anim.STANCE` `hold`, docs/ANIMATIONS.md), so in game
+the arm pose comes from there; `toolnone` remains for far characters and the inventory figure.
+Tune `grip` per weapon in Studio if a mesh still sits off.
 
 ## Getting the real meshes into the game
 
