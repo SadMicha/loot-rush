@@ -365,6 +365,37 @@ Theme.Tween = table.freeze({
 })
 Theme.Stagger = 0.06 -- seconds of offset between panels flying in
 
+-- Loading screen (ReplicatedFirst/LootRushLoading; it may require Theme and Shared only).
+-- Sizes are scale or points, the screen sits on IgnoreGuiInset and works on phones.
+Theme.Loading = table.freeze({
+	Title = "LOOT RUSH",
+	MaxWait = 45, -- seconds: never keep a player behind the cover longer than this
+	Fade = 0.55, -- seconds of the final fade-out
+	BarWidth = 0.46, -- of the screen width
+	BarMinWidth = 260, -- points
+	BarHeight = 14, -- points
+	TitleSize = 72, -- points (shrinks on narrow screens through UITextSizeConstraint)
+	TipSize = 18,
+	StatusSize = 16,
+	TipInterval = 4, -- seconds per tip
+	TipFade = 0.3,
+	BarEase = 6, -- how fast the shown fill catches up with the real progress (per second)
+	SparkleCount = 14, -- drifting studs (halved on low quality, none with reduced motion)
+	SparkleSize = 5, -- points
+	Tips = table.freeze({
+		"Tip: Dodge-roll out of red zones. Every roll spends a dash charge.",
+		"Tip: Fill a boss's Break meter to stun it, then hit it hard.",
+		"Tip: Kills fill your Rush meter. A full Rush makes you faster and stronger.",
+		"Tip: Gear marked UPGRADE is better than what you wear. Equip it.",
+		"Tip: Visit the Forge to improve your gear.",
+		"Tip: Spend your points in the Star Web to grow stronger.",
+		"Tip: Pets follow you into the Rift and help in a fight. Hatch eggs in the Pets window.",
+		"Tip: Spell stones change how a skill behaves. Socket them in the Abilities window.",
+		"Tip: Studs fly to you when enemies shatter. Grab the loot before you leave.",
+		"Tip: Clear deeper Rifts to unlock new regions on the Atlas.",
+	}),
+})
+
 -- Tutorial callouts (client/UI/Callout, HintsController): a card next to the button it explains and
 -- a pulsing ring around that button. Sizes in HUD design px (the callout layer scales like the HUD).
 Theme.Callout = table.freeze({
