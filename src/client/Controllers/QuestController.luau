@@ -73,28 +73,44 @@ function QuestController.lockHint(id: string): string?
 	return if rule then rule.caption else nil
 end
 
+local TOAST_W, TOAST_MAX_W, TOAST_Y = 420, 760, 70
+
 local function showNext()
 	if showing or #queue == 0 or not toastRoot then
 		return
 	end
 	showing = true
 	local entry = table.remove(queue, 1) :: { text: string, color: Color3 }
-	local panel = Kit.panel(Vector2.new(420, 46), entry.color)
+	-- Width follows the text (two lines past MAX_W), so long lore lines stay inside the card
+	local textW = #entry.text * Kit.fontSize(16) * 0.55
+	local w = math.clamp(math.ceil(textW) + 48, TOAST_W, TOAST_MAX_W)
+	local lines = if textW + 48 > TOAST_MAX_W then 2 else 1
+	local h = 46 + (lines - 1) * 24
+	local panel = Kit.panel(Vector2.new(w, h), entry.color)
 	panel.Name = "Toast"
 	panel.AnchorPoint = Vector2.new(0.5, 0)
-	panel.Position = UDim2.new(0.5, 0, 0, -60)
+	panel.Position = UDim2.new(0.5, 0, 0, -h - 14)
 	local label = Kit.label(entry.text, 16, entry.color)
+	label.AutomaticSize = Enum.AutomaticSize.None
+	label.Size = UDim2.new(1, -32, 1, -8)
+	label.TextWrapped = true
 	label.AnchorPoint = Vector2.new(0.5, 0.5)
 	label.Position = UDim2.fromScale(0.5, 0.5)
 	label.Parent = panel
 	panel.Parent = toastRoot
+	-- Below the top-center column (capsules, boss bar, Rift card) instead of on top of it
+	local scale = toastRoot:FindFirstChildOfClass("UIScale")
+	local s = if scale and scale.Scale > 0 then scale.Scale else 1
+	local gui = toastRoot:FindFirstAncestorWhichIsA("LayerCollector")
+	local top = if gui then gui.AbsolutePosition.Y else 0
+	local y = math.max(TOAST_Y, (Kit.topCenterBottom() - top) / s + 8)
 	local inInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	TweenService:Create(panel, inInfo, { Position = UDim2.new(0.5, 0, 0, 70) }):Play()
+	TweenService:Create(panel, inInfo, { Position = UDim2.new(0.5, 0, 0, y) }):Play()
 	task.delay(2.4, function()
 		local out = TweenService:Create(
 			panel,
 			TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Position = UDim2.new(0.5, 0, 0, -60) }
+			{ Position = UDim2.new(0.5, 0, 0, -h - 14) }
 		)
 		out:Play()
 		task.wait(0.3)
@@ -198,7 +214,7 @@ function QuestController.init()
 	Window.setGate(function(id: string): boolean
 		local hint = QuestController.lockHint(id)
 		if hint then
-			QuestController.toast("Locked · " .. hint, C.Muted)
+			QuestController.toast("Locked - " .. hint, C.Muted)
 		end
 		return hint ~= nil
 	end)

@@ -106,7 +106,7 @@ Quests.Chain = table.freeze({
 	{ id = "depth_20", text = "Clear depth 20", goal = "depth", target = 20, gold = 1500 },
 } :: { Quest })
 
--- Extra rewards as text for the quest panel ("+6 Rune Candy · +20 Crystal Shards", "" = none);
+-- Extra rewards as text for the quest panel ("+6 Rune Candy - +20 Crystal Shards", "" = none);
 -- the gold sits in the panel's head row
 function Quests.extraText(q: Quest): string
 	local parts = {}
@@ -126,7 +126,7 @@ function Quests.extraText(q: Quest): string
 			)
 		end
 	end
-	return table.concat(parts, " · ")
+	return table.concat(parts, " - ")
 end
 
 -- Windows behind an unlock: reached by level OR best depth (whatever comes first), or by

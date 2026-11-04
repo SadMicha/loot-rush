@@ -58,9 +58,9 @@ local function show(summary: { [string]: any })
 	end
 	local depth = tonumber(summary.depth) or r.depth
 	title.Text = if summary.reason == "failed"
-		then string.format("%s · Defeated at Depth %d", r.name, depth)
-		else string.format("%s · Run over at Depth %d", r.name, depth)
-	playLabel.Text = string.format("Play again · D%d", resumeDepth(r))
+		then string.format("%s - Defeated at Depth %d", r.name, depth)
+		else string.format("%s - Run over at Depth %d", r.name, depth)
+	playLabel.Text = string.format("Play again - D%d", resumeDepth(r))
 	region = r.id
 	local stamp = os.clock()
 	shownAt = stamp

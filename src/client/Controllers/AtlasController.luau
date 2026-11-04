@@ -168,17 +168,25 @@ local function renderMap()
 				end
 			end)
 		end
+		-- Name and level stacked in the middle; the name wraps when phone text sizes make it wide
+		local texts = Window.frame(UDim2.new(1, -28, 1, -16), UDim2.fromScale(0.5, 0.5))
+		texts.AnchorPoint = Vector2.new(0.5, 0.5)
+		texts.ZIndex = 3
+		Kit.list(texts, Enum.FillDirection.Vertical, 2)
+		texts.Parent = plate
 		local name =
 			Kit.label(string.upper(r.name), 17, if on then C.GoldHi else C.Text, Theme.Font.Title)
-		name.AnchorPoint = Vector2.new(0.5, 0)
-		name.Position = UDim2.new(0.5, 0, 0, 20)
+		name.AutomaticSize = Enum.AutomaticSize.Y
+		name.Size = UDim2.new(1, 0, 0, 0)
+		name.TextWrapped = true
+		name.TextXAlignment = Enum.TextXAlignment.Center
+		name.LayoutOrder = 1
 		name.ZIndex = 3
-		name.Parent = plate
+		name.Parent = texts
 		local lv = Kit.label("Level " .. r.levels, 14, C.Muted, Theme.Font.Body)
-		lv.AnchorPoint = Vector2.new(0.5, 1)
-		lv.Position = UDim2.new(0.5, 0, 1, -22)
+		lv.LayoutOrder = 2
 		lv.ZIndex = 3
-		lv.Parent = plate
+		lv.Parent = texts
 		plate.Activated:Connect(function()
 			selected = r.id
 			AtlasController.render()
@@ -227,22 +235,40 @@ local function infoTile(iconName: string, text: string, width: number, order: nu
 	return f
 end
 
-local function row(y: number, w: number): Frame
-	local f = Window.frame(UDim2.fromOffset(w, 56), UDim2.fromOffset(PAD, y))
-	local l = Kit.list(f, Enum.FillDirection.Horizontal, 10)
-	l.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	f.Parent = side
-	return f
-end
-
 local function renderSide()
 	clear(side)
 	local r = Atlas.ById[selected]
 	local w = SIDE_W - 2 * PAD
 
+	-- Everything above the bottom controls flows top-down in a scroll area: on phones the enlarged
+	-- text wraps into more lines and must not run into the rewards or the depth picker
+	local open0 = isOpen(r)
+	local controlsH = if open0 then ACTION_H + 46 + STEP_H else ACTION_H + 8 + 34
+	local info = Instance.new("ScrollingFrame")
+	info.Name = "Info"
+	info.BackgroundTransparency = 1
+	info.BorderSizePixel = 0
+	info.Position = UDim2.fromOffset(PAD, PAD)
+	info.Size = UDim2.fromOffset(w + 8, Window.BODY.Y - 2 * PAD - controlsH - 10)
+	info.ScrollingDirection = Enum.ScrollingDirection.Y
+	info.ScrollBarThickness = 4
+	info.ScrollBarImageColor3 = C.Gold
+	info.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	info.CanvasSize = UDim2.new()
+	info.Parent = side
+	local flow = Kit.list(info, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
+	flow.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local order = 0
+	local function add(g: GuiObject)
+		order += 1
+		g.LayoutOrder = order
+		g.Parent = info
+	end
+
 	-- Preview image; the fallback (area color + boss) always sits underneath in case the image fails to load
-	local ph = Window.frame(UDim2.fromOffset(w, 160), UDim2.fromOffset(PAD, PAD))
+	local ph = Window.frame(UDim2.fromOffset(w, 160))
 	ph.Name = "Preview"
+	ph:SetAttribute("Media", true) -- picture row: no text on purpose (UI check)
 	ph.BackgroundTransparency = 0.8
 	ph.BackgroundColor3 = r.color
 	Kit.corner(ph, Theme.Radius.M)
@@ -257,34 +283,40 @@ local function renderSide()
 		picture.ZIndex = 2
 		picture.Parent = ph
 	end
-	ph.Parent = side
+	add(ph)
 
 	local name = Window.heading(r.name, 26, C.GoldHi)
-	name.Position = UDim2.fromOffset(PAD, PAD + 174)
-	name.Parent = side
+	name.TextWrapped = true
+	name.AutomaticSize = Enum.AutomaticSize.Y
+	name.Size = UDim2.fromOffset(w, 0)
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	add(name)
 
+	local function tileRow(): Frame
+		local f = Window.frame(UDim2.fromOffset(w, 56))
+		local l = Kit.list(f, Enum.FillDirection.Horizontal, 10)
+		l.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		add(f)
+		return f
+	end
 	local half = (w - 10) / 2
-	local top = row(PAD + 222, w)
+	local top = tileRow()
 	local record = best(r.id)
 	local depthText = if record > 0
 		then string.format("Best: Depth %d", record)
 		else string.format("From Depth %d", r.depth)
 	infoTile("portal", depthText, half, 1).Parent = top
 	infoTile(r.bossIcon, r.boss, half, 2).Parent = top
-	local mods = row(PAD + 288, w)
+	local mods = tileRow()
 	for i, m in r.mods do
 		infoTile(m.icon, m.text, half, i).Parent = mods
 	end
 
-	local desc = wrapLabel(r.desc, 15, C.Muted, w)
-	desc.Position = UDim2.fromOffset(PAD, PAD + 358)
-	desc.Parent = side
+	add(wrapLabel(r.desc, 15, C.Muted, w))
 
-	local rewardHead = Window.heading("Possible Rewards", 16, C.Text)
-	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 450)
-	rewardHead.Parent = side
-	local rewards = row(PAD + 484, w)
-	rewards.Size = UDim2.fromOffset(w, 56)
+	add(Window.heading("Possible Rewards", 16, C.Text))
+	local rewards = tileRow()
+	rewards:SetAttribute("Media", true)
 	for i, rw in r.rewards do
 		local s = Kit.itemSlot(52, rw.icon, { rarity = rw.rarity })
 		s.Active = false

@@ -286,11 +286,11 @@ local function pickup(d: Drop, at: Vector3?): boolean
 			return false
 		end
 		text = if full
-			then "Bag full · Salvaged " .. item.name
+			then "Bag full - Salvaged " .. item.name
 			elseif salvaged then "Salvaged " .. item.name
 			else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
-		-- Beats the worn piece of its slot (or the slot is empty): the client adds "▲ UPGRADE"
+		-- Beats the worn piece of its slot (or the slot is empty): the client adds the "UPGRADE" tag
 		local profile = Data.get(d.owner)
 		upgrade = not salvaged
 			and profile ~= nil

@@ -345,7 +345,7 @@ local function styleLabel(l: Label)
 		local g = math.max(4, 6 * scale)
 		gem.Size = UDim2.fromOffset(g, g)
 	end
-	l.sub.Text = if l.locked then "LOCKED · " .. string.upper(l.locked) else ""
+	l.sub.Text = if l.locked then "LOCKED - " .. string.upper(l.locked) else ""
 	l.sub.Visible = l.locked ~= nil
 	layoutLabel(l)
 end

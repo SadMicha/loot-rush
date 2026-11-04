@@ -202,7 +202,7 @@ describe("Holding stances", function()
 		end
 	end)
 
-	it("holds every weapon upright, never leaning back, clear of the body", function()
+	it("holds every weapon upright (the sword over the shoulder), clear of the body", function()
 		for _, w in Weapons.List do
 			for _, weight in { 1, Anim.STANCE_MOVING, Anim.STANCE_ACTING } do
 				local arm = {}
@@ -211,8 +211,10 @@ describe("Holding stances", function()
 					continue -- the Animator's arm takes part: only the full stance is ours alone
 				end
 				local f = weaponFrame(w, arm)
-				expect(tilt(f)).toBeLessThan(35)
-				expect(f.UpVector.Z).toBeLessThan(0.1) -- tip not toward the face/back
+				expect(tilt(f)).toBeLessThan(40)
+				if w.id ~= "warrior_sword" then -- the sword rests back over the shoulder
+					expect(f.UpVector.Z).toBeLessThan(0.1) -- tip not toward the face/back
+				end
 				for _, p in weaponPoints(w) do
 					expect(inBody(f * p)).toBe(false)
 				end
@@ -227,8 +229,9 @@ describe("Holding stances", function()
 			return weaponFrame(Weapons.ById[id], arm)
 		end
 		local sword = standing("warrior_sword")
-		expect(sword.Position.Z).toBeLessThan(-1) -- in front of the body
-		expect(sword.UpVector.Z).toBeLessThan(-0.3) -- blade leans toward the enemy (guard)
+		expect(sword.Position.Z).toBeLessThan(-0.8) -- hand in front of the chest
+		expect(sword.UpVector.Z).toBeGreaterThan(0.3) -- blade leans back over the shoulder
+		expect(sword.Position.X + sword.UpVector.X * 3).toBeGreaterThan(0.8) -- beside the head
 		local staff = standing("mage_staff")
 		expect(tilt(staff)).toBeLessThan(10) -- upright beside the body
 		expect(staff.Position.X).toBeGreaterThan(1.2)

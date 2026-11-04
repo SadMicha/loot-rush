@@ -6,6 +6,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Kit)
 local Shape = require(script.Parent.Shape)
@@ -165,6 +166,7 @@ end
 export type Tabs = {
 	frame: Frame,
 	select: (id: string) -> (),
+	width: () -> number,
 }
 
 -- Text tabs in a row; the active one has a gold marker that springs under it.
@@ -278,6 +280,16 @@ function Flat.tabs(
 		select = function(id: string)
 			choose(id, false)
 		end,
+		-- Width of the row in design pixels from the current (possibly raised) text sizes, so
+		-- neighbours can make room before the layout has run
+		width = function(): number
+			local w = 0
+			for _, def in defs do
+				local t = labels[def.id]
+				w += #def.text * t.TextSize * 0.66 + 32 -- upper case, average glyph width
+			end
+			return w + 6 * (#defs - 1)
+		end,
 	}
 end
 
@@ -329,7 +341,8 @@ function Flat.toggle(
 	t.LayoutOrder = 2
 	t.Parent = row
 	local function fitWidth()
-		local w = t.TextBounds.X
+		-- measured width, or an estimate from the (possibly raised) text size before it is measured
+		local w = math.max(t.TextBounds.X, #label * t.TextSize * 0.7) -- upper case is wide
 		if w > 0 then
 			local size = Vector2.new(fixed + math.ceil(w), 44)
 			b:SetAttribute("BaseSize", size) -- Kit touch minimums re-apply from this
@@ -337,6 +350,7 @@ function Flat.toggle(
 		end
 	end
 	t:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
+	t:GetPropertyChangedSignal("TextSize"):Connect(fitWidth)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -430,7 +444,7 @@ export type CellOptions = {
 	dim: boolean?, -- icon faded (empty equipment slot)
 	caption: string?, -- equipment slot name next to the cell
 	captionSide: "left" | "right" | "below" | nil, -- where the caption sits (default below)
-	upgrade: "up" | "down" | nil, -- corner marker: beats the worn piece (▲ green) or not (▼ red)
+	upgrade: "up" | "down" | nil, -- corner icon: beats the worn piece (green arrow up) or not (red down)
 }
 
 -- Square item cell: rarity tint (gradient from the corner), rarity edge, halo glow by rarity
@@ -470,34 +484,29 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 	end
 
 	if o.upgrade then
-		-- Top left corner: solid green chip with ▲ for upgrades, dark chip with a red ▼ otherwise,
-		-- so shape and color both tell them apart (readable on small phone scales too)
+		-- Top left corner: painted green arrow up for upgrades, red arrow down otherwise
+		-- (Theme.Flat.UpgradeMark*). Until the red "downgrade" image is uploaded, the green
+		-- library arrow turned upside down and faded stands in.
 		local up = o.upgrade == "up"
 		local d = math.max(F.UpgradeMarkMin, math.floor(size * F.UpgradeMarkScale))
 		local mark = Instance.new("Frame")
 		mark.Name = "Upgrade"
-		mark.AnchorPoint = Vector2.new(0, 0)
-		mark.Position = UDim2.fromOffset(4, 4)
+		mark.BackgroundTransparency = 1
+		mark.Position = UDim2.fromOffset(F.UpgradeMarkInset, F.UpgradeMarkInset)
 		mark.Size = UDim2.fromOffset(d, d)
-		mark.BackgroundColor3 = if up then C.Good else F.Surface0
-		mark.BackgroundTransparency = if up then 0 else 0.15
-		mark.BorderSizePixel = 0
 		mark.ZIndex = 3
-		Flat.corner(mark, F.Radius.M)
-		Flat.stroke(mark, if up then F.Surface0 else C.Danger, 1.5)
-		local arrow = Flat.text(
-			if up then "▲" else "▼",
-			math.floor(d * 0.62),
-			if up then Theme.Store.BadgeText else C.Danger,
-			Theme.Font.UI,
-			Enum.TextXAlignment.Center
-		)
-		arrow.AnchorPoint = Vector2.new(0.5, 0.5)
-		arrow.Position = UDim2.fromScale(0.5, if up then 0.46 else 0.54)
-		arrow.AutomaticSize = Enum.AutomaticSize.None
-		arrow.Size = UDim2.fromScale(1, 1)
-		arrow.ZIndex = 3
-		arrow.Parent = mark
+		mark:SetAttribute("Kind", o.upgrade)
+		local painted = up or Assets.IconImage.downgrade ~= nil
+		local ic = Kit.icon(if up or not painted then "upgrade" else "downgrade", d)
+		ic.Size = UDim2.fromScale(1, 1)
+		ic.ZIndex = 3
+		if not up then
+			if not painted then
+				ic.Rotation = 180
+			end
+			Kit.setIconTransparency(ic, F.UpgradeMarkDownFade)
+		end
+		ic.Parent = mark
 		mark.Parent = b
 	end
 

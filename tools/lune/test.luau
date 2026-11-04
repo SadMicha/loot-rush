@@ -20,6 +20,7 @@ local serde = require("@lune/serde")
 
 local Checks = require("./lib/Checks")
 local Expect = require("./lib/Expect")
+local Matrix = require("./lib/Matrix")
 local Place = require("./lib/Place")
 local Sandbox = require("./lib/Sandbox")
 
@@ -115,6 +116,15 @@ for _, file in shard(findSpecs("tests", {})) do
 		return Checks.closeButtons(sb)
 	end
 	env.compareClose = Checks.compareClose
+	-- Layout matrix (lib/Matrix.luau): a fresh sandbox per screen, checked on device profiles ×
+	-- HUD sizes; returns the strict findings as lines
+	env.matrix = function(screenNames: { string }, deviceNames: { string }?, scales: { number }?)
+		return Matrix.run({
+			placePath = placePath,
+			dumpPath = dumpPath,
+			sourceFiles = sourceFiles,
+		}, screenNames, deviceNames, scales)
+	end
 	env.expect = Expect
 	env.describe = function(name, fn)
 		table.insert(prefix, name)

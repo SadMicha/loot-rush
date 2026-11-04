@@ -93,7 +93,8 @@ local function tick()
 		end
 	end
 	for _, p in pulses do
-		p.Scale = 1 + math.sin(t * 5) * S.BadgePulse
+		-- only grows (never below 1): the badge text is already at the phone minimum size
+		p.Scale = 1 + (math.sin(t * 5) * 0.5 + 0.5) * S.BadgePulse
 	end
 end
 

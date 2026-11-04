@@ -257,11 +257,11 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	amount.LayoutOrder = 2
 	amount.Parent = priceRow
 	if price == 0 then
-		local first = Kit.label("· your first pet", 14, C.Muted, Theme.Font.Body)
+		local first = Kit.label("- your first pet", 14, C.Muted, Theme.Font.Body)
 		first.LayoutOrder = 3
 		first.Parent = priceRow
 	elseif egg.price.kind == "gold" then
-		local grows = Kit.label("· grows with depth", 14, C.Muted, Theme.Font.Body)
+		local grows = Kit.label("- grows with depth", 14, C.Muted, Theme.Font.Body)
 		grows.LayoutOrder = 3
 		grows.Parent = priceRow
 	end
@@ -394,7 +394,7 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 	name.Parent = info
 	local sub = Kit.label(
 		string.format(
-			"%s · Level %d/%d",
+			"%s - Level %d/%d",
 			RARITY_NAME[pet.rarity] or pet.rarity,
 			level,
 			Pets.MAX_LEVEL
@@ -654,7 +654,7 @@ function PetWindowController.init()
 		if name == "Pets" then
 			local hint = QuestController.lockHint("pets")
 			if hint then
-				QuestController.toast("Locked · " .. hint)
+				QuestController.toast("Locked - " .. hint)
 			else
 				PetWindowController.open()
 			end

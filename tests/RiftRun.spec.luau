@@ -181,7 +181,7 @@ describe("Rift run in game", function()
 				text ..= d.Text .. "|"
 			end
 		end
-		expect(string.find(text, "Play again · D2", 1, true)).toBeTruthy()
+		expect(string.find(text, "Play again - D2", 1, true)).toBeTruthy()
 		expect(string.find(text, "Green Plains", 1, true)).toBeTruthy()
 	end)
 

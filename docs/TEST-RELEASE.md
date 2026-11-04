@@ -49,3 +49,30 @@ Without Studio API access ProfileStore prints `Roblox API services unavailable` 
   Please rejoin.`, the second loads the latest progress.
 
 Automated: `tests/Profile`, `ProfileStore`, `Data`, `DataLoad`, `DataLock`, `DataMock`, `Monetization` specs.
+
+## Launch checklist (2026-11-04)
+
+Shipped in the last days and only checked in code. Phone = Studio device 844×390 or the Roblox app.
+One line each: what to do → what should happen.
+
+- [ ] **Stance (Motor6D, Avatar Joint Upgrade off):** equip each class weapon, stand, run, attack → arms hold the weapon pose, no T-pose or snapping; Output has no joint warnings.
+- [ ] **Nameplates + station labels:** walk the hub with 2 players → name over each hero, floating labels over Rift Gate, Forge, Market, Stash, Pet Stable; readable, not over the HUD.
+- [ ] **Inventory upgrade icons:** pick up a better and a worse item → green up arrow / red down arrow on the bag cells, counter and "Upgrades" sort match.
+- [ ] **Boss start (d1–5):** fight bosses at depth 1, 3, 4, 5 → d1 phase 1 only + Break callout; d3 Counter/Openings; d4 Pursuit (ranged class at its own range is not jumped); d5 adds + enrage.
+- [ ] **Mobile layouts, all HUD sizes:** Settings → each HUD size on 844×390 and a tablet → no overlap of skills, joystick, minimap, capsules, buff bar, Rush meter; every window opens and closes.
+- [ ] **Journey and Season windows (#124):** open both from the top-right icons → milestones and Beta Season challenges list, claim works once, gold dot clears.
+- [ ] **Gradual skill unlock (#125):** new hero → 2 skills, skill 3 at level 2, skill 4 at level 3 with the level-up card; an old hero still has all four.
+- [ ] **Hint callouts:** fresh save → Skills/Dodge/Rush/Break/Counter/Equip callouts each appear once, next to their button, in a calm moment; none lost.
+- [ ] **Daily after the first Rift:** fresh save → no Daily popup before the first Rift; it opens back in the hub after it.
+- [ ] **Hero switch loading screen:** published place, switch hero → cover "Loading <hero>…", teleport, new hero loads; no kick message (Studio cannot teleport, so check live).
+- [ ] **Loot moment (phone):** Rare/Epic drop at camera distance → pillar visible across the clearing, UPGRADE tag readable.
+- [ ] **Danger read (phone):** phase 3 boss with adds, Fire Desert pools → red telegraphs and burning ground stand out from decor.
+
+Launch basics:
+
+- [ ] **Publish settings:** Creator Hub → place is public (or friends for the Beta), genre, max players, thumbnail and icon set, devices Phone/Tablet/Computer on; Studio *Game Settings → Security* "Enable Studio Access to API Services" on for the save test.
+- [ ] **DataStore save/load:** published place, earn gold, leave and rejoin → newest gold back, no kick (details: Saving above).
+- [ ] **Robux products:** buy each product and gamepass once in Studio (free) → arrives once, still there after rejoin; ids in `Shared/Monetization` are real, no placeholders.
+- [ ] **Beta Season config:** after #124: `Shared/Seasons` Beta active, no end date (`BETA_ENDS` nil) → Season window shows "Beta Season" without a countdown.
+- [ ] **Debug menu:** live place with a second account → no Dbg button, Debug remote ignored; `DEV_USERS` in `Systems/Debug` holds only Micha's UserId (the place owner is always allowed).
+- [ ] **Version label:** Settings shows `1.0 Beta` (`Settings.GAME_VERSION`).

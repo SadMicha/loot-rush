@@ -41,12 +41,19 @@ joints after the Animator (PreSimulation). Angles are in character space, so R15
 once (`[AnimController] no animatable joints`) if it finds none. Tests: `tests/Anim.spec.luau`,
 `tests/AnimRig.spec.luau`.
 
+**Avatar Joint Upgrade is switched off** (`StarterPlayer.AvatarJointUpgrade = Disabled` in
+`default.project.json`, 2026-11-04): on upgraded rigs, writing `AnimationConstraint.Transform`
+reads back fine but does not move the limb (Dbg "Dump Joints" showed it). The procedural layer
+needs classic `Motor6D` rigs. If Rojo cannot set the property in Studio, set StarterPlayer →
+Avatar Joint Upgrade → Disabled by hand once; the published place is built from the project file.
+
 - **Moves** (`Anim.Moves`): sword `slash`/`chop`, bow `shoot`, staff/scepter `cast`/`castBig`, arc
   `cleave`, whirls `spin`, novas `slam`, chains `point`, leaps `leap`, zones `plant`, buffs `roar`,
   dodge `roll`, hit `hurt`, death `death`, level up `cheer`. Attack moves turn the body to the target.
 - **Holding stances** (`Anim.STANCE`): `hold` (weapon arm, absolute pose) + `pose` (waist, neck, off
   arm, hips). Blend to `STANCE_MOVING`/`STANCE_ACTING` with `STANCE_BLEND`. Rule of thumb: shoulder X +
-  elbow X + wrist X = 90 keeps the weapon upright with the grips in `Shared/Weapons`.
+  elbow X + wrist X = 90 keeps the weapon upright with the grips in `Shared/Weapons`. Sword = shoulder rest
+  (blade back over the right shoulder), bow = relaxed, staff = planted, scepter = upright in front.
 - **Triggers:** server `Combat` fires `Net.Fx("act", …)` for every attack, cast and dash;
   `Anim.moveFor` picks the move (`Anim.SKILL_MOVE` overrides). On death the body stays whole, then
   breaks into bricks after `Anim.DEATH_BREAK`.
