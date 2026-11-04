@@ -60,7 +60,7 @@ type Label = {
 	window: string?,
 	alpha: number,
 	subShown: number, -- applied alpha of the "Locked" line
-	clear: number, -- declutter share 0..1 (eases towards 1 while nothing is in the way)
+	clear: number, -- declutter share 0..1 (eases towards 1 while nothing is in the way), -1 = off screen
 	quest: boolean,
 	locked: string?,
 }
@@ -573,12 +573,18 @@ function NameplateController.tick()
 	local free = Nameplate.declutter(rects, priority, Kit.hudBlockRects(), Nameplate.LABEL_GAP)
 	for i, l in list do
 		local goal = if free[i] then 1 else 0
-		if l.clear < goal then
+		if not rects[i] then
+			-- not on screen / out of range: no known conflict; the next rect decides at once, so
+			-- a label coming back into view follows its distance fade instead of easing in late
+			l.clear = -1
+		elseif l.clear < 0 then
+			l.clear = goal
+		elseif l.clear < goal then
 			l.clear = math.min(goal, l.clear + Nameplate.DECLUTTER_STEP)
 		elseif l.clear > goal then
 			l.clear = math.max(goal, l.clear - Nameplate.DECLUTTER_STEP)
 		end
-		local a = base[i] * l.clear
+		local a = base[i] * math.max(l.clear, 0)
 		if math.abs(a - l.alpha) > 0.02 or (a == 0) ~= (l.alpha == 0) then
 			l.alpha = a
 			setAlpha(l.fades, a)
