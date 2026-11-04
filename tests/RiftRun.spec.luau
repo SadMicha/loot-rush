@@ -171,6 +171,12 @@ describe("Rift run in game", function()
 	it("reports an abort in the middle of a depth", function()
 		rift("enter", "green_plains")
 		expect(phase()).toBe("wave")
+		-- depth 1 is cleared: the run resumes at depth 2 instead of starting over
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(2)
+		local reach = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").get(player).reach["1:green_plains"]
+		end)
+		expect(reach).toBe(1)
 		rift("leave")
 		local s = last()
 		expect(s.reason).toBe("abandoned")

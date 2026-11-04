@@ -45,6 +45,7 @@ export type Data = {
 	progress: Progression.Data, -- skill levels, Skill Blooms, Star Net
 	materials: Progression.Materials, -- Forge materials
 	atlas: { [string]: number }, -- region → highest Rift depth cleared (Shared/Atlas)
+	reach: { [string]: number }, -- "tier:region" → highest depth cleared on that tier (Atlas.maxStart)
 	tier: WorldTiers.Data, -- World Tier unlocked/selected (Shared/WorldTiers)
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
 	class: string, -- class of this character (Shared/Classes id), locked after setup
@@ -100,6 +101,7 @@ local DEFAULTS: Data = {
 	progress = Progression.fresh(), -- contents checked by Progression.reconcile
 	materials = Progression.freshMaterials(),
 	atlas = {},
+	reach = {},
 	tier = WorldTiers.fresh(),
 	quests = Quests.fresh(),
 	class = Classes.DEFAULT,
@@ -223,6 +225,23 @@ local function whole(v: number): number
 	return math.floor(v)
 end
 
+-- String key → depth ≥ 1 (atlas, reach); everything else is dropped
+local function depths(raw: { [any]: any }): { [string]: number }
+	local out = {}
+	for id, depth in raw do
+		if
+			typeof(id) == "string"
+			and #id <= Profile.MAX_KEY_LEN
+			and typeof(depth) == "number"
+			and depth == depth
+			and depth >= 1
+		then
+			out[id] = math.floor(math.min(depth, 1e6))
+		end
+	end
+	return out
+end
+
 -- Sanitizes one character (in place where possible)
 function Profile.reconcile(raw: any): Data
 	local data = if typeof(raw) == "table" then raw else {}
@@ -239,18 +258,8 @@ function Profile.reconcile(raw: any): Data
 	data.starters = whole(data.starters)
 	data.progress = Progression.reconcile(data.progress)
 	data.materials = Progression.reconcileMaterials(data.materials)
-	local atlas = {}
-	for id, depth in data.atlas do
-		if
-			typeof(id) == "string"
-			and typeof(depth) == "number"
-			and depth == depth
-			and depth >= 1
-		then
-			atlas[id] = math.floor(math.min(depth, 1e6))
-		end
-	end
-	data.atlas = atlas
+	data.atlas = depths(data.atlas)
+	data.reach = depths(data.reach)
 	data.rebirths = nil -- Rebirth was removed (pure ARPG, 2026-11-02)
 	data.tier = WorldTiers.reconcile(data.tier)
 	data.quests = Quests.reconcile(data.quests)

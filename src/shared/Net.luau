@@ -5,7 +5,7 @@
 --   Fx        (S→C): kind: string, data: table (see Types.luau)
 --   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item } }
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
---   Rift      (C→S): action: "enter" | "deeper" | "leave" | "tier" (arg: World Tier number) - state comes via player attributes (Types.luau)
+--   Rift      (C→S): action: "enter" (region id, start depth?) | "deeper" | "leave" | "tier" (World Tier number) - state comes via player attributes (Types.luau)
 --   RiftResult (S→C): RiftRun.Summary - after every boss (kind "clear") and at the end of the run (kind "end")
 --   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
 --   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill Bloom)
