@@ -430,6 +430,7 @@ export type CellOptions = {
 	dim: boolean?, -- icon faded (empty equipment slot)
 	caption: string?, -- equipment slot name next to the cell
 	captionSide: "left" | "right" | "below" | nil, -- where the caption sits (default below)
+	upgrade: "up" | "down" | nil, -- corner marker: beats the worn piece (▲ green) or not (▼ red)
 }
 
 -- Square item cell: rarity tint (gradient from the corner), rarity edge, halo glow by rarity
@@ -466,6 +467,38 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 		s.Thickness = 1.5
 		s.Parent = n
 		n.Parent = b
+	end
+
+	if o.upgrade then
+		-- Top left corner: solid green chip with ▲ for upgrades, dark chip with a red ▼ otherwise,
+		-- so shape and color both tell them apart (readable on small phone scales too)
+		local up = o.upgrade == "up"
+		local d = math.max(F.UpgradeMarkMin, math.floor(size * F.UpgradeMarkScale))
+		local mark = Instance.new("Frame")
+		mark.Name = "Upgrade"
+		mark.AnchorPoint = Vector2.new(0, 0)
+		mark.Position = UDim2.fromOffset(4, 4)
+		mark.Size = UDim2.fromOffset(d, d)
+		mark.BackgroundColor3 = if up then C.Good else F.Surface0
+		mark.BackgroundTransparency = if up then 0 else 0.15
+		mark.BorderSizePixel = 0
+		mark.ZIndex = 3
+		Flat.corner(mark, F.Radius.M)
+		Flat.stroke(mark, if up then F.Surface0 else C.Danger, 1.5)
+		local arrow = Flat.text(
+			if up then "▲" else "▼",
+			math.floor(d * 0.62),
+			if up then Theme.Store.BadgeText else C.Danger,
+			Theme.Font.UI,
+			Enum.TextXAlignment.Center
+		)
+		arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+		arrow.Position = UDim2.fromScale(0.5, if up then 0.46 else 0.54)
+		arrow.AutomaticSize = Enum.AutomaticSize.None
+		arrow.Size = UDim2.fromScale(1, 1)
+		arrow.ZIndex = 3
+		arrow.Parent = mark
+		mark.Parent = b
 	end
 
 	if o.marked then

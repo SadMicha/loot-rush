@@ -95,9 +95,9 @@ local STAT_ICON: { [string]: string } = {
 local STAT_ORDER = { "damage", "life", "crit", "speed" }
 local RARITY_RANK: { [string]: number } = { normal = 1, magic = 2, rare = 3, epic = 4, unique = 5 }
 local RARITY_CYCLE = { "normal", "magic", "rare", "epic", "unique" }
-local SORTS = { "rarity", "level", "newest" }
+local SORTS = { "rarity", "upgrades", "level", "newest" }
 local SORT_NAME: { [string]: string } =
-	{ rarity = "Rarity", level = "Item Level", newest = "Newest" }
+	{ rarity = "Rarity", upgrades = "Upgrades", level = "Item Level", newest = "Newest" }
 
 -- Class art of the slot (Kit.equipIcon) or the atlas icon while that is not uploaded; unknown slots: pouch
 local function slotArt(slot: string): string
@@ -126,6 +126,8 @@ local autoLabel: TextLabel
 local AUTO_CYCLE = { "", "normal", "magic", "rare" } -- auto-salvage on pickup (never uniques)
 local sortLabel: TextLabel
 local filterLabel: TextLabel
+local upgradeChip: Frame
+local upgradeLabel: TextLabel
 local tabs: Flat.Tabs
 local salvageToggle: Flat.Toggle
 local viewport: ViewportFrame
@@ -567,6 +569,14 @@ local function renderCompare()
 end
 
 -- ------------------------------------------------------------------ Grid (right)
+-- Upgrade marker per bag item (Items.upgradeMarks, same rule as the "▲ UPGRADE" drop label)
+local marks: { [string]: Items.UpgradeMark } = {}
+local upgradeTotal = 0
+
+local function refreshMarks()
+	marks, upgradeTotal = Items.upgradeMarks(items, equipped)
+end
+
 local function visibleItems(): { Items.Item }
 	local slots = CATEGORY_SLOTS[category]
 	local list: { Items.Item } = {}
@@ -587,7 +597,19 @@ local function visibleItems(): { Items.Item }
 		end
 		return rev
 	end
+	-- "Upgrades": upgrades first, the biggest gain on top (empty slots count as the biggest)
+	local gains: { [string]: number } = {}
+	if sortMode == "upgrades" then
+		for _, item in list do
+			gains[item.id] = if marks[item.id] == "up"
+				then Items.upgradeGain(item, equipped[item.slot])
+				else -math.huge
+		end
+	end
 	table.sort(list, function(a, b)
+		if sortMode == "upgrades" and gains[a.id] ~= gains[b.id] then
+			return gains[a.id] > gains[b.id]
+		end
 		if sortMode == "level" and a.ilvl ~= b.ilvl then
 			return a.ilvl > b.ilvl
 		end
@@ -730,9 +752,11 @@ local function renderItems(): number
 			and selected.id == item.id
 			and not salvageMode
 		local isMarked = salvageMode and marked[item.id] == true
+		local mark: Items.UpgradeMark? = marks[item.id]
 		local key = item.rarity
 			.. (if isSel then "|sel" else "")
 			.. (if isMarked then "|mark" else "")
+			.. (if mark then "|" .. mark else "")
 		local entry: CellEntry? = itemCells[item.id]
 		if entry and entry.key ~= key then
 			entry.cell:Destroy()
@@ -743,6 +767,7 @@ local function renderItems(): number
 				rarity = item.rarity,
 				selected = isSel,
 				marked = isMarked,
+				upgrade = mark,
 			})
 			b.Name = "Item"
 			local id = item.id
@@ -794,6 +819,10 @@ end
 local function renderGrid()
 	countLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
 	capLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
+	refreshMarks()
+	upgradeChip.Visible = upgradeTotal > 0
+	upgradeLabel.Text =
+		string.format("%d %s", upgradeTotal, if upgradeTotal == 1 then "Upgrade" else "Upgrades")
 	local shown = 0
 	if category == "materials" then
 		resetGrid()
@@ -1206,6 +1235,32 @@ local function buildHeader(parent: Frame)
 	countLabel.LayoutOrder = 2
 	countLabel.Parent = count
 	count.Parent = titleRow
+
+	-- "▲ 3 Upgrades": bag items that beat the worn piece of their slot (hidden at 0)
+	upgradeChip = Instance.new("Frame")
+	upgradeChip.Name = "Upgrades"
+	upgradeChip.LayoutOrder = 3
+	upgradeChip.Visible = false
+	upgradeChip.BackgroundColor3 = F.Surface1
+	upgradeChip.BackgroundTransparency = 0.1
+	upgradeChip.BorderSizePixel = 0
+	upgradeChip.AutomaticSize = Enum.AutomaticSize.X
+	upgradeChip.Size = UDim2.fromOffset(0, 28)
+	Flat.corner(upgradeChip, F.Radius.M)
+	Flat.stroke(upgradeChip, C.Good, F.Stroke, 0.35)
+	local up = Instance.new("UIPadding")
+	up.PaddingLeft = UDim.new(0, 12)
+	up.PaddingRight = UDim.new(0, 12)
+	up.Parent = upgradeChip
+	local ul = Kit.list(upgradeChip, Enum.FillDirection.Horizontal, 6)
+	ul.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local arrow = Flat.text("▲", 12, C.Good)
+	arrow.LayoutOrder = 1
+	arrow.Parent = upgradeChip
+	upgradeLabel = Flat.text("0 Upgrades", 12, C.Good)
+	upgradeLabel.LayoutOrder = 2
+	upgradeLabel.Parent = upgradeChip
+	upgradeChip.Parent = titleRow
 
 	-- Currencies + close on the right
 	local right = Flat.frame(UDim2.fromOffset(0, HEAD_H), UDim2.fromScale(1, 0))

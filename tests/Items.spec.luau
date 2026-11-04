@@ -224,3 +224,57 @@ describe("Items.isUpgrade", function()
 		expect(better).toBeGreaterThan(180)
 	end)
 end)
+
+describe("Items.upgradeMarks", function()
+	local function item(id: string, slot: string, affixes): any
+		return { id = id, slot = slot, rarity = "magic", name = id, ilvl = 1, affixes = affixes }
+	end
+
+	it("marks each bag item up or down against the worn piece of its slot", function()
+		local worn = item("w", "ring", { { stat = "crit", value = 4 } })
+		local better = item("a", "ring", { { stat = "crit", value = 8 } })
+		local worse = item("b", "ring", { { stat = "crit", value = 2 } })
+		local same = item("c", "ring", { { stat = "crit", value = 4 } })
+		local boots = item("d", "boots", { { stat = "speed", value = 1 } }) -- empty slot
+		local odd = item("e", "trinket", { { stat = "crit", value = 9 } }) -- no equipment slot
+		local marks, ups = Items.upgradeMarks({ better, worse, same, boots, odd }, { ring = worn })
+		expect(marks.a).toBe("up")
+		expect(marks.b).toBe("down")
+		expect(marks.c).toBe("down")
+		expect(marks.d).toBe("up")
+		expect(marks.e).toBe(nil)
+		expect(ups).toBe(2)
+	end)
+
+	it("matches Items.isUpgrade (the drop label) for rolled gear", function()
+		local rng = Random.new(7)
+		local equipped: { [string]: any } = {}
+		for slot in Items.SlotName do
+			equipped[slot] = Items.roll(10, rng, nil, { slot = slot })
+		end
+		local bag = {}
+		for i = 1, 60 do
+			local it = Items.roll(rng:NextInteger(1, 20), rng)
+			it.id = "bag" .. i
+			table.insert(bag, it)
+		end
+		local marks, ups = Items.upgradeMarks(bag, equipped)
+		local count = 0
+		for _, it in bag do
+			local up = Items.isUpgrade(it, equipped[it.slot])
+			expect(marks[it.id]).toBe(if up then "up" else "down")
+			if up then
+				count += 1
+			end
+		end
+		expect(ups).toBe(count)
+	end)
+
+	it("upgradeGain is positive exactly for upgrades and huge for an empty slot", function()
+		local a = item("a", "ring", { { stat = "crit", value = 8 } })
+		local b = item("b", "ring", { { stat = "crit", value = 4 } })
+		expect(Items.upgradeGain(a, b)).toBeGreaterThan(0)
+		expect(Items.upgradeGain(b, a)).toBeLessThan(0)
+		expect(Items.upgradeGain(a, nil)).toBe(math.huge)
+	end)
+end)
