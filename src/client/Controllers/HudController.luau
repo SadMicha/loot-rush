@@ -1387,9 +1387,13 @@ end
 
 -- ------------------------------------------------------------------ Lifecycle
 function HudController.init()
-	pcall(function()
-		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
-	end)
+	-- Our own HUD replaces Roblox's health bar and player list (the list overlaps the minimap).
+	-- The game never creates a `leaderstats` folder; rankings live in the Leaderboard window.
+	for _, coreGui in { Enum.CoreGuiType.Health, Enum.CoreGuiType.PlayerList } do
+		pcall(function()
+			StarterGui:SetCoreGuiEnabled(coreGui, false)
+		end)
+	end
 
 	hudGui, root = Kit.scaledGui("LootRushHUD", 1, false, Kit.hudDesign, true)
 
