@@ -16,6 +16,8 @@ Tips: generate all icons of one group in the same chat so the style stays consis
 
 ## Badges (13)
 
+Save each badge icon as `assets/badges/<key>.png` (the key in brackets): the "Create badges" workflow uploads them (docs/BADGES.md).
+
 ### Welcome to Loot Rush (`welcome`)
 
 ```
