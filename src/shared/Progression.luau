@@ -20,6 +20,10 @@ export type Data = {
 	bar: { string }, -- skill id per bar slot (Skills.SLOTS entries)
 	stones: { [string]: number }, -- owned spell stones by id (Shared/SpellStones)
 	sockets: { [string]: { string } }, -- skill id → socketed stone ids (up to SpellStones.SOCKETS)
+	-- Hero made with gradual skill unlocks (starting skills 2-4 at Skills.StartUnlock levels).
+	-- false for heroes from before (they keep all four); set by Profile.newCharacter and the
+	-- first-join setup (Systems/Characters). Missing in old saves = false.
+	gradual: boolean,
 }
 export type Materials = { candy: number, shards: number, dust: number }
 
@@ -75,6 +79,7 @@ function Progression.fresh(): Data
 		bar = table.clone(Skills.DefaultBar),
 		stones = {},
 		sockets = {},
+		gradual = false,
 	}
 end
 
@@ -141,6 +146,7 @@ function Progression.reconcile(raw: any): Data
 		end
 		data.bar = bar :: { string }
 	end
+	data.gradual = raw.gradual == true
 	if typeof(raw.stones) == "table" then
 		for id, n in raw.stones do
 			if typeof(id) == "string" and SpellStones.ById[id] and count(n) > 0 then
@@ -405,11 +411,27 @@ function Progression.barSkill(data: Data, slot: number): Skills.Skill?
 	return if id then Skills.ById[id] else nil
 end
 
+-- Player level a skill unlocks at for this hero: skills 5-8 by their `unlock`, the starting
+-- skills by Skills.StartUnlock for heroes with gradual unlocks (data.gradual), else at once.
+function Progression.unlockLevel(skill: Skills.Skill, data: Data?): number
+	local start = Skills.StarterIndex[skill.id]
+	if start then
+		return if data and data.gradual then Skills.StartUnlock[start] or 1 else 1
+	end
+	return skill.unlock or 1
+end
+
+-- Can the hero use (cast, equip) this skill at this level?
+function Progression.isUnlocked(skill: Skills.Skill, playerLevel: number, data: Data?): boolean
+	return playerLevel >= Progression.unlockLevel(skill, data)
+end
+
 -- Can the skill go on the bar at this player level (and, if given, for this class)?
 function Progression.canEquip(
 	skillId: string,
 	playerLevel: number,
-	classId: string?
+	classId: string?,
+	data: Data?
 ): (boolean, string?)
 	local skill = Skills.ById[skillId]
 	if not skill then
@@ -418,10 +440,28 @@ function Progression.canEquip(
 	if classId and skill.class ~= classId then
 		return false, "Another class's skill"
 	end
-	if playerLevel < (skill.unlock or 1) then
-		return false, string.format("Unlocks at level %d", skill.unlock or 1)
+	local need = Progression.unlockLevel(skill, data)
+	if playerLevel < need then
+		return false, string.format("Unlocks at level %d", need)
 	end
 	return true, nil
+end
+
+-- Skills that unlock for this hero at a level in (from, to], in class list order
+function Progression.unlockedBetween(
+	data: Data?,
+	classId: string?,
+	from: number,
+	to: number
+): { Skills.Skill }
+	local out = {}
+	for _, s in Skills.forClass(classId).list do
+		local need = Progression.unlockLevel(s, data)
+		if need > from and need <= to then
+			table.insert(out, s)
+		end
+	end
+	return out
 end
 
 -- Puts a skill into a slot; if it already sits in another slot, the two swap places.
@@ -436,7 +476,7 @@ function Progression.equip(
 	if slot ~= math.floor(slot) or slot < 1 or slot > Skills.SLOTS then
 		return false
 	end
-	if not Progression.canEquip(skillId, playerLevel, classId) then
+	if not Progression.canEquip(skillId, playerLevel, classId, data) then
 		return false
 	end
 	local old = data.bar[slot]

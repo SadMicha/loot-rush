@@ -153,7 +153,7 @@ M (one thread), L (several threads). **Ship blockers** are marked 🚩.
 | 12 | **Quest progress in combat:** a compact "4/10" line under the minimap while a count quest is active. | 3 | M | XS–S | |
 | 13 | **Quests that hand out the system they teach:** the spell stone quest gives a stone, the Forge quest gives materials, the Pets quest gives the egg. Add the missing quests (spell stones, dodge) at the end of the chain (append only). | 3, 4 | M | S | |
 | 14 | **Hero switch without kick:** respawn as the new hero in place; if a rejoin is unavoidable, use `TeleportService` to the same place with a "Loading Fynn…" screen. | 6 | M | M | |
-| 15 | **Stagger the first skills:** start with 2 skills, unlock skill 3 at level 2 and skill 4 at level 3, with the unlock card from #11. | 2 | M | S | |
+| 15 | **Stagger the first skills:** start with 2 skills, unlock skill 3 at level 2 and skill 4 at level 3, with the unlock card from #11. | 2 | M | S | ✅ done (`Skills.StartUnlock`, docs/CLASSES.md) |
 | 16 | Docs drift: README tagline, RIFT-RUN "village". | 6 | L | XS | |
 | 17 | Rename "Rune Candy" to something that says "Forge" (display name only). | 6 | L | XS | |
 

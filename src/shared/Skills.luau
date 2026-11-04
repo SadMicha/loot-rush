@@ -689,6 +689,11 @@ Skills.BloomBranches = table.freeze({ "trunk", "left", "right" })
 Skills.MaxLevel = 20
 Skills.DamagePerLevel = 0.05 -- +5% damage per skill level above 1
 Skills.SLOTS = 4 -- skills on the bar
+-- New heroes learn their starting skills gradually (audit #15): the player level each of the
+-- class's 4 starting skills (kit.bar order) unlocks at - two at once, then one per level. Heroes
+-- from before this rule (progress.gradual = false) keep all four from the start
+-- (docs/CLASSES.md, Progression.unlockLevel).
+Skills.StartUnlock = table.freeze({ 1, 1, 2, 3 })
 
 local function bloom(b: Bloom): Bloom
 	return table.freeze(b)
@@ -1150,6 +1155,15 @@ for id, k in others do
 end
 Skills.ById = table.freeze(byId)
 Skills.Kits = table.freeze(kits)
+
+-- Starting skill id → its position in the class's starting bar (1..4)
+local starterIndex: { [string]: number } = {}
+for _, k in kits do
+	for i, id in k.bar do
+		starterIndex[id] = i
+	end
+end
+Skills.StarterIndex = table.freeze(starterIndex)
 
 -- Skills without their own bloom get the shared one (Mastery / Power / Tempo)
 for id in byId do

@@ -1115,6 +1115,10 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	if base.class ~= Classes.valid(profile and profile.class) then
 		return false -- a skill of another class (bar is refitted on class change)
 	end
+	local level = (player:GetAttribute("Level") or 1) :: number
+	if profile and not Progression.isUnlocked(base, level, profile.progress) then
+		return false -- a starting skill this new hero has not learned yet (Skills.StartUnlock)
+	end
 	local skill = effective(player, base)
 	local now = os.clock()
 	if now < (st.cdUntil[base.id] or 0) then

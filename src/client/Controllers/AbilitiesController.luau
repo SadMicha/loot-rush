@@ -106,7 +106,8 @@ local function renderList()
 	local level = playerLevel()
 	for i, skill in kit().list do
 		local on = skill.id == selected
-		local locked = level < (skill.unlock or 1)
+		local need = Progression.unlockLevel(skill, ProgressController.data())
+		local locked = level < need
 		local slot = slotOf(skill.id)
 		local row = Instance.new("ImageButton")
 		row.Name = skill.id
@@ -133,7 +134,7 @@ local function renderList()
 		local eff = effectiveOf(skill)
 		local sub = Kit.label(
 			if locked
-				then string.format("Unlocks at level %d", skill.unlock or 1)
+				then string.format("Unlocks at level %d", need)
 				else string.format(
 					"Lv %d · %s dmg · %s s",
 					progressOf(skill).level,
@@ -604,7 +605,8 @@ local function renderDetail()
 		b.Parent = detail
 		return
 	end
-	local okEquip, why = Progression.canEquip(skill.id, playerLevel(), Kit.playerClass())
+	local okEquip, why =
+		Progression.canEquip(skill.id, playerLevel(), Kit.playerClass(), ProgressController.data())
 	if not okEquip then
 		local b = Kit.button(why or "Locked", C.Muted, Vector2.new(w, 60), "lock")
 		Kit.setEnabled(b, false)

@@ -14,3 +14,5 @@ quest panel in `HudController` · tests: `tests/Quests.spec.luau`.
 - Unlocks are pacing only: the server does not refuse requests for locked windows.
 - Each finished quest logs `AnalyticsService:LogOnboardingFunnelStepEvent(player, step, questId)`.
 - New quest: append to `Quests.Chain` (never reorder – the save stores the step index).
+- Skills: new heroes start with two skills; starting skills 3 and 4 unlock at level 2 and 3 with a
+  level-up card line, a bouncing new button and a "NEW SKILL" callout (docs/CLASSES.md).

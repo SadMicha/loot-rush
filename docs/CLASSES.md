@@ -21,6 +21,18 @@ passes and pets are account-wide.
 
 ## Skills (basic attack always automatic, skills 5–8 unlock at level 8/12/16/20)
 
+**Gradual start (new heroes, audit #15):** a new hero starts with the first two starting skills
+(Q, E). Starting skill 3 unlocks at level 2 and skill 4 at level 3 (`Skills.StartUnlock`), so a
+new player learns one button at a time. Locked slots are hidden on the HUD, the server refuses to cast them,
+the Skills window shows "Unlocks at level N". At the unlock the level-up card says
+"New skill: X · press R" (touch: "tap its new button"), the new button bounces in, and in the
+next calm moment of a Rift a "NEW SKILL" callout points at it until it is used (not saved,
+`HintsController` key `newSkill`).
+- Rule: `Progression.unlockLevel(skill, data)` / `isUnlocked` / `unlockedBetween`.
+- Save: `progress.gradual` (true = hero made with gradual unlocks). Set by `Profile.newCharacter`
+  and the first-join setup (`Systems/Characters`, only for a level 1 hero without XP). Heroes
+  from before this rule have no field and load as `false`: they keep all four from level 1.
+
 | Class | Basic | Starting bar | Unlocks |
 |---|---|---|---|
 | Knight Brix (`warrior`) | Sword Slash (arc) | Shield Bash (arc, slow), Whirlwind (nova), Charge (leap), Battle Cry (buff) | Ground Slam, Taunt (pull + armor), Stone Armor (buff), Blade Storm (wide arc, bleed) |
