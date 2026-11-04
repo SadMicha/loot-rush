@@ -297,10 +297,11 @@ describe("Holding stances", function()
 		local low = bow * Vector3.new(0, -bw.gripAt * bw.length, 0)
 		expect(low.Y + assert(Anim.STANCE.ranger_bow.lift).Y > -3.1).toBe(true) -- above the ground
 		expect(low.Y < -2.2).toBe(true)
-		expect(bow.RightVector.X).toBeLessThan(-0.6) -- riser out
-		expect(bow.RightVector.Z).toBeLessThan(-0.3) -- and forward
+		expect(bow.RightVector.Z).toBeLessThan(-0.7) -- back of the bow forward
+		expect(bow.RightVector.X).toBeLessThan(-0.3) -- and a little out
 		local str = bow * Vector3.new(-0.6, 0, 0)
-		expect(str.X).toBeGreaterThan(bow.Position.X + 0.4) -- string toward the body
+		expect(str.X).toBeGreaterThan(bow.Position.X + 0.3) -- string toward the body
+		expect(str.Z).toBeGreaterThan(bow.Position.Z + 0.4) -- behind the back of the bow
 		expect(Anim.STANCE.ranger_bow.off).toBeNil()
 		-- staff: upright beside the body, its foot on the ground (lowered with the stance)
 		local staff = standing("mage_staff")
@@ -320,6 +321,38 @@ describe("Holding stances", function()
 		local arm = {}
 		Anim.hold("warrior_sword", 0, false, arm, {})
 		expect(math.abs(tilt(weaponFrame(Weapons.ById.warrior_sword, arm)) - 15)).toBeLessThan(1)
+	end)
+
+	it("holds the bow mesh by its grip, upright, string toward the body", function()
+		-- The uploaded MeshPart comes from Roblox's importer turned 180° about Y against the FBX
+		-- (Weapons.IMPORT). A point of the FBX (measured on Ranger_Bow/Standard.fbx, scaled to the
+		-- weapon length) is (-x, y, -z) in the part; meshCFrame must bring it back to weapon space.
+		local w = Weapons.ById.ranger_bow
+		local k = w.length / 4.2 -- FBX bow length 4.2
+		local center = Vector3.new(0.133, 0.147, 0) * k -- FBX bounding-box center (x, up)
+		local function fromFbx(x: number, up: number): Vector3
+			local p = Vector3.new(x, up, 0) * k - center
+			return Weapons.meshCFrame(w) * Vector3.new(-p.X, p.Y, -p.Z) -- part space → weapon space
+		end
+		local gripUp = -1.953 + w.gripAt * 4.2
+		local grip = fromFbx(0.27, gripUp) -- middle of the handle at the grip height
+		local string = fromFbx(-0.1, gripUp) -- the string, level with the grip
+		local back = fromFbx(0.85, 0.15) -- outer curve of the riser
+		local top = fromFbx(-0.04, 2.247)
+		expect(grip.Magnitude).toBeLessThan(0.25) -- the fist closes on the handle
+		expect(string.X).toBeLessThan(-0.3) -- string on weapon -X (Weapons.grip assumes it)
+		expect(back.X).toBeGreaterThan(0.3)
+		expect(top.Y).toBeGreaterThan(2)
+		-- in the character (UpperTorso space, LookVector -Z) at rest
+		local arm = {}
+		Anim.hold(w.id, 1, false, arm, {})
+		local f = weaponFrame(w, arm)
+		local look = Vector3.new(0, 0, -1)
+		local wString, wBack, wGrip = f * string, f * back, f * grip
+		expect((f * top - f.Position).Unit.Y).toBeGreaterThan(0.99) -- limbs up and down
+		expect((wGrip - handFrame("left", arm).Position).Magnitude).toBeLessThan(0.25)
+		expect((wBack - wString):Dot(look)).toBeGreaterThan(0.5) -- back faces forward
+		expect(math.abs(wString.X)).toBeLessThan(math.abs(wBack.X)) -- string toward the body
 	end)
 
 	it("raises the bow straight for the shot", function()

@@ -34,7 +34,11 @@ describe("Analytics", function()
 		expect(joined.name).toBe("joined")
 		expect(joined.userId).toBe(sim.player.UserId)
 		sim:runAs("client", function(req)
-			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Stat Hero", "warrior")
+			req("ReplicatedStorage.Shared.Net").Character:FireServer(
+				"setup",
+				"Stat Hero",
+				"warrior"
+			)
 		end)
 		sim:run(1)
 		local hero = find("funnel", function(e)

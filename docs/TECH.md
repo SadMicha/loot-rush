@@ -126,6 +126,9 @@ Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Fo
 | Mushroom Shaman Mora | Spore Scepter (`druid_scepter`) | `Druid_Scepter` | right, upright |
 
 - Grip point/offset per weapon (`gripAt`, `offset`, `grip`, `length`); tune in Studio if a mesh sits off.
+- Weapon space = the pack's FBX axes (Y up). Roblox's importer turns the FBX 180° about Y (FBX front
+  +Z → Roblox -Z), so the MeshPart is placed with `Weapons.meshCFrame` (`Weapons.IMPORT` undoes the
+  turn). Bow: back/riser at +X, string at -X (measured on the FBX vertices).
 - Arm pose: `Weapons.HOLD_ANIM` (`toolnone`) for far characters; near the camera and on the inventory
   figure the class stance (`Anim.STANCE`) takes over.
 - The server waits for the avatar appearance and re-equips when the hand part is replaced.
