@@ -736,6 +736,11 @@ local function buildStatus()
 end
 
 local function seconds(left: number): string
+	if left >= 3600 then
+		return string.format("%dh", math.ceil(left / 3600)) -- long global buffs (Great Build)
+	elseif left >= 600 then
+		return string.format("%dm", math.ceil(left / 60))
+	end
 	return if left >= 10
 		then string.format("%ds", math.ceil(left))
 		else string.format("%.1fs", left)

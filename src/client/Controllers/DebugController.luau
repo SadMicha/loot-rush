@@ -47,6 +47,8 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
 	{ label = "Season: Next Challenge", command = "season" },
+	{ label = "Build: +1,000 Shards", command = "buildshards" },
+	{ label = "Build: Finish Stage", command = "buildstage" },
 	{ label = "All Cosmetics", command = "cosmetics" },
 	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
 	{ label = "Next Stance", command = "stance" }, -- weapon + stance preview, then back to own

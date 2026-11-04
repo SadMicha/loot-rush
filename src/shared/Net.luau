@@ -47,6 +47,10 @@
 --   Stash     (C→S): "open" | "put", itemId: string, tab: number | "take", itemId: string |
 --                    "all", tab: number - hub stash (Systems/Stash, only near the stash station)
 --   StashData (S→C): { tabs = { { Item } }, slots, text? } - stash contents; text = why a move failed
+--   GreatBuild (C→S): "donate", amount: number | "sync" - Great Build donation (Systems/GreatBuild,
+--                    only at the donation chute in the hub)
+--   GreatBuildState (S→C): { total, stages, buffLeft, mine = { total, today, left, paid }, shards,
+--                    top = { { name, amount, me } }, shared, donated?, text?, paid? = { amount } }
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -94,6 +98,8 @@ local NAMES = {
 	"SeasonState",
 	"Stash",
 	"StashData",
+	"GreatBuild",
+	"GreatBuildState",
 	"Debug",
 }
 
@@ -159,5 +165,7 @@ return table.freeze({
 	SeasonState = get("SeasonState"),
 	Stash = get("Stash"),
 	StashData = get("StashData"),
+	GreatBuild = get("GreatBuild"),
+	GreatBuildState = get("GreatBuildState"),
 	Debug = get("Debug"),
 })

@@ -28,6 +28,7 @@ local SCREENS = {
 	"leaderboard",
 	"journey",
 	"season",
+	"great-build",
 }
 
 -- one run for all screens while the spec loads (they share a stocked sandbox of their own), then

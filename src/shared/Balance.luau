@@ -182,4 +182,20 @@ Balance.FirstDrops = table.freeze({
 	firstSlot = "weapon",
 })
 
+-- The Great Build (docs/specs/SEASONS.md §7, Shared/GreatBuild): one monument the whole player
+-- base raises together by donating Crystal Shards. Stage n needs first × growth^(n-1) shards on
+-- top of the stages before it (Beta numbers: few players, retune after week 1).
+--   dailyCap     shards one account may donate per UTC day (nobody finishes a stage alone)
+--   buffSeconds  every finished stage: global buff for everyone for this long
+--   buffGold / buffItems   that buff in percent (gold found, item drop chance)
+Balance.GreatBuild = table.freeze({
+	stages = 10,
+	first = 1000,
+	growth = 1.5,
+	dailyCap = 1000,
+	buffSeconds = 2 * 3600,
+	buffGold = 20,
+	buffItems = 10,
+})
+
 return table.freeze(Balance)

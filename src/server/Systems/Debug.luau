@@ -25,6 +25,7 @@ local Combat = require(script.Parent.Combat)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
 local Data = require(script.Parent.Data)
+local GreatBuild = require(script.Parent.GreatBuild)
 local Leaderboard = require(script.Parent.Leaderboard)
 local Inventory = require(script.Parent.Inventory)
 local Pets = require(script.Parent.Pets)
@@ -224,6 +225,19 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Seasons.completeNext(player)
 		end,
 	},
+	buildstage = {
+		-- Great Build: adds what the current stage still needs (to every server!) and flushes
+		run = function()
+			GreatBuild.finishStage()
+		end,
+	},
+	buildshards = {
+		-- Great Build: shards to donate
+		run = function(player)
+			Progress.addMaterials(player, { shards = 1000 })
+			Progress.sync(player)
+		end,
+	},
 	slay = {
 		-- Only the caller's own run: other players' Rifts run on the same server
 		run = function(player)
@@ -259,8 +273,13 @@ local function onCommand(player: Player, command: any, value: any)
 	end
 	-- A hero touched by a test command never reaches a leaderboard (Systems/Leaderboard).
 	-- "day", "cosmetics" and "stance" only change the account or the looks (calendar, cosmetics,
-	-- the weapon shown in the hand), not the hero's power.
-	if command ~= "day" and command ~= "cosmetics" and command ~= "stance" then
+	-- the weapon shown in the hand), "buildstage" only the global Great Build, not the hero's power.
+	if
+		command ~= "day"
+		and command ~= "cosmetics"
+		and command ~= "stance"
+		and command ~= "buildstage"
+	then
 		local profile = Data.get(player)
 		if profile then
 			profile.debugged = true

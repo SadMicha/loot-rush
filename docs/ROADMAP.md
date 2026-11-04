@@ -122,7 +122,7 @@ The first season on the season framework, without a new mechanic (`docs/specs/SE
 | Rewards | Account-wide forever: "Beta Tester" title, gold stud trail, hub banner |
 | Ladder | Beta board per class and tier, frozen as "Beta Season Hall of Fame" |
 | Feedback | Short card after the 5th run (combat 1–5, what to improve first) |
-| Great Build | Recommended: not in the Beta, ships with Season 1 |
+| Great Build | **In the Beta** (owner, 2026-11-04): the *Beta Beacon* east of the spawn (SEASONS §7, as built). Season 1 builds a new monument. |
 | Report | End of week 3: `docs/seasons/BETA-REPORT.md` (retention, drop-off, class picks, deaths per depth, feedback) |
 
 Code steps (one PR each): 1. `league` field + character select with league badge; 2. `Shared/Seasons`
@@ -144,7 +144,7 @@ Beta report, Great Build ships with it.
 
 ## 8. Open decisions for Micha
 
-1. Great Build: with Season 1 (recommended) or already in the Beta.
+1. ~~Great Build~~ Decided (owner, 2026-11-04): already in the Beta.
 
 ## 9. Test plan
 

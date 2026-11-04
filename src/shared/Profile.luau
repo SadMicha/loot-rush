@@ -18,6 +18,7 @@
 local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
+local GreatBuild = require(script.Parent.GreatBuild)
 local Items = require(script.Parent.Items)
 local Journey = require(script.Parent.Journey)
 local Leaderboard = require(script.Parent.Leaderboard)
@@ -73,6 +74,7 @@ export type Account = {
 	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
 	season: Seasons.Data, -- Season Journey challenges and track claims (Shared/Seasons)
 	stash: Stash.Data, -- hub stash tabs shared by all characters (Shared/Stash)
+	greatBuild: GreatBuild.Data, -- Great Build donations of the account (Shared/GreatBuild)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -131,6 +133,7 @@ local ACCOUNT_DEFAULTS = {
 	unsent = {},
 	season = Seasons.fresh(), -- contents checked by Seasons.reconcile
 	stash = Stash.fresh(), -- contents checked by Stash.reconcile
+	greatBuild = GreatBuild.fresh(), -- contents checked by GreatBuild.reconcile
 	characters = {},
 	active = "",
 }
@@ -379,6 +382,7 @@ function Profile.reconcileAccount(raw: any): Account
 	data.boards = boardValues(data.boards)
 	data.unsent = boardValues(data.unsent)
 	data.season = Seasons.reconcile(data.season)
+	data.greatBuild = GreatBuild.reconcile(data.greatBuild)
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}

@@ -6,6 +6,7 @@
 --   centre: round market plaza with a rift-crystal fountain
 --   around the plaza: Forge (west end of the cross street), Stash (east end), Market and
 --   Pet Stable (north corners)
+--   east of the spawn plaza: the Great Build monument (Shared/GreatBuild) with its donation chute
 --   north: grand stairs to the Rift terrace, Rift Gate with a light beam, waterfalls left and right
 --   edges: town walls with towers west and east, cliffs and a castle in the north
 -- Outside the walls (Backdrop, no collision): farm fields, windmills, pines and the endless horizon
@@ -19,6 +20,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local GreatBuildRules = require(ReplicatedStorage.Shared.GreatBuild)
 local Models = require(ReplicatedStorage.Shared.Models)
 local Nameplate = require(ReplicatedStorage.Shared.Nameplate)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
@@ -452,6 +454,94 @@ local function leaderboard(parent: Instance)
 	station(parent, Vector3.new(x + 5, y, z), "View", "Leaderboard", "Leaderboard")
 end
 
+-- The Great Build monument on the grass east of the spawn plaza, facing the spawn (mirrors the
+-- leaderboard). One brick layer per stage, four bricks each, tagged with the attribute "Stage";
+-- unbuilt layers stand as see-through glass ghosts. Systems/GreatBuild turns a layer into real
+-- studded bricks (attribute "BuiltColor") when its stage is finished on any server.
+local MONUMENT_COLORS = {
+	C.stoneLight,
+	C.gold,
+	Color3.fromHex("#2A68FF"),
+	C.roof,
+	C.cream,
+	C.crystal,
+	C.magic,
+	C.fire,
+	C.leafLight,
+	C.gold,
+}
+local GHOST = Color3.fromHex("#9FE8FF")
+
+local function monument(parent: Instance)
+	local x, z = 26, SPAWN.Z
+	local y = groundAt(x, z)
+	local model = Instance.new("Model")
+	model.Name = GreatBuildRules.MODEL
+	model:SetAttribute("Stages", 0)
+	block(model, Vector3.new(15, 1.6, 15), at(Vector3.new(x, y + 0.8, z)), C.stoneDark)
+	block(model, Vector3.new(13.4, 0.6, 13.4), at(Vector3.new(x, y + 1.9, z)), C.gold)
+	local base = y + 2.2
+	local layer = 2.4
+	for stage = 1, GreatBuildRules.STAGES do
+		local w = 11 - (stage - 1) * 0.75
+		local cy = base + (stage - 0.5) * layer
+		local color = MONUMENT_COLORS[(stage - 1) % #MONUMENT_COLORS + 1]
+		for i, q in
+			{ Vector2.new(-1, -1), Vector2.new(1, -1), Vector2.new(1, 1), Vector2.new(-1, 1) }
+		do
+			local brick = block(
+				model,
+				Vector3.new(w / 2 - 0.1, layer - 0.1, w / 2 - 0.1),
+				at(Vector3.new(x + q.X * w / 4, cy, z + q.Y * w / 4)),
+				GHOST,
+				Enum.Material.Glass
+			)
+			brick.Name = `Stage{stage}_{i}`
+			brick.Transparency = 0.75
+			brick.CastShadow = false
+			brick:SetAttribute("Stage", stage)
+			brick:SetAttribute("Brick", i)
+			brick:SetAttribute(
+				"BuiltColor",
+				Models.Kit.shade(color, if i % 2 == 0 then -0.06 else 0)
+			)
+		end
+	end
+	-- Beacon on top: lights up when the last stage stands
+	local top = base + GreatBuildRules.STAGES * layer
+	local beacon = block(
+		model,
+		Vector3.new(2.4, 2.4, 2.4),
+		at(Vector3.new(x, top + 1.4, z)),
+		GHOST,
+		Enum.Material.Glass
+	)
+	beacon.Name = "Beacon"
+	beacon.Shape = Enum.PartType.Ball
+	beacon.Transparency = 0.75
+	beacon:SetAttribute("Stage", GreatBuildRules.STAGES)
+	beacon:SetAttribute("Brick", 5)
+	beacon:SetAttribute("BuiltColor", C.gold)
+	beacon:SetAttribute("BuiltMaterial", "Neon")
+	model.Parent = parent
+	table.insert(reserved, Vector3.new(x, 0, z))
+	-- Donation chute at the monument's south-west corner, off the spawn plaza: standing on the
+	-- spawn is never "at the chute" (GreatBuild.RANGE)
+	local cx, cz = x - 8, z - 11
+	local cy = groundAt(cx, cz)
+	block(parent, Vector3.new(3, 3, 3), at(Vector3.new(cx, cy + 1.5, cz)), C.stone)
+	local gem = block(
+		parent,
+		Vector3.new(1.6, 1.6, 1.6),
+		at(Vector3.new(cx, cy + 4, cz)),
+		C.crystal,
+		Enum.Material.Neon
+	)
+	gem.Name = "DonationGem"
+	gem.CanCollide = false
+	station(parent, Vector3.new(cx - 2, cy, cz), "Donate", GreatBuildRules.NAME, "GreatBuild")
+end
+
 local function buildTown(parent: Instance)
 	local deco = Instance.new("Folder")
 	deco.Name = "Deco"
@@ -541,6 +631,7 @@ local function buildTown(parent: Instance)
 	put(deco, Props.crate(), cell(16.4, 11.9).X + 2, cell(16.4, 11.9).Z, PLAZA)
 	table.insert(reserved, SPAWN)
 	leaderboard(parent)
+	monument(parent)
 
 	-- Trees on grass, firs on the hills and cliffs (never on buildings, stations or the spawn)
 	for row = 1, N do
