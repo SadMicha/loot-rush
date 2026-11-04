@@ -65,10 +65,12 @@ GreatBuild.RANGE = 14 -- studs from the station a donation is allowed (the promp
 
 GreatBuild.STAGES = B.stages
 GreatBuild.DAILY_CAP = B.dailyCap
-GreatBuild.BUFF_SECONDS = B.buffSeconds
-GreatBuild.BUFF_GOLD = B.buffGold
-GreatBuild.BUFF_ITEMS = B.buffItems
-GreatBuild.BUFF_TEXT = `+{B.buffGold}% Gold - +{B.buffItems}% Item Drops`
+-- Season bonus per finished stage (stat → percent) and its ceiling; order for texts
+GreatBuild.PER_STAGE = B.perStage
+GreatBuild.BONUS_CAP = B.cap
+GreatBuild.BONUS_STATS = table.freeze({ "items", "gold", "xp" })
+local STAT_NAME =
+	table.freeze({ items = "Item Drops", gold = "Gold", xp = "XP" } :: { [string]: string })
 
 -- Quick donate amounts in the window (plus "Max")
 GreatBuild.QUICK = table.freeze({ 10, 100 })
@@ -214,24 +216,35 @@ function GreatBuild.public(rec: Record | Public): Public
 	return { total = rec.total, done = table.clone(rec.done) }
 end
 
--- Global buff window of the newest finished stage: (start, end) in os.time(); (0, 0) = none
-function GreatBuild.buffWindow(done: { [string]: number }): (number, number)
-	local from = 0
-	for _, t in done do
-		if typeof(t) == "number" and t > from then
-			from = t
-		end
+-- ------------------------------------------------------------------ Season bonus
+-- Permanent bonus for everyone while this build's season runs: PER_STAGE for every finished
+-- stage, stacked, each stat capped at BONUS_CAP. Read from the global total, so players who join
+-- later and fresh servers get it as soon as the record is read.
+function GreatBuild.bonus(stages: number): { [string]: number }
+	local n = math.clamp(whole(stages, GreatBuild.STAGES), 0, GreatBuild.STAGES)
+	local out: { [string]: number } = {}
+	for _, stat in GreatBuild.BONUS_STATS do
+		local per = GreatBuild.PER_STAGE[stat] or 0
+		local cap = GreatBuild.BONUS_CAP[stat] or math.huge
+		out[stat] = math.min(per * n, cap)
 	end
-	if from == 0 then
-		return 0, 0
-	end
-	return from, from + GreatBuild.BUFF_SECONDS
+	return out
 end
 
-function GreatBuild.buffActive(done: { [string]: number }, now: number): boolean
-	local from, untilT = GreatBuild.buffWindow(done)
-	return from > 0 and now >= from - 60 and now < untilT -- 60 s slack for server clocks
+-- "+4% Item Drops - +4% Gold - +2% XP" for a bonus table (stats at 0 left out; "" = none)
+function GreatBuild.bonusText(bonus: { [string]: number }): string
+	local parts = {}
+	for _, stat in GreatBuild.BONUS_STATS do
+		local v = bonus[stat] or 0
+		if v > 0 then
+			table.insert(parts, `+{v}% {STAT_NAME[stat]}`)
+		end
+	end
+	return table.concat(parts, " - ")
 end
+
+-- What one stage adds, as text
+GreatBuild.STAGE_TEXT = GreatBuild.bonusText(GreatBuild.bonus(1))
 
 -- ------------------------------------------------------------------ Personal data
 function GreatBuild.fresh(): Data

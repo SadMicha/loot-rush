@@ -399,6 +399,8 @@ Theme.Nameplate = table.freeze({
 	Stroke = 0.15, -- text outline transparency
 	Rule = 2, -- gold rule under a station label (px)
 	TouchScale = 0.95, -- phones: the hub is seen from far away, full size crowded the screen
+	Board = 0.85, -- Great Build progress board above the monument (Client/GreatBuildController)
+	BoardTouch = 0.55, -- phones: at full size the board covered the top of the screen
 })
 
 -- Interaction prompt (client/Controllers/PromptController): the hub stations' ProximityPrompts

@@ -189,16 +189,19 @@ Balance.FirstDrops = table.freeze({
 -- base raises together by donating Crystal Shards. Stage n needs first × growth^(n-1) shards on
 -- top of the stages before it (Beta numbers: few players, retune after week 1).
 --   dailyCap     shards one account may donate per UTC day (nobody finishes a stage alone)
---   buffSeconds  every finished stage: global buff for everyone for this long
---   buffGold / buffItems   that buff in percent (gold found, item drop chance)
+--   perStage     every finished stage: permanent bonus for every player for the rest of the
+--                season, in percent, stacking (items = item drop chance, gold = gold found,
+--                xp = experience). Only farming stats, never damage or life: the bonus is free for
+--                everyone and must not shift the difficulty curve.
+--   cap          ceiling of the stacked bonus per stat (all 10 stages = +20 / +20 / +10, about one
+--                game pass or one strong pet; pets give 10-15, passes 10-25)
 Balance.GreatBuild = table.freeze({
 	stages = 10,
 	first = 1000,
 	growth = 1.5,
 	dailyCap = 1000,
-	buffSeconds = 2 * 3600,
-	buffGold = 20,
-	buffItems = 10,
+	perStage = table.freeze({ items = 2, gold = 2, xp = 1 }),
+	cap = table.freeze({ items = 20, gold = 20, xp = 10 }),
 })
 
 return table.freeze(Balance)
