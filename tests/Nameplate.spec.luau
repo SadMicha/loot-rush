@@ -136,7 +136,11 @@ describe("Nameplates in game", function()
 		expect(prompt.Style).toBe(Enum.ProximityPromptStyle.Custom)
 		local promptGui = sim.player.PlayerGui:FindFirstChild("LootRushPrompt")
 		expect(promptGui).toBeTruthy()
-		expect(promptGui:FindFirstChild("Card", true)).toBeTruthy()
+		local card = promptGui:FindFirstChild("Card", true)
+		expect(card).toBeTruthy()
+		-- no prompt in range: the whole card is hidden, its outline (UIStroke) included
+		expect(card.Visible).toBe(false)
+		expect(card:FindFirstChild("Edge").Transparency).toBe(1)
 
 		-- own plate: bar only, shown once hurt
 		local plate = character:FindFirstChild("Nameplate", true)

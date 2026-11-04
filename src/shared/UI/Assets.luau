@@ -389,7 +389,6 @@ local ICON_ALIAS: { [string]: string } = {
 	season_beta = "crown",
 	journey = "quest",
 	great_build = "hub", -- Great Build monument (window, milestones, Builder Aura)
-	buff_build = "upgrade", -- Great Build global buff
 	buff_chill = "ice",
 	buff_rush = "fire",
 	stone_linger = "skills",

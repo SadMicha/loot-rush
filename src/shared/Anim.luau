@@ -517,8 +517,9 @@ Anim.STYLE = table.freeze({
 -- points up, which holds every weapon upright with its grip.
 --   sword    Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at
 --            the right hip and angled forward at the enemy, left fist raised as a guard
---   bow      Nocked: bow arm extended straight ahead, the bow vertical in front of the chest at
---            arm's length (riser toward the enemy), draw hand at the string
+--   bow      At rest: bow arm hanging slightly forward and out, the bow upright beside the left
+--            leg, held at its grip, face toward the viewer and string toward the body; the shot
+--            raises it straight ahead and the right hand draws the string to the chin
 --   staff    Planted: wide square stance, chest open, the staff's foot on the ground beside the
 --            right foot, the left hand raised in front with the spell ready
 --   scepter  Ritual: deep wide crouch, scepter raised upright before the face, the left hand
@@ -526,6 +527,7 @@ Anim.STYLE = table.freeze({
 Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
 Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
 Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
+Anim.STANCE_DROP = 30 -- per second: how fast it gives way when a move starts (the move keeps its shape)
 Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
 Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
 Anim.STANCE_BOB = 0.05 -- studs the body sinks and rises with each breath while standing
@@ -551,6 +553,8 @@ export type Stance = {
 	pose: Pose,
 	legs: Pose?,
 	lift: Vector3?,
+	-- stance share while a move plays (default STANCE_ACTING); 0 = the arm is fully at `ref`
+	acting: number?,
 }
 
 Anim.STANCE = table.freeze({
@@ -573,9 +577,19 @@ Anim.STANCE = table.freeze({
 	ranger_bow = table.freeze({
 		hand = "left",
 		ref = BOW_READY,
-		hold = table.freeze({ lShoulder = v(75, -20, 0), lWrist = v(15, 0, 0) }),
-		off = table.freeze({ rShoulder = v(45, 75, 0), rElbow = v(60, 0, 0) }),
-		pose = table.freeze({ waist = v(2, -15, 0), neck = v(0, 12, 0) }),
+		-- at rest like a real archer: the left arm hangs slightly forward and out, the fist holds
+		-- the grip, the bow stands upright beside the left leg (lower tip just above the ground),
+		-- turned so its face shows: riser out and forward, string toward the body. Y on the shoulder
+		-- turns the hanging arm (and the bow with it), shoulder X + elbow X + wrist X = 90 keeps it
+		-- upright. The draw hand rests (Animator's arm); the shot move raises the bow from `ref`.
+		hold = table.freeze({
+			lShoulder = v(18, 55, 0),
+			lElbow = v(20, 0, 0),
+			lWrist = v(52, 0, 0),
+		}),
+		pose = table.freeze({ waist = v(0, -6, 0), neck = v(0, 6, 0) }),
+		-- the shot starts from `ref` alone: none of the rest pose's arm turn leaks into the aim
+		acting = 0,
 		legs = table.freeze({
 			lHip = v(18, 0, -14),
 			lKnee = v(-20, 0, 0),
@@ -625,9 +639,11 @@ Anim.STANCE = table.freeze({
 } :: { [string]: Stance })
 
 -- Target stance weight 0..1: `run` = 0..1 of full run speed, `acting` = a move plays
-function Anim.stanceWeight(run: number, acting: boolean): number
+function Anim.stanceWeight(run: number, acting: boolean, weaponId: string?): number
 	local w = 1 + (Anim.STANCE_MOVING - 1) * math.clamp(run, 0, 1)
-	return if acting then math.min(w, Anim.STANCE_ACTING) else w
+	local s = weaponId and Anim.STANCE[weaponId]
+	local share = if s and s.acting then s.acting else Anim.STANCE_ACTING
+	return if acting then math.min(w, share) else w
 end
 
 -- Share of the leg stance at ground `speed` (studs/s): full while standing, gone while walking

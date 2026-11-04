@@ -97,14 +97,24 @@ describe("Great Build rules", function()
 		expect(#GreatBuild.collect(data)).toBe(2)
 	end)
 
-	it("runs the global buff from the newest finished stage", function()
-		local done = { ["1"] = NOW, ["2"] = NOW + 100 }
-		local from, untilT = GreatBuild.buffWindow(done)
-		expect(from).toBe(NOW + 100)
-		expect(untilT).toBe(NOW + 100 + GreatBuild.BUFF_SECONDS)
-		expect(GreatBuild.buffActive(done, NOW + 200)).toBe(true)
-		expect(GreatBuild.buffActive(done, untilT + 1)).toBe(false)
-		expect(GreatBuild.buffActive({}, NOW)).toBe(false)
+	it("stacks a capped season bonus per finished stage (farming stats only)", function()
+		local none = GreatBuild.bonus(0)
+		expect(none.items).toBe(0)
+		expect(GreatBuild.bonusText(none)).toBe("")
+		local two = GreatBuild.bonus(2)
+		expect(two.items).toBe(2 * GreatBuild.PER_STAGE.items)
+		expect(two.gold).toBe(2 * GreatBuild.PER_STAGE.gold)
+		local all = GreatBuild.bonus(GreatBuild.STAGES)
+		local over = GreatBuild.bonus(999)
+		for _, stat in GreatBuild.BONUS_STATS do
+			expect(all[stat] <= GreatBuild.BONUS_CAP[stat]).toBe(true)
+			expect(over[stat]).toBe(all[stat])
+		end
+		expect(all.damage).toBeNil()
+		expect(all.life).toBeNil()
+		expect(GreatBuild.bonus(-3 :: any).items).toBe(0)
+		expect(GreatBuild.bonus(0 / 0 :: any).items).toBe(0)
+		expect(GreatBuild.STAGE_TEXT).toBe("+2% Item Drops - +2% Gold - +1% XP")
 	end)
 
 	it("lives in the account save; another build starts fresh", function()
@@ -234,9 +244,9 @@ describe("Great Build server and window", function()
 		expect(rec.done["1"]).never.toBeNil() -- stage 1 = 1,000
 	end)
 
-	it("builds the finished stage on the monument and starts the global buff", function()
+	it("builds the finished stage on the monument and grants the season bonus", function()
 		sim:run(3) -- brick animation
-		local bricks, solid, bonus, status = server(function(_req, player)
+		local bricks, solid, bonus, items = server(function(_req, player)
 			local model = workspace.Lumenhaven:FindFirstChild(GreatBuild.MODEL)
 			local n, s = 0, 0
 			for _, d in model:GetDescendants() do
@@ -247,24 +257,30 @@ describe("Great Build server and window", function()
 					end
 				end
 			end
-			return n, s, player:GetAttribute("BonusGold"), player:GetAttribute("Status_build")
+			return n, s, player:GetAttribute("BonusGold"), player:GetAttribute("BonusItems")
 		end)
 		expect(bricks).toBe(4)
 		expect(solid).toBe(4)
-		expect(bonus >= GreatBuild.BUFF_GOLD).toBe(true)
-		expect(status).never.toBeNil()
+		expect(bonus >= GreatBuild.bonus(1).gold).toBe(true)
+		expect(items >= GreatBuild.bonus(1).items).toBe(true)
 		server(function(req)
 			req("ServerScriptService.Server.Systems.GreatBuild").finishStage()
 		end)
 		sim:run(1)
-		local stage2 = server(function(req)
-			return req("ServerScriptService.Server.Systems.GreatBuild").stages()
+		local stage2, items2 = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.GreatBuild").stages(),
+				player:GetAttribute("BonusItems")
 		end)
 		expect(stage2).toBe(2)
+		expect(items2 >= GreatBuild.bonus(2).items).toBe(true) -- stacks, stays for the season
 		expect(stored().total).toBe(GreatBuild.Ends[2])
 	end)
 
 	it("shows the window and fits phone and tablet (touch)", function()
+		-- skip the top builders cache (DONOR_READ) instead of simulating a minute: the server loop
+		-- wakes on the next frame and reads the list with this donor in it
+		sim.sched.now += GreatBuild.DONOR_READ
+		sim:run(1)
 		sim:runAs("client", function(req)
 			req(
 				"Players."
@@ -277,6 +293,18 @@ describe("Great Build server and window", function()
 		expect(gui.Enabled).toBe(true)
 		local stage = gui:FindFirstChild("Stage", true)
 		expect(stage.Text).toBe("Stage 3 / " .. GreatBuild.STAGES)
+		-- top builders carry the donor's Roblox headshot (placeholder letter underneath)
+		local row = gui:FindFirstChild("Row1", true)
+		expect(row).toBeTruthy()
+		local face = row:FindFirstChild("Headshot")
+		expect(face).toBeTruthy()
+		expect(face.Initial.Text ~= "").toBe(true)
+		local id = sim.player.UserId
+		if id > 0 then
+			expect(face.Image.Image).toBe(
+				`rbxthumb://type=AvatarHeadShot&id={id}&w=150&h=150`
+			)
+		end
 		local strict = {
 			offscreen = true,
 			["text-small"] = true,

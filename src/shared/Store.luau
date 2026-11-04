@@ -310,14 +310,14 @@ function Store.contents(offer: Offer, bestDepth: number?): { { icon: string, tex
 		if product.soulstars then
 			table.insert(
 				out,
-				{ icon = "soulstar", text = Format.int(product.soulstars) .. " Soulstars" }
+				{ icon = "soulstar", text = Format.currency(product.soulstars) .. " Soulstars" }
 			)
 		end
 		if product.gold then
-			table.insert(
-				out,
-				{ icon = "gold", text = Format.int(Store.goldFor(product, bestDepth)) .. " Gold" }
-			)
+			table.insert(out, {
+				icon = "gold",
+				text = Format.currency(Store.goldFor(product, bestDepth)) .. " Gold",
+			})
 		end
 		local cosmetics: { string } = product.cosmetics or {}
 		for _, id in cosmetics do
@@ -341,10 +341,10 @@ function Store.amount(offer: Offer, bestDepth: number?): (string?, string?)
 		return nil, nil
 	end
 	if product.soulstars then
-		return Format.int(product.soulstars), "Soulstars"
+		return Format.currency(product.soulstars), "Soulstars"
 	end
 	if product.gold then
-		return Format.int(Store.goldFor(product, bestDepth)), "Gold"
+		return Format.currency(Store.goldFor(product, bestDepth)), "Gold"
 	end
 	return nil, nil
 end

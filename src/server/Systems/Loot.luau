@@ -19,6 +19,7 @@ local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -57,7 +58,7 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 		model = LootModels.giftBox(color, item.rarity ~= "normal", if glow then glow.box else nil)
 	else
 		color = Theme.Color.Gold
-		text = tostring(gold) .. " Gold"
+		text = Format.currency(gold) .. " Gold"
 		model = LootModels.coin()
 	end
 	local part = model.PrimaryPart :: BasePart
@@ -320,7 +321,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 			and Items.isUpgrade(item, profile.equipped[item.slot])
 	else
 		Inventory.addGold(d.owner, d.gold)
-		text = "+" .. tostring(d.gold) .. " Gold"
+		text = "+" .. Format.currency(d.gold) .. " Gold"
 		color = Theme.Color.Gold
 	end
 	if at then

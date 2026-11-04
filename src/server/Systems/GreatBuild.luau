@@ -12,12 +12,13 @@
 --  • Reads: without donations of its own a server reads the record every FLUSH seconds; a
 --    finished stage is also published over MessagingService so other servers build it at once.
 --  • Every finished stage: the monument layer turns into real bricks on all servers and everyone
---    gets the global buff (Boosts source "greatBuild" + HUD Status "build") for BUFF_SECONDS,
---    time based (`done` times in the record), so late joiners and new servers get it too.
+--    gets a permanent season bonus (Boosts source "greatBuild", Rules.bonus of the finished
+--    stages, stacking). It is read from the global record, so late joiners and new servers get it
+--    too; a new season (new Rules.ID) starts a fresh record and so a fresh bonus.
 --  • Top donors: OrderedDataStore GreatBuild.DONOR_STORE (key UserId, account total), written at
 --    most every DONOR_WRITE seconds per server; heroes touched by a test command are left out.
 --  • No DataStore access (Studio without API access): runs on a local record so the monument,
---    stages and the buff can still be tested; nothing is shared then.
+--    stages and the bonus can still be tested; nothing is shared then.
 -- Clients read ReplicatedStorage attributes GreatBuildTotal / GreatBuildStages and ask for their
 -- own state with "sync" (Net.GreatBuildState).
 
@@ -37,7 +38,6 @@ local Data = require(script.Parent.Data)
 local Journey = require(script.Parent.Journey)
 local Leaderboard = require(script.Parent.Leaderboard)
 local Progress = require(script.Parent.Progress)
-local Status = require(script.Parent.Status)
 
 local GreatBuild = {
 	clock = os.time, -- tests swap the clock
@@ -65,7 +65,7 @@ local buffer = 0 -- donated, not in a batch yet
 local batch: { seq: number, amount: number }? = nil -- sent, not confirmed yet
 local seq = 0
 local built = 0 -- stages shown on the monument
-local buffFrom, buffUntil = 0, 0 -- os.time window of the active global buff (0 = none)
+local bonusStages = 0 -- finished stages the season bonus currently counts
 local donors: { [number]: number } = {} -- UserId → account total waiting for the donor board
 local seen: { [number]: Donor } = {} -- donors of this server session (fallback for the top list)
 local top: { Donor } = {}
@@ -173,40 +173,28 @@ local function raise(from: number, to: number, animate: boolean)
 	m:SetAttribute("Stages", to)
 end
 
--- ------------------------------------------------------------------ Global buff
-local function applyBuff(player: Player)
-	if not Data.get(player) then
-		return
-	end
-	Boosts.refresh(player)
-	local now = GreatBuild.clock()
-	if buffUntil > now then
-		local server = workspace:GetServerTimeNow()
-		Status.setUntil(player, "build", server + (buffUntil - now), nil, server - (now - buffFrom))
-	else
-		Status.clear(player, "build")
-	end
+-- ------------------------------------------------------------------ Season bonus
+-- Finished stages the bonus counts: 0 until the record was read (no bonus from a placeholder)
+local function bonusNow(): number
+	return if loaded then GreatBuild.stages() else 0
 end
 
-local function refreshBuff()
-	local now = GreatBuild.clock()
-	local from, untilT = Rules.buffWindow(view.done)
-	local active = Rules.buffActive(view.done, now)
-	local newFrom, newUntil = if active then from else 0, if active then untilT else 0
-	if newUntil == buffUntil and newFrom == buffFrom then
+function GreatBuild.bonus(): { [string]: number }
+	return Rules.bonus(bonusStages)
+end
+
+-- Re-applies the bonus to everyone once the finished stages change
+local function refreshBonus()
+	local n = bonusNow()
+	if n == bonusStages then
 		return
 	end
-	buffFrom, buffUntil = newFrom, newUntil
+	bonusStages = n
 	for _, player in Players:GetPlayers() do
-		task.spawn(applyBuff, player)
+		if Data.get(player) then
+			task.spawn(Boosts.refresh, player)
+		end
 	end
-	if active then
-		task.delay(math.max(1, untilT - now + 1), refreshBuff)
-	end
-end
-
-function GreatBuild.buffActive(): boolean
-	return buffUntil > GreatBuild.clock()
 end
 
 -- ------------------------------------------------------------------ Record
@@ -229,7 +217,7 @@ local function adopt(rec: Rules.Public)
 		task.spawn(raise, from, stages, not first)
 	end
 	publishAttrs()
-	refreshBuff()
+	refreshBonus()
 end
 
 local function announce(rec: Rules.Public)
@@ -459,12 +447,13 @@ function GreatBuild.state(player: Player): { [string]: any }?
 	local mine = account.greatBuild
 	local list = {}
 	for i, d in top do
-		list[i] = { name = d.name, amount = d.amount, me = d.userId == player.UserId }
+		list[i] =
+			{ userId = d.userId, name = d.name, amount = d.amount, me = d.userId == player.UserId }
 	end
 	return {
 		total = GreatBuild.total(),
 		stages = GreatBuild.stages(),
-		buffLeft = math.max(0, buffUntil - now),
+		bonus = GreatBuild.bonus(),
 		mine = {
 			total = mine.total,
 			today = if Rules.dailyLeft(mine, now) == Rules.DAILY_CAP then 0 else mine.today,
@@ -562,19 +551,11 @@ local function onRequest(player: Player, action: any, amount: any)
 	end
 end
 
-local function onPlayer(player: Player)
-	if Data.waitFor(player) and player.Parent then
-		applyBuff(player)
-	end
-end
-
 function GreatBuild.init()
 	Net.GreatBuild.OnServerEvent:Connect(onRequest)
+	-- Late joiners: Boosts.start refreshes every player once their data is loaded
 	Boosts.source("greatBuild", function(): Boosts.Bonus
-		if buffUntil > GreatBuild.clock() then
-			return { gold = Rules.BUFF_GOLD, items = Rules.BUFF_ITEMS }
-		end
-		return {}
+		return GreatBuild.bonus()
 	end)
 end
 
@@ -590,12 +571,6 @@ function GreatBuild.start()
 			end)
 		end)
 	end)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayer, player)
-	end
-	Players.PlayerAdded:Connect(function(player: Player)
-		task.spawn(onPlayer, player)
-	end)
 	game:BindToClose(function()
 		for _ = 1, CLOSE_TRIES do
 			if not batch and buffer <= 0 then
@@ -610,7 +585,6 @@ function GreatBuild.start()
 			GreatBuild.flush()
 			writeDonors()
 			readTop()
-			refreshBuff()
 			task.wait(Rules.FLUSH)
 		end
 	end)

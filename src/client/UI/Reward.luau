@@ -22,7 +22,7 @@ function Reward.lines(r: Journey.Reward): { Line }
 	local out: { Line } = {}
 	local function add(icon: string, n: number?, color: Color3)
 		if n and n > 0 then
-			table.insert(out, { icon = icon, text = Format.int(n), color = color })
+			table.insert(out, { icon = icon, text = Format.currency(n), color = color })
 		end
 	end
 	if r.cosmetic then

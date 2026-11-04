@@ -6,7 +6,7 @@ Playtests: `docs/SMOKE-TEST.md` (quick), `docs/TEST-RELEASE.md` (release). Relea
 
 ## Language
 Everything is English: code, identifiers, comments, UI text, docs. Do not hardcode translations
-(the owner localizes through the Roblox translator). Numbers use English formats (`1,240`, `4.5%`).
+(the owner localizes through the Roblox translator). Numbers use English formats (`1,240`, `4.5%`); currency amounts (gold, shards, soulstars) always use `Format.currency` (`950`, `1.2K`, `1.2M`).
 
 ## Layout
 - `src/server` → ServerScriptService/Server (game state, authority)

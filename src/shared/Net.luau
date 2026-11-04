@@ -49,7 +49,8 @@
 --   StashData (S→C): { tabs = { { Item } }, slots, text? } - stash contents; text = why a move failed
 --   GreatBuild (C→S): "donate", amount: number | "sync" - Great Build donation (Systems/GreatBuild,
 --                    only at the donation chute in the hub)
---   GreatBuildState (S→C): { total, stages, buffLeft, mine = { total, today, left, paid }, shards,
+--   GreatBuildState (S→C): { total, stages, bonus = { items, gold, xp }, mine = { total, today,
+--                    left, paid }, shards,
 --                    top = { { name, amount, me } }, shared, donated?, text?, paid? = { amount } }
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 

@@ -106,11 +106,11 @@ describe("Character animation rig", function()
 			motor.Parent = arm
 			result.posed = AnimController.posePreview(model, "ranger_bow", 0)
 			local t = motor.Transform
-			result.turn = math.deg(math.acos(math.clamp(t.UpVector.Y, -1, 1)))
+			result.turn = math.deg(math.acos(math.clamp(-t.LookVector.Z, -1, 1)))
 			result.none = AnimController.posePreview(Instance.new("Model"), "ranger_bow", 0)
 		end)
 		expect(result.posed).toBe(true)
-		expect(result.turn).toBeGreaterThan(30) -- the bow arm is raised toward the front
+		expect(result.turn).toBeGreaterThan(30) -- the bow arm is posed (turned out, bow face showing)
 		expect(result.none).toBe(false)
 	end)
 end)

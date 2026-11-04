@@ -124,18 +124,18 @@ local function grant(player: Player, account: Profile.Account, product: Rules.Pr
 		local stars = (product.soulstars or 0) + (product.refund or 0)
 		Shop.grant(player, "soulstars", stars, "IAP", product.key)
 		Cosmetics.sync(player)
-		return "+" .. Format.int(stars) .. " Soulstars (already owned)"
+		return "+" .. Format.currency(stars) .. " Soulstars (already owned)"
 	end
 	if product.soulstars then
 		Shop.grant(player, "soulstars", product.soulstars, "IAP", product.key)
-		table.insert(parts, "+" .. Format.int(product.soulstars) .. " Soulstars")
+		table.insert(parts, "+" .. Format.currency(product.soulstars) .. " Soulstars")
 	end
 	if product.gold then
 		local profile = Data.get(player)
 		local best = if profile then Atlas.bestDepth(profile.atlas) else 1
 		local gold = Store.goldFor(product, best)
 		Shop.grant(player, "gold", gold, "IAP", product.key)
-		table.insert(parts, "+" .. Format.int(gold) .. " Gold")
+		table.insert(parts, "+" .. Format.currency(gold) .. " Gold")
 	end
 	local cosmetics: { string } = product.cosmetics or {}
 	for _, id in cosmetics do
@@ -148,7 +148,7 @@ local function grant(player: Player, account: Profile.Account, product: Rules.Pr
 	end
 	if refund > 0 then
 		Shop.grant(player, "soulstars", refund, "IAP", product.key)
-		table.insert(parts, "+" .. Format.int(refund) .. " Soulstars (already owned)")
+		table.insert(parts, "+" .. Format.currency(refund) .. " Soulstars (already owned)")
 	end
 	if product.once then
 		account.bought[product.key] = true

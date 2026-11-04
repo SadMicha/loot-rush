@@ -86,11 +86,26 @@ local function setVisible(on: boolean)
 	if on then
 		card.GroupTransparency = 1
 		card.Position = UDim2.new(0.5, 0, 1, P.Rise)
+		card.Visible = true
 	end
-	TweenService:Create(card, info, {
+	-- The card's own UIStroke is drawn outside the CanvasGroup, so GroupTransparency never fades
+	-- it: fade it by hand and hide the whole card once the fade-out is done
+	local edge = card:FindFirstChild("Edge")
+	if edge and edge:IsA("UIStroke") then
+		TweenService:Create(edge, info, { Transparency = if on then 0 else 1 }):Play()
+	end
+	local tween = TweenService:Create(card, info, {
 		GroupTransparency = if on then 0 else 1,
 		Position = UDim2.new(0.5, 0, 1, if on then 0 else P.Rise),
-	}):Play()
+	})
+	if not on then
+		tween.Completed:Connect(function(state: Enum.PlaybackState)
+			if state == Enum.PlaybackState.Completed and not visible then
+				card.Visible = false
+			end
+		end)
+	end
+	tween:Play()
 end
 
 -- The newest prompt in range, hidden while a window is open
@@ -137,8 +152,13 @@ local function build()
 	card.Position = UDim2.new(0.5, 0, 1, P.Rise)
 	card.Size = UDim2.fromScale(1, 1)
 	card.GroupTransparency = 1
+	card.Visible = false
 	Shape.card(card, nil, C.Gold:Lerp(Theme.Flat.Edge, 0.55))
 	Shape.brackets(card)
+	local edge = card:FindFirstChild("Edge")
+	if edge and edge:IsA("UIStroke") then
+		edge.Transparency = 1
+	end
 	card.Parent = holder
 
 	local row = Instance.new("Frame")

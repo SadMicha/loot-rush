@@ -1,19 +1,21 @@
 --!strict
 -- Great Build window (hub station "GreatBuild" at the donation chute, Systems/GreatBuild,
 -- Shared/GreatBuild): the global monument every server raises together.
---   top:          stage, the bar of the current stage, the ten stage cells, the global buff
+--   top:          stage, the bar of the current stage, the ten stage cells, the season bonus
 --   bottom left:  donate buttons (+10, +100, Max), today's cap, personal milestones
 --   bottom right: top builders
 -- Also a small board above the monument in the hub and a toast on every finished stage.
 -- The server checks every donation (Net.GreatBuildState answers); the client only asks.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.GreatBuild)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Flat = require(script.Parent.Parent.UI.Flat)
+local Headshot = require(script.Parent.Parent.UI.Headshot)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Reward = require(script.Parent.Parent.UI.Reward)
 local Shape = require(script.Parent.Parent.UI.Shape)
@@ -39,12 +41,11 @@ local ROW_H = 46
 local POLL = 5 -- seconds between refreshes while open
 local BOARD_SIZE = Vector2.new(320, 92) -- board above the monument (pixels)
 
-type Donor = { name: string, amount: number, me: boolean? }
+type Donor = { userId: number, name: string, amount: number, me: boolean? }
 type Mine = { total: number, today: number, left: number, paid: { [string]: boolean } }
 type State = {
 	total: number,
 	stages: number,
-	buffLeft: number,
 	mine: Mine,
 	shards: number,
 	top: { Donor },
@@ -53,7 +54,6 @@ type State = {
 
 local win: Window.Window
 local state: State? = nil
-local stateAt = 0
 local sending = false
 
 local stageText: TextLabel
@@ -73,6 +73,8 @@ local listNote: TextLabel
 
 local boardStage: TextLabel? = nil
 local boardSet: ((number, boolean?) -> ())? = nil
+local boardGui: BillboardGui? = nil
+local boardScale: UIScale? = nil
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -80,16 +82,6 @@ local function clear(parent: Instance)
 			child:Destroy()
 		end
 	end
-end
-
-local function duration(seconds: number): string
-	seconds = math.max(0, math.floor(seconds))
-	local h = seconds // 3600
-	local m = (seconds % 3600) // 60
-	if h > 0 then
-		return `{h}h {m}m`
-	end
-	return `{m}m {seconds % 60}s`
 end
 
 local function globalTotal(): number
@@ -117,9 +109,9 @@ local function renderTop()
 	else
 		stageText.Text = `Stage {done + 1} / {Rules.STAGES}`
 		barSet(into / size, true)
-		barText.Text = `{Format.int(into)} / {Format.int(size)} Crystal Shards`
+		barText.Text = `{Format.currency(into)} / {Format.currency(size)} Crystal Shards`
 	end
-	totalText.Text = `{Format.int(total)} donated by all servers`
+	totalText.Text = `{Format.currency(total)} donated by all servers`
 	for i = 1, Rules.STAGES do
 		local cell = cells:FindFirstChild("Stage" .. i)
 		if cell and cell:IsA("Frame") then
@@ -140,14 +132,17 @@ local function renderTop()
 			end
 		end
 	end
-	local s = state
-	local left = if s then s.buffLeft - (os.clock() - stateAt) else 0
-	if left > 0 then
-		buffText.Text = `Global buff active: {Rules.BUFF_TEXT} - {duration(left)} left`
+	-- Season bonus of the confirmed stages (GreatBuildStages, what the server applies); `done` may
+	-- already count donations that are not in the global record yet
+	local confirmed = ReplicatedStorage:GetAttribute("GreatBuildStages")
+	local active =
+		Rules.bonusText(Rules.bonus(if typeof(confirmed) == "number" then confirmed else 0))
+	if active ~= "" then
+		buffText.Text = `Season bonus for everyone: {active}`
 		buffText.TextColor3 = C.Good
 	else
 		buffText.Text =
-			`Every finished stage gives everyone {Rules.BUFF_TEXT} for {Rules.BUFF_SECONDS // 3600} hours`
+			`Every finished stage gives everyone {Rules.STAGE_TEXT} for the whole season`
 		buffText.TextColor3 = C.Muted
 	end
 end
@@ -164,7 +159,8 @@ local function milestoneRow(m: Rules.Milestone, order: number, mine: Mine?): Fra
 	local name = Flat.text(m.name, 17, if got then C.GoldHi else C.Text, Theme.Font.UI)
 	name.Position = UDim2.fromOffset(64, 6)
 	name.Parent = f
-	local desc = Flat.text(`Donate {Format.int(m.amount)} in total`, 14, C.Muted, Theme.Font.Body)
+	local desc =
+		Flat.text(`Donate {Format.currency(m.amount)} in total`, 14, C.Muted, Theme.Font.Body)
 	desc.Position = UDim2.fromOffset(64, 30)
 	desc.Parent = f
 	local chips = Reward.row(m.reward, 26, 2)
@@ -173,7 +169,7 @@ local function milestoneRow(m: Rules.Milestone, order: number, mine: Mine?): Fra
 	chips.Parent = f
 	local have = if mine then mine.total else 0
 	local st = Flat.text(
-		if got then "Done" else `{Format.int(math.max(0, m.amount - have))} to go`,
+		if got then "Done" else `{Format.currency(math.max(0, m.amount - have))} to go`,
 		15,
 		if got then C.Good else C.Muted,
 		Theme.Font.UI,
@@ -188,11 +184,13 @@ end
 
 local function renderMine()
 	local s = state
-	haveText.Text = if s then `{Format.int(s.shards)} Crystal Shards` else "Loading…"
+	haveText.Text = if s then `{Format.currency(s.shards)} Crystal Shards` else "Loading…"
 	todayText.Text = if s
-		then `Today {Format.int(Rules.DAILY_CAP - s.mine.left)} / {Format.int(Rules.DAILY_CAP)}`
+		then `Today {Format.currency(Rules.DAILY_CAP - s.mine.left)} / {Format.currency(
+			Rules.DAILY_CAP
+		)}`
 		else ""
-	mineText.Text = if s then `You donated {Format.int(s.mine.total)} in total` else ""
+	mineText.Text = if s then `You donated {Format.currency(s.mine.total)} in total` else ""
 	local max = maxAmount()
 	for _, entry in buttons do
 		local amount = entry.amount or max
@@ -201,7 +199,7 @@ local function renderMine()
 		if not entry.amount then
 			local label = entry.b:FindFirstChild("Label", true)
 			if label and label:IsA("TextLabel") then
-				label.Text = if max > 0 then `Max ({Format.int(max)})` else "Max"
+				label.Text = if max > 0 then `Max ({Format.currency(max)})` else "Max"
 			end
 		end
 	end
@@ -227,12 +225,31 @@ local function renderTop5()
 		f.Name = "Row" .. i
 		f.LayoutOrder = i
 		local color = if d.me then C.Cyan elseif i <= 3 then C.GoldHi else C.Text
-		local left = Flat.text(`#{i}  {d.name}`, 18, color, Theme.Font.UI)
+		local rank = Flat.text(`#{i}`, 18, color, Theme.Font.UI)
+		rank.AnchorPoint = Vector2.new(0, 0.5)
+		rank.Position = UDim2.fromScale(0, 0.5)
+		rank.Parent = f
+		local face = Headshot.new({
+			userId = d.userId,
+			name = d.name,
+			size = Theme.Headshot.Small,
+			top = i <= 3,
+			mine = d.me,
+		})
+		face.AnchorPoint = Vector2.new(0, 0.5)
+		face.Position = UDim2.new(0, 40, 0.5, 0)
+		face.Parent = f
+		local left = Flat.text(d.name, 18, color, Theme.Font.UI)
 		left.AnchorPoint = Vector2.new(0, 0.5)
-		left.Position = UDim2.fromScale(0, 0.5)
+		left.Position = UDim2.new(0, 40 + Theme.Headshot.Small + 12, 0.5, 0)
 		left.Parent = f
-		local right =
-			Flat.text(Format.int(d.amount), 18, color, Theme.Font.UI, Enum.TextXAlignment.Right)
+		local right = Flat.text(
+			Format.currency(d.amount),
+			18,
+			color,
+			Theme.Font.UI,
+			Enum.TextXAlignment.Right
+		)
 		right.AnchorPoint = Vector2.new(1, 0.5)
 		right.Position = UDim2.fromScale(1, 0.5)
 		right.Parent = f
@@ -247,7 +264,23 @@ local function render()
 end
 
 -- ------------------------------------------------------------------ Board in the hub
+-- Board size: HUD size setting × device factor (phones see the hub from far away; at full size the
+-- board covered the top of the screen)
+local function sizeBoard()
+	local gui, sc = boardGui, boardScale
+	if not gui or not sc then
+		return
+	end
+	local N = Theme.Nameplate
+	local k = Kit.hudScale() * (if UserInputService.TouchEnabled then N.BoardTouch else N.Board)
+	if math.abs(sc.Scale - k) > 0.001 then
+		sc.Scale = k
+		gui.Size = UDim2.fromOffset(math.ceil(BOARD_SIZE.X * k), math.ceil(BOARD_SIZE.Y * k))
+	end
+end
+
 local function renderBoard()
+	sizeBoard()
 	local st, set = boardStage, boardSet
 	if not st or not set or st.Parent == nil then
 		return
@@ -271,8 +304,18 @@ local function buildBoard(beacon: BasePart)
 	gui.MaxDistance = 110
 	gui.LightInfluence = 0
 	gui.ResetOnSpawn = false
-	local back = Flat.card(UDim2.fromScale(1, 1), F.Surface0)
+	-- Drawn at design size and scaled as a whole (sizeBoard)
+	local back = Flat.card(UDim2.fromOffset(BOARD_SIZE.X, BOARD_SIZE.Y), F.Surface0)
+	back.AnchorPoint = Vector2.new(0.5, 0.5)
+	back.Position = UDim2.fromScale(0.5, 0.5)
+	local sc = Instance.new("UIScale")
+	sc.Scale = 1
+	sc.Parent = back
 	back.Parent = gui
+	if not boardGui then
+		Kit.onHudScale(sizeBoard)
+	end
+	boardGui, boardScale = gui, sc
 	local title = Window.gilded(string.upper(Rules.NAME), 22)
 	title.AnchorPoint = Vector2.new(0.5, 0)
 	title.Position = UDim2.new(0.5, 0, 0, 8)
@@ -428,7 +471,7 @@ local function build()
 	buttons = {}
 	local defs: { { text: string, amount: number? } } = {}
 	for _, n in Rules.QUICK do
-		table.insert(defs, { text = `+{Format.int(n)}`, amount = n })
+		table.insert(defs, { text = `+{Format.currency(n)}`, amount = n })
 	end
 	table.insert(defs, { text = "Max", amount = nil })
 	for i, d in defs do
@@ -520,7 +563,8 @@ local function onState(s: any)
 	local top: { Donor } = {}
 	for _, d in s.top :: { any } do
 		if typeof(d) == "table" and typeof(d.name) == "string" and typeof(d.amount) == "number" then
-			table.insert(top, { name = d.name, amount = d.amount, me = d.me == true })
+			local id = if typeof(d.userId) == "number" and d.userId == d.userId then d.userId else 0
+			table.insert(top, { userId = id, name = d.name, amount = d.amount, me = d.me == true })
 		end
 	end
 	local function num(v: any): number
@@ -529,7 +573,6 @@ local function onState(s: any)
 	state = {
 		total = num(s.total),
 		stages = num(s.stages),
-		buffLeft = num(s.buffLeft),
 		mine = {
 			total = num(s.mine.total),
 			today = num(s.mine.today),
@@ -540,14 +583,13 @@ local function onState(s: any)
 		top = top,
 		shared = s.shared == true,
 	}
-	stateAt = os.clock()
 	if typeof(s.donated) == "number" then
 		sending = false -- only the answer to a donation unlocks the buttons, not a sync poll
 	end
 	if typeof(s.text) == "string" then
 		statusText.Text = s.text
 	elseif typeof(s.donated) == "number" and s.donated > 0 then
-		statusText.Text = `Donated {Format.int(s.donated)}. Thank you!`
+		statusText.Text = `Donated {Format.currency(s.donated)}. Thank you!`
 		Shape.sound("ui_reward")
 	end
 	if typeof(s.paid) == "table" then
@@ -580,7 +622,7 @@ function GreatBuildController.init()
 		if typeof(n) == "number" and typeof(lastStages) == "number" and n > lastStages then
 			Shape.sound("ui_reward")
 			QuestController.toast(
-				`Great Build stage {n} finished! Everyone gets {Rules.BUFF_TEXT}`,
+				`Great Build stage {n} finished! Season bonus now {Rules.bonusText(Rules.bonus(n))}`,
 				C.GoldHi
 			)
 		end
