@@ -83,7 +83,7 @@ Atlas.Regions = table.freeze({
 		color = Color3.fromHex("#4FD8F5"),
 		next = { "fire_desert" },
 		depth = 6,
-		enemies = { "crab", "crab", "lantern", "lantern", "slime" },
+		enemies = { "crab", "crab", "lantern", "lantern", "slime", "slime" },
 		bossKind = "shard_worm",
 		tint = Color3.fromHex("#9FE6FF"),
 		bonus = { items = 0.15 },
