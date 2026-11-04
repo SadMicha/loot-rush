@@ -12,6 +12,7 @@
 -- The save stores the chain index: only append new quests at the end, never insert or reorder.
 
 local Forge = require(script.Parent.Forge)
+local Format = require(script.Parent.Util.Format)
 
 local Quests = {}
 
@@ -116,7 +117,7 @@ function Quests.extraText(q: Quest): string
 			local n = (r :: any)[key]
 			if typeof(n) == "number" and n > 0 then
 				local name = if n == 1 then Forge.MaterialName[key] else Forge.MaterialPlural[key]
-				table.insert(parts, string.format("+%d %s", n, name))
+				table.insert(parts, "+" .. Format.currency(n) .. " " .. name)
 			end
 		end
 		if r.stones and r.stones > 0 then

@@ -19,6 +19,7 @@ local Monetization = require(ReplicatedStorage.Shared.Monetization)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
@@ -804,8 +805,8 @@ local function buildTop()
 end
 
 local function updateWallet()
-	Shape.tickTo(starLabel, number("Soulstars"))
-	Shape.tickTo(goldLabel, number("Gold"))
+	Shape.tickTo(starLabel, number("Soulstars"), Format.currency)
+	Shape.tickTo(goldLabel, number("Gold"), Format.currency)
 end
 
 function StoreController.init()

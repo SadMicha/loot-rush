@@ -117,9 +117,9 @@ local function renderTop()
 	else
 		stageText.Text = `Stage {done + 1} / {Rules.STAGES}`
 		barSet(into / size, true)
-		barText.Text = `{Format.int(into)} / {Format.int(size)} Crystal Shards`
+		barText.Text = `{Format.currency(into)} / {Format.currency(size)} Crystal Shards`
 	end
-	totalText.Text = `{Format.int(total)} donated by all servers`
+	totalText.Text = `{Format.currency(total)} donated by all servers`
 	for i = 1, Rules.STAGES do
 		local cell = cells:FindFirstChild("Stage" .. i)
 		if cell and cell:IsA("Frame") then
@@ -164,7 +164,8 @@ local function milestoneRow(m: Rules.Milestone, order: number, mine: Mine?): Fra
 	local name = Flat.text(m.name, 17, if got then C.GoldHi else C.Text, Theme.Font.UI)
 	name.Position = UDim2.fromOffset(64, 6)
 	name.Parent = f
-	local desc = Flat.text(`Donate {Format.int(m.amount)} in total`, 14, C.Muted, Theme.Font.Body)
+	local desc =
+		Flat.text(`Donate {Format.currency(m.amount)} in total`, 14, C.Muted, Theme.Font.Body)
 	desc.Position = UDim2.fromOffset(64, 30)
 	desc.Parent = f
 	local chips = Reward.row(m.reward, 26, 2)
@@ -173,7 +174,7 @@ local function milestoneRow(m: Rules.Milestone, order: number, mine: Mine?): Fra
 	chips.Parent = f
 	local have = if mine then mine.total else 0
 	local st = Flat.text(
-		if got then "Done" else `{Format.int(math.max(0, m.amount - have))} to go`,
+		if got then "Done" else `{Format.currency(math.max(0, m.amount - have))} to go`,
 		15,
 		if got then C.Good else C.Muted,
 		Theme.Font.UI,
@@ -188,11 +189,13 @@ end
 
 local function renderMine()
 	local s = state
-	haveText.Text = if s then `{Format.int(s.shards)} Crystal Shards` else "Loading…"
+	haveText.Text = if s then `{Format.currency(s.shards)} Crystal Shards` else "Loading…"
 	todayText.Text = if s
-		then `Today {Format.int(Rules.DAILY_CAP - s.mine.left)} / {Format.int(Rules.DAILY_CAP)}`
+		then `Today {Format.currency(Rules.DAILY_CAP - s.mine.left)} / {Format.currency(
+			Rules.DAILY_CAP
+		)}`
 		else ""
-	mineText.Text = if s then `You donated {Format.int(s.mine.total)} in total` else ""
+	mineText.Text = if s then `You donated {Format.currency(s.mine.total)} in total` else ""
 	local max = maxAmount()
 	for _, entry in buttons do
 		local amount = entry.amount or max
@@ -201,7 +204,7 @@ local function renderMine()
 		if not entry.amount then
 			local label = entry.b:FindFirstChild("Label", true)
 			if label and label:IsA("TextLabel") then
-				label.Text = if max > 0 then `Max ({Format.int(max)})` else "Max"
+				label.Text = if max > 0 then `Max ({Format.currency(max)})` else "Max"
 			end
 		end
 	end
@@ -231,8 +234,13 @@ local function renderTop5()
 		left.AnchorPoint = Vector2.new(0, 0.5)
 		left.Position = UDim2.fromScale(0, 0.5)
 		left.Parent = f
-		local right =
-			Flat.text(Format.int(d.amount), 18, color, Theme.Font.UI, Enum.TextXAlignment.Right)
+		local right = Flat.text(
+			Format.currency(d.amount),
+			18,
+			color,
+			Theme.Font.UI,
+			Enum.TextXAlignment.Right
+		)
 		right.AnchorPoint = Vector2.new(1, 0.5)
 		right.Position = UDim2.fromScale(1, 0.5)
 		right.Parent = f
@@ -428,7 +436,7 @@ local function build()
 	buttons = {}
 	local defs: { { text: string, amount: number? } } = {}
 	for _, n in Rules.QUICK do
-		table.insert(defs, { text = `+{Format.int(n)}`, amount = n })
+		table.insert(defs, { text = `+{Format.currency(n)}`, amount = n })
 	end
 	table.insert(defs, { text = "Max", amount = nil })
 	for i, d in defs do
@@ -547,7 +555,7 @@ local function onState(s: any)
 	if typeof(s.text) == "string" then
 		statusText.Text = s.text
 	elseif typeof(s.donated) == "number" and s.donated > 0 then
-		statusText.Text = `Donated {Format.int(s.donated)}. Thank you!`
+		statusText.Text = `Donated {Format.currency(s.donated)}. Thank you!`
 		Shape.sound("ui_reward")
 	end
 	if typeof(s.paid) == "table" then

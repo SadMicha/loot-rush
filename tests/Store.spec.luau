@@ -75,7 +75,7 @@ describe("Store rules", function()
 		expect(Store.goldFor(p, 1)).toBe(11000)
 		expect(Store.goldFor(p, 20)).toBeGreaterThan(11000)
 		local amount, unit = Store.amount(Store.ById.gold_m, 1)
-		expect(amount).toBe("11,000")
+		expect(amount).toBe("11K") -- compact like every currency (Format.currency)
 		expect(unit).toBe("Gold")
 	end)
 

@@ -62,7 +62,7 @@ Avatar Joint Upgrade → Disabled by hand once; the published place is built fro
   | Weapon | Stance |
   |---|---|
   | Sword | Vanguard: left foot forward, left shoulder leads, blade low at the right hip angled at the enemy, left fist as guard |
-  | Bow | Nocked: bow arm straight ahead, bow vertical in front of the chest, draw hand at the string |
+  | Bow | At rest like a real archer: left arm hanging slightly forward and out, bow upright beside the left leg held at its grip, string toward the body, right hand relaxed; the shot raises it straight ahead and draws to the chin |
   | Staff | Planted: wide square stance, staff foot on the ground beside the right foot, left hand raised |
   | Scepter | Ritual: deep wide crouch, scepter upright before the face, left hand spread low, head bowed |
 
@@ -121,7 +121,7 @@ Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Fo
 | Class | Weapon (`Shared/Weapons`) | Folder | Hand |
 |---|---|---|---|
 | Knight Brix | Knight's Sword (`warrior_sword`) | `Warrior_Sword` | right, blade up, 15° forward |
-| Ranger Fynn | Ranger's Bow (`ranger_bow`) | `Ranger_Bow` | left, raised (`Anim.STANCE`), riser forward, string toward the archer |
+| Ranger Fynn | Ranger's Bow (`ranger_bow`) | `Ranger_Bow` | left, at rest beside the leg (`Anim.STANCE`), riser out, string toward the body; raised for the shot |
 | Spark Mage Zap | Spark Staff (`mage_staff`) | `Mage_Staff` | right, upright, head 10° forward |
 | Mushroom Shaman Mora | Spore Scepter (`druid_scepter`) | `Druid_Scepter` | right, upright |
 

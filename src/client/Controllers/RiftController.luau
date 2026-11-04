@@ -96,7 +96,7 @@ local function refreshChoiceStats()
 	choiceStats.Text = string.format(
 		"%s kills - +%s Gold - %d items - %s",
 		Format.int(tonumber(s.kills) or 0),
-		Format.big(tonumber(s.gold) or 0),
+		Format.currency(tonumber(s.gold) or 0),
 		items,
 		clock(tonumber(s.seconds) or 0)
 	) .. (if fightLine ~= "" and fightDepth == s.depth then "\n" .. fightLine else "")

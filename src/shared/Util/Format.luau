@@ -17,7 +17,21 @@ function Format.big(n: number): string
 	return text .. SUFFIX[tier + 1]
 end
 
--- Thousands separators: 1240 → "1,240"
+-- Currency amounts (gold, crystal shards, soulstars, materials) in EVERY window: balances, prices
+-- and rewards alike. Whole below 1,000, compact above like Format.big, without a trailing ".0":
+-- 950 · 1K · 1.2K · 8.1K · 250K · 1.2M
+function Format.currency(n: number): string
+	if n ~= n then
+		return "0"
+	end
+	if n < 0 then
+		return "-" .. Format.currency(-n)
+	end
+	local text = Format.big(n)
+	return (text:gsub("%.0(%a+)$", "%1"))
+end
+
+-- Thousands separators (counts that are not currency: item power, kills, points): 1240 → "1,240"
 function Format.int(n: number): string
 	local s = tostring(math.floor(n))
 	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()

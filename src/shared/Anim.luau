@@ -517,8 +517,9 @@ Anim.STYLE = table.freeze({
 -- points up, which holds every weapon upright with its grip.
 --   sword    Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at
 --            the right hip and angled forward at the enemy, left fist raised as a guard
---   bow      Nocked: bow arm extended straight ahead, the bow vertical in front of the chest at
---            arm's length (riser toward the enemy), draw hand at the string
+--   bow      At rest: bow arm hanging slightly forward and out, the bow upright beside the left
+--            leg, held at its grip, face toward the viewer and string toward the body; the shot
+--            raises it straight ahead and the right hand draws the string to the chin
 --   staff    Planted: wide square stance, chest open, the staff's foot on the ground beside the
 --            right foot, the left hand raised in front with the spell ready
 --   scepter  Ritual: deep wide crouch, scepter raised upright before the face, the left hand
@@ -573,9 +574,17 @@ Anim.STANCE = table.freeze({
 	ranger_bow = table.freeze({
 		hand = "left",
 		ref = BOW_READY,
-		hold = table.freeze({ lShoulder = v(75, -20, 0), lWrist = v(15, 0, 0) }),
-		off = table.freeze({ rShoulder = v(45, 75, 0), rElbow = v(60, 0, 0) }),
-		pose = table.freeze({ waist = v(2, -15, 0), neck = v(0, 12, 0) }),
+		-- at rest like a real archer: the left arm hangs slightly forward and out, the fist holds
+		-- the grip, the bow stands upright beside the left leg (lower tip just above the ground),
+		-- turned so its face shows: riser out and forward, string toward the body. Y on the shoulder
+		-- turns the hanging arm (and the bow with it), shoulder X + elbow X + wrist X = 90 keeps it
+		-- upright. The draw hand rests (Animator's arm); the shot move raises the bow from `ref`.
+		hold = table.freeze({
+			lShoulder = v(18, 55, 0),
+			lElbow = v(20, 0, 0),
+			lWrist = v(52, 0, 0),
+		}),
+		pose = table.freeze({ waist = v(0, -6, 0), neck = v(0, 6, 0) }),
 		legs = table.freeze({
 			lHip = v(18, 0, -14),
 			lKnee = v(-20, 0, 0),
