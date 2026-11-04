@@ -1,6 +1,6 @@
 --!strict
 -- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
--- items, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio, for the
+-- items, all shop cosmetics, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio, for the
 -- owner of the place (user-owned experience) or for UserIds in DEV_USERS.
 -- The check lives here on the server - the menu on the client is only a convenience.
 -- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local CosmeticRules = require(ReplicatedStorage.Shared.Cosmetics)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
@@ -21,6 +22,7 @@ local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Combat = require(script.Parent.Combat)
+local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
 local Data = require(script.Parent.Data)
 local Leaderboard = require(script.Parent.Leaderboard)
@@ -175,6 +177,16 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 			Progress.sync(player)
 		end,
 	},
+	cosmetics = {
+		-- Every shop cosmetic (Shared/Cosmetics: trails, auras from all packs) into the account save,
+		-- through the same path a Robux pack uses. Already owned ones are skipped.
+		run = function(player)
+			for _, c in CosmeticRules.List do
+				Cosmetics.give(player, c.id)
+			end
+			Cosmetics.sync(player)
+		end,
+	},
 	rush = {
 		-- Fills the Stud Rush meter (Systems/Rush)
 		run = function(player)
@@ -221,8 +233,8 @@ local function onCommand(player: Player, command: any, value: any)
 		n = checked
 	end
 	-- A hero touched by a test command never reaches a leaderboard (Systems/Leaderboard).
-	-- "day" only changes the account's daily calendar, not the hero's power.
-	if command ~= "day" then
+	-- "day" and "cosmetics" only change the account (calendar, looks), not the hero's power.
+	if command ~= "day" and command ~= "cosmetics" then
 		local profile = Data.get(player)
 		if profile then
 			profile.debugged = true

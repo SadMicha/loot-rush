@@ -142,4 +142,34 @@ describe("Debug menu", function()
 			req("ServerScriptService.Server.Systems.Enemies").clear(9999)
 		end)
 	end)
+	it("grants every shop cosmetic, only to debug users", function()
+		sim:run(8) -- refill the debug rate limit
+		local function owned()
+			return server(function(req, player)
+				local account = req("ServerScriptService.Server.Systems.Data").account(player)
+				local n = 0
+				for _, c in req("ReplicatedStorage.Shared.Cosmetics").List do
+					if account.cosmetics[c.id] then
+						n += 1
+					end
+				end
+				return n, account.wear.trail
+			end)
+		end
+		local total = server(function(req)
+			return #req("ReplicatedStorage.Shared.Cosmetics").List
+		end)
+		sim.studio = false
+		client(function(_, Net)
+			Net.Debug:FireServer("cosmetics")
+		end)
+		sim.studio = true
+		expect((owned())).toBe(0)
+		client(function(_, Net)
+			Net.Debug:FireServer("cosmetics")
+		end)
+		local n, trail = owned()
+		expect(n).toBe(total)
+		expect(trail).never.toBeNil() -- an empty slot is worn right away
+	end)
 end)
