@@ -23,12 +23,12 @@ Measured on the FBX files (grip point = middle of the handle, `gripAt`, `offset`
 |---|---|---|---|
 | Sword | right | raised forward (Roblox's "hold a tool" animation) | blade up, 15° forward, edges and knuckle guard facing forward |
 | Staff, Scepter | right | raised forward | upright, head 10° forward |
-| Bow | left | hanging | limbs vertical, string toward the body |
+| Bow | left | raised (`Anim.STANCE`) | limbs along the fist (vertical with the arm up), riser forward, string toward the archer |
 
 The arm pose is Roblox's default `toolnone` animation (`Weapons.HOLD_ANIM`), played by the server
-(replicates) and again on the inventory figure. Near the camera the client then replaces the
-weapon arm with the class holding stance (`Anim.STANCE` `hold`, docs/ANIMATIONS.md), so in game
-the arm pose comes from there; `toolnone` remains for far characters and the inventory figure.
+(replicates). Near the camera the client then replaces the weapon arm with the class holding
+stance (`Anim.STANCE` `hold`, docs/ANIMATIONS.md), so in game the arm pose comes from there, and
+the inventory figure strikes the same stance; `toolnone` remains for far characters.
 Tune `grip` per weapon in Studio if a mesh still sits off.
 
 ## Getting the real meshes into the game

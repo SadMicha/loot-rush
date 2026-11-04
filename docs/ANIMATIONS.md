@@ -57,23 +57,38 @@ target (`face`), so a basic attack while walking still points at the enemy.
 
 ## Holding stances (`Shared/Anim.STANCE`)
 
-Each class weapon has its own stance in two parts:
+Each class weapon has its own grounded combat stance, exaggerated so it reads from the high
+camera. All of it is data in `Anim.STANCE`:
 
 - `hold`: the weapon arm (shoulder, elbow, wrist) as an absolute pose. It replaces whatever the
   Animator put on that arm (`Weapons.HOLD_ANIM`, walk swing), so the weapon's angle in the world
-  is known. `tests/Anim.spec.luau` computes the weapon axis on an R15 block rig and checks that
-  every weapon stays upright, never leans back toward the face and never cuts through the body.
-- `pose`: waist, neck, off arm and hips, added on top of idle/walk.
+  is known. `tests/Anim.spec.luau` computes the weapon axis on an R15 block rig and checks each
+  weapon's pose and that it never cuts through the body.
+- `ref`: the weapon-arm pose the attack moves were made for (Roblox's raised-forward tool arm; the
+  bow's low carry in front). The arm moves toward it while running (`STANCE_MOVING`) and while a
+  move plays (`STANCE_ACTING`), eased with `STANCE_BLEND`.
+- `off`: the other arm, absolute too, blended with the Animator's arm by the stance weight.
+- `pose`: waist and neck, added on top of idle/walk (torso twist, weight shift, chest open).
+- `legs` + `lift`: hips, knees and ankles, added only while standing (`Anim.stanceLegs` fades
+  them out by `STANCE_STILL` studs/s so the walk cycle stays clean). `lift` lowers the body so the
+  bent knees keep the feet on the ground; ankles undo hip + knee so the feet stay flat. The spec
+  checks both. `STANCE_BOB` lets the body sink and rise with each breath.
 
-Sword = shoulder rest (hand in front of the chest, blade leaning back over the right shoulder), bow = relaxed (bow
-arm a little forward and out, the wrist keeps the limbs vertical), staff = planted (elbow bent,
-staff upright beside the body), scepter = upright in front of the chest. The stance fades to
-`STANCE_MOVING` while running and to `STANCE_ACTING` while a move plays, eased with
-`STANCE_BLEND`: the weapon arm then moves toward `ref`, the raised-forward arm the attack moves
-were made for (the bow has no `ref`: its arm blends back to the Animator's hanging/swinging arm).
-The weapon arm sways by `STANCE_SWAY`. On R6 the elbow and wrist angles fold into the shoulder.
-Rule of thumb for `hold`: shoulder X + elbow X + wrist X = 90 turns the hand so the grips in
-`Shared/Weapons` hold the weapon upright (the sword's grip then leans it 15° forward).
+| Weapon | Stance |
+|---|---|
+| Sword | Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at the right hip angled forward at the enemy, left fist raised as a guard |
+| Bow | Nocked: side-on, bow arm extended toward the front, bow vertical at arm's length, draw hand at the string in front of the chest |
+| Staff | Planted: wide square stance, chest open, the (taller) staff's foot on the ground beside the right foot, left hand raised with the spell ready |
+| Scepter | Ritual: deep wide crouch, scepter raised upright before the face, left hand spread low over the ground, head bowed |
+
+The weapon arm sways by `STANCE_SWAY`. On R6 the elbow and wrist angles fold into the shoulder
+(`Anim.R6_FOLD`). Rule of thumb for `hold`: shoulder X + elbow X + wrist X = 90 turns the hand so
+the grips in `Shared/Weapons` hold the weapon upright (the sword's grip then leans it 15° forward).
+The inventory figure strikes the same stance (`AnimController.posePreview`).
+
+Preview: Dbg panel → "Next Stance" puts the next weapon of `Weapons.List` into the own hand
+(player attribute `StanceWeapon`, Systems/Debug `stance`), stance included; after the last one it
+goes back to the class weapon.
 
 ## Triggers
 

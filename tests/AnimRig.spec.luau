@@ -81,4 +81,36 @@ describe("Character animation rig", function()
 		expect(result.ok).toBe(true)
 		expect(string.find(result.text, "Waist", 1, true)).never.toBeNil() -- the joint the spec built
 	end)
+
+	it("strikes the holding stance on the inventory figure", function()
+		local result = { posed = false, turn = 0, none = true }
+		sim:runAs("client", function(req)
+			local AnimController = req(
+				"Players." .. sim.player.Name .. ".PlayerScripts.Client.Controllers.AnimController"
+			)
+			local model = Instance.new("Model")
+			local humanoid = Instance.new("Humanoid")
+			humanoid.RigType = Enum.HumanoidRigType.R15
+			humanoid.Parent = model
+			local torso = Instance.new("Part")
+			torso.Name = "UpperTorso"
+			torso.Parent = model
+			local arm = Instance.new("Part")
+			arm.Name = "LeftUpperArm"
+			arm.Parent = model
+			local motor = Instance.new("Motor6D")
+			motor.Name = "LeftShoulder"
+			motor.Part0 = torso
+			motor.Part1 = arm
+			motor.C0 = CFrame.new(-1, 0.563, 0)
+			motor.Parent = arm
+			result.posed = AnimController.posePreview(model, "ranger_bow", 0)
+			local t = motor.Transform
+			result.turn = math.deg(math.acos(math.clamp(t.UpVector.Y, -1, 1)))
+			result.none = AnimController.posePreview(Instance.new("Model"), "ranger_bow", 0)
+		end)
+		expect(result.posed).toBe(true)
+		expect(result.turn).toBeGreaterThan(30) -- the bow arm is raised toward the front
+		expect(result.none).toBe(false)
+	end)
 end)

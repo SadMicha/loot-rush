@@ -32,6 +32,8 @@ local Progress = require(script.Parent.Progress)
 local Rift = require(script.Parent.Rift)
 local Rush = require(script.Parent.Rush)
 local Shop = require(script.Parent.Shop)
+local Weapons = require(script.Parent.Weapons)
+local WeaponList = require(ReplicatedStorage.Shared.Weapons).List
 
 local Debug = {}
 
@@ -185,6 +187,22 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 				Cosmetics.give(player, c.id)
 			end
 			Cosmetics.sync(player)
+		end,
+	},
+	stance = {
+		-- Preview the holding stances (Shared/Anim STANCE): puts the next weapon of the list into the
+		-- hand (player attribute "StanceWeapon"), after the last one back to the class weapon
+		run = function(player)
+			local now = player:GetAttribute("StanceWeapon")
+			local index = 0
+			for i, w in WeaponList do
+				if w.id == now then
+					index = i
+				end
+			end
+			local nextWeapon = WeaponList[index + 1]
+			player:SetAttribute("StanceWeapon", nextWeapon and nextWeapon.id)
+			task.spawn(Weapons.equip, player)
 		end,
 	},
 	rush = {
