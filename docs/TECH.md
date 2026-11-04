@@ -166,7 +166,7 @@ parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear`
   accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn; the setting "Hide helmet"
   (`settings.hideHelmet`) leaves the helmet off the body (stats stay).
 - Budget: at most `Gear.MAX_PIECES` (16) parts per slot and `Gear.MAX_SET` (60) per full set at the
-  top rarity (today 26-30 at normal, 49-54 at unique); massless, CanCollide/CanQuery/CanTouch off,
+  top rarity (today 27-31 at normal, 50-55 at unique); massless, CanCollide/CanQuery/CanTouch off,
   shadowless, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
   same gear; it refreshes when a new `WornGear` model arrives while the window is open.
 - R6 or custom rigs: pieces whose body part is missing are skipped.

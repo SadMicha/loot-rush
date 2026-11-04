@@ -88,6 +88,61 @@ describe("Gear looks", function()
 		end
 	end)
 
+	it("builds trim, glow and rune as edge rims or strips, never as plates", function()
+		local RIM = { trim = true, glow = true, rune = true }
+		-- vertical span and width (X, Z) of a block or disc in part sizes
+		local function span(piece)
+			if piece.shape == "disc" then
+				return piece.p.Y - piece.s.X / 2, piece.p.Y + piece.s.X / 2, piece.s.Y, piece.s.Y
+			end
+			return piece.p.Y - piece.s.Y / 2, piece.p.Y + piece.s.Y / 2, piece.s.X, piece.s.Z
+		end
+		for id, style in Gear.Styles do
+			for _, slot in Gear.Slots do
+				local pieces = Gear.pieces(style, slot)
+				for _, piece in pieces do
+					if not RIM[piece.role] or piece.shape == "ball" then
+						continue
+					end
+					local small = 0
+					for _, n in { piece.s.X, piece.s.Y, piece.s.Z } do
+						if n <= 0.3 then
+							small += 1
+						end
+					end
+					if piece.shape ~= "disc" and small >= 2 then
+						continue -- a strip, badge or edge bar
+					end
+					-- a band: inside the height of a host piece and at most a hair wider
+					local lo, hi, w, d = span(piece)
+					local hosted = false
+					for _, host in pieces do
+						if
+							host.part == piece.part
+							and host.shape == piece.shape
+							and not RIM[host.role]
+							and host.r == nil
+							and math.abs(host.p.X - piece.p.X) <= 0.05
+							and math.abs(host.p.Z - piece.p.Z) <= 0.05
+						then
+							local hlo, hhi, hw, hd = span(host)
+							if
+								hlo <= lo + 1e-6
+								and hi <= hhi + 1e-6
+								and w - hw <= 0.08 + 1e-6
+								and d - hd <= 0.08 + 1e-6
+							then
+								hosted = true
+							end
+						end
+					end
+					local where = `{id}.{slot} {piece.part} {piece.role}`
+					expect(hosted and where).toBe(where)
+				end
+			end
+		end
+	end)
+
 	it("shows trim from magic, gems from rare and glow edges from epic", function()
 		local floor = { trim = 2, gem = 3, glow = 4 }
 		for _, c in Classes.List do

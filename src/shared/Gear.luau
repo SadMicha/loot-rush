@@ -88,31 +88,40 @@ local function pc(part: string, shape: Shape, s: Vector3, p: Vector3, role: Role
 	}
 end
 
--- Thin plates: a few hundredths of a stud of pad keep them visible on small avatars
+-- Thin plates: a few hundredths of a stud of pad keep them visible on small avatars.
+-- Rims (trim/glow/rune bands) sit INSIDE the height of the piece they frame and are only a hair
+-- wider (<= 0.08 part sizes), so just a thin edge line shows, never a plate (spec "edge rims").
 local THIN_Y = v(0, 0.04, 0)
 local THIN_XZ = v(0.04, 0, 0.04)
 
--- Amulet (every class, colored by the class palette): chain around the neck and a pendant high
+-- Amulet (every class, colored by the class palette): two short chain bars and a small pendant high
 -- on the chest. Chest plates of every class stay below y = 0.3 in front so the pendant shows.
 local AMULET: { Piece } = {
-	pc("UpperTorso", "block", v(0.56, 0.04, 1.22), v(0, 0.47, 0), "metal", { pad = v(0, 0.05, 0) }),
 	pc(
 		"UpperTorso",
 		"block",
-		v(0.14, 0.14, 0.03),
-		v(0, 0.37, -0.63),
+		v(0.025, 0.2, 0.025),
+		v(0.06, 0.45, -0.62),
+		"metal",
+		{ r = v(0, 0, -36), pad = v(0.04, 0, 0.04), mirror = true }
+	),
+	pc(
+		"UpperTorso",
+		"block",
+		v(0.1, 0.12, 0.03),
+		v(0, 0.33, -0.63),
 		"metal",
 		{ pad = v(0, 0, 0.08) }
 	),
 	pc(
 		"UpperTorso",
 		"block",
-		v(0.19, 0.19, 0.02),
-		v(0, 0.37, -0.61),
+		v(0.14, 0.16, 0.02),
+		v(0, 0.33, -0.61),
 		"trim",
 		{ pad = v(0, 0, 0.06) }
 	),
-	pc("UpperTorso", "ball", v(0.1, 0, 0), v(0, 0.37, -0.69), "gem"),
+	pc("UpperTorso", "ball", v(0.08, 0, 0), v(0, 0.33, -0.69), "gem"),
 }
 
 local CLASS: { [string]: { [string]: { Piece } } } = {
@@ -178,7 +187,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"{S}UpperArm",
 				"block",
 				v(1.46, 0.06, 1.46),
-				v(0.08, 0.11, 0),
+				v(0.08, 0.14, 0),
 				"trim",
 				{ pad = THIN_Y }
 			),
@@ -203,7 +212,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 		gloves = {
 			pc("{S}Hand", "block", v(1.22, 1.2, 1.22), v(0, 0, 0), "main"),
 			pc("{S}LowerArm", "block", v(1.26, 0.42, 1.26), v(0, -0.28, 0), "dark"),
-			pc("{S}LowerArm", "block", v(1.3, 0.06, 1.3), v(0, -0.06, 0), "trim", { pad = THIN_Y }),
+			pc("{S}LowerArm", "block", v(1.3, 0.06, 1.3), v(0, -0.16, 0), "trim", { pad = THIN_Y }),
 			pc("{S}LowerArm", "ball", v(0.2, 0, 0), v(0.64, -0.28, 0), "gem"),
 		},
 		belt = {
@@ -217,13 +226,13 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = v(0, 0, 0.08) }
 			),
 			pc("{S}UpperLeg", "block", v(1.14, 0.28, 1.16), v(0.02, 0.34, 0), "main"),
-			pc("LowerTorso", "block", v(1.14, 0.12, 1.24), v(0, -0.12, 0), "trim"),
+			pc("LowerTorso", "block", v(1.14, 0.12, 1.24), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.15, -0.7), "gem"),
 			pc(
 				"{S}UpperLeg",
 				"block",
 				v(1.18, 0.03, 1.2),
-				v(0.02, 0.2, 0),
+				v(0.02, 0.23, 0),
 				"glow",
 				{ pad = THIN_Y }
 			),
@@ -231,7 +240,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 		boots = {
 			pc("{S}Foot", "block", v(1.16, 1.25, 1.16), v(0, 0.06, -0.03), "main"),
 			pc("{S}LowerLeg", "block", v(1.16, 0.55, 1.16), v(0, -0.2, 0), "dark"),
-			pc("{S}LowerLeg", "block", v(1.2, 0.06, 1.2), v(0, 0.08, 0), "trim", { pad = THIN_Y }),
+			pc("{S}LowerLeg", "block", v(1.2, 0.06, 1.2), v(0, 0, 0), "trim", { pad = THIN_Y }),
 			pc(
 				"{S}LowerLeg",
 				"block",
@@ -274,7 +283,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"trim",
 				{ r = v(0, 0, -20), pad = v(0.03, 0, 0), min = "rare" }
 			),
-			pc("Head", "block", v(1.32, 0.03, 1.17), v(0, -0.44, 0.06), "glow", { pad = THIN_Y }),
+			pc("Head", "block", v(1.34, 0.03, 1.19), v(0, -0.52, 0.06), "glow", { pad = THIN_Y }),
 			pc(
 				"Head",
 				"block",
@@ -303,8 +312,8 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"metal",
 				{ r = v(0, 0, 38), pad = v(0, 0, 0.06) }
 			),
-			pc("LeftUpperArm", "block", v(1.28, 0.44, 1.28), v(0, 0.32, 0), "dark"),
-			pc("LeftUpperArm", "block", v(1.1, 0.18, 1.1), v(0, 0.6, 0), "accent"),
+			pc("LeftUpperArm", "block", v(1.16, 0.3, 1.16), v(0, 0.38, 0), "dark"),
+			pc("LeftUpperArm", "block", v(0.96, 0.12, 0.96), v(0, 0.58, 0), "accent"),
 			pc(
 				"UpperTorso",
 				"block",
@@ -313,14 +322,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"trim",
 				{ pad = v(0.04, 0, 0.08), mirror = true }
 			),
-			pc(
-				"LeftUpperArm",
-				"block",
-				v(1.32, 0.06, 1.32),
-				v(0, 0.11, 0),
-				"trim",
-				{ pad = THIN_Y }
-			),
+			pc("LeftUpperArm", "block", v(1.2, 0.06, 1.2), v(0, 0.3, 0), "trim", { pad = THIN_Y }),
 			pc("UpperTorso", "ball", v(0.08, 0, 0), v(0, 0, -0.74), "gem"),
 			pc(
 				"RightUpperArm",
@@ -330,26 +332,12 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"dark",
 				{ min = "rare" }
 			),
-			pc(
-				"LeftUpperArm",
-				"block",
-				v(1.14, 0.03, 1.14),
-				v(0, 0.7, 0),
-				"glow",
-				{ pad = THIN_Y }
-			),
+			pc("LeftUpperArm", "block", v(1, 0.03, 1), v(0, 0.58, 0), "glow", { pad = THIN_Y }),
 		},
 		gloves = {
 			pc("{S}Hand", "block", v(1.16, 1.1, 1.16), v(0, 0.05, 0), "dark"),
 			pc("{S}LowerArm", "block", v(1.2, 0.62, 1.2), v(0, -0.12, 0), "accent"),
-			pc(
-				"{S}LowerArm",
-				"block",
-				v(1.24, 0.06, 1.24),
-				v(0, 0.17, 0),
-				"trim",
-				{ pad = THIN_Y }
-			),
+			pc("{S}LowerArm", "block", v(1.24, 0.06, 1.24), v(0, 0.1, 0), "trim", { pad = THIN_Y }),
 			pc("{S}LowerArm", "ball", v(0.18, 0, 0), v(0.62, -0.12, 0), "gem"),
 		},
 		belt = {
@@ -363,7 +351,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = v(0, 0, 0.1) }
 			),
 			pc("LowerTorso", "block", v(0.26, 0.9, 0.22), v(0.3, -0.25, 0.66), "accent"),
-			pc("LowerTorso", "block", v(1.12, 0.12, 1.22), v(0, -0.12, 0), "trim"),
+			pc("LowerTorso", "block", v(1.12, 0.12, 1.22), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.08, 0, 0), v(0, 0.12, -0.69), "gem"),
 			pc(
 				"LowerTorso",
@@ -376,16 +364,9 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 		},
 		boots = {
 			pc("{S}Foot", "block", v(1.12, 1.2, 1.12), v(0, 0.05, -0.02), "dark"),
-			pc("{S}LowerLeg", "block", v(1.12, 0.6, 1.12), v(0, -0.2, 0), "dark"),
-			pc("{S}LowerLeg", "block", v(1.24, 0.2, 1.24), v(0, 0.12, 0), "accent"),
-			pc(
-				"{S}LowerLeg",
-				"block",
-				v(1.28, 0.05, 1.28),
-				v(0, 0.22, 0),
-				"trim",
-				{ pad = THIN_Y }
-			),
+			pc("{S}LowerLeg", "block", v(1.08, 0.6, 1.08), v(0, -0.2, 0), "dark"),
+			pc("{S}LowerLeg", "block", v(1.16, 0.18, 1.16), v(0, 0.1, 0), "accent"),
+			pc("{S}LowerLeg", "block", v(1.2, 0.05, 1.2), v(0, 0.1, 0), "trim", { pad = THIN_Y }),
 		},
 	},
 	-- Zap: pointed hat with a bent tip and a glowing band, robe with yoke, gold sash and a glowing
@@ -398,17 +379,10 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("Head", "block", v(0.98, 0.03, 0.98), v(0, 0.635, 0.02), "rune", { pad = THIN_Y }),
 			pc("Head", "block", v(0.64, 0.44, 0.64), v(0, 1.15, 0.1), "main", { r = v(-10, 0, 0) }),
 			pc("Head", "block", v(0.38, 0.38, 0.38), v(0, 1.5, 0.24), "main", { r = v(-22, 0, 0) }),
-			pc("Head", "disc", v(0.04, 1.98, 0), v(0, 0.44, 0), "trim"),
+			pc("Head", "disc", v(0.04, 1.98, 0), v(0, 0.46, 0), "trim"),
 			pc("Head", "ball", v(0.18, 0, 0), v(0, 0.56, -0.5), "gem"),
 			pc("Head", "ball", v(0.16, 0, 0), v(0, 1.72, 0.36), "gem"),
-			pc(
-				"Head",
-				"block",
-				v(0.68, 0.03, 0.68),
-				v(0, 0.98, 0.08),
-				"glow",
-				{ pad = v(0.06, 0.04, 0.06) }
-			),
+			pc("Head", "block", v(0.95, 0.03, 0.95), v(0, 0.85, 0.02), "glow", { pad = THIN_Y }),
 		},
 		armor = {
 			pc("UpperTorso", "block", v(1.06, 0.92, 1.12), v(0, 0.02, 0), "main"),
@@ -431,12 +405,12 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = v(0.03, 0, 0.05) }
 			),
 			pc("{S}UpperArm", "block", v(1.28, 0.38, 1.28), v(0.04, 0.36, 0), "main"),
-			pc("UpperTorso", "block", v(1.18, 0.06, 1.24), v(0, 0.33, 0), "trim", { pad = THIN_Y }),
+			pc("UpperTorso", "block", v(1.18, 0.06, 1.24), v(0, 0.38, 0), "trim", { pad = THIN_Y }),
 			pc(
 				"{S}UpperArm",
 				"block",
 				v(1.32, 0.06, 1.32),
-				v(0.04, 0.17, 0),
+				v(0.04, 0.22, 0),
 				"trim",
 				{ pad = THIN_Y }
 			),
@@ -452,8 +426,8 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc(
 				"{S}UpperArm",
 				"block",
-				v(1.3, 0.03, 1.3),
-				v(0.04, 0.56, 0),
+				v(1.32, 0.03, 1.32),
+				v(0.04, 0.5, 0),
 				"glow",
 				{ pad = THIN_Y }
 			),
@@ -461,8 +435,8 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 		gloves = {
 			pc("{S}Hand", "block", v(1.14, 1.1, 1.14), v(0, 0.05, 0), "dark"),
 			pc("{S}LowerArm", "block", v(1.36, 0.48, 1.36), v(0, -0.24, 0), "main"),
-			pc("{S}LowerArm", "block", v(1.4, 0.03, 1.4), v(0, -0.47, 0), "rune", { pad = THIN_Y }),
-			pc("{S}LowerArm", "block", v(1.4, 0.06, 1.4), v(0, -0.02, 0), "trim", { pad = THIN_Y }),
+			pc("{S}LowerArm", "block", v(1.4, 0.03, 1.4), v(0, -0.44, 0), "rune", { pad = THIN_Y }),
+			pc("{S}LowerArm", "block", v(1.4, 0.06, 1.4), v(0, -0.08, 0), "trim", { pad = THIN_Y }),
 		},
 		belt = {
 			pc("LowerTorso", "block", v(1.16, 0.6, 1.22), v(0, 0.15, 0), "main"),
@@ -482,7 +456,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"main",
 				{ r = v(0, 0, 6), pad = v(0, 0, 0.06) }
 			),
-			pc("LowerTorso", "block", v(1.2, 0.1, 1.26), v(0, -0.12, 0), "trim"),
+			pc("LowerTorso", "block", v(1.2, 0.1, 1.26), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.15, -0.7), "gem"),
 			pc(
 				"LowerTorso",
@@ -508,7 +482,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"{S}LowerLeg",
 				"block",
 				v(1.16, 0.06, 1.16),
-				v(0, -0.08, 0),
+				v(0, -0.14, 0),
 				"trim",
 				{ pad = THIN_Y }
 			),
@@ -527,8 +501,8 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("Head", "disc", v(0.08, 1.86, 0), v(0, 0.36, 0), "trim"),
 			pc("Head", "ball", v(0.2, 0, 0), v(0, 1.28, 0), "gem"),
 			pc("Head", "ball", v(0.18, 0, 0), v(0.12, 1, 0.4), "accent", { min = "rare" }),
-			pc("Head", "disc", v(0.03, 1.84, 0), v(0, 0.62, 0), "glow"),
-			pc("Head", "disc", v(0.03, 1.34, 0), v(0, 0.86, 0), "glow", { min = "unique" }),
+			pc("Head", "disc", v(0.03, 1.84, 0), v(0, 0.55, 0), "glow"),
+			pc("Head", "disc", v(0.03, 1.34, 0), v(0, 0.78, 0), "glow", { min = "unique" }),
 		},
 		armor = {
 			pc("UpperTorso", "block", v(1.06, 0.92, 1.12), v(0, 0.02, 0), "dark"),
@@ -565,7 +539,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"{S}LowerArm",
 				"block",
 				v(1.26, 0.06, 1.26),
-				v(0, -0.12, 0),
+				v(0, -0.2, 0),
 				"trim",
 				{ pad = THIN_Y }
 			),
@@ -581,7 +555,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = v(0, 0, 0.08) }
 			),
 			pc("LowerTorso", "ball", v(0.2, 0, 0), v(0.5, -0.2, 0.4), "main"),
-			pc("LowerTorso", "block", v(1.12, 0.1, 1.22), v(0, -0.1, 0), "trim"),
+			pc("LowerTorso", "block", v(1.12, 0.1, 1.22), v(0, -0.06, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.12, -0.7), "gem"),
 			pc(
 				"LowerTorso",
@@ -599,7 +573,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				"{S}LowerLeg",
 				"block",
 				v(1.18, 0.06, 1.18),
-				v(0, -0.01, 0),
+				v(0, -0.08, 0),
 				"trim",
 				{ pad = THIN_Y }
 			),

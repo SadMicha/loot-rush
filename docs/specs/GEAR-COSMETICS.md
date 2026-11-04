@@ -37,20 +37,24 @@ Pieces per slot (Normal → Magic → Rare → Epic):
 | Class | Helmet | Armor | Gloves | Belt | Boots |
 |---|---|---|---|---|---|
 | Knight | great helm dome, cheek guards, brow band, nose guard, red crest → crest base trim → neck guard, forehead gem → band edge glow (unique: crest glow) | chainmail base, breastplate, ab plate, gold gorget, big pauldrons with a lower lame → chest emblem, pauldron rims → emblem gem, gold pauldron caps → glow line under the breastplate | gauntlets, flared cuffs → cuff rims → cuff gems | belt, gold buckle, thigh tassets → lower rim → buckle gem → tasset edge glow | sabatons, greaves → greave rims → knee cops |
-| Ranger | hood, peak, leather cowl, hood tip → face frame strips → cowl clasp gem, side feather → cowl edge glow (unique: hood ridge glow) | green tunic, open leather vest panels, quiver strap with brass buckle, bow-shoulder guard with a top layer → vest edge strips, guard rim → buckle gem, draw-arm band → guard top glow | fingerless gloves, leather bracers → bracer bands → bracer gems | belt, brass buckle, back pouch → lower rim → buckle gem, knife sheath | boots with folded cuffs → cuff rims |
+| Ranger | hood, peak, leather cowl, hood tip → face frame strips → cowl clasp gem, side feather → cowl edge glow (unique: hood ridge glow) | green tunic, open leather vest panels, quiver strap with brass buckle, compact bow-shoulder guard with a small top layer → vest edge strips, guard rim → buckle gem, draw-arm band → guard top glow | fingerless gloves, leather bracers → bracer bands → bracer gems | belt, brass buckle, back pouch → lower rim → buckle gem, knife sheath | boots with folded cuffs (shin width + ~0.15) → cuff rims |
 | Spark Mage | pointed hat (brim, crown, band, glowing rune line, bent tip) → brim edge → band gem, tip gem → crown glow ring | robe, skirt, yoke, gold sash, glowing rune seam, shoulder pads → yoke and shoulder rims → chest gem, gold apron panel → shoulder edge glow | gloves, wide sleeves with glowing cuff edge → sleeve rims | sash belt, gold knot, sash tail → lower rim → knot gem, second tail | curled shoes, shin wraps → shin rims |
 | Mushroom Shaman | cap brim, upper tier, dome, cream gills, two spots → brim edge → glowing spore on top, extra spot → brim glow ring (unique: tier glow ring) | moss robe, bark collar, mushroom-cap shoulder pads (brim, dome, spot), bark chest plate → cap edge rings → chest gem, cap gills → two glowing spore dots | bark gloves, moss cuffs with a tiny red mushroom → cuff rims | bark belt, cream toggle, little mushroom → lower rim → toggle gem, second mushroom | bark boots, moss wraps → wrap rims → tiny mushrooms |
 
-Amulet (every class, class metal): chain + pendant → pendant frame → gem.
+Amulet (every class, class metal): two short chain bars + small pendant → pendant frame → gem.
 
 Parts per full set (six visible slots; budget `Gear.MAX_SET` = 60, `Gear.MAX_PIECES` = 16 per slot):
 
 | Class | Normal | Magic | Rare | Epic | Unique |
 |---|---|---|---|---|---|
-| Knight | 28 | 38 | 49 | 53 | 54 |
-| Ranger | 26 | 37 | 46 | 48 | 49 |
-| Spark Mage | 30 | 40 | 47 | 50 | 50 |
-| Mushroom Shaman | 30 | 39 | 49 | 52 | 53 |
+| Knight | 29 | 39 | 50 | 54 | 55 |
+| Ranger | 27 | 38 | 47 | 49 | 50 |
+| Spark Mage | 31 | 41 | 48 | 51 | 51 |
+| Mushroom Shaman | 31 | 40 | 50 | 53 | 54 |
+
+Rims: trim, glow and rune bands sit inside the height of the piece they frame and are at most
+0.08 part sizes wider, so only a thin edge line shows (never a plate); everything else in those
+roles is a strip or small badge (spec "edge rims").
 
 Fit rules: chest pieces stay below the torso top (head starts there), gloves hug the hand (the
 weapon grip sits in it), the Ranger's quiver strap and vest stay flat (bow string side), the
