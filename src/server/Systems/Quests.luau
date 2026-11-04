@@ -10,6 +10,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Quests)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
@@ -25,11 +26,15 @@ local Quests = {}
 
 local rng = Random.new()
 
+-- Level and best depth; the depth also from the save, since the BestDepth attribute may not be
+-- published yet at join (an old save would otherwise get its unlocks later, with a "New:" toast)
 local function stateOf(player: Player): (number, number)
 	local level = player:GetAttribute("Level")
 	local depth = player:GetAttribute("BestDepth")
+	local profile = Data.get(player)
+	local saved = if profile then Atlas.bestDepth(profile.atlas) else 0
 	return if typeof(level) == "number" then level else 1,
-		if typeof(depth) == "number" then depth else 0
+		math.max(if typeof(depth) == "number" then depth else 0, saved)
 end
 
 local function unlockList(data: Rules.Data): { string }
