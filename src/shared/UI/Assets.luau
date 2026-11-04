@@ -495,7 +495,7 @@ local HUD: { [string]: Fixed } = {
 	-- Dash charge diamonds (Icons_256): cyan = charge available, dark = spent
 	hud_diamond_cyan = { id = "rbxassetid://101631660350220", size = Vector2.new(256, 256) },
 	hud_diamond_dark = { id = "rbxassetid://113509830744033", size = Vector2.new(256, 256) },
-	hud_settings = { id = "rbxassetid://96002533781558", size = Vector2.new(399, 400) },
+	hud_settings = { id = "rbxassetid://128673325472229", size = Vector2.new(399, 400) },
 }
 local hud: { [string]: Fixed } = {}
 for name, h in HUD do
