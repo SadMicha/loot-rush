@@ -96,4 +96,62 @@ describe("Forge", function()
 		end
 		expect(sum / n).toBeCloseTo(1.2, 0.08)
 	end)
+
+	describe("suggestions for the window", function()
+		local NONE = { candy = 0, shards = 0, dust = 0 }
+
+		it("picks the affix per action: cheapest tier, weakest roll, best for the seal", function()
+			local it = item("rare", {
+				{ stat = "damage", value = 5, implicit = true },
+				{ stat = "life", value = 30, tier = 3 },
+				{ stat = "crit", value = 1, tier = 6 },
+			})
+			expect(Forge.suggestAffix("tier", it, RICH)).toBe(3)
+			expect(Forge.suggestAffix("reroll", it, RICH)).toBe(3)
+			expect(Forge.suggestAffix("seal", it, RICH)).toBe(2)
+			expect(Forge.suggestAffix("add", it, RICH)).toBeNil()
+			expect(Forge.suggestAffix("tier", it, NONE)).toBeNil() -- nothing affordable
+		end)
+
+		it("picks the first action that works, else the first one", function()
+			local it = item("magic", {
+				{ stat = "damage", value = 5, implicit = true },
+				{ stat = "life", value = 9, tier = 6 },
+			})
+			local id, index = Forge.suggestAction(it, RICH)
+			expect(id).toBe("add")
+			expect(index).toBeNil()
+			id, index = Forge.suggestAction(it, { candy = 0, shards = 50, dust = 0 })
+			expect(id).toBe("tier")
+			expect(index).toBe(2)
+			id = Forge.suggestAction(it, NONE)
+			expect(id).toBe("add")
+			expect(Forge.ready(it, NONE)).toBe(false)
+		end)
+
+		it("suggests a forgeable item, worn gear first", function()
+			local bag = item("epic", { { stat = "life", value = 9, tier = 6 } })
+			bag.id = "bag"
+			local worn = item("magic", { { stat = "life", value = 9, tier = 6 } })
+			worn.id = "worn"
+			local done = item("epic", { { stat = "life", value = 9, tier = 6 } })
+			done.id = "done"
+			done.charges = 0
+			local list = { done, bag, worn }
+			expect((Forge.suggestItem(list, { worn = true }, RICH) :: any).id).toBe("worn")
+			expect((Forge.suggestItem(list, {}, RICH) :: any).id).toBe("bag")
+			expect(Forge.canForge(done)).toBe(false)
+			expect(Forge.suggestItem({}, {}, RICH)).toBeNil()
+		end)
+
+		it("previews the outcome", function()
+			local it = item("rare", { { stat = "life", value = 10, tier = 5 } })
+			local p = Forge.preview("tier", it, 1)
+			expect(p.before).toBe(Items.affixText(it.affixes[1]) .. "  T5")
+			expect(p.after).toBe(Items.affixText(Items.retier(it.affixes[1], 4)) .. "  T4")
+			expect(string.find(p.charges, "Uses 0-2", 1, true)).never.toBeNil()
+			expect(Forge.preview("seal", it, 1).charges).toBe("Uses no Forge charge")
+			expect(Forge.preview("add", it, nil).before).toBeNil()
+		end)
+	end)
 end)

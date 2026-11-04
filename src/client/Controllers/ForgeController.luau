@@ -1,9 +1,13 @@
 --!strict
--- Forge window after the "Forge" mockup (key B or menu button):
---   left: pick an item and its affixes, center: the item on the anvil with status,
---   right: the actions with costs. Items come from the inventory snapshot.
--- Forging happens on the server (Systems/Forge): the window sends action + item + affix (Net.ForgeAct),
--- shows materials from ProgressController and the feedback (Net.ForgeResult).
+-- Forge window (key B or menu button), one flow from left to right:
+--   1. left: pick an item in a grid (tabs All / Worn / Bag, sort and rarity filter). Only items of
+--      the current hero's class are listed. Cells show Forge charges left and a gold diamond on
+--      worn gear; they fade when no action works on the item right now.
+--   2. right: the item, four action tiles and its affixes (tap one when the action needs it)
+--   3. bottom right: what happens (before -> after), the cost and one Forge button.
+-- The window opens with the best candidate, action and affix already chosen (Shared/Forge
+-- suggest*). Forging happens on the server (Systems/Forge): the window only sends
+-- action + item + affix (Net.ForgeAct) and shows the feedback (Net.ForgeResult).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -11,7 +15,9 @@ local Forge = require(ReplicatedStorage.Shared.Forge)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 local InventoryController = require(script.Parent.InventoryController)
 local ProgressController = require(script.Parent.ProgressController)
@@ -19,420 +25,718 @@ local ProgressController = require(script.Parent.ProgressController)
 local ForgeController = {}
 
 local C = Theme.Color
-local PAD = 28
-local LEFT_W, SIDE_W = 440, 440
-local PICK = 88 -- as tall as a button gets on phones at minimum, otherwise the bar is cut off
-local CENTER_W = 600
-local ROW_H = 104 -- action row (Add Affix, Upgrade Tier, Reroll, Seal)
+local F = Theme.Flat
+
+-- Layout in design pixels (Window.BODY = 1520 × 790)
+local PAD = 24
+local LEFT_W = 620
+local GAP_X = 20
+local TAB_H = 52
+local FOOT_H = 56
+local CELL, CELL_GAP, GRID_PAD = 100, 12, 10
+local ACTION_H = 84
+local AFFIX_H, AFFIX_GAP = 84, 8 -- 84 design px = touch size on the smallest phones
+local BAR_H = 120
+local HEAD = 100 -- item cell in the header
 
 local win: Window.Window
 local left: Frame
-local center: Frame
-local side: Frame
+local right: Frame
+local grid: ScrollingFrame
+local tabs: Flat.Tabs
+local sortLabel: TextLabel
+local filterLabel: TextLabel
+local countLabel: TextLabel
+local detail: Frame -- right side content, rebuilt on every render
 
-local selectedItem: string? = nil -- item ID
+local view = "all" -- "all" | "worn" | "bag"
+local SORTS = { "best", "rarity", "slot", "level" }
+local SORT_NAME: { [string]: string } =
+	{ best = "Best", rarity = "Rarity", slot = "Slot", level = "Level" }
+local sortMode = "best"
+local RARITY_CYCLE = { "normal", "magic", "rare", "epic" } -- uniques cannot be forged
+local rarityFilter: string? = nil
+
+local selectedItem: string? = nil -- item id
+local selectedAction = "add"
 local selectedAffix: number? = nil
 local lastResult: { ok: boolean, text: string }? = nil
-local MAT_COLOR: { [string]: Color3 } =
-	{ candy = Theme.Rarity.epic, shards = C.Cyan, dust = C.Gold }
+
+local function mats(): Forge.Materials
+	return ProgressController.materials()
+end
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
-		if child:IsA("GuiObject") and child.Name ~= "Skin" then
+		if child:IsA("GuiObject") then
 			child:Destroy()
 		end
 	end
 end
 
--- Equipped first, then the bag
-local function allItems(): { Items.Item }
-	local bag, worn = InventoryController.snapshot()
+-- Items of the current hero's class (every item is class-bound; items without a class fit all):
+-- worn gear first, then the bag. `worn` = set of worn item ids.
+local function forgeList(): ({ Items.Item }, { [string]: boolean })
+	local bag, equipped = InventoryController.snapshot()
+	local class = Kit.playerClass()
+	local function fits(it: Items.Item): boolean
+		local c = (it :: any).class
+		return typeof(c) ~= "string" or string.lower(c) == class
+	end
 	local list: { Items.Item } = {}
+	local worn: { [string]: boolean } = {}
 	for _, slot in Items.Slots do
-		local it = worn[slot]
-		if it then
+		local it = equipped[slot]
+		if it and fits(it) then
 			table.insert(list, it)
+			worn[it.id] = true
 		end
 	end
 	for _, it in bag do
-		table.insert(list, it)
+		if fits(it) then
+			table.insert(list, it)
+		end
 	end
-	return list
+	return list, worn
 end
 
-local function current(list: { Items.Item }): Items.Item?
+local function find(list: { Items.Item }, id: string?): Items.Item?
 	for _, it in list do
-		if it.id == selectedItem then
+		if it.id == id then
 			return it
 		end
 	end
-	selectedItem = if list[1] then list[1].id else nil
-	selectedAffix = nil
-	return list[1]
+	return nil
 end
 
-local function wrapLabel(text: string, size: number, color: Color3, width: number): TextLabel
-	local t = Kit.label(text, size, color, Theme.Font.Body)
+-- Item, action and affix the way the suggestions would pick them
+local function suggest(list: { Items.Item }, worn: { [string]: boolean })
+	local it = Forge.suggestItem(list, worn, mats())
+	selectedItem = if it then it.id else nil
+	if it then
+		selectedAction, selectedAffix = Forge.suggestAction(it, mats())
+	else
+		selectedAction, selectedAffix = Forge.Actions[1].id, nil
+	end
+end
+
+local function pickItem(it: Items.Item)
+	selectedItem = it.id
+	selectedAction, selectedAffix = Forge.suggestAction(it, mats())
+	lastResult = nil
+end
+
+local function pickAction(it: Items.Item, actionId: string)
+	selectedAction = actionId
+	local action = Forge.ById[actionId]
+	if not action.needsAffix then
+		selectedAffix = nil
+	elseif not (selectedAffix and Forge.check(actionId, it, selectedAffix, mats())) then
+		selectedAffix = Forge.suggestAffix(actionId, it, mats()) or selectedAffix
+	end
+	lastResult = nil
+end
+
+local function pickAffix(it: Items.Item, index: number)
+	local a = it.affixes[index]
+	if not a or a.implicit then
+		return
+	end
+	selectedAffix = index
+	if not Forge.ById[selectedAction].needsAffix then
+		-- Tapping an affix while "Add Affix" is chosen: switch to the first action that works on it
+		local switch = "tier"
+		for _, action in Forge.Actions do
+			if action.needsAffix and Forge.check(action.id, it, index, mats()) then
+				switch = action.id
+				break
+			end
+		end
+		selectedAction = switch
+	end
+	lastResult = nil
+end
+
+-- Selection still fits the item (affixes change after forging or a new snapshot)
+local function validate(it: Items.Item)
+	local action = Forge.ById[selectedAction] or Forge.Actions[1]
+	selectedAction = action.id
+	if not action.needsAffix then
+		selectedAffix = nil
+		return
+	end
+	local a = if selectedAffix then it.affixes[selectedAffix] else nil
+	if not a or a.implicit or a.sealed then
+		selectedAffix = Forge.suggestAffix(action.id, it, mats())
+	end
+end
+
+-- ------------------------------------------------------------------ Left: item grid
+local function visible(list: { Items.Item }, worn: { [string]: boolean }): { Items.Item }
+	local out: { Items.Item } = {}
+	for _, it in list do
+		local w = worn[it.id] == true
+		if
+			(view == "all" or (view == "worn") == w)
+			and (not rarityFilter or it.rarity == rarityFilter)
+		then
+			table.insert(out, it)
+		end
+	end
+	local order: { [string]: number } = {}
+	local score: { [string]: number } = {}
+	local slotOrder: { [string]: number } = {}
+	for i, slot in Items.Slots do
+		slotOrder[slot] = i
+	end
+	for i, it in list do
+		order[it.id] = i
+		score[it.id] = Forge.candidateScore(it, worn[it.id] == true, mats())
+	end
+	table.sort(out, function(a, b)
+		if sortMode == "best" and score[a.id] ~= score[b.id] then
+			return score[a.id] > score[b.id]
+		elseif sortMode == "slot" and a.slot ~= b.slot then
+			return (slotOrder[a.slot] or 99) < (slotOrder[b.slot] or 99)
+		elseif sortMode == "level" and a.ilvl ~= b.ilvl then
+			return a.ilvl > b.ilvl
+		end
+		local ra, rb = Items.rank(a.rarity), Items.rank(b.rarity)
+		if ra ~= rb then
+			return ra > rb
+		end
+		if a.ilvl ~= b.ilvl then
+			return a.ilvl > b.ilvl
+		end
+		return (order[a.id] or 0) < (order[b.id] or 0)
+	end)
+	return out
+end
+
+-- Gold diamond top right of a cell: the hero wears this item
+local function wornMark(cell: GuiObject)
+	local d = Instance.new("Frame")
+	d.Name = "Worn"
+	d.AnchorPoint = Vector2.new(0.5, 0.5)
+	d.Position = UDim2.new(1, -14, 0, 14)
+	d.Size = UDim2.fromOffset(13, 13)
+	d.Rotation = 45
+	d.BackgroundColor3 = C.GoldHi
+	d.BorderSizePixel = 0
+	d.ZIndex = 4
+	Flat.stroke(d, F.Surface0, 1.5, 0)
+	d.Parent = cell
+end
+
+-- Cells are kept per item id and only rebuilt when their look changes (selection and the green
+-- arrow change in place), so a tap never restarts the glow or jumps the scroll position.
+type CellEntry = { cell: TextButton, key: string }
+local cells: { [string]: CellEntry } = {}
+
+local function renderGrid(list: { Items.Item }, worn: { [string]: boolean })
+	local shown = visible(list, worn)
+	local keep: { [string]: boolean } = {}
+	local m = mats()
+	for i, it in shown do
+		keep[it.id] = true
+		local w = worn[it.id] == true
+		local charges = Items.chargesOf(it)
+		local dim = not Forge.ready(it, m) -- faded: no action works on it right now
+		local icon = InventoryController.slotIcon(it.slot)
+		local key =
+			table.concat({ it.rarity, icon, tostring(charges), tostring(dim), tostring(w) }, "|")
+		local opts: Flat.CellOptions = {
+			rarity = it.rarity,
+			selected = it.id == selectedItem,
+		}
+		local entry: CellEntry? = cells[it.id]
+		if entry and entry.key ~= key then
+			entry.cell:Destroy()
+			entry = nil
+		end
+		if not entry then
+			local cellOpts = table.clone(opts)
+			cellOpts.count = if it.rarity == "unique" then nil else charges
+			cellOpts.dim = dim
+			local cell = Flat.cell(CELL, icon, cellOpts)
+			cell.Name = "Item_" .. it.id
+			if w then
+				wornMark(cell)
+			end
+			cell.Activated:Connect(function()
+				local all = forgeList()
+				local item = find(all, it.id)
+				if item then
+					pickItem(item)
+					ForgeController.render()
+				end
+			end)
+			cell.LayoutOrder = i
+			cell.Parent = grid
+			cells[it.id] = { cell = cell, key = key }
+		else
+			Flat.setCell(entry.cell, CELL, opts)
+			entry.cell.LayoutOrder = i
+		end
+	end
+	for id, entry in cells do
+		if not keep[id] then
+			entry.cell:Destroy()
+			cells[id] = nil
+		end
+	end
+	countLabel.Text = if #shown == 1 then "1 item" else string.format("%d items", #shown)
+	sortLabel.Text = "Sort: " .. SORT_NAME[sortMode]
+	filterLabel.Text = if rarityFilter
+		then Items.RarityName[rarityFilter] or rarityFilter
+		else "All Rarities"
+end
+
+-- ------------------------------------------------------------------ Right: item, action, affixes
+local function textLine(
+	parent: Instance,
+	value: string,
+	size: number,
+	color: Color3,
+	width: number,
+	order: number,
+	font: Font?
+): TextLabel
+	local t = Flat.text(value, size, color, font or Theme.Font.Body)
 	t.AutomaticSize = Enum.AutomaticSize.Y
 	t.Size = UDim2.fromOffset(width, 0)
 	t.TextWrapped = true
-	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.LayoutOrder = order
+	t.Parent = parent
 	return t
 end
 
--- ------------------------------------------------------------------ Left: selection and affixes
-local function renderLeft(list: { Items.Item }, item: Items.Item?)
-	clear(left)
-	local w = LEFT_W - 2 * PAD
+local function renderHeader(it: Items.Item, w: number, worn: boolean)
+	local cell = Flat.cell(HEAD, InventoryController.slotIcon(it.slot), { rarity = it.rarity })
+	cell.Name = "Selected"
+	cell.Active = false
+	cell.Position = UDim2.fromOffset(0, 0)
+	cell.Parent = detail
 
-	-- Swipeable bar: scrollbar below the slots so it is visible that there is more
-	local picker = Instance.new("ScrollingFrame")
-	picker.BackgroundTransparency = 1
-	picker.BorderSizePixel = 0
-	picker.Position = UDim2.fromOffset(PAD, PAD)
-	picker.Size = UDim2.fromOffset(w, PICK + 30)
-	picker.ScrollingDirection = Enum.ScrollingDirection.X
-	picker.ScrollBarThickness = 8
-	picker.ScrollBarImageColor3 = C.Gold
-	picker.ScrollBarImageTransparency = 0.2
-	picker.HorizontalScrollBarInset = Enum.ScrollBarInset.ScrollBar
-	picker.AutomaticCanvasSize = Enum.AutomaticSize.X
-	picker.CanvasSize = UDim2.new()
-	local inset = Instance.new("UIPadding") -- room for the selection glow around the slot
-	inset.PaddingTop = UDim.new(0, 8)
-	inset.PaddingLeft = UDim.new(0, 8)
-	inset.PaddingRight = UDim.new(0, 8)
-	inset.Parent = picker
-	local pl = Kit.list(picker, Enum.FillDirection.Horizontal, 8, Enum.VerticalAlignment.Top)
-	pl.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	for i, it in list do
-		local b = Kit.itemSlot(PICK, InventoryController.slotIcon(it.slot), {
-			rarity = it.rarity,
-			selected = item ~= nil and it.id == item.id,
-		})
+	-- Materials top right
+	local matRow = Flat.frame(UDim2.fromOffset(0, 40))
+	matRow.Name = "Materials"
+	matRow.AutomaticSize = Enum.AutomaticSize.X
+	matRow.AnchorPoint = Vector2.new(1, 0)
+	matRow.Position = UDim2.new(1, 0, 0, 0)
+	local ml = Kit.list(matRow, Enum.FillDirection.Horizontal, 8)
+	ml.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local have = mats() :: any
+	local MAT_COLOR: { [string]: Color3 } =
+		{ candy = Theme.Rarity.epic, shards = C.Cyan, dust = C.Gold }
+	for i, key in { "candy", "shards", "dust" } do
+		local pill, label = Flat.currency(Forge.MaterialIcon[key], MAT_COLOR[key])
+		pill.Name = "Mat_" .. key
+		pill.LayoutOrder = i
+		label.Text = Flat.thousands(have[key] or 0)
+		pill.Parent = matRow
+	end
+	matRow.Parent = detail
+
+	local colW = w - HEAD - 24 - 330
+	local col = Flat.frame(UDim2.fromOffset(colW, HEAD), UDim2.fromOffset(HEAD + 24, 0))
+	col.Name = "Info"
+	local cl = Kit.list(col, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Center)
+	cl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local name = textLine(
+		col,
+		Window.caps(it.name),
+		24,
+		Theme.Rarity[it.rarity] or C.Text,
+		colW,
+		1,
+		Theme.Font.Title
+	)
+	name.Name = "Name"
+	local sub = string.format(
+		"%s %s · Lv %d%s",
+		Items.RarityName[it.rarity] or it.rarity,
+		Items.SlotName[it.slot] or it.slot,
+		it.ilvl,
+		if worn then " · Worn" else ""
+	)
+	textLine(col, sub, 17, C.Muted, colW, 2)
+	local charges = Items.chargesOf(it)
+	local state = if it.rarity == "unique"
+		then "Uniques cannot be forged"
+		elseif charges <= 0 then "Fully forged: no charges left"
+		else string.format("%d Forge charge%s left", charges, if charges == 1 then "" else "s")
+	textLine(col, state, 17, if Forge.canForge(it) then C.Good else C.GoldHi, colW, 3)
+	col.Parent = detail
+end
+
+-- Action tile: icon above the name; selected = gold edge and tint, faded when it cannot work now
+local function actionTile(
+	action: Forge.Action,
+	size: Vector2,
+	on: boolean,
+	works: boolean
+): TextButton
+	local b = Instance.new("TextButton")
+	b.Name = "Action_" .. action.id
+	b.Text = ""
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.BackgroundColor3 = Color3.new(1, 1, 1)
+	b.Size = UDim2.fromOffset(size.X, size.Y)
+	Kit.touchTarget(b)
+	Flat.corner(b, F.Radius.M)
+	if on then
+		Flat.gradient(b, F.Surface3:Lerp(C.Gold, 0.22), F.Surface2:Lerp(C.Gold, 0.1))
+		Flat.stroke(b, C.GoldHi, F.SelectStroke, 0)
+	else
+		Flat.gradient(b, F.Surface3, F.Surface2)
+		Flat.stroke(b, F.Edge, F.Stroke, 0.2)
+	end
+	Shape.topLine(b)
+	local col = Flat.frame(UDim2.fromScale(1, 1))
+	Kit.list(col, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Center)
+	local ic = Kit.icon(action.icon, 32)
+	ic.LayoutOrder = 1
+	if not works then
+		Kit.setIconTransparency(ic, 0.55)
+	end
+	ic.Parent = col
+	local t = Flat.text(
+		action.name,
+		16,
+		if on then C.GoldHi elseif works then C.Text else C.Muted,
+		Theme.Font.UI,
+		Enum.TextXAlignment.Center
+	)
+	t.Name = "Label"
+	t.LayoutOrder = 2
+	t.Parent = col
+	col.Parent = b
+	Flat.motion(b)
+	return b
+end
+
+local function renderActions(it: Items.Item, w: number, y: number)
+	local row = Flat.frame(UDim2.fromOffset(w, ACTION_H), UDim2.fromOffset(0, y))
+	row.Name = "Actions"
+	Kit.list(row, Enum.FillDirection.Horizontal, 10)
+	local n = #Forge.Actions
+	local tileW = math.floor((w - 10 * (n - 1)) / n)
+	local m = mats()
+	for i, action in Forge.Actions do
+		local works = if action.needsAffix
+			then Forge.suggestAffix(action.id, it, m) ~= nil
+			else (Forge.check(action.id, it, nil, m))
+		local b =
+			actionTile(action, Vector2.new(tileW, ACTION_H), action.id == selectedAction, works)
 		b.LayoutOrder = i
 		b.Activated:Connect(function()
-			selectedItem = it.id
-			selectedAffix = nil
-			lastResult = nil
+			pickAction(it, action.id)
 			ForgeController.render()
 		end)
-		b.Parent = picker
+		b.Parent = row
 	end
-	picker.Parent = left
+	row.Parent = detail
+end
 
-	if not item then
-		local empty = wrapLabel("No items. Collect loot in a Rift and come back.", 17, C.Muted, w)
-		empty.Position = UDim2.fromOffset(PAD, PAD + PICK + 40)
-		empty.Parent = left
-		return
-	end
-
-	-- Everything stacked below, so a two-line name pushes the rest down
-	local info = Window.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(PAD, PAD + PICK + 40))
-	info.AutomaticSize = Enum.AutomaticSize.Y
-	Kit.list(info, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
-	info.Parent = left
-
-	local divider = Kit.divider(w)
-	divider.LayoutOrder = 1
-	divider.Parent = info
-
-	local name = Window.heading(item.name, 22, Theme.Rarity[item.rarity] or C.Text)
-	name.AutomaticSize = Enum.AutomaticSize.Y
-	name.Size = UDim2.fromOffset(w, 0)
-	name.TextWrapped = true
-	name.TextXAlignment = Enum.TextXAlignment.Left
-	name.LayoutOrder = 2
-	name.Parent = info
-	local max = Forge.MaxAffixes[item.rarity] or 0
-	local open = Forge.openCount(item)
-	local sub = Kit.label(
-		string.format(
-			"%s - %s - %d/%d Affixes",
-			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot,
-			open,
-			max
-		),
-		15,
-		C.Muted,
+local function affixTile(
+	it: Items.Item,
+	index: number,
+	size: Vector2,
+	needsAffix: boolean
+): TextButton
+	local a = it.affixes[index]
+	local on = needsAffix and selectedAffix == index
+	local works = not a.implicit
+		and (not needsAffix or (Forge.check(selectedAction, it, index, mats())))
+	local b = Instance.new("TextButton")
+	b.Name = "Affix" .. index
+	b.Text = ""
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.BackgroundColor3 = if on then F.Surface3 else F.Surface2
+	b.BackgroundTransparency = if a.implicit then 0.5 else 0.1
+	b.Size = UDim2.fromOffset(size.X, size.Y)
+	b.Active = not a.implicit
+	Kit.touchTarget(b)
+	Flat.corner(b, F.Radius.M)
+	Flat.stroke(b, if on then C.GoldHi else F.Edge, if on then F.SelectStroke else F.Stroke, 0)
+	local t = Flat.text(
+		Items.affixText(a),
+		19,
+		if a.implicit then C.Gold elseif works or not needsAffix then C.Text else C.Muted,
 		Theme.Font.Body
 	)
-	sub.LayoutOrder = 3
-	sub.Parent = info
-
-	local rows = Window.frame(UDim2.fromOffset(w, 0))
-	rows.AutomaticSize = Enum.AutomaticSize.Y
-	rows.LayoutOrder = 4
-	Kit.list(rows, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
-	for i, a in item.affixes do
-		local on = selectedAffix == i
-		local row = Instance.new("ImageButton")
-		row.AutoButtonColor = false
-		row.BackgroundColor3 = if on then Theme.Flat.Surface3 else Theme.Flat.Surface2
-		row.BackgroundTransparency = if on then 0 else 0.3
-		row.BorderSizePixel = 0
-		row.Size = UDim2.fromOffset(w, 56)
-		row.LayoutOrder = i
-		Kit.touchTarget(row)
-		Kit.corner(row, Theme.Radius.M)
-		Kit.stroke(row, if on then C.Gold else Theme.Flat.Edge, if on then 2 else 1)
-		local t = Kit.label(Items.affixText(a), 17, if a.implicit then C.Gold else C.Text)
-		t.AnchorPoint = Vector2.new(0, 0.5)
-		t.Position = UDim2.new(0, 18, 0.5, 0)
-		t.ZIndex = 2
-		t.Parent = row
-		-- Tier on the right, lock for sealed ones; base values cannot be forged
-		local tag = Kit.label(
+	t.AnchorPoint = Vector2.new(0, 0.5)
+	t.Position = UDim2.new(0, 16, 0.5, 0)
+	t.Parent = b
+	-- Tier on the right, lock for sealed ones; base values cannot be forged
+	if a.sealed then
+		local lock = Kit.icon("lock", 28)
+		lock.AnchorPoint = Vector2.new(1, 0.5)
+		lock.Position = UDim2.new(1, -12, 0.5, 0)
+		lock.Parent = b
+	else
+		local tag = Flat.text(
 			if a.implicit then "Base" else "T" .. tostring(Items.tierOf(a)),
-			15,
-			if a.implicit then C.Muted else C.Cyan
+			16,
+			if a.implicit then C.Muted else C.Cyan,
+			Theme.Font.UI,
+			Enum.TextXAlignment.Right
 		)
 		tag.AnchorPoint = Vector2.new(1, 0.5)
-		tag.Position = UDim2.new(1, if a.sealed then -54 else -18, 0.5, 0)
-		tag.ZIndex = 2
-		tag.Parent = row
-		if a.sealed then
-			local lock = Kit.icon("lock", 26)
-			lock.AnchorPoint = Vector2.new(1, 0.5)
-			lock.Position = UDim2.new(1, -16, 0.5, 0)
-			lock.ZIndex = 2
-			lock.Parent = row
-		end
-		row.Activated:Connect(function()
-			if a.implicit then
-				return
-			end
-			selectedAffix = if on then nil else i
-			lastResult = nil
+		tag.Position = UDim2.new(1, -14, 0.5, 0)
+		tag.Parent = b
+	end
+	if not a.implicit then
+		b.Activated:Connect(function()
+			pickAffix(it, index)
 			ForgeController.render()
 		end)
-		row.Parent = rows
+		Flat.motion(b, if on then F.SelectScale else 1)
 	end
-	-- Free affix slots (fill with "Add Affix")
-	if open < max then
-		local free = Window.frame(UDim2.fromOffset(w, 56))
-		free.LayoutOrder = #item.affixes + 1
-		Kit.skin(free, "stat_tile", 56, 0.4)
-		local plus = Kit.icon("upgrade", 28)
-		plus.AnchorPoint = Vector2.new(0, 0.5)
-		plus.Position = UDim2.new(0, 14, 0.5, 0)
-		plus.ZIndex = 2
-		plus.Parent = free
-		local t = Kit.label(
-			if max - open == 1 then "Free slot" else string.format("%d free slots", max - open),
-			15,
+	return b
+end
+
+local function renderAffixes(it: Items.Item, w: number, y: number)
+	local action = Forge.ById[selectedAction]
+	local hint = Flat.text(
+		if action.needsAffix then "Tap an affix" else "Affixes",
+		16,
+		C.Muted,
+		Theme.Font.UI
+	)
+	hint.Name = "AffixHint"
+	hint.Position = UDim2.fromOffset(0, y)
+	hint.Parent = detail
+
+	local box = Flat.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(0, y + 28))
+	box.Name = "Affixes"
+	box.AutomaticSize = Enum.AutomaticSize.Y
+	local tileW = math.floor((w - AFFIX_GAP) / 2)
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.fromOffset(tileW, AFFIX_H)
+	layout.CellPadding = UDim2.fromOffset(AFFIX_GAP, AFFIX_GAP)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = box
+	for i in it.affixes do
+		local b = affixTile(it, i, Vector2.new(tileW, AFFIX_H), action.needsAffix)
+		b.LayoutOrder = i
+		b.Parent = box
+	end
+	-- Free affix slots: where "Add Affix" puts the new one (gold edge while it is chosen)
+	local max = Forge.MaxAffixes[it.rarity] or 0
+	local free = max - Forge.openCount(it)
+	if free > 0 then
+		local f = Instance.new("Frame")
+		f.Name = "Free"
+		f.BackgroundColor3 = F.Surface1
+		f.BackgroundTransparency = 0.3
+		f.BorderSizePixel = 0
+		f.LayoutOrder = #it.affixes + 1
+		Flat.corner(f, F.Radius.M)
+		Flat.stroke(f, if selectedAction == "add" then C.Gold else F.Edge, F.Stroke, 0.2)
+		local row = Flat.frame(UDim2.fromScale(1, 1))
+		local rl = Kit.list(row, Enum.FillDirection.Horizontal, 10)
+		rl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 14)
+		pad.Parent = row
+		local plus = Kit.icon("upgrade", 26)
+		plus.LayoutOrder = 1
+		plus.Parent = row
+		local t = Flat.text(
+			if free == 1 then "1 free slot" else string.format("%d free slots", free),
+			17,
 			C.Muted,
 			Theme.Font.Body
 		)
-		t.AnchorPoint = Vector2.new(0, 0.5)
-		t.Position = UDim2.new(0, 52, 0.5, 0)
-		t.ZIndex = 2
-		t.Parent = free
-		free.Parent = rows
+		t.LayoutOrder = 2
+		t.Parent = row
+		row.Parent = f
+		f.Parent = box
 	end
-	rows.Parent = info
+	box.Parent = detail
 end
 
--- ------------------------------------------------------------------ Center: anvil and status
-local function renderCenter(item: Items.Item?)
-	clear(center)
-	-- Materials at the top: capsule with amount, name below
-	local mats = Window.frame(UDim2.fromOffset(CENTER_W, 70))
-	Kit.list(mats, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Top)
-	for i, key in { "candy", "shards", "dust" } do
-		local have = (ProgressController.materials() :: any)[key] :: number
-		local col = Window.frame(UDim2.fromOffset(190, 70))
-		col.LayoutOrder = i
-		local pill, _, plus = Kit.pill(Forge.MaterialIcon[key], tostring(have), MAT_COLOR[key])
-		if plus then
-			plus:Destroy()
-		end
-		pill.Parent = col
-		local cap = Kit.label(Forge.MaterialPlural[key], 14, C.Muted, Theme.Font.Body)
-		cap.AnchorPoint = Vector2.new(0.5, 1)
-		cap.Position = UDim2.fromScale(0.5, 1)
-		cap.Parent = col
-		col.Parent = mats
-	end
-	mats.Parent = center
-	if item then
-		local big = Kit.itemSlot(220, InventoryController.slotIcon(item.slot), {
-			rarity = item.rarity,
-		})
-		big.Active = false
-		big.AnchorPoint = Vector2.new(0.5, 0)
-		big.Position = UDim2.new(0.5, 0, 0, 100)
-		big.Parent = center
-	end
-	local anvil = Window.art("forge_anvil", Vector2.new(420, 260))
-	if anvil then
-		anvil.AnchorPoint = Vector2.new(0.5, 0)
-		anvil.Position = UDim2.new(0.5, 0, 0, 290)
-		anvil.Parent = center
-	end
+-- Bottom bar: before -> after, charges / reason / last result, and the one Forge button with its cost
+local function renderConfirm(it: Items.Item, w: number, h: number)
+	local bar = Flat.card(UDim2.fromOffset(w, BAR_H), F.Surface1)
+	bar.Name = "Confirm"
+	bar.Position = UDim2.fromOffset(0, h - BAR_H)
+	bar.Parent = detail
 
-	-- Status plaque
-	local plaque = Window.frame(UDim2.fromOffset(460, 158))
-	plaque.AnchorPoint = Vector2.new(0.5, 0)
-	plaque.Position = UDim2.new(0.5, 0, 0, 560)
-	local plaqueArt = Window.art("plaque_status", Vector2.new(460, 158))
-	if plaqueArt then
-		plaqueArt.ScaleType = Enum.ScaleType.Stretch
-		plaqueArt.Size = UDim2.fromScale(1, 1)
-		plaqueArt.Parent = plaque
+	local action = Forge.ById[selectedAction]
+	local m = mats()
+	local ok, why = Forge.check(action.id, it, selectedAffix, m)
+	local preview = Forge.preview(action.id, it, selectedAffix)
+	local price = Forge.cost(action, it, selectedAffix)
+
+	local btnW = 280
+	local colW = w - btnW - 3 * 20
+	local col = Flat.frame(UDim2.fromOffset(colW, BAR_H - 24), UDim2.fromOffset(20, 12))
+	col.Name = "Preview"
+	local cl = Kit.list(col, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Center)
+	cl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	if preview.before then
+		textLine(col, preview.before, 17, C.Muted, colW, 1).Name = "Before"
+	end
+	textLine(col, "→ " .. preview.after, 21, C.GoldHi, colW, 2, Theme.Font.UI).Name = "After"
+	local info, infoColor
+	if lastResult then
+		info, infoColor = lastResult.text, if lastResult.ok then C.Good else C.Danger
+	elseif not ok then
+		info, infoColor = why or "Not possible", C.Danger
 	else
-		Kit.skin(plaque, "header_banner", 158, 0.5)
+		info, infoColor = preview.charges, C.Muted
 	end
-	local charges = if item then Items.chargesOf(item) else 0
-	local ready = item ~= nil and charges > 0
-	local head = Window.heading(
-		if item == nil then "Empty" elseif ready then "Ready" else "Fully forged",
-		26,
-		if ready then C.Good else C.GoldHi
+	textLine(col, info, 16, infoColor, colW, 3).Name = "Info"
+	col.Parent = bar
+
+	local go, label = Flat.button(
+		string.format("Forge · %s", Flat.thousands(price)),
+		"primary",
+		Vector2.new(btnW, 72),
+		Forge.MaterialIcon[action.material]
 	)
-	head.AnchorPoint = Vector2.new(0.5, 0)
-	head.Position = UDim2.new(0.5, 0, 0, 38)
-	head.ZIndex = 2
-	head.Parent = plaque
-	local subText = if lastResult
-		then lastResult.text
-		elseif item then string.format("Forge charges: %d - each action costs 0-2", charges)
-		else "Pick an item"
-	local sub = Kit.label(
-		subText,
-		15,
-		if lastResult and not lastResult.ok then C.Danger else C.Text,
-		Theme.Font.Body
-	)
-	sub.AutomaticSize = Enum.AutomaticSize.Y
-	sub.Size = UDim2.fromOffset(400, 0)
-	sub.TextWrapped = true
-	sub.TextXAlignment = Enum.TextXAlignment.Center
-	sub.AnchorPoint = Vector2.new(0.5, 0)
-	sub.Position = UDim2.new(0.5, 0, 0, 84)
-	sub.ZIndex = 2
-	sub.Parent = plaque
-	plaque.Parent = center
+	go.Name = "ForgeButton"
+	go.AnchorPoint = Vector2.new(1, 0.5)
+	go.Position = UDim2.new(1, -20, 0.5, 0)
+	label.TextSize = Kit.fontSize(18)
+	Flat.setEnabled(go, ok)
+	go.Activated:Connect(function()
+		if go:GetAttribute("Enabled") == true then
+			lastResult = nil
+			Net.ForgeAct:FireServer(action.id, it.id, selectedAffix)
+		end
+	end)
+	go.Parent = bar
 end
 
--- ------------------------------------------------------------------ Right: actions
-local function renderSide(item: Items.Item?)
-	clear(side)
-	local w = SIDE_W - 2 * PAD
-
-	-- Selected affix at the top
-	local headBox = Window.frame(UDim2.fromOffset(w, 60), UDim2.fromOffset(PAD, PAD))
-	Kit.skin(headBox, "btn_sort", 60, 0.5)
-	local a = if item and selectedAffix then item.affixes[selectedAffix] else nil
-	local headText = Kit.label(
-		if a then Items.affixText(a) else "No affix selected",
-		18,
-		if a then C.Text else C.Muted
-	)
-	headText.AnchorPoint = Vector2.new(0, 0.5)
-	headText.Position = UDim2.new(0, 20, 0.5, 0)
-	headText.ZIndex = 2
-	headText.Parent = headBox
-	headBox.Parent = side
-
-	local rows = Window.frame(UDim2.fromOffset(w, 4 * ROW_H + 36), UDim2.fromOffset(PAD, PAD + 80))
-	Kit.list(rows, Enum.FillDirection.Vertical, 12, Enum.VerticalAlignment.Top)
-	for i, action in Forge.Actions do
-		local row = Window.frame(UDim2.fromOffset(w, ROW_H))
-		row.LayoutOrder = i
-		Kit.skin(row, "stat_tile", ROW_H, 0.4)
-		local ic = Kit.itemSlot(68, action.icon, { rarity = "normal" })
-		ic.Active = false
-		ic.AnchorPoint = Vector2.new(0, 0.5)
-		ic.Position = UDim2.new(0, 12, 0.5, 0)
-		ic.ZIndex = 2
-		ic.Parent = row
-		-- Text column between icon and anvil button: name, cost, reason stack and stay centered
-		-- (on phones the text grows to the minimum size and pushes the lines apart, never over each other)
-		local textW = w - 94 - 96
-		local col = Window.frame(UDim2.fromOffset(textW, ROW_H - 8), UDim2.fromOffset(94, 4))
-		col.ZIndex = 2
-		Kit.list(col, Enum.FillDirection.Vertical, 2, Enum.VerticalAlignment.Center)
-		local function line(text: string, size: number, color: Color3, font: Font?, order: number)
-			local t = Kit.label(text, size, color, font)
-			t.AutomaticSize = Enum.AutomaticSize.Y
-			t.Size = UDim2.fromOffset(textW, 0)
-			t.TextXAlignment = Enum.TextXAlignment.Left
-			t.TextTruncate = Enum.TextTruncate.AtEnd
-			t.LayoutOrder = order
-			t.ZIndex = 2
-			t.Parent = col
-			return t
-		end
-		line(action.name, 19, C.Text, nil, 1)
-		local price = Forge.cost(action, item, selectedAffix)
-		local cost = line(
-			string.format(
-				"%d %s",
-				price,
-				if price == 1
-					then Forge.MaterialName[action.material]
-					else Forge.MaterialPlural[action.material]
-			),
-			15,
-			C.Gold,
-			Theme.Font.Body,
-			2
+local function renderDetail(it: Items.Item?, worn: { [string]: boolean })
+	clear(detail)
+	local w, h = detail.Size.X.Offset, detail.Size.Y.Offset
+	if not it then
+		local empty = textLine(
+			detail,
+			"No items for this hero yet. Collect loot in a Rift and come back.",
+			20,
+			C.Muted,
+			w,
+			1
 		)
-		col.Parent = row
-		local go = Kit.button("", C.Gold, Vector2.new(68, 60), nil)
-		local hammer = Kit.icon("forge", 36)
-		hammer.AnchorPoint = Vector2.new(0.5, 0.5)
-		hammer.Position = UDim2.fromScale(0.5, 0.5)
-		hammer.ZIndex = 3
-		hammer.Parent = go
-		go.AnchorPoint = Vector2.new(1, 0.5)
-		go.Position = UDim2.new(1, -14, 0.5, 0)
-		go.ZIndex = 2
-		local ok, why = false, nil
-		if item then
-			ok, why = Forge.check(action.id, item, selectedAffix, ProgressController.materials())
-		end
-		Kit.setEnabled(go, ok)
-		go.Activated:Connect(function()
-			if go.Active and item then
-				Net.ForgeAct:FireServer(action.id, item.id, selectedAffix)
-			end
-		end)
-		go.Parent = row
-		if why and item then
-			-- Reason on its own line below the cost
-			cost.TextColor3 = C.Muted
-			line(why, 14, C.Danger, Theme.Font.Body, 3)
-		end
-		row.Parent = rows
+		empty.Name = "Empty"
+		empty.TextXAlignment = Enum.TextXAlignment.Center
+		empty.Position = UDim2.fromOffset(0, h / 2 - 30)
+		return
 	end
-	rows.Parent = side
-
-	local note = wrapLabel(
-		"Materials: salvage in the inventory, and bosses. Sealing costs no charge.",
-		14,
-		C.Muted,
-		w
-	)
-	note.AnchorPoint = Vector2.new(0, 1)
-	note.Position = UDim2.new(0, PAD, 1, -PAD)
-	note.Parent = side
+	validate(it)
+	renderHeader(it, w, worn[it.id] == true)
+	local y = HEAD + 18
+	renderActions(it, w, y)
+	y += ACTION_H + 14
+	renderAffixes(it, w, y)
+	renderConfirm(it, w, h)
 end
 
 -- ------------------------------------------------------------------ Flow
 function ForgeController.render()
-	local list = allItems()
-	local item = current(list)
-	renderLeft(list, item)
-	renderCenter(item)
-	renderSide(item)
+	local list, worn = forgeList()
+	if not find(list, selectedItem) then
+		suggest(list, worn)
+	end
+	renderGrid(list, worn)
+	renderDetail(find(list, selectedItem), worn)
 end
 
 function ForgeController.toggle()
 	win.toggle()
+end
+
+local function footButton(caption: string, width: number, iconName: string): (TextButton, TextLabel)
+	return Flat.button(caption, "secondary", Vector2.new(width, FOOT_H - 4), iconName)
+end
+
+local function buildLeft(body: Vector2)
+	left = Kit.panel(Vector2.new(LEFT_W, body.Y))
+	left.Name = "Pick"
+	left.Parent = win.body
+
+	tabs = Flat.tabs(
+		{
+			{ id = "all", text = "All" },
+			{ id = "worn", text = "Worn" },
+			{ id = "bag", text = "Bag" },
+		},
+		TAB_H,
+		function(id: string)
+			view = id
+			ForgeController.render()
+		end
+	)
+	tabs.frame.Position = UDim2.fromOffset(PAD, PAD)
+	tabs.frame.Parent = left
+
+	local gridY = PAD + TAB_H + 8
+	grid = Instance.new("ScrollingFrame")
+	grid.Name = "Grid"
+	grid.BackgroundTransparency = 1
+	grid.BorderSizePixel = 0
+	grid.Position = UDim2.fromOffset(PAD - GRID_PAD, gridY)
+	grid.Size = UDim2.fromOffset(LEFT_W - 2 * PAD + 2 * GRID_PAD, body.Y - gridY - FOOT_H - PAD - 8)
+	grid.ScrollBarThickness = 4
+	grid.ScrollBarImageColor3 = F.EdgeHi
+	grid.ScrollingDirection = Enum.ScrollingDirection.Y
+	grid.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
+	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	grid.CanvasSize = UDim2.new()
+	local gp = Instance.new("UIPadding")
+	gp.PaddingTop = UDim.new(0, GRID_PAD)
+	gp.PaddingBottom = UDim.new(0, GRID_PAD)
+	gp.PaddingLeft = UDim.new(0, GRID_PAD)
+	gp.PaddingRight = UDim.new(0, GRID_PAD)
+	gp.Parent = grid
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.fromOffset(CELL, CELL)
+	layout.CellPadding = UDim2.fromOffset(CELL_GAP, CELL_GAP)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = grid
+	grid.Parent = left
+
+	-- Footer: sort, rarity filter, item count
+	local foot = Flat.frame(
+		UDim2.fromOffset(LEFT_W - 2 * PAD, FOOT_H),
+		UDim2.fromOffset(PAD, body.Y - PAD - FOOT_H)
+	)
+	foot.Name = "Footer"
+	local fl = Kit.list(foot, Enum.FillDirection.Horizontal, 10)
+	fl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local sort
+	sort, sortLabel = footButton("Sort: Best", 200, "sort")
+	sort.Name = "Sort"
+	sort.LayoutOrder = 1
+	sort.Activated:Connect(function()
+		local i = table.find(SORTS, sortMode) or 1
+		sortMode = SORTS[i % #SORTS + 1]
+		ForgeController.render()
+	end)
+	sort.Parent = foot
+	local filter
+	filter, filterLabel = footButton("All Rarities", 200, "filter")
+	filter.Name = "Filter"
+	filter.LayoutOrder = 2
+	filter.Activated:Connect(function()
+		local i = if rarityFilter then table.find(RARITY_CYCLE, rarityFilter) or 0 else 0
+		rarityFilter = RARITY_CYCLE[i + 1] -- past the last rarity: nil = all
+		ForgeController.render()
+	end)
+	filter.Parent = foot
+	countLabel = Flat.text("0 items", 15, C.Muted, Theme.Font.Body, Enum.TextXAlignment.Right)
+	countLabel.Name = "Count"
+	countLabel.LayoutOrder = 3
+	countLabel.Parent = foot
+	foot.Parent = left
 end
 
 function ForgeController.init()
@@ -446,21 +750,26 @@ function ForgeController.init()
 	})
 
 	local body = Window.BODY
-	left = Kit.panel(Vector2.new(LEFT_W, body.Y))
-	left.Parent = win.body
+	buildLeft(body)
 
-	-- Anvil centered between the panels
-	center = Window.frame(UDim2.fromOffset(CENTER_W, body.Y))
-	center.AnchorPoint = Vector2.new(0.5, 0)
-	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
-	center.Parent = win.body
+	local rightW = body.X - LEFT_W - GAP_X
+	right = Kit.panel(Vector2.new(rightW, body.Y))
+	right.Name = "Work"
+	right.AnchorPoint = Vector2.new(1, 0)
+	right.Position = UDim2.fromScale(1, 0)
+	right.Parent = win.body
+	detail =
+		Flat.frame(UDim2.fromOffset(rightW - 2 * 28, body.Y - 2 * 28), UDim2.fromOffset(28, 28))
+	detail.Name = "Detail"
+	detail.Parent = right
 
-	side = Kit.panel(Vector2.new(SIDE_W, body.Y))
-	side.AnchorPoint = Vector2.new(1, 0)
-	side.Position = UDim2.fromScale(1, 0)
-	side.Parent = win.body
-
-	win.onOpen(ForgeController.render)
+	win.onOpen(function()
+		-- every visit starts on the best candidate (Shared/Forge suggestItem)
+		selectedItem = nil
+		lastResult = nil
+		tabs.select(view)
+		ForgeController.render()
+	end)
 	local function refresh()
 		if win.isOpen() then
 			ForgeController.render()
@@ -473,16 +782,9 @@ function ForgeController.init()
 			return
 		end
 		lastResult = { ok = data.ok == true, text = data.text }
-		if data.ok == true and data.itemId == selectedItem then
-			-- New affix: leave nothing selected; otherwise the selection stays in the same place
-			local list = allItems()
-			local it = current(list)
-			if it and selectedAffix and not it.affixes[selectedAffix] then
-				selectedAffix = nil
-			end
-		end
 		refresh()
 	end)
+	tabs.select(view)
 	ForgeController.render()
 end
 

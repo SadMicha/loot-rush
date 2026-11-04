@@ -274,4 +274,139 @@ function Forge.apply(
 	return { ok = true, item = out, material = action.material, cost = cost, used = used }
 end
 
+-- ------------------------------------------------------------------ Suggestions and preview
+-- Pure helpers for the Forge window: which item, action and affix to pre-select, and what the
+-- chosen action will do. The server never uses them; it only runs Forge.check / Forge.apply.
+
+-- Can the item be forged at all (not unique, charges left)? Materials are not looked at.
+function Forge.canForge(item: Items.Item): boolean
+	return item.rarity ~= "unique" and Items.chargesOf(item) > 0
+end
+
+-- Best affix for an action, or nil (Add Affix needs none, or no affix passes Forge.check):
+-- Upgrade Tier takes the cheapest (worst tier) one, Reroll the weakest roll, Seal the best one.
+function Forge.suggestAffix(actionId: string, item: Items.Item, mats: Materials): number?
+	local action = Forge.ById[actionId]
+	if not action or not action.needsAffix then
+		return nil
+	end
+	local best: number? = nil
+	local bestKey = -math.huge
+	for i, a in item.affixes do
+		if Forge.check(actionId, item, i, mats) then
+			local tier = Items.tierOf(a)
+			local quality = Items.affixQuality(a, item.ilvl)
+			local key = if actionId == "tier"
+				then tier * 10 - quality
+				elseif actionId == "reroll" then -quality
+				else -tier * 10 + quality
+			if key > bestKey then
+				best, bestKey = i, key
+			end
+		end
+	end
+	return best
+end
+
+-- First action that works right now (order of Forge.Actions) with its suggested affix. Nothing
+-- works: the first action, so the window can show why (Forge.check reason).
+function Forge.suggestAction(item: Items.Item, mats: Materials): (string, number?)
+	for _, action in Forge.Actions do
+		if action.needsAffix then
+			local index = Forge.suggestAffix(action.id, item, mats)
+			if index then
+				return action.id, index
+			end
+		elseif Forge.check(action.id, item, nil, mats) then
+			return action.id, nil
+		end
+	end
+	return Forge.Actions[1].id, nil
+end
+
+-- Does any action work on the item right now (materials included)?
+function Forge.ready(item: Items.Item, mats: Materials): boolean
+	local id, index = Forge.suggestAction(item, mats)
+	return (Forge.check(id, item, index, mats))
+end
+
+-- Sort key of the item picker, higher = better candidate: something works right now and charges
+-- are left (a used-up item can still be sealed), then worn gear, then rarity and item level.
+function Forge.candidateScore(item: Items.Item, worn: boolean, mats: Materials): number
+	local score = 0
+	if Forge.ready(item, mats) then
+		score += 2000
+	end
+	if Forge.canForge(item) then
+		score += 2000
+	end
+	if worn then
+		score += 1000
+	end
+	return score + Items.rank(item.rarity) * 100 + math.clamp(item.ilvl, 0, 99)
+end
+
+-- Item to pre-select: the best candidate (Forge.candidateScore), first in list order on ties.
+function Forge.suggestItem(
+	list: { Items.Item },
+	worn: { [string]: boolean },
+	mats: Materials
+): Items.Item?
+	local best: Items.Item? = nil
+	local bestScore = -math.huge
+	for _, it in list do
+		local score = Forge.candidateScore(it, worn[it.id] == true, mats)
+		if score > bestScore then
+			best, bestScore = it, score
+		end
+	end
+	return best
+end
+
+export type Preview = {
+	before: string?, -- the affix as it is now (nil for Add Affix)
+	after: string, -- what it becomes
+	charges: string, -- how the action uses Forge charges
+}
+
+-- What the action does to the item, as short display lines
+function Forge.preview(actionId: string, item: Items.Item, index: number?): Preview
+	local action = Forge.ById[actionId]
+	local charges = Items.chargesOf(item)
+	local chargeText = if action and not action.usesCharges
+		then "Uses no Forge charge"
+		else string.format(
+			"Uses 0-%d of %d charge%s",
+			math.min(#Forge.ChargeOdds - 1, charges),
+			charges,
+			if charges == 1 then "" else "s"
+		)
+	local a = if index then item.affixes[index] else nil
+	if actionId == "add" or not a then
+		return {
+			before = nil,
+			after = if actionId == "add"
+				then string.format(
+					"New random affix, T%d-T%d",
+					Forge.AddTiers[1],
+					Forge.AddTiers[2]
+				)
+				else "Choose an affix",
+			charges = chargeText,
+		}
+	end
+	local tier = Items.tierOf(a)
+	local before = string.format("%s  T%d", Items.affixText(a), tier)
+	local after
+	if actionId == "tier" then
+		local next = math.max(1, tier - 1)
+		after = string.format("%s  T%d", Items.affixText(Items.retier(a, next)), next)
+	elseif actionId == "reroll" then
+		after = string.format("Random other stat, T%d", tier)
+	else
+		after = "Locked for good, frees its slot"
+	end
+	return { before = before, after = after, charges = chargeText }
+end
+
 return table.freeze(Forge)
