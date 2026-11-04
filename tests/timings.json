@@ -29,6 +29,7 @@
 	"tests/Light.spec.luau": 13,
 	"tests/Loading.spec.luau": 10,
 	"tests/Loadout.spec.luau": 10,
+	"tests/Matrix.spec.luau": 790,
 	"tests/Metrics.spec.luau": 18,
 	"tests/Models.spec.luau": 1,
 	"tests/Monetization.spec.luau": 35,

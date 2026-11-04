@@ -47,6 +47,7 @@ local current: Window? = nil
 local currentName: string? = nil -- opts.name of `current`
 local reserve = 0 -- screen pixels kept free at the bottom (menu dock over open windows)
 local reserveLeft = 0 -- screen pixels kept free at the left (phones: the dock stands there)
+local reserveHome = 0 -- screen pixels of the unsafe bottom edge (home indicator), always kept free
 local arrangers: { () -> () } = {} -- relayout of every window when the reserve changes
 local exempt: { [string]: boolean } = {} -- windows the dock never shows over (full screen always)
 local gate: ((unlockId: string) -> boolean)? = nil -- true = locked (set by QuestController)
@@ -92,13 +93,21 @@ function Window.openName(): string?
 end
 
 -- Screen pixels the menu dock covers at the bottom / left while a window is open; windows keep clear
-function Window.setReserve(pixels: number, left: number?)
+-- homeBar = the part of `pixels` that is the device's unsafe bottom edge (home indicator); windows
+-- the dock never shows over still keep clear of it
+function Window.setReserve(pixels: number, left: number?, homeBar: number?)
 	local l = left or 0
-	if math.abs(pixels - reserve) < 0.5 and math.abs(l - reserveLeft) < 0.5 then
+	local hb = homeBar or 0
+	if
+		math.abs(pixels - reserve) < 0.5
+		and math.abs(l - reserveLeft) < 0.5
+		and math.abs(hb - reserveHome) < 0.5
+	then
 		return
 	end
 	reserve = pixels
 	reserveLeft = l
+	reserveHome = hb
 	for _, fn in arrangers do
 		fn()
 	end
@@ -460,9 +469,11 @@ function Window.new(opts: Options): Window
 			return
 		end
 		local s = scale.Scale
-		local view = camera.ViewportSize / s
+		-- The gui may be letterboxed into the safe area (notched phones): everything relative to it
+		local guiX = Kit.guiLeft(gui)
+		local view = Kit.guiArea(gui) / s
 		local barRight, barH = Window.topbar()
-		barRight, barH = barRight / s, barH / s
+		barRight, barH = (barRight - guiX) / s, barH / s
 		local mid = math.max(MARGIN + HEAD / 2 - 16, barH / 2)
 		local left = math.max(MARGIN, barRight + 16)
 		head.Position = UDim2.fromOffset(left, mid)
@@ -472,8 +483,8 @@ function Window.new(opts: Options): Window
 
 		local top = math.max(mid + HEAD / 2 + 16, barH + 8)
 		local free = not exempt[opts.name]
-		local leftFree = if free then reserveLeft / s else 0
-		local bottomFree = if free then reserve / s else 0
+		local leftFree = if free then math.max(0, reserveLeft - guiX) / s else 0
+		local bottomFree = (if free then reserve else reserveHome) / s
 		local availW, availH = view.X - 2 * MARGIN - leftFree, view.Y - top - 12 - bottomFree
 		local k = math.min(availW / Window.BODY.X, availH / Window.BODY.Y, 1.2)
 		bodyScale.Scale = k
@@ -484,6 +495,7 @@ function Window.new(opts: Options): Window
 	arrange()
 	table.insert(arrangers, arrange)
 	scale:GetPropertyChangedSignal("Scale"):Connect(arrange)
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange)
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
 	local camera = workspace.CurrentCamera
 	if camera then

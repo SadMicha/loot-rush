@@ -165,6 +165,7 @@ end
 export type Tabs = {
 	frame: Frame,
 	select: (id: string) -> (),
+	width: () -> number,
 }
 
 -- Text tabs in a row; the active one has a gold marker that springs under it.
@@ -278,6 +279,16 @@ function Flat.tabs(
 		select = function(id: string)
 			choose(id, false)
 		end,
+		-- Width of the row in design pixels from the current (possibly raised) text sizes, so
+		-- neighbours can make room before the layout has run
+		width = function(): number
+			local w = 0
+			for _, def in defs do
+				local t = labels[def.id]
+				w += #def.text * t.TextSize * 0.66 + 32 -- upper case, average glyph width
+			end
+			return w + 6 * (#defs - 1)
+		end,
 	}
 end
 
@@ -329,7 +340,8 @@ function Flat.toggle(
 	t.LayoutOrder = 2
 	t.Parent = row
 	local function fitWidth()
-		local w = t.TextBounds.X
+		-- measured width, or an estimate from the (possibly raised) text size before it is measured
+		local w = math.max(t.TextBounds.X, #label * t.TextSize * 0.7) -- upper case is wide
 		if w > 0 then
 			local size = Vector2.new(fixed + math.ceil(w), 44)
 			b:SetAttribute("BaseSize", size) -- Kit touch minimums re-apply from this
@@ -337,6 +349,7 @@ function Flat.toggle(
 		end
 	end
 	t:GetPropertyChangedSignal("TextBounds"):Connect(fitWidth)
+	t:GetPropertyChangedSignal("TextSize"):Connect(fitWidth)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"

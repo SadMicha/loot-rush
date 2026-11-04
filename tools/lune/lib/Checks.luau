@@ -739,7 +739,8 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 			local rows, withText, textH = {}, 0, 0
 			for _, c in parent:GetChildren() do
 				local ce = byNode[id(c)]
-				if ce and ce.r.w >= pe.r.w * 0.5 then
+				-- rows marked "Media" (a picture, a row of reward icons) carry no text on purpose
+				if ce and ce.r.w >= pe.r.w * 0.5 and not c:GetAttribute("Media") then
 					local ht = rowHasText(c)
 					table.insert(rows, { n = c, text = ht, h = ce.r.h })
 					if ht then
@@ -768,15 +769,114 @@ function Checks.run(sb, profile: { name: string, touch: boolean? }): { Finding }
 		end
 	end
 
+	-- 12. Device safe area: text and buttons must stay out of the notch / rounded corners / home bar
+	local safe = sb.safeInsets
+	if safe and (safe.l > 0 or safe.r > 0 or safe.t > 0 or safe.b > 0) then
+		local inner = { x = safe.l, y = safe.t, w = vw - safe.l - safe.r, h = vh - safe.t - safe.b }
+		for _, e in entries do
+			local n = e.n
+			local button = n:IsA("GuiButton") and sb:hasHandlers(sb:wrap(n))
+			local box = if e.text then e.inkVis elseif button then e.vis else nil
+			if box then
+				local out = math.max(
+					inner.x - box.x,
+					box.x + box.w - (inner.x + inner.w),
+					inner.y - box.y,
+					box.y + box.h - (inner.y + inner.h)
+				)
+				-- completely outside the screen is a flown-away panel, not a notch problem
+				local onScreen = box.x < vw
+					and box.y < vh
+					and box.x + box.w > 0
+					and box.y + box.h > 0
+				if out > 4 and onScreen then
+					add(
+						"warn",
+						"unsafe-area",
+						n,
+						string.format(
+							"%s reaches %dpx into the unsafe screen edge (notch / home bar)",
+							if e.text
+								then 'Text "' .. short(get(n, "Text", ""), 30) .. '"'
+								else n.ClassName,
+							math.floor(out + 0.5)
+						)
+					)
+				end
+			end
+		end
+	end
+
+	-- 13. Buttons of different layers on top of each other (e.g. menu dock over a window's close
+	-- button, HUD minimap under a window title): a tap may hit the wrong one
+	do
+		local buttons = {}
+		for _, e in entries do
+			if e.n:IsA("GuiButton") and e.content and sb:hasHandlers(sb:wrap(e.n)) then
+				table.insert(buttons, e)
+			end
+		end
+		local seenPair = {}
+		for i = 1, #buttons do
+			for j = i + 1, #buttons do
+				local a, b = buttons[i], buttons[j]
+				if a.guiId ~= b.guiId then
+					local ov = intersect(a.vis, b.vis)
+					local small = math.min(a.vis.w * a.vis.h, b.vis.w * b.vis.h)
+					if ov.w > 2 and ov.h > 2 and ov.w * ov.h > small * 0.1 then
+						local pa, pb = pathOf(a.n, root), pathOf(b.n, root)
+						local k = if pa < pb then pa .. "|" .. pb else pb .. "|" .. pa
+						if not seenPair[k] then
+							seenPair[k] = true
+							add("warn", "layer-overlap", a.n, "button overlaps button " .. pb)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- 14. Auto-size loop: a parent with AutomaticSize arranges a child (UIListLayout/UIGridLayout)
+	-- that is sized by Scale along the grown axis. Roblox then grows the parent without end (a card
+	-- filled an iPad from top to bottom); the sandbox layout would not show it.
+	for _, n in root:GetDescendants() do
+		if n:IsA("GuiObject") and Layout.isShown(n) then
+			local auto = get(n, "AutomaticSize", Enum.AutomaticSize.None)
+			if
+				auto ~= Enum.AutomaticSize.None and n:FindFirstChildWhichIsA("UIGridStyleLayout")
+			then
+				local growY = auto == Enum.AutomaticSize.Y or auto == Enum.AutomaticSize.XY
+				local growX = auto == Enum.AutomaticSize.X or auto == Enum.AutomaticSize.XY
+				for _, c in n:GetChildren() do
+					if c:IsA("GuiObject") and get(c, "Visible", true) then
+						local size: any = get(c, "Size", roblox.UDim2.new())
+						if (growY and size.Y.Scale > 0) or (growX and size.X.Scale > 0) then
+							add(
+								"warn",
+								"autosize-loop",
+								c,
+								"Scale-sized child in the layout of auto-sized "
+									.. n.Name
+									.. " (grows without end in Roblox)"
+							)
+						end
+					end
+				end
+			end
+		end
+	end
+
 	-- 11. Overlapping building blocks: direct children of a ScreenGui's root frame (HUD groups, windows)
 	for _, gui in root:GetChildren() do
 		if gui:IsA("ScreenGui") and get(gui, "Enabled", true) then
 			local top = gui:FindFirstChild("Root") or gui
+			local area = layout:rect(gui)
+			local guiArea = if area then area.w * area.h else vw * vh
 			local boxes = {}
 			for _, n in top:GetChildren() do
 				local r = n:IsA("GuiObject") and Layout.isShown(n) and layout:rect(n)
 				-- fullscreen areas (dimmed background) and things flown away do not count
-				local full = r and r.w * r.h >= vw * vh * 0.9
+				local full = r and r.w * r.h >= math.min(vw * vh, guiArea) * 0.9
 				local onScreen = r and r.x < vw and r.y < vh and r.x + r.w > 0 and r.y + r.h > 0
 				if r and r.w > 0 and r.h > 0 and not full and onScreen then
 					table.insert(boxes, { n = n, r = r })

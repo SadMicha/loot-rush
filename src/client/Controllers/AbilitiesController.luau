@@ -38,7 +38,10 @@ local hint: TextLabel
 local player = Players.LocalPlayer
 local LIST_TOP = 44 -- skill list below the header
 local PICK_W, PICK_ROW = 560, 66 -- stone picker card and its rows
-local ROW_H = 82 -- 8 rows must stay touchable on phones (Phone.spec)
+-- 8 rows (+ 2 px gaps) fill the list height so they stay touchable on notched phones with the
+-- menu dock (Phone.spec, Matrix.spec): 8 × 88 + 7 × 2 = 718 = BODY.Y - PAD - LIST_TOP
+local ROW_H = 88
+local ROW_GAP = 2
 local selected = Skills.DefaultBar[1] -- skill id (kept inside the current class, see kit())
 local selectedNode: string? = nil -- bloom node, e.g. "trunk2"
 
@@ -99,7 +102,7 @@ local function renderList()
 		UDim2.fromOffset(LEFT_W - 2 * PAD, Window.BODY.Y - PAD - LIST_TOP),
 		UDim2.fromOffset(PAD, PAD + LIST_TOP)
 	)
-	Kit.list(list, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top)
+	Kit.list(list, Enum.FillDirection.Vertical, ROW_GAP, Enum.VerticalAlignment.Top)
 	local level = playerLevel()
 	for i, skill in kit().list do
 		local on = skill.id == selected
