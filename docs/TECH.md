@@ -92,11 +92,15 @@ studded parts and `Kit.finish` re-applies it:
 - **Worn gear** (`Systems/Gear`) uses `Studs.applyAllFaces`: with `LootStuds` present every piece
   (any shape, all faces) gets the 1-stud variant tiling instead of top-only surface studs, which
   are cut off on thin resized pieces; gems stay Glass/Neon. Without the variant: surface studs.
+  Owner decision: studs on every face of armor.
 - `World.build` and `Hub.init` run `Studs.applyTree` as a safety net; `tests/Studs.spec.luau` fails
   if any part lacks the look. New builders go into `Props`/`Buildings`/`Creatures` with `Kit.*`.
   Particles `Kit.emit(part, "smoke"|"sparks"|"motes")`, light `Kit.light`.
-- **`LootStuds` setup (once):** upload `stud_color,stud_normal` with the "Upload UI assets" workflow,
-  then create the MaterialVariant in Studio (MaterialService) or via `default.project.json` (needs Micha's OK).
+- **`LootStuds` setup: done.** The MaterialVariant is defined under `MaterialService` in
+  `default.project.json` (Plastic, StudsPerTile 1, ColorMap `rbxassetid://128992698420086`,
+  NormalMap `rbxassetid://79080318389045`; ids also in `assets/ui-asset-ids.csv`), so every Rojo
+  sync/build has it; `rojo build` writes both maps. `tests/Studs.spec.luau` checks the definition.
+  Check in Studio: `local v = game.MaterialService:FindFirstChild("LootStuds"); print(v and v.BaseMaterial, v and v.StudsPerTile, v and v.ColorMap, v and v.NormalMap)`.
 - **Regions** (`Shared/Models/Biomes`, `Systems/World`) have their own props; look fields `patches`,
   `accent`, `ring.terrace`, `ring.marsh`.
 
