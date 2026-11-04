@@ -61,6 +61,7 @@ Status.Defs = table.freeze({
 	armor = def("armor", "Armored", "Less damage taken", "buff_armor", false, 3),
 	haste = def("haste", "Haste", "More move speed", "buff_haste", false, 4),
 	shield = def("shield", "Arcane Shield", "Absorbs damage", "buff_shield", false, 5),
+	focus = def("focus", "Focus", "Counter! More damage", "target", false, 6),
 	chill = def("chill", "Chilled", "Less move speed (Frozen aura)", "ice", true, 20),
 } :: { [string]: Def })
 

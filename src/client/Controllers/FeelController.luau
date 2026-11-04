@@ -47,6 +47,31 @@ function FeelController.shakeOffset(dt: number): CFrame
 		* CFrame.Angles(0, 0, noise:NextNumber(-r, r))
 end
 
+-- Camera punch-in (victory finisher): CameraController multiplies its distance with this
+local punchAt = -100
+function FeelController.punch()
+	punchAt = os.clock()
+end
+
+function FeelController.zoomFactor(): number
+	local t = os.clock() - punchAt
+	local inT, hold, out = Feel.VICTORY_ZOOM_IN, Feel.VICTORY_ZOOM_HOLD, Feel.VICTORY_ZOOM_OUT
+	if t < 0 or t >= inT + hold + out then
+		return 1
+	end
+	local depth = 1 - Feel.VICTORY_ZOOM
+	local k
+	if t < inT then
+		k = math.sin(t / inT * math.pi / 2) -- fast in
+	elseif t < inT + hold then
+		k = 1
+	else
+		local u = (t - inT - hold) / out
+		k = 1 - u * u * (3 - 2 * u) -- smooth out
+	end
+	return 1 - depth * k
+end
+
 -- True while a hitstop holds the frame (camera follow and bricks pause)
 function FeelController.frozen(): boolean
 	return os.clock() < hitstopUntil
@@ -150,6 +175,9 @@ function handlers.dmg(d)
 		return
 	end
 	if d.amount == nil then
+		if d.counter and own(d.who) then -- dodge roll through an attack (Shared/Momentum)
+			FeelController.shake(Feel.SHAKE_COUNTER)
+		end
 		return -- "Dodged", "Blocked!" and similar texts
 	end
 	local target = d.target
@@ -195,6 +223,68 @@ function handlers.nova(d)
 	then
 		BrickController.ring(d.pos, d.radius, d.color)
 	end
+end
+
+local GOLD = Color3.fromHex("#FFD24A")
+
+local function near(pos: any, range: number): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return typeof(pos) == "Vector3"
+		and root ~= nil
+		and root:IsA("BasePart")
+		and (root.Position - pos).Magnitude <= range
+end
+
+-- A boss is Broken (Shared/Bosses): heavy thud, gold bricks burst off it
+handlers["break"] = function(d)
+	if not near(d.pos, 120) then
+		return -- someone else's rift
+	end
+	FeelController.shake(Feel.SHAKE_BREAK)
+	FeelController.hitstop(Feel.HITSTOP_BREAK)
+	BrickController.burst(d.pos, GOLD, Feel.BREAK_BRICKS, 26, 1)
+	if typeof(d.target) == "Instance" then
+		FeelController.flash(d.target)
+	end
+end
+
+-- Killing blow on a boss: the frame holds, the camera punches in, gold bricks fountain out
+function handlers.victory(d)
+	if not own(d.by) and not near(d.pos, 120) then
+		return
+	end
+	local pos = d.pos
+	if typeof(pos) ~= "Vector3" then
+		return
+	end
+	FeelController.hitstop(Feel.HITSTOP_VICTORY)
+	FeelController.shake(Feel.SHAKE_VICTORY)
+	FeelController.punch()
+	for i = 0, Feel.VICTORY_BRICKS - 1 do
+		task.delay(i * 0.15, function()
+			BrickController.burst(pos + Vector3.new(0, 2, 0), GOLD, 14, 30 + i * 6, 1.2)
+		end)
+	end
+end
+
+-- A trail area is clear: a ring of bricks around the player and a toast
+function handlers.areaclear(d)
+	local color = if typeof(d.color) == "Color3" then d.color else GOLD
+	local wave, waves = tonumber(d.wave), tonumber(d.waves)
+	if wave and waves then
+		QuestController.toast(
+			if wave >= waves
+				then "Area cleared · the boss awaits"
+				else string.format("Area %d/%d cleared", wave, waves),
+			color
+		)
+	end
+	if typeof(d.pos) == "Vector3" then
+		BrickController.ring(d.pos - Vector3.new(0, 2.5, 0), 7, color)
+		BrickController.burst(d.pos, GOLD, Feel.AREA_BRICKS, 18, 0.8)
+	end
+	FeelController.shake(0.15)
 end
 
 -- Boss intro line (The Smoothing, Shared/Smoothing): a toast and a small rumble

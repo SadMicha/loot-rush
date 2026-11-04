@@ -102,6 +102,18 @@ type Enemy = {
 	zoneMin: Vector3, -- own zone (clearing or arena, Shared/Leash): players outside cannot hurt it
 	zoneMax: Vector3,
 	aloneSince: number, -- since when no player stands in the zone (0 = someone is in it)
+	-- Boss Break meter, Opening and Pursuit (Shared/Bosses)
+	poise: number,
+	poiseMax: number,
+	poiseShown: number, -- last value written to the Poise attribute
+	poiseHitAt: number, -- last chip (the meter refills after POISE_REGEN_DELAY)
+	skillPoiseAt: number, -- last skill chip (one per POISE_SKILL_GAP)
+	brokenUntil: number, -- 0 = not Broken
+	openUntil: number, -- 0 = no Opening
+	farSince: number, -- since when the nearest player keeps away (0 = close)
+	born: number,
+	breaks: number, -- times Broken (victory stats)
+	counters: number, -- Counters against this boss (victory stats)
 }
 
 type Pool = {
@@ -468,6 +480,7 @@ local KINDS: { [string]: Kind } = {
 }
 
 local list: { Enemy } = {}
+local byModel: { [Model]: Enemy } = {}
 local folder: Folder
 -- Knockback velocity per enemy (studs/s, horizontal), decays every frame (Shared/Feel)
 local knock: { [Model]: Vector3 } = {}
@@ -678,7 +691,11 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	model.Parent = folder
 	local now = os.clock()
 	local tempo = Balance.tempo(depth)
-	table.insert(list, {
+	if kind.boss then
+		model:SetAttribute("Poise", Bosses.POISE)
+		model:SetAttribute("PoiseMax", Bosses.POISE)
+	end
+	local entry: Enemy = {
 		model = model,
 		kind = kind,
 		damage = st.damage,
@@ -716,7 +733,20 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		zoneMin = zoneMin,
 		zoneMax = zoneMax,
 		aloneSince = 0,
-	})
+		poise = Bosses.POISE,
+		poiseMax = Bosses.POISE,
+		poiseShown = Bosses.POISE,
+		poiseHitAt = now,
+		skillPoiseAt = -10,
+		brokenUntil = 0,
+		openUntil = 0,
+		farSince = 0,
+		born = now,
+		breaks = 0,
+		counters = 0,
+	}
+	table.insert(list, entry)
+	byModel[model] = entry
 	return model
 end
 
@@ -1036,7 +1066,7 @@ local function resolveAttack(e: Enemy, now: number)
 		end
 	end
 	for player in hit do
-		if Combat.hurtPlayer(player, e.damage) and e.mods.vampiric then
+		if Combat.hurtPlayer(player, e.damage, e.model) and e.mods.vampiric then
 			heal(e, e.damage * EliteMods.LEECH)
 		end
 	end
@@ -1045,6 +1075,86 @@ local function resolveAttack(e: Enemy, now: number)
 			pool(e, center, math.min(kind.radius * 0.6, 8), now)
 		end
 	end
+	-- Opening: the boss recovers from its attack (after a charge: once it stops)
+	if kind.boss then
+		e.openUntil = now + Bosses.OPENING_TIME + (if kind.ai == "charge" then CHARGE_TIME else 0)
+		e.model:SetAttribute("Opening", true)
+	end
+end
+
+-- ------------------------------------------------------------------ Break meter (Shared/Bosses)
+local function showPoise(e: Enemy)
+	local v = math.ceil(e.poise)
+	if v ~= e.poiseShown then
+		e.poiseShown = v
+		e.model:SetAttribute("Poise", v)
+	end
+end
+
+local function breakBoss(e: Enemy, now: number)
+	local model = e.model
+	e.brokenUntil = now + Bosses.BREAK_TIME
+	e.breaks += 1
+	-- the attack being prepared is dropped, a charge or jump stops where it is
+	clearTelegraph(e)
+	e.windupEnd = 0
+	e.dashEnd = 0
+	e.leaping = false
+	e.openUntil = 0
+	model:SetAttribute("Opening", nil)
+	model:SetAttribute("Broken", true)
+	local pos = model:GetPivot().Position
+	Net.Fx:FireAllClients("break", { pos = pos, target = model, time = Bosses.BREAK_TIME })
+	Net.Fx:FireAllClients("nova", {
+		pos = Vector3.new(pos.X, 0.5, pos.Z),
+		radius = 10 * e.kind.scale / 2,
+		color = Color3.fromHex("#FFD24A"),
+	})
+end
+
+-- A hit or Counter chips the boss's meter; empty = Broken
+local function chipPoise(e: Enemy, amount: number, now: number)
+	if not e.kind.boss or e.brokenUntil > 0 or amount <= 0 then
+		return
+	end
+	if e.openUntil > now then
+		amount *= Bosses.OPENING_POISE
+	end
+	e.poise = math.max(0, e.poise - amount)
+	e.poiseHitAt = now
+	showPoise(e)
+	if e.poise <= 0 then
+		breakBoss(e, now)
+	end
+end
+
+-- Per frame: Break ends (meter back, a bit bigger), the meter refills when nobody hits,
+-- the Opening closes. Returns true while the boss is Broken.
+local function stepPoise(e: Enemy, now: number, dt: number): boolean
+	if e.openUntil > 0 and now >= e.openUntil then
+		e.openUntil = 0
+		e.model:SetAttribute("Opening", nil)
+	end
+	if e.brokenUntil > 0 then
+		if now < e.brokenUntil then
+			return true
+		end
+		e.brokenUntil = 0
+		e.poiseMax = math.floor(e.poiseMax * Bosses.POISE_GROWTH + 0.5)
+		e.poise = e.poiseMax
+		e.poiseHitAt = now
+		e.model:SetAttribute("PoiseMax", e.poiseMax)
+		e.model:SetAttribute("Broken", nil)
+		showPoise(e)
+		e.nextAttack = math.max(e.nextAttack, now + Bosses.BREAK_RECOVER)
+		e.nextMortar = math.max(e.nextMortar, now + Bosses.BREAK_RECOVER * 2)
+		return false
+	end
+	if e.poise < e.poiseMax and now - e.poiseHitAt >= Bosses.POISE_REGEN_DELAY then
+		e.poise = math.min(e.poiseMax, e.poise + Bosses.POISE_REGEN * dt)
+		showPoise(e)
+	end
+	return false
 end
 
 -- Calls `count` helpers in a circle around `around`
@@ -1180,6 +1290,7 @@ local function step(dt: number)
 			clearTelegraph(e)
 			knock[model] = nil
 			hitAt[model] = nil
+			byModel[model] = nil
 			table.remove(list, i)
 			continue
 		end
@@ -1193,10 +1304,22 @@ local function step(dt: number)
 		local dir = Vector3.zero
 		local walking = false
 
+		local broken = false
+		local pursuing = false
 		if kind.boss then
 			phaseCheck(e, pos)
+			broken = stepPoise(e, now, dt)
+			-- Pursuit: keeping away from the boss does not work for long
+			if target and dist > kind.attackRange + Bosses.PURSUIT_MARGIN then
+				if e.farSince == 0 then
+					e.farSince = now
+				end
+				pursuing = now - e.farSince >= Bosses.PURSUIT_TIME
+			else
+				e.farSince = 0
+			end
 		end
-		if kind.summonEvery and target and now >= e.nextSummon then
+		if kind.summonEvery and target and not broken and now >= e.nextSummon then
 			e.nextSummon = now + kind.summonEvery
 			local free = MAX_MINIONS - minionsAlive(e)
 			if free > 0 then
@@ -1211,14 +1334,20 @@ local function step(dt: number)
 		if
 			target
 			and targetPos
-			and (e.mods.mortar or (kind.boss and e.stage >= 2))
+			and not broken
+			and (e.mods.mortar or (kind.boss and (e.stage >= 2 or pursuing)))
 			and dist <= Config.COMBAT_RADIUS -- only once the fight is on (combat HUD, on camera)
 			and now >= e.nextMortar
 		then
 			mortar(e, targetPos, vel, now)
 		end
 
-		if e.goblinUntil > 0 then
+		if broken then
+			-- Broken: slumps and wobbles in place, no attacks (Shared/Bosses)
+			y = baseY
+				- 0.35 * kind.scale
+				+ math.abs(math.sin(now * 5 + e.phase)) * 0.15 * kind.scale
+		elseif e.goblinUntil > 0 then
 			if now >= e.goblinUntil then
 				-- escaped: puff and gone, no loot
 				Net.Fx:FireAllClients(
@@ -1282,13 +1411,21 @@ local function step(dt: number)
 			-- player stands past the enemy walking area (rim, cliffs): slam from the edge if the
 			-- circle reaches, instead of waiting at the clamp
 			local edgeSlam = not reachable and kind.ai == "slam" and dist <= kind.radius * 0.9
+			-- a kiting player gets jumped from much further away (Pursuit, slam bosses)
+			local leapRange = kind.leap
+			if pursuing and kind.ai == "slam" then
+				leapRange = math.max(kind.leap or 0, Bosses.PURSUIT_LEAP)
+			end
 			if
 				ready
-				and kind.leap
+				and leapRange
 				and reachable
 				and dist > kind.attackRange
-				and dist <= kind.leap
+				and dist <= leapRange
 			then
+				if pursuing then
+					e.farSince = now
+				end
 				beginWindup(e, pos, targetPos, vel, now, true)
 			elseif dist > kind.attackRange and not edgeSlam then
 				move = 1
@@ -1397,17 +1534,49 @@ end
 
 function Enemies.start()
 	RunService.Heartbeat:Connect(step)
-	Combat.EnemyHit.Event:Connect(function(model: Model, from: Vector3, crit: boolean)
-		Enemies.knockback(model, from, crit)
-	end)
-	Combat.EnemyDied.Event:Connect(function(model: Model, pos: Vector3)
-		for _, e in list do
-			if e.model == model then
-				if e.mods.exploding then
-					blast(pos, e.damage * EliteMods.BLAST_DAMAGE)
+	Combat.EnemyHit.Event:Connect(
+		function(model: Model, from: Vector3, crit: boolean, basic: boolean?)
+			Enemies.knockback(model, from, crit)
+			local e = byModel[model]
+			if e and e.kind.boss then
+				local now = os.clock()
+				local amount = Bosses.POISE_BASIC
+				if basic ~= true then
+					if now - e.skillPoiseAt < Bosses.POISE_SKILL_GAP then
+						return
+					end
+					e.skillPoiseAt = now
+					amount = Bosses.POISE_SKILL
 				end
-				break
+				chipPoise(e, amount * (if crit then Bosses.POISE_CRIT else 1), now)
 			end
+		end
+	)
+	Combat.Countered.Event:Connect(function(_player: Player, source: Model)
+		local e = byModel[source]
+		if e and e.kind.boss then
+			e.counters += 1
+			chipPoise(e, Bosses.POISE_COUNTER, os.clock())
+		end
+	end)
+	Combat.EnemyDied.Event:Connect(function(model: Model, pos: Vector3, killer: Player?)
+		local e = byModel[model]
+		if not e then
+			return
+		end
+		if e.mods.exploding then
+			blast(pos, e.damage * EliteMods.BLAST_DAMAGE)
+		end
+		-- Victory moment (client: finisher, banner with the fight stats)
+		if e.kind.boss and killer then
+			Net.Fx:FireAllClients("victory", {
+				pos = pos,
+				by = killer.UserId,
+				name = model:GetAttribute("BaseName"),
+				seconds = math.floor(os.clock() - e.born + 0.5),
+				breaks = e.breaks,
+				counters = e.counters,
+			})
 		end
 	end)
 end

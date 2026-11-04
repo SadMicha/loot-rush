@@ -31,6 +31,7 @@
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
 --   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
+--   SkillCooldown (S→C): { [skillId]: secondsLeft } - running cooldowns got shorter (Shared/Momentum)
 --   Setting   (C→S): key: string, value: number | boolean | string - one setting (Shared/Settings)
 --   Settings  (S→C): Settings.Data - the saved settings of the account, sent once after loading
 --   Daily     (C→S): "claim" - claim today's daily reward (Systems/Daily; the server picks the day)
@@ -72,6 +73,7 @@ local NAMES = {
 	"AutoSalvage",
 	"Loadout",
 	"SkillCast",
+	"SkillCooldown",
 	"Setting",
 	"Settings",
 	"Daily",
@@ -130,6 +132,7 @@ return table.freeze({
 	AutoSalvage = get("AutoSalvage"),
 	Loadout = get("Loadout"),
 	SkillCast = get("SkillCast"),
+	SkillCooldown = get("SkillCooldown"),
 	Setting = get("Setting"),
 	Settings = get("Settings"),
 	Daily = get("Daily"),

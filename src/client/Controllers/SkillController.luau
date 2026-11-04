@@ -117,6 +117,22 @@ function SkillController.init()
 			cdUntil[id] = now + math.clamp(cooldown, 0, 60)
 		end
 	end)
+	-- Momentum (basic swings, Counters): running cooldowns got shorter. The bar keeps its full
+	-- length so the sweep jumps forward instead of restarting.
+	Net.SkillCooldown.OnClientEvent:Connect(function(changed: any)
+		if typeof(changed) ~= "table" then
+			return
+		end
+		local now = os.clock()
+		for id, left in changed do
+			if typeof(id) == "string" and typeof(left) == "number" and Skills.ById[id] then
+				local start = cdStart[id]
+				local total = if start then (cdUntil[id] or now) - start else left
+				cdUntil[id] = now + math.clamp(left, 0, 60)
+				cdStart[id] = cdUntil[id] - math.max(total, left)
+			end
+		end
+	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if processed then
 			return

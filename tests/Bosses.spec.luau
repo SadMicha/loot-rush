@@ -134,6 +134,64 @@ describe("Bosses and variants in game", function()
 		expect(half).toBe(math.floor(full * RiftVariants.SWARM_HEALTH))
 	end)
 
+	it("breaks after enough hits, recovers with a bigger meter", function()
+		local boss, broken, hits = server(function(req, player)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local Skills = req("ReplicatedStorage.Shared.Skills")
+			local root = player.Character.HumanoidRootPart
+			local m = Enemies.spawn(
+				"crystal_king",
+				root.Position + Vector3.new(0, 0, -30),
+				20,
+				{ center = root.Position, run = 46 }
+			)
+			local basic = Skills.forClass(player:GetAttribute("Class")).basic
+			local n = 0
+			while m:GetAttribute("Broken") ~= true and n < 40 do
+				Combat.damageEnemy(m, 1, player, basic)
+				n += 1
+			end
+			return m, m:GetAttribute("Broken"), n
+		end)
+		expect(broken).toBe(true)
+		-- 5 per basic hit (crits chip more): the first meter never takes more than 16 hits
+		expect(hits <= math.ceil(Bosses.POISE / Bosses.POISE_BASIC)).toBe(true)
+		sim:run(Bosses.BREAK_TIME + 0.3)
+		local after, max = server(function()
+			return boss:GetAttribute("Broken"), boss:GetAttribute("PoiseMax")
+		end)
+		expect(after).toBeNil()
+		expect(max).toBe(math.floor(Bosses.POISE * Bosses.POISE_GROWTH + 0.5))
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(46)
+		end)
+	end)
+
+	it("turns a dodge roll through a boss attack into a Counter", function()
+		local Status = require("ReplicatedStorage.Shared.Status")
+		local got, poise, focus = server(function(req, player)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local root = player.Character.HumanoidRootPart
+			local m = Enemies.spawn(
+				"crystal_king",
+				root.Position + Vector3.new(0, 0, -30),
+				20,
+				{ center = root.Position, run = 47 }
+			)
+			Combat.dash(player)
+			local through = Combat.hurtPlayer(player, 5, m)
+			return through, m:GetAttribute("Poise"), player:GetAttribute(Status.attr("focus"))
+		end)
+		expect(got).toBe(false)
+		expect(poise).toBe(Bosses.POISE - Bosses.POISE_COUNTER)
+		expect(focus).never.toBeNil()
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(47)
+		end)
+	end)
+
 	it("runs without runtime errors", function()
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")

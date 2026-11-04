@@ -84,6 +84,9 @@ Sounds.Hooks = table.freeze({
 	telegraph = s(9126284289, 0.22, { speed = 0.7, pitch = 0.06, gap = 0.25 }), -- Wood Swish Ruler Whoosh: a danger zone appears
 	boss_intro = s(9113985604, 0.7, { pitch = 0, gap = 2 }), -- Creature Roar Mix Of Animals Gate Creaks 1
 	boss_phase = s(9125470501, 0.75, { pitch = 0, gap = 1 }), -- Creature Growls Lion Deep Guttural Rumbling
+	boss_break = s(9114224800, 0.65, { pitch = 0.03, speed = 1.2, gap = 0.5 }), -- Earthquake Explosion 2, higher: a boss is Broken
+	counter = s(9113964719, 0.5, { pitch = 0.05, speed = 1.25, gap = 0.2 }), -- Cracky Punch 1, higher: own Counter
+	area_clear = s(9126073011, 0.4, { pitch = 0.02, speed = 0.9, gap = 0.5 }), -- Synth Sparkle Bell Tone Ding, lower: a trail area is clear
 	-- Loot (own drops only)
 	loot_normal = s(9120907213, 0.18, { pitch = 0.15, gap = 0.08 }), -- Wood Impact 2
 	loot_gold = s(1169755927, 0.22, { pitch = 0.15, gap = 0.08 }), -- Coin Collect - SFX (@Everyedit, community upload, marked free to use)

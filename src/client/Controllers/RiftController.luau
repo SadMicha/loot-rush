@@ -2,17 +2,20 @@
 -- Rift display, kept out of the way of the fight:
 --   top left (below the Roblox buttons): a small run card with region · depth, variant, wave and
 --     enemies left, plus a two-tap "Leave" while a run is active
---   top center: a slim boss bar while the boss lives
+--   top center: a slim boss bar while the boss lives, with its Break meter (Shared/Bosses) below
+--   boss down: a big "Victory" banner with the fight stats (Net.Fx "victory")
 --   after the boss: a centered card with the run so far and "Deeper" / "Back to Hub"
 -- The state comes from the server as player attributes (see Types.luau) and Net.RiftResult; this
 -- only displays it and requests "deeper" or "leave" via Net.Rift. Entering happens in the Atlas.
 
 local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
+local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Net = require(ReplicatedStorage.Shared.Net)
 local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
@@ -45,6 +48,14 @@ local leaveArmed = false
 local bossBox: Frame
 local bossFill: Frame
 local bossName: TextLabel
+local poiseFill: Frame
+local bossState: TextLabel
+local banner: Frame
+local bannerTitle: TextLabel
+local bannerLine: TextLabel
+local bannerToken = 0
+local fightLine = "" -- stats of the last boss fight for the cleared card ("" = none)
+local fightDepth = -1
 local choice: Frame
 local choiceTitle: TextLabel
 local choiceStats: TextLabel
@@ -87,7 +98,7 @@ local function refreshChoiceStats()
 		Format.big(tonumber(s.gold) or 0),
 		items,
 		clock(tonumber(s.seconds) or 0)
-	)
+	) .. (if fightLine ~= "" and fightDepth == s.depth then "\n" .. fightLine else "")
 end
 
 local function setLeaveArmed(armed: boolean)
@@ -151,6 +162,27 @@ local function refreshBoss(): boolean
 			local ratio = math.clamp(((enemy:GetAttribute("Health") or 0) :: number) / max, 0, 1)
 			Spring.target(bossFill, { Size = UDim2.fromScale(ratio, 1) }, "Soft")
 			bossName.Text = enemy.Name
+			-- Break meter: full = hard to stagger; drains with every hit, empty = Broken
+			local pmax = math.max((enemy:GetAttribute("PoiseMax") or Bosses.POISE) :: number, 1)
+			local poise = math.clamp(((enemy:GetAttribute("Poise") or pmax) :: number) / pmax, 0, 1)
+			local broken = enemy:GetAttribute("Broken") == true
+			Spring.target(
+				poiseFill,
+				{ Size = UDim2.fromScale(if broken then 0 else poise, 1) },
+				"Soft"
+			)
+			if broken then
+				bossState.Text =
+					string.format("BROKEN  ·  +%d%% damage", Bosses.BREAK_DAMAGE * 100)
+				bossState.TextColor3 = C.GoldHi
+			elseif enemy:GetAttribute("Opening") == true then
+				bossState.Text =
+					string.format("OPENING  ·  +%d%% damage", Bosses.OPENING_DAMAGE * 100)
+				bossState.TextColor3 = C.Cyan
+			else
+				bossState.Text = "Break"
+				bossState.TextColor3 = C.Muted
+			end
 			return true
 		end
 	end
@@ -226,7 +258,7 @@ local function buildInfo()
 end
 
 local function buildBoss()
-	bossBox = Flat.frame(UDim2.fromOffset(BOSS_W, 30))
+	bossBox = Flat.frame(UDim2.fromOffset(BOSS_W, 48))
 	bossBox.Name = "BossBar"
 	bossBox.AnchorPoint = Vector2.new(0.5, 0)
 	bossBox.Position = UDim2.new(0.5, 0, 0, 68) -- just below the resource capsules
@@ -237,11 +269,87 @@ local function buildBoss()
 	Kit.textOutline(bossName, 0.4)
 	bossName.Parent = bossBox
 	local back, fill = Kit.bar(Vector2.new(BOSS_W, 10), C.Danger)
-	back.AnchorPoint = Vector2.new(0.5, 1)
-	back.Position = UDim2.fromScale(0.5, 1)
+	back.AnchorPoint = Vector2.new(0.5, 0)
+	back.Position = UDim2.new(0.5, 0, 0, 20)
 	back.Parent = bossBox
 	bossFill = fill
+	-- Break meter: thin gold bar under the life bar, state text on its left
+	local pback, pfill = Kit.bar(Vector2.new(BOSS_W * 0.6, 5), C.Gold)
+	pback.Name = "Poise"
+	pback.AnchorPoint = Vector2.new(1, 0)
+	pback.Position = UDim2.new(1, 0, 0, 34)
+	pback.Parent = bossBox
+	poiseFill = pfill
+	bossState = Flat.text("Break", 10, C.Muted, Theme.Font.Body)
+	bossState.Name = "BreakState"
+	bossState.Position = UDim2.fromOffset(0, 30)
+	Kit.textOutline(bossState, 0.4)
+	bossState.Parent = bossBox
 	bossBox.Parent = root
+end
+
+-- "Victory" banner after a boss kill: pops in the middle, fades after a moment
+local BANNER_TIME = 2.6
+
+local function buildBanner()
+	banner = Flat.frame(UDim2.fromOffset(420, 90))
+	banner.Name = "Victory"
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.36)
+	banner.Visible = false
+	local list = Kit.list(banner, Enum.FillDirection.Vertical, 2)
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bannerTitle = Flat.text("VICTORY", 44, C.GoldHi, Theme.Font.Title, Enum.TextXAlignment.Center)
+	bannerTitle.LayoutOrder = 1
+	Kit.textOutline(bannerTitle, 0.2)
+	bannerTitle.Parent = banner
+	bannerLine = Flat.text("", 13, C.Text, Theme.Font.Body, Enum.TextXAlignment.Center)
+	bannerLine.LayoutOrder = 2
+	Kit.textOutline(bannerLine, 0.3)
+	bannerLine.Parent = banner
+	banner.Parent = root
+end
+
+local function plural(n: number, word: string): string
+	return string.format("%d %s%s", n, word, if n == 1 then "" else "s")
+end
+
+local function showVictory(d: { [string]: any })
+	local seconds = tonumber(d.seconds) or 0
+	local breaks = math.floor(tonumber(d.breaks) or 0)
+	local counters = math.floor(tonumber(d.counters) or 0)
+	local name = if typeof(d.name) == "string" then d.name else "Boss"
+	fightLine = string.format(
+		"Boss %s  ·  %s  ·  %s",
+		clock(seconds),
+		plural(breaks, "Break"),
+		plural(counters, "Counter")
+	)
+	fightDepth = (player:GetAttribute("RiftDepth") or 0) :: number
+	bannerTitle.Text = "VICTORY"
+	bannerLine.Text = name .. " defeated  ·  " .. fightLine
+	for _, t in { bannerTitle, bannerLine } do
+		t.TextTransparency = 0
+	end
+	banner.Visible = true
+	Flat.pop(banner)
+	bannerToken += 1
+	local token = bannerToken
+	task.delay(BANNER_TIME, function()
+		if token ~= bannerToken then
+			return
+		end
+		local fade = TweenInfo.new(0.5, Enum.EasingStyle.Quad)
+		for _, t in { bannerTitle, bannerLine } do
+			TweenService:Create(t, fade, { TextTransparency = 1 }):Play()
+		end
+		task.delay(0.5, function()
+			if token == bannerToken then
+				banner.Visible = false
+			end
+		end)
+	end)
+	refreshChoiceStats()
 end
 
 local function buildChoice()
@@ -299,6 +407,7 @@ function RiftController.init()
 	buildInfo()
 	buildBoss()
 	buildChoice()
+	buildBanner()
 	gui.Parent = player:WaitForChild("PlayerGui")
 	layout()
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(layout)
@@ -319,6 +428,11 @@ function RiftController.start()
 	do
 		player:GetAttributeChangedSignal(attr):Connect(refresh)
 	end
+	Net.Fx.OnClientEvent:Connect(function(kind: any, d: any)
+		if kind == "victory" and typeof(d) == "table" and d.by == player.UserId then
+			showVictory(d)
+		end
+	end)
 	Net.RiftResult.OnClientEvent:Connect(function(summary: any)
 		if typeof(summary) ~= "table" then
 			return

@@ -88,7 +88,7 @@ local function onFx(kind: string, d: any)
 			end
 		elseif d.amount == nil then
 			if d.who == me then -- own "Blocked!" / "Dodged", not loot or skill toasts
-				SoundController.play("blocked")
+				SoundController.play(if d.counter then "counter" else "blocked")
 			end
 		elseif d.by == me then
 			SoundController.play(if d.crit then "crit" else "hit")
@@ -109,6 +109,12 @@ local function onFx(kind: string, d: any)
 		if within(d.pos, HEAR) then -- bosses of other players' rifts stay silent
 			SoundController.play("boss_phase")
 		end
+	elseif kind == "break" then
+		if within(d.pos, HEAR) then
+			SoundController.play("boss_break")
+		end
+	elseif kind == "areaclear" then
+		SoundController.play("area_clear")
 	elseif kind == "intro" then
 		SoundController.play("boss_intro")
 	elseif kind == "rush" then
