@@ -126,6 +126,12 @@ for _, file in shard(findSpecs("tests", {})) do
 		}, screenNames, deviceNames, scales)
 	end
 	env.expect = Expect
+	-- the Rojo project as a table (the sandbox does not keep texture-map properties)
+	-- (read once here: a yielding fs call inside a test thread would hang the sandbox scheduler)
+	local project = serde.decode("json", fs.readFile("default.project.json"))
+	env.projectJson = function()
+		return project
+	end
 	env.describe = function(name, fn)
 		table.insert(prefix, name)
 		fn()

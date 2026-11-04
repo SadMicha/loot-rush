@@ -19,6 +19,17 @@
         "Client": { "$path": "src/client" }
       }
     },
+    "MaterialService": {
+      "LootStuds": {
+        "$className": "MaterialVariant",
+        "$properties": {
+          "BaseMaterial": "Plastic",
+          "StudsPerTile": 1,
+          "ColorMap": "rbxassetid://128992698420086",
+          "NormalMap": "rbxassetid://79080318389045"
+        }
+      }
+    },
     "Workspace": {
       "$properties": {
         "StreamingEnabled": true,
