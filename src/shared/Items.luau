@@ -27,7 +27,7 @@ export type Item = {
 	charges: number?,
 	unique: string?, -- id in Items.Uniques (rarity "unique")
 	-- Class that found the item (Shared/Classes id). Fixed for life: the item keeps its look and
-	-- name in the shared stash, and weapons/offhands (Items.ClassLocked) only fit that class.
+	-- name in the shared stash, and only that class can wear it (Items.ClassLocked).
 	-- Missing on old stash items = fits every class (Profile.reconcile stamps hero-owned ones).
 	class: string?,
 }
@@ -134,14 +134,18 @@ local CLASS_BASE: { [string]: { [string]: { string } } } = {
 	},
 }
 
--- Slots that only the item's own class can wear (the class weapon and its offhand)
-Items.ClassLocked = table.freeze({ weapon = true, offhand = true } :: { [string]: boolean })
+-- Slots that only the item's own class can wear: every equipment slot (Micha 2026-11-04)
+local locked: { [string]: boolean } = {}
+for _, slot in Items.Slots do
+	locked[slot] = true
+end
+Items.ClassLocked = table.freeze(locked)
 
 for _, slot in Items.Slots do
 	assert(IMPLICIT[slot] and BASE[slot], `slot {slot}: implicit stat or base names missing`)
 end
 for _, c in Classes.List do
-	for slot in Items.ClassLocked do
+	for _, slot in { "weapon", "offhand" } do
 		assert(
 			CLASS_BASE[c.id] and CLASS_BASE[c.id][slot],
 			`class {c.id}: {slot} base names missing`
@@ -303,8 +307,8 @@ function Items.classOf(item: Item): string?
 	return if typeof(c) == "string" and Classes.ById[c] then c else nil
 end
 
--- The class an item is locked to when `class` may not wear it, otherwise nil. Only
--- Items.ClassLocked slots are locked; items without a class fit everyone.
+-- The class an item is locked to when `class` may not wear it, otherwise nil. Items without a
+-- class (old stash items) fit everyone.
 function Items.classLock(item: Item, class: string): string?
 	local own = Items.classOf(item)
 	if own and own ~= class and Items.ClassLocked[item.slot] then

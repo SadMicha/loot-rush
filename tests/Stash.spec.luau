@@ -374,7 +374,7 @@ describe("Item class", function()
 		expect(Items.roll(5, Random.new(1), nil, { class = "pirate" }).class).toBeNil()
 	end)
 
-	it("locks weapons and offhands to their class, armor and jewelry fit everyone", function()
+	it("locks every item to its class", function()
 		local staff = weapon("staff", "mage")
 		expect(Items.canWear(staff, 10, "mage")).toBe(true)
 		expect(Items.canWear(staff, 10, "warrior")).toBe(false)
@@ -387,8 +387,12 @@ describe("Item class", function()
 		expect(Items.canWear(orb, 10, "ranger")).toBe(false)
 		local ring = item("ring")
 		ring.class = "mage"
-		expect(Items.canWear(ring, 10, "warrior")).toBe(true)
-		expect(Items.classOf(ring)).toBe("mage") -- keeps its look though
+		expect(Items.canWear(ring, 10, "warrior")).toBe(false)
+		expect(Items.lockOf(ring, 10, "mushroom")).toBe("Mage")
+		expect(Items.canWear(ring, 10, "mage")).toBe(true)
+		for _, slot in Items.Slots do
+			expect(Items.ClassLocked[slot]).toBe(true)
+		end
 		-- old class-less items and broken values fit every class
 		expect(Items.canWear(weapon("old", nil), 10, "warrior")).toBe(true)
 		expect(Items.canWear(weapon("junk", 5 :: any), 10, "warrior")).toBe(true)
@@ -415,6 +419,11 @@ describe("Item class", function()
 		expect(warrior.inventory[1].class).toBe("mage")
 		expect(warrior.inventory[1].name).toBe(staff.name)
 		expect(Items.canWear(warrior.inventory[1], 10, warrior.class)).toBe(false)
+		-- the mage's ring is a mage ring for the warrior too
+		local ring = again.characters[1].inventory[1]
+		expect(Stash.deposit(again.stash, again.characters[1].inventory, ring.id, 1)).toBe("ok")
+		expect(Stash.withdraw(again.stash, warrior.inventory, ring.id, Items.BAG_MAX)).toBe("ok")
+		expect(Items.canWear(warrior.inventory[2], 10, warrior.class)).toBe(false)
 	end)
 
 	it("the server refuses another class's weapon and it gives no stats when worn", function()
