@@ -38,6 +38,7 @@ type Entry = {
 	sparks: ParticleEmitter?,
 	trailFx: { Instance },
 	connections: { RBXScriptConnection },
+	known: { [string]: boolean }, -- slot attribute seen once (the first value is the save, not an equip)
 }
 
 local folder: Folder
@@ -85,11 +86,12 @@ local function buildRig(e: Entry)
 	if not c or c.slot ~= "aura" or e.detail == "off" then
 		return
 	end
-	local root = rootOf(e.player)
+	local root, humanoid = rootOf(e.player)
 	if not root then
 		return
 	end
-	e.rig = Rig.aura(c, Fx.plan(c, e.detail), folder, { world = true })
+	e.rig =
+		Rig.aura(c, Fx.plan(c, e.detail), folder, { world = true, origin = feet(root, humanoid) })
 end
 
 -- ------------------------------------------------------------------ Trail extras
@@ -220,7 +222,11 @@ local function watch(player: Player)
 		sparks = nil,
 		trailFx = {},
 		connections = {},
+		known = {},
 	}
+	for _, slot in Cosmetics.Slots do
+		e.known[slot] = player:GetAttribute(Fx.ATTR[slot]) ~= nil
+	end
 	entries[player] = e
 	for _, slot in Cosmetics.Slots do
 		table.insert(
@@ -234,9 +240,10 @@ local function watch(player: Player)
 					e.trail = id
 					buildTrail(e)
 				end
-				if id ~= "" then
+				if id ~= "" and e.known[slot] then
 					celebrate(e, id)
 				end
+				e.known[slot] = true
 			end)
 		)
 	end

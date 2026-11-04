@@ -388,6 +388,9 @@ local function card(offer: Store.Offer, w: number, h: number): Frame
 					set[c.slot] = id
 				end
 			end
+			-- the preview lives on the Cosmetics tab (Try on also sits on featured cards)
+			tab = "cosmetics"
+			tabs.select(tab)
 			trying = set
 			StoreController.render() -- to the top: the preview is the first thing on the tab
 		end)

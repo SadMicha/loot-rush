@@ -38,6 +38,7 @@ export type Rig = {
 	core: BasePart?,
 	nextPulse: number,
 	color: Color3,
+	origin: CFrame, -- where new parts start (the hero's feet), so nothing flashes at 0,0,0
 }
 
 local function flags(p: BasePart)
@@ -66,7 +67,7 @@ end
 local function add(rig: Rig, part: BasePart, pose: Pose)
 	table.insert(rig.parts, part)
 	table.insert(rig.poses, pose)
-	part.CFrame = pose(0)
+	part.CFrame = rig.origin * pose(0)
 end
 
 -- Ring of n segments at radius r and height y. fill = share of the circle that is segment
@@ -158,6 +159,7 @@ end
 
 export type Opts = {
 	world: boolean, -- sprites, light and pillar beam (false in a ViewportFrame)
+	origin: CFrame?, -- the hero's feet right now (default: the scene origin)
 }
 
 -- Builds the aura of cosmetic c at the plan's detail into a new folder under parent
@@ -179,6 +181,7 @@ function CosmeticRig.aura(c: Cosmetics.Cosmetic, plan: Fx.Plan, parent: Instance
 		core = nil,
 		nextPulse = if plan.pulse > 0 then 0 else math.huge, -- 0 = set on the first frame
 		color = style.core,
+		origin = opts.origin or CFrame.identity,
 	}
 	if plan.detail == "off" then
 		folder.Parent = parent
@@ -354,6 +357,7 @@ function CosmeticRig.trailGhost(c: Cosmetics.Cosmetic, parent: Instance): Rig
 		core = nil,
 		nextPulse = math.huge,
 		color = style.core,
+		origin = CFrame.identity,
 	}
 	local n = 14
 	local r = 2.7
