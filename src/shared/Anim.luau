@@ -589,6 +589,24 @@ function Anim.hold(weaponId: string?, weight: number, r6: boolean, out: Pose): n
 	return if ref then 1 else w
 end
 
+-- Body parts each arm joint moves, and the part chain from the root down to them: an
+-- AnimationTrack (KeyframeSequence) needs every Pose nested under its parent part's Pose.
+Anim.PART = table.freeze({
+	R15 = table.freeze({
+		rShoulder = "RightUpperArm",
+		rElbow = "RightLowerArm",
+		rWrist = "RightHand",
+		lShoulder = "LeftUpperArm",
+		lElbow = "LeftLowerArm",
+		lWrist = "LeftHand",
+	}),
+	R6 = table.freeze({ rShoulder = "Right Arm", lShoulder = "Left Arm" }),
+} :: { [string]: { [string]: string } })
+Anim.CHAIN = table.freeze({
+	R15 = table.freeze({ "HumanoidRootPart", "LowerTorso", "UpperTorso" }),
+	R6 = table.freeze({ "HumanoidRootPart", "Torso" }),
+} :: { [string]: { string } })
+
 -- Skills with their own move (otherwise the skill kind decides)
 Anim.SKILL_MOVE = table.freeze({
 	whirlwind = "spin",

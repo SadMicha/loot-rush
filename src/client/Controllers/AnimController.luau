@@ -45,6 +45,9 @@ type Rig = {
 	combo: number,
 	stance: number, -- current holding-stance weight (Anim.STANCE), eases toward its target
 	grip: number, -- how much the weapon arm follows Anim.hold (1 alive, fades to 0 on death)
+	track: AnimationTrack?, -- the stance arm as a real AnimationTrack (see stanceTrack)
+	trackKey: string?, -- weapon + rig type the track was built for
+	trackWeight: number,
 	deadAt: number, -- 0 = alive
 	broken: boolean,
 	active: boolean,
@@ -119,8 +122,22 @@ local function jointOf(character: Model, part: Instance, name: string): Instance
 	return nil
 end
 
+local function stopTrack(rig: Rig)
+	local track = rig.track
+	rig.track = nil
+	rig.trackKey = nil
+	rig.trackWeight = -1
+	if track then
+		pcall(function()
+			track:Stop(0.2)
+			track:Destroy()
+		end)
+	end
+end
+
 local function findJoints(rig: Rig)
 	rig.dirty = false
+	stopTrack(rig) -- built from the old joints: build again
 	table.clear(rig.joints)
 	local character = rig.character
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -172,6 +189,7 @@ local function removeRig(character: Model)
 		return
 	end
 	rigs[character] = nil
+	stopTrack(rig)
 	for _, c in rig.conns do
 		c:Disconnect()
 	end
@@ -231,6 +249,9 @@ local function addRig(character: Model, owner: Player?)
 		combo = 0,
 		stance = 0,
 		grip = 0,
+		track = nil,
+		trackKey = nil,
+		trackWeight = -1,
 		deadAt = 0,
 		broken = false,
 		active = false,
@@ -323,15 +344,16 @@ end
 -- Debug (Dbg panel "Dump Joints"): prints what the animation layer sees on the own character to
 -- the Output, so a broken pose can be diagnosed from one playtest: rig type, every joint it
 -- drives (class, C0 turn, Transform now vs the Animator's base), the weapon and its weld, and
--- the playing AnimationTracks.
-function AnimController.dump()
+-- the playing AnimationTracks. Returns the same text (the Dbg panel shows it on screen).
+function AnimController.dump(): string
 	local character = player.Character
 	local rig = character and rigs[character]
 	local lines = { "[AnimController] joint dump" }
 	if not character or not rig then
 		table.insert(lines, "  no rig for the own character")
-		print(table.concat(lines, "\n"))
-		return
+		local out = table.concat(lines, "\n")
+		print(out)
+		return out
 	end
 	local humanoid = rig.humanoid
 	local p = rig.player
@@ -339,14 +361,22 @@ function AnimController.dump()
 	table.insert(
 		lines,
 		string.format(
-			"  RigType %s, r6=%s, active=%s, weapon=%s, stance=%.2f, grip=%.2f, layers=%d",
+			"  RigType %s, r6=%s, active=%s, weapon=%s, stance=%.2f, grip=%.2f, layers=%d, stanceTrack=%s",
 			if humanoid then tostring(humanoid.RigType) else "no Humanoid",
 			tostring(rig.r6),
 			tostring(rig.active),
 			if w then w.id else "none",
 			rig.stance,
 			rig.grip,
-			#rig.layers
+			#rig.layers,
+			if rig.track
+				then string.format(
+					"playing=%s length=%.2f weight=%.2f",
+					tostring(rig.track.IsPlaying),
+					rig.track.Length,
+					rig.track.WeightCurrent
+				)
+				else "none"
 		)
 	)
 	local map: { [string]: { string } } = if rig.r6 then Anim.R6 else Anim.R15
@@ -403,7 +433,9 @@ function AnimController.dump()
 			)
 		end
 	end
-	print(table.concat(lines, "\n"))
+	local out = table.concat(lines, "\n")
+	print(out)
+	return out
 end
 
 -- Active move names on a character (specs, debugging)
@@ -476,6 +508,95 @@ local function warnNoJoints(rig: Rig)
 	)
 end
 
+-- The weapon arm of the stance as a real AnimationTrack: a KeyframeSequence built here from
+-- Anim.hold (full stance) and registered locally, played by the character's own Animator above
+-- the server's tool-hold track. The Animator then poses the arm itself, whatever joints the rig
+-- uses; the procedural Transform write (Anim.hold mix below) is only the fallback while this
+-- track is not playing (registration failed, still loading). Every client builds it locally for
+-- the characters it animates (nothing is replicated that others could not load).
+local failedTracks: { [string]: boolean } = {}
+
+local function buildTrack(rig: Rig, weaponId: string): AnimationTrack?
+	local s = Anim.STANCE[weaponId]
+	local humanoid = rig.humanoid
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if not s or not animator then
+		return nil
+	end
+	local kind = if rig.r6 then "R6" else "R15"
+	local full: Anim.Pose = {}
+	Anim.hold(weaponId, 1, rig.r6, full)
+	local ok, result = pcall(function()
+		local kfs = Instance.new("KeyframeSequence")
+		kfs.Loop = true
+		kfs.Priority = Enum.AnimationPriority.Action2
+		for _, t in { 0, 1 } do
+			local kf = Instance.new("Keyframe")
+			kf.Time = t
+			local parent: Instance = kf
+			for _, name in Anim.CHAIN[kind] do
+				local node = Instance.new("Pose")
+				node.Name = name
+				node.Weight = 0 -- path only: leaves these joints to the other tracks
+				node.Parent = parent
+				parent = node
+			end
+			for _, joint in Anim.ARM[s.hand] do
+				local part = Anim.PART[kind][joint]
+				local a = full[joint]
+				local j = rig.joints[joint]
+				if part and a and j then
+					local node = Instance.new("Pose")
+					node.Name = part
+					node.Weight = 1
+					node.CFrame = j.rotInv
+						* CFrame.fromEulerAnglesYXZ(a.X * DEG, a.Y * DEG, a.Z * DEG)
+						* j.rot
+					node.Parent = parent
+					parent = node
+				end
+			end
+			kf.Parent = kfs
+		end
+		local id = game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(kfs)
+		local anim = Instance.new("Animation")
+		anim.AnimationId = id
+		local track = (animator :: Animator):LoadAnimation(anim)
+		track.Priority = Enum.AnimationPriority.Action2
+		track.Looped = true
+		track:Play(0.2, 0.01)
+		return track
+	end)
+	if ok and result then
+		return result
+	end
+	failedTracks[weaponId .. kind] = true
+	warn("[AnimController] stance track not built (" .. tostring(result) .. "): using joint writes")
+	return nil
+end
+
+-- Keeps the rig's stance track in step with its weapon; true while it poses the arm
+local function stanceTrack(rig: Rig, weaponId: string?, weight: number): boolean
+	local key = if weaponId then weaponId .. (if rig.r6 then "R6" else "R15") else nil
+	if rig.trackKey ~= key then
+		stopTrack(rig)
+		rig.trackKey = key
+		if weaponId and key and not failedTracks[key] and next(rig.joints) ~= nil then
+			rig.track = buildTrack(rig, weaponId)
+		end
+	end
+	local track = rig.track
+	if not track or not track.IsPlaying or track.Length <= 0 then
+		return false
+	end
+	local w = math.clamp(weight, 0.001, 1)
+	if math.abs(w - rig.trackWeight) > 0.02 then
+		rig.trackWeight = w
+		track:AdjustWeight(w, 0.1)
+	end
+	return true
+end
+
 local function animate(rig: Rig, dt: number, now: number)
 	if rig.emptyAt > 0 and now - rig.searchedAt >= Anim.JOINT_RETRY then
 		rig.dirty = true -- nothing found yet (still loading?): look again now and then
@@ -532,7 +653,8 @@ local function animate(rig: Rig, dt: number, now: number)
 	-- The weapon arm itself is an absolute pose (replaces the Animator's arm, fades out on death)
 	local gripWant = if rig.deadAt == 0 then 1 else 0
 	rig.grip += (gripWant - rig.grip) * math.min(1, dt * Anim.STANCE_BLEND)
-	local mix = if rig.grip > 0.001
+	local tracked = stanceTrack(rig, weaponId, rig.stance * rig.grip)
+	local mix = if rig.grip > 0.001 and not tracked
 		then Anim.hold(weaponId, rig.stance, rig.r6, arm) * rig.grip
 		else 0
 	local yaw = 0

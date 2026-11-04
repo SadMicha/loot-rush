@@ -69,14 +69,16 @@ describe("Character animation rig", function()
 	end)
 
 	it("dumps the own rig's joints for the Dbg panel", function()
-		local ok, err = true, nil
+		local result = { ok = false, text = "" }
 		sim:runAs("client", function(req)
 			local AnimController = req(
 				"Players." .. sim.player.Name .. ".PlayerScripts.Client.Controllers.AnimController"
 			)
-			ok, err = pcall(AnimController.dump)
+			local ok, text = pcall(AnimController.dump)
+			result.ok = ok
+			result.text = tostring(text)
 		end)
-		expect(err).toBeNil()
-		expect(ok).toBe(true)
+		expect(result.ok).toBe(true)
+		expect(string.find(result.text, "Waist", 1, true)).never.toBeNil() -- the joint the spec built
 	end)
 end)
