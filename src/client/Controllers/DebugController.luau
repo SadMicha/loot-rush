@@ -41,6 +41,7 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Spell Stones", command = "stones" },
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
+	{ label = "All Cosmetics", command = "cosmetics" },
 }
 
 -- Overlay only in Studio or for whitelisted developers (Systems/Debug sets "DebugTools")
