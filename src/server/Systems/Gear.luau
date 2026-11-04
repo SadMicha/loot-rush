@@ -5,7 +5,9 @@
 -- Rebuilt only when the worn look changes (Gear.signature), after a respawn and when the avatar
 -- swaps its body parts. While a helmet is worn, hat and hair accessories are hidden; the setting
 -- "Hide helmet" (account.settings.hideHelmet) leaves the helmet off the body (stats stay).
--- Cost: no per-frame work, at most Gear.MAX_PIECES massless, non-colliding parts per slot.
+-- Rarity shows on the body: Gear.pieces(style, slot, rarity) adds trim, gems and Neon edges.
+-- Cost: no per-frame work, no particles; massless, non-colliding parts within Gear.MAX_PIECES per
+-- slot and Gear.MAX_SET per full set.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -60,18 +62,18 @@ local function worn(player: Player): (string, { [string]: Items.Item })
 end
 
 -- Every piece goes through the stud rule (Studs.applyAllFaces: 1-stud tiles on all shapes and
--- faces like the world); gems keep their Glass/Neon look.
+-- faces like the world); glowing pieces (runes, rarity edges, gems) keep their Neon/Glass look.
 local function makePart(
 	model: Model,
 	piece: Gear.Piece,
 	size: Vector3,
 	color: Color3,
-	neon: boolean
+	finish: Gear.Finish
 ): BasePart
-	local material = if piece.role ~= "gem"
-		then nil
-		elseif neon then Enum.Material.Neon
-		else Enum.Material.Glass
+	local material = if finish == "neon"
+		then Enum.Material.Neon
+		elseif finish == "glass" then Enum.Material.Glass
+		else nil
 	local p: BasePart
 	if piece.shape == "wedge" then
 		p = Kit.wedge(model, size, CFrame.new(), color, material)
@@ -131,14 +133,14 @@ local function build(
 		if not item or not style then
 			continue
 		end
-		local neon = Items.rank(item.rarity) >= Gear.GEM_NEON_RANK
-		for _, piece in Gear.pieces(style, slot) do
+		for _, piece in Gear.pieces(style, slot, item.rarity) do
 			local body = character:FindFirstChild(piece.part)
 			if not body or not body:IsA("BasePart") then
 				continue -- R6 or a custom rig without this part: skip the piece
 			end
 			local size, offset = Gear.place(piece, body.Size)
-			local p = makePart(model, piece, size, Gear.color(style, piece.role, item.rarity), neon)
+			local color = Gear.color(style, piece.role, item.rarity)
+			local p = makePart(model, piece, size, color, Gear.finish(piece.role, item.rarity))
 			p.Name = slot
 			p.CFrame = body.CFrame * offset
 			local weld = Instance.new("Weld")

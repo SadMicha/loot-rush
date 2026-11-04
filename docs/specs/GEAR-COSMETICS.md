@@ -7,6 +7,55 @@ Base: visible gear (`Shared/Gear`, `Systems/Gear`, docs/TECH.md "Visible gear").
 style id per slot; the item only decides *whether* a slot shows and its rarity trim. A skin
 replaces the style of one slot and never touches stats.
 
+## Class looks (built, 2026-11-04)
+
+The default look every skin competes with. Owner direction: chunky layered plates with a brick
+look, studs on every face (`Studs.applyAllFaces`, LootStuds variant), visible rarity upgrade.
+Data: `Shared/Gear`; checks: `tests/Gear.spec.luau`.
+
+Rarity steps (role floors, plus `min` on extra plates):
+
+| Rarity | Adds |
+|---|---|
+| Normal | plain base look: palette colors only (main, dark, metal, accent; Mage runes glow cyan) |
+| Magic | trim plates and rims in the rarity color |
+| Rare | Neon gems in the rarity color, extra plates (`min = "rare"`) |
+| Epic | thin Neon edges in the rarity color (`glow`) |
+| Unique | one more Neon edge on the Knight, Ranger and Shaman helmets |
+
+Palettes (main / dark / metal / accent):
+
+| Class | main | dark | metal | accent |
+|---|---|---|---|---|
+| Knight (Brix) | steel `#B8C0CE` | dark steel `#5A5F70` | gold `#E8B04A` | red cloth `#B8332E` |
+| Ranger (Fynn) | green `#3F8A3A` | leather `#6B4526` | brass `#C9A25A` | tan leather `#8A5A34` |
+| Spark Mage (Zap) | blue `#4A55C8` | deep blue `#2C2F7A` | gold `#E8B04A` | cyan rune `#4FD8F5` |
+| Mushroom Shaman (Mora) | cap red `#D8442E` | moss `#4E7A2A` | bark `#7A5230` | cream spots `#F2E6C8` |
+
+Pieces per slot (Normal → Magic → Rare → Epic):
+
+| Class | Helmet | Armor | Gloves | Belt | Boots |
+|---|---|---|---|---|---|
+| Knight | great helm dome, cheek guards, brow band, nose guard, red crest → crest base trim → neck guard, forehead gem → band edge glow (unique: crest glow) | chainmail base, breastplate, ab plate, gold gorget, big pauldrons with a lower lame → chest emblem, pauldron rims → emblem gem, gold pauldron caps → glow line under the breastplate | gauntlets, flared cuffs → cuff rims → cuff gems | belt, gold buckle, thigh tassets → lower rim → buckle gem → tasset edge glow | sabatons, greaves → greave rims → knee cops |
+| Ranger | hood, peak, leather cowl, hood tip → face frame strips → cowl clasp gem, side feather → cowl edge glow (unique: hood ridge glow) | green tunic, open leather vest panels, quiver strap with brass buckle, bow-shoulder guard with a top layer → vest edge strips, guard rim → buckle gem, draw-arm band → guard top glow | fingerless gloves, leather bracers → bracer bands → bracer gems | belt, brass buckle, back pouch → lower rim → buckle gem, knife sheath | boots with folded cuffs → cuff rims |
+| Spark Mage | pointed hat (brim, crown, band, glowing rune line, bent tip) → brim edge → band gem, tip gem → crown glow ring | robe, skirt, yoke, gold sash, glowing rune seam, shoulder pads → yoke and shoulder rims → chest gem, gold apron panel → shoulder edge glow | gloves, wide sleeves with glowing cuff edge → sleeve rims | sash belt, gold knot, sash tail → lower rim → knot gem, second tail | curled shoes, shin wraps → shin rims |
+| Mushroom Shaman | cap brim, upper tier, dome, cream gills, two spots → brim edge → glowing spore on top, extra spot → brim glow ring (unique: tier glow ring) | moss robe, bark collar, mushroom-cap shoulder pads (brim, dome, spot), bark chest plate → cap edge rings → chest gem, cap gills → two glowing spore dots | bark gloves, moss cuffs with a tiny red mushroom → cuff rims | bark belt, cream toggle, little mushroom → lower rim → toggle gem, second mushroom | bark boots, moss wraps → wrap rims → tiny mushrooms |
+
+Amulet (every class, class metal): chain + pendant → pendant frame → gem.
+
+Parts per full set (six visible slots; budget `Gear.MAX_SET` = 60, `Gear.MAX_PIECES` = 16 per slot):
+
+| Class | Normal | Magic | Rare | Epic | Unique |
+|---|---|---|---|---|---|
+| Knight | 28 | 38 | 49 | 53 | 54 |
+| Ranger | 26 | 37 | 46 | 48 | 49 |
+| Spark Mage | 30 | 40 | 47 | 50 | 50 |
+| Mushroom Shaman | 30 | 39 | 49 | 52 | 53 |
+
+Fit rules: chest pieces stay below the torso top (head starts there), gloves hug the hand (the
+weapon grip sits in it), the Ranger's quiver strap and vest stay flat (bow string side), the
+amulet hangs at y 0.3-0.5 in front of every class's chest plates.
+
 ## Rules
 
 - Skins are **looks only**: no stats, no drop rates, no XP. The item underneath keeps its rarity
