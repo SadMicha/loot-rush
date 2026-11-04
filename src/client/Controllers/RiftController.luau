@@ -173,8 +173,7 @@ local function refreshBoss(): boolean
 				"Soft"
 			)
 			if broken then
-				bossState.Text =
-					string.format("BROKEN - +%d%% damage", Bosses.BREAK_DAMAGE * 100)
+				bossState.Text = string.format("BROKEN - +%d%% damage", Bosses.BREAK_DAMAGE * 100)
 				bossState.TextColor3 = C.GoldHi
 			elseif enemy:GetAttribute("Opening") == true then
 				bossState.Text =
