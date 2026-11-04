@@ -65,7 +65,7 @@ Each class weapon has its own stance in two parts:
   every weapon stays upright, never leans back toward the face and never cuts through the body.
 - `pose`: waist, neck, off arm and hips, added on top of idle/walk.
 
-Sword = guard (hand low in front, blade leaning toward the enemy, weight back), bow = relaxed (bow
+Sword = shoulder rest (hand in front of the chest, blade leaning back over the right shoulder), bow = relaxed (bow
 arm a little forward and out, the wrist keeps the limbs vertical), staff = planted (elbow bent,
 staff upright beside the body), scepter = upright in front of the chest. The stance fades to
 `STANCE_MOVING` while running and to `STANCE_ACTING` while a move plays, eased with
