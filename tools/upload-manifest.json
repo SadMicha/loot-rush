@@ -1055,6 +1055,105 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_linger",
+   "file": "assets/ui/icons/store/stone_linger.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_pierce",
+   "file": "assets/ui/icons/store/stone_pierce.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_split",
+   "file": "assets/ui/icons/store/stone_split.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_link",
+   "file": "assets/ui/icons/store/stone_link.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_echo",
+   "file": "assets/ui/icons/store/stone_echo.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_ember",
+   "file": "assets/ui/icons/store/stone_ember.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_wide",
+   "file": "assets/ui/icons/store/stone_wide.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_haste",
+   "file": "assets/ui/icons/store/stone_haste.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "stone_power",
+   "file": "assets/ui/icons/store/stone_power.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "buff_chill",
+   "file": "assets/ui/icons/store/buff_chill.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "buff_rush",
+   "file": "assets/ui/icons/store/buff_rush.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
