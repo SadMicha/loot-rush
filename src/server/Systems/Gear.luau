@@ -14,6 +14,7 @@ local Classes = require(ReplicatedStorage.Shared.Classes)
 local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Kit = require(ReplicatedStorage.Shared.Models.Kit)
+local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Data = require(script.Parent.Data)
 
 local GearSystem = {}
@@ -58,8 +59,19 @@ local function worn(player: Player): (string, { [string]: Items.Item })
 	return class, out
 end
 
-local function makePart(model: Model, piece: Gear.Piece, size: Vector3, color: Color3): BasePart
-	local material = if piece.role == "gem" then Enum.Material.Glass else nil
+-- Every piece goes through the stud rule (Studs.applyAllFaces: 1-stud tiles on all shapes and
+-- faces like the world); gems keep their Glass/Neon look.
+local function makePart(
+	model: Model,
+	piece: Gear.Piece,
+	size: Vector3,
+	color: Color3,
+	neon: boolean
+): BasePart
+	local material = if piece.role ~= "gem"
+		then nil
+		elseif neon then Enum.Material.Neon
+		else Enum.Material.Glass
 	local p: BasePart
 	if piece.shape == "wedge" then
 		p = Kit.wedge(model, size, CFrame.new(), color, material)
@@ -70,6 +82,7 @@ local function makePart(model: Model, piece: Gear.Piece, size: Vector3, color: C
 	else
 		p = Kit.block(model, size, CFrame.new(), color, material)
 	end
+	Studs.applyAllFaces(p)
 	p.Anchored = false
 	p.CanCollide = false
 	p.CanQuery = false
@@ -125,10 +138,7 @@ local function build(
 				continue -- R6 or a custom rig without this part: skip the piece
 			end
 			local size, offset = Gear.place(piece, body.Size)
-			local p = makePart(model, piece, size, Gear.color(style, piece.role, item.rarity))
-			if piece.role == "gem" and neon then
-				p.Material = Enum.Material.Neon
-			end
+			local p = makePart(model, piece, size, Gear.color(style, piece.role, item.rarity), neon)
 			p.Name = slot
 			p.CFrame = body.CFrame * offset
 			local weld = Instance.new("Weld")

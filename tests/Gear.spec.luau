@@ -67,7 +67,7 @@ end
 describe("Visible gear in game", function()
 	it("builds worn gear on the body and removes it on unequip", function()
 		sim:boot({ seconds = 2 })
-		local empty, full, slots, welded, after = server(function(req, player)
+		local empty, full, slots, welded, after, studded = server(function(req, player)
 			local Data = req("ServerScriptService.Server.Systems.Data")
 			local Stats = req("ServerScriptService.Server.Systems.Stats")
 			local profile = Data.get(player)
@@ -116,6 +116,16 @@ describe("Visible gear in game", function()
 				end
 			end
 			local n1 = count()
+			-- every piece follows the stud rule: studded Plastic, or a kept glow/glass gem
+			local Studs = req("ReplicatedStorage.Shared.Models.Studs")
+			local studded = true
+			for _, p in model:GetChildren() do
+				if not Studs.styled(p) then
+					studded = false
+				elseif not Studs.keeps(p) and p.Material ~= Enum.Material.Plastic then
+					studded = false
+				end
+			end
 			profile.equipped.helmet = nil
 			Stats.refresh(player, false)
 			local helmets = 0
@@ -124,8 +134,9 @@ describe("Visible gear in game", function()
 					helmets += 1
 				end
 			end
-			return n0, n1, names, welds == n1, helmets
+			return n0, n1, names, welds == n1, helmets, studded
 		end)
+		expect(studded).toBe(true)
 		expect(empty).toBe(0)
 		expect(full > 0).toBe(true)
 		for _, slot in Gear.Slots do
