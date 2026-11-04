@@ -421,7 +421,7 @@ local function refreshPlace()
 	local info = if typeof(region) == "string" then Atlas.ById[region] else nil
 	if info and RiftController.active() then
 		local depth = player:GetAttribute("RiftDepth")
-		mapPlace.Text = info.name .. (if typeof(depth) == "number" then " · D" .. depth else "")
+		mapPlace.Text = info.name .. (if typeof(depth) == "number" then " - D" .. depth else "")
 	else
 		mapPlace.Text = "Lumenhaven"
 	end
@@ -664,7 +664,7 @@ local function buffCell(def: StatusRules.Def): BuffCell
 
 	-- Tap / click: what it does
 	onTap(box, function()
-		QuestController.toast(def.name .. " · " .. def.text, color)
+		QuestController.toast(def.name .. " - " .. def.text, color)
 	end)
 	cell.Parent = buffRow
 	scale.Scale = 0.4
@@ -858,7 +858,7 @@ local function buildBar(): (CanvasGroup, number)
 			b.Activated:Connect(function()
 				local hint = QuestController.lockHint(id)
 				if hint then
-					QuestController.toast("Locked · " .. hint, C.Muted)
+					QuestController.toast("Locked - " .. hint, C.Muted)
 					return
 				end
 				open()
@@ -1479,7 +1479,7 @@ function HudController.start()
 		xpTip.Visible = ratio > 0.01
 		xpText.Text = "Lv. "
 			.. tostring(player:GetAttribute("Level") or 1)
-			.. "  ·  "
+			.. " - "
 			.. Format.big(xp)
 			.. " / "
 			.. Format.big(need)

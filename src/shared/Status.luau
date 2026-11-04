@@ -52,7 +52,7 @@ Status.Defs = table.freeze({
 	rush = def(
 		"rush",
 		"Stud Rush",
-		`+{Rush.SPEED}% Move · +{Rush.ATTACK_SPEED}% Attack Speed`,
+		`+{Rush.SPEED}% Move - +{Rush.ATTACK_SPEED}% Attack Speed`,
 		"buff_rush",
 		false,
 		1

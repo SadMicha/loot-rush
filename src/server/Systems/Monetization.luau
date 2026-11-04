@@ -114,7 +114,7 @@ Monetization.loadPasses = loadPasses
 
 -- ------------------------------------------------------------------ Developer Products
 -- Credits one product (no checks: ProcessReceipt already matched the purchase). Returns the
--- feedback text ("+550 Soulstars · Ember Trail").
+-- feedback text ("+550 Soulstars - Ember Trail").
 local function grant(player: Player, account: Profile.Account, product: Rules.Product): string
 	local parts = {}
 	local refund = 0
@@ -154,7 +154,7 @@ local function grant(player: Player, account: Profile.Account, product: Rules.Pr
 		account.bought[product.key] = true
 	end
 	Cosmetics.sync(player)
-	return table.concat(parts, " · ")
+	return table.concat(parts, " - ")
 end
 
 function Monetization.processReceipt(info: any): Enum.ProductPurchaseDecision

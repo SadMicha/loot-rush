@@ -245,7 +245,7 @@ local function build()
 		Flat.frame(UDim2.fromOffset(body.X - FOOT_BUTTONS_W - 40, FOOT_H), UDim2.fromOffset(PAD, 0))
 	local il = Kit.list(info, Enum.FillDirection.Vertical, 4)
 	il.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	local buildNo = if game.PlaceVersion > 0 then ` · Build {game.PlaceVersion}` else ""
+	local buildNo = if game.PlaceVersion > 0 then ` - Build {game.PlaceVersion}` else ""
 	local title = Flat.text(`Loot Rush {Settings.GAME_VERSION}{buildNo}`, 16, C.Text, Theme.Font.UI)
 	title.LayoutOrder = 1
 	title.Parent = info

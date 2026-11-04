@@ -88,8 +88,8 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 	local text = DONE[actionId] or "Done"
 	if Rules.ById[actionId].usesCharges then
 		text ..= if used == 0
-			then " · no charge used!"
-			else string.format(" · −%d charge%s", used, if used == 1 then "" else "s")
+			then " - no charge used!"
+			else string.format(" - %d charge%s used", used, if used == 1 then "" else "s")
 	end
 	reply(player, true, text, itemId, used)
 	Actions.fire(player, "forge")

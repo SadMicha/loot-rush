@@ -180,8 +180,8 @@ local function renderSide()
 		elseif s.kind == "big" then "Major Star"
 		else "Star"
 	local branchText = if s.branch
-		then " · " .. StarNet.BranchName[s.branch]
-		elseif s.kind ~= "core" then " · Bridge"
+		then " - " .. StarNet.BranchName[s.branch]
+		elseif s.kind ~= "core" then " - Bridge"
 		else ""
 	local kind =
 		Kit.label(kindText .. branchText, 16, if s.kind == "core" then C.Gold else colorOf(s))

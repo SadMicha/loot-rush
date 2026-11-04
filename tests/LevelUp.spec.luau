@@ -39,7 +39,7 @@ describe("Level-up card", function()
 				req("StarterPlayer.StarterPlayerScripts.Client.Controllers.LevelUpController").statsLine
 		end)
 		local life = Balance.life(3) - Balance.life(2)
-		expect(line(2, 3)).toBe(string.format("+%d Life  ·  +2%% Damage", life))
+		expect(line(2, 3)).toBe(string.format("+%d Life - +2%% Damage", life))
 		expect(string.find(line(4, 5), "+1 Star Web point", 1, true)).toBeTruthy()
 		expect(string.find(line(5, 8), "+3 Star Web points", 1, true)).toBeTruthy()
 	end)

@@ -56,7 +56,7 @@ describe("Quest rules", function()
 		for _, q in Quests.Chain do
 			byId[q.id] = q
 		end
-		expect(Quests.extraText(byId.depth_5)).toBe("+6 Rune Candy · +20 Crystal Shards")
+		expect(Quests.extraText(byId.depth_5)).toBe("+6 Rune Candy - +20 Crystal Shards")
 		expect(Quests.extraText(byId.depth_3)).toBe("+1 Spell Stone")
 		expect(Quests.extraText(byId.first_kills)).toBe("")
 	end)
