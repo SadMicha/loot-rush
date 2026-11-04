@@ -542,6 +542,12 @@ function StarNetController.init()
 	end)
 	UserInputService.InputChanged:Connect(function(input: InputObject)
 		local t = input.UserInputType
+		-- The mouse always moves before a wheel tick: native scrolling (touch/gamepad) goes off
+		-- right then, so the wheel never scrolls and zooms at once
+		if t == Enum.UserInputType.MouseMovement and touchPan then
+			touchPan = false
+			updateScrolling()
+		end
 		if dragging and t == Enum.UserInputType.MouseMovement then
 			local d = input.Delta
 			view.CanvasPosition -= Vector2.new(d.X, d.Y) / math.max(windowScale(), 0.01)
