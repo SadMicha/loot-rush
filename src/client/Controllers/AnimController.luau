@@ -315,6 +315,97 @@ function AnimController.attack(
 	play(rig, id, target)
 end
 
+local function angles(cf: CFrame): string
+	local x, y, z = cf:ToEulerAnglesYXZ()
+	return string.format("(%.0f, %.0f, %.0f)", math.deg(x), math.deg(y), math.deg(z))
+end
+
+-- Debug (Dbg panel "Dump Joints"): prints what the animation layer sees on the own character to
+-- the Output, so a broken pose can be diagnosed from one playtest: rig type, every joint it
+-- drives (class, C0 turn, Transform now vs the Animator's base), the weapon and its weld, and
+-- the playing AnimationTracks.
+function AnimController.dump()
+	local character = player.Character
+	local rig = character and rigs[character]
+	local lines = { "[AnimController] joint dump" }
+	if not character or not rig then
+		table.insert(lines, "  no rig for the own character")
+		print(table.concat(lines, "\n"))
+		return
+	end
+	local humanoid = rig.humanoid
+	local p = rig.player
+	local w = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	table.insert(
+		lines,
+		string.format(
+			"  RigType %s, r6=%s, active=%s, weapon=%s, stance=%.2f, grip=%.2f, layers=%d",
+			if humanoid then tostring(humanoid.RigType) else "no Humanoid",
+			tostring(rig.r6),
+			tostring(rig.active),
+			if w then w.id else "none",
+			rig.stance,
+			rig.grip,
+			#rig.layers
+		)
+	)
+	local map: { [string]: { string } } = if rig.r6 then Anim.R6 else Anim.R15
+	for _, name in Anim.JOINTS do
+		local at = map[name]
+		local j = rig.joints[name]
+		if not at then
+			continue
+		end
+		if not j then
+			table.insert(lines, string.format("  %-9s MISSING (%s.%s)", name, at[1], at[2]))
+			continue
+		end
+		local motor = j.motor
+		table.insert(
+			lines,
+			string.format(
+				"  %-9s %s %s  C0 %s  T %s  base %s  ours=%s",
+				name,
+				motor.ClassName,
+				motor:GetFullName(),
+				angles(j.rot),
+				angles(motor.Transform),
+				angles(j.base),
+				tostring(j.written ~= nil)
+			)
+		)
+	end
+	local held = character:FindFirstChild("HeldWeapon")
+	local weld = held and held:FindFirstChild("Grip")
+	local part0 = weld and (weld :: any).Part0
+	table.insert(
+		lines,
+		"  HeldWeapon "
+			.. (if held then tostring(held:GetAttribute("Weapon")) else "none")
+			.. ", Grip on "
+			.. (if part0 then part0:GetFullName() else "nothing")
+	)
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	local okTracks, tracks = pcall(function()
+		return if animator then animator:GetPlayingAnimationTracks() else {}
+	end)
+	if okTracks then
+		for _, track in tracks do
+			table.insert(
+				lines,
+				string.format(
+					"  track %s %s prio=%s weight=%.2f",
+					track.Name,
+					track.Animation and track.Animation.AnimationId or "?",
+					tostring(track.Priority),
+					track.WeightCurrent
+				)
+			)
+		end
+	end
+	print(table.concat(lines, "\n"))
+end
+
 -- Active move names on a character (specs, debugging)
 function AnimController.playing(character: Model): { string }
 	local out = {}

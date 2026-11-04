@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local AnimController = require(script.Parent.AnimController)
 
 local DebugController = {}
 
@@ -42,6 +43,12 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
 	{ label = "All Cosmetics", command = "cosmetics" },
+	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
+}
+local LOCAL_COMMANDS: { [string]: () -> () } = {
+	joints = function()
+		AnimController.dump()
+	end,
 }
 
 -- Overlay only in Studio or for whitelisted developers (Systems/Debug sets "DebugTools")
@@ -121,7 +128,12 @@ function DebugController.init()
 		b.LayoutOrder = i
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(13)
 		b.Activated:Connect(function()
-			Net.Debug:FireServer(entry.command, entry.value)
+			local run = LOCAL_COMMANDS[entry.command]
+			if run then
+				run()
+			else
+				Net.Debug:FireServer(entry.command, entry.value)
+			end
 		end)
 		b.Parent = tools
 	end
