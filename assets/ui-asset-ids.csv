@@ -11,13 +11,6 @@ skill_spark,78541866026299,assets/ui/icons/skills/128px/Mage/Mage_01_ArcaneOrb.p
 skill_chain,75188928851964,assets/ui/icons/skills/128px/Mage/Mage_02_ChainLightning.png
 skill_nova,110139009058803,assets/ui/icons/skills/128px/Mage/Mage_03_IceNova.png
 skill_storm,119358956574948,assets/ui/icons/skills/128px/Mage/Mage_05_Thunderstorm.png
-menu_inventory,84376860245263,assets/ui/icons/backpack.png
-menu_star_net,125186955183258,assets/ui/icons/starsheet.png
-menu_skills,89943484818795,assets/ui/icons/skills.png
-menu_hub,119271064945748,assets/ui/icons/city.png
-menu_atlas,104595046752790,assets/ui/icons/map.png
-menu_forge,80101622482185,assets/ui/icons/glitter-forge.png
-menu_shop,113985532990245,assets/ui/icons/shop.png
 hud_settings,96002533781558,assets/ui/icons/settings.png
 hud_diamond_cyan,101631660350220,assets/ui/icons/hud/Icons_256/Diamond_Cyan.png
 hud_diamond_dark,113509830744033,assets/ui/icons/hud/Icons_256/Diamond_Dark.png
