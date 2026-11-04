@@ -23,7 +23,21 @@ The boss fight now rewards staying close, hitting and dodging. Tuning: `src/shar
 | **Opening** | For 1.1 s after a boss attack lands, the boss takes +25 % damage and hits chip the meter twice as fast. The bar says "OPENING". | Dodge the slam, then step in and punish. |
 | **Momentum** | Every basic swing at an enemy takes 0.15 s off every running skill cooldown (0.4 s at a boss or elite). | The basic attack matters; less waiting on cooldowns. Mob clearing gets a little faster too. |
 | **Counter** | A dodge roll that makes an enemy's own attack miss (it would have hit) is a Counter: −1 s on every running cooldown, **Focus** (+20 % damage, 3 s, buff bar) and −18 on a boss's meter. Blasts and burning ground do not count. | Dodging into the attack is the strongest play. |
-| **Pursuit** | Keeping more than (attack range + 10) studs away from a boss for 2.2 s: slam bosses jump at you from up to 44 studs, every boss starts shelling you (the phase-2 mortar) even in phase 1. | Running away is no longer safe. |
+| **Pursuit** | Standing further than max(boss attack range, your own basic attack range) + 10 studs from a boss **and** not hitting it for 2.2 s: slam bosses jump at you from up to 44 studs, every boss starts shelling you (the phase-2 mortar) even in phase 1. A Ranger shooting from 38 studs or a Spark Mage from 30 is never "keeping away". | Running away is no longer safe; playing a ranged class at range is. |
+
+### Teaching by depth (2026-11-04)
+The first bosses show one idea at a time (`docs/CRITERIA-AUDIT.md` blockers 1 and 4). Depths in
+`src/shared/Bosses.luau` (`*_FROM`, `EASE_HEALTH`, `Bosses.rules(depth)`).
+
+| Depth | On | Boss life |
+|---|---|---|
+| 1-2 | Break meter only, phase 1 only (no adds, no enrage, no mortar) | ×0.55 / ×0.65 (first boss ~21 s in the sim instead of 38 s) |
+| 3 | + Openings, Counter (on every enemy of this depth), phase 2 (faster tempo, no adds) | ×0.8 |
+| 4 | + Pursuit | ×0.9 |
+| 5+ | + adds at the phase changes, phase 3 enrage, phase-2 mortar: the full fight | ×1 |
+
+Before depth 3 a dodge through an attack still avoids the hit but shows "Dodged" (no Counter
+reward), so the Counter arrives as a new idea.
 
 ### Clear payoff
 | Moment | What happens |

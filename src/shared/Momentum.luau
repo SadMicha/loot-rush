@@ -5,7 +5,8 @@
 --     or elite).
 --   Counter: a dodge roll through an enemy attack (the hit would have landed) shortens all
 --     cooldowns and grants Focus (more damage for a moment). Against a boss it also chips its
---     Break meter (Shared/Bosses).
+--     Break meter (Shared/Bosses). Only against enemies of depth Bosses.COUNTER_FROM and deeper:
+--     before that a dodge is a plain dodge, so the first minutes stay simple.
 -- Server rules in Systems/Combat; the client gets the new cooldowns via Net.SkillCooldown.
 
 return table.freeze({
