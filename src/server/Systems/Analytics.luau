@@ -83,6 +83,10 @@ function Analytics.riftEnd(player: Player, failed: boolean, region: string)
 	end
 end
 
+type Pool = { currency: string, amount: number, balance: number, txn: string, sku: string? }
+local pools: { [Player]: { [string]: Pool } } = {}
+local log: (Player, string, number, number, string, string?) -> ()
+
 -- One economy flow: amount > 0 = source, < 0 = sink; balance = after the change
 function Analytics.economy(
 	player: Player,
@@ -95,6 +99,28 @@ function Analytics.economy(
 	if amount == 0 or amount ~= amount then
 		return
 	end
+	-- pooled flows of this currency happened before this one: send them first, so every event's
+	-- ending balance follows the one before it
+	local mine = pools[player]
+	if mine then
+		for key, p in mine do
+			if p.currency == currency then
+				mine[key] = nil
+				log(player, p.currency, p.amount, p.balance, p.txn, p.sku)
+			end
+		end
+	end
+	log(player, currency, amount, balance, txn, sku)
+end
+
+log = function(
+	player: Player,
+	currency: string,
+	amount: number,
+	balance: number,
+	txn: string,
+	sku: string?
+)
 	remember({
 		kind = "economy",
 		userId = player.UserId,
@@ -119,8 +145,6 @@ end
 
 -- Frequent small flows (salvage shards): summed per player and logged every POOL_FLUSH seconds
 -- and when the player leaves, so auto-salvage does not send one event per item
-type Pool = { currency: string, amount: number, balance: number, txn: string, sku: string? }
-local pools: { [Player]: { [string]: Pool } } = {}
 
 function Analytics.pool(
 	player: Player,
@@ -151,7 +175,7 @@ function Analytics.flush(player: Player)
 	pools[player] = nil
 	if mine then
 		for _, p in mine do
-			Analytics.economy(player, p.currency, p.amount, p.balance, p.txn, p.sku)
+			log(player, p.currency, p.amount, p.balance, p.txn, p.sku)
 		end
 	end
 end
