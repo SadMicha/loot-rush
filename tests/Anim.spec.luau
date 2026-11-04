@@ -288,8 +288,8 @@ describe("Holding stances", function()
 		-- bow: vertical at arm's length in front, riser forward, string toward the archer
 		local bow = standing("ranger_bow")
 		expect(tilt(bow)).toBeLessThan(5)
-		expect(bow.Position.X).toBeLessThan(-1.5)
-		expect(bow.Position.Z).toBeLessThan(-0.8)
+		expect(bow.Position.X > -1.3 and bow.Position.X < -0.4).toBe(true) -- in front, not at the side
+		expect(bow.Position.Z).toBeLessThan(-1.4)
 		expect(bow.RightVector.Z).toBeLessThan(-0.7)
 		-- the draw hand at the string in front of the chest, at the bow's height
 		local draw = {}

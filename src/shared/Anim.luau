@@ -517,8 +517,8 @@ Anim.STYLE = table.freeze({
 -- points up, which holds every weapon upright with its grip.
 --   sword    Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at
 --            the right hip and angled forward at the enemy, left fist raised as a guard
---   bow      Nocked: side-on, bow arm extended toward the front, bow vertical at arm's length,
---            draw hand at the string in front of the chest
+--   bow      Nocked: bow arm extended straight ahead, the bow vertical in front of the chest at
+--            arm's length (riser toward the enemy), draw hand at the string
 --   staff    Planted: wide square stance, chest open, the staff's foot on the ground beside the
 --            right foot, the left hand raised in front with the spell ready
 --   scepter  Ritual: deep wide crouch, scepter raised upright before the face, the left hand
@@ -573,13 +573,9 @@ Anim.STANCE = table.freeze({
 	ranger_bow = table.freeze({
 		hand = "left",
 		ref = BOW_READY,
-		hold = table.freeze({
-			lShoulder = v(65, 35, 0),
-			lElbow = v(10, 0, 0),
-			lWrist = v(15, 0, 0),
-		}),
+		hold = table.freeze({ lShoulder = v(75, -20, 0), lWrist = v(15, 0, 0) }),
 		off = table.freeze({ rShoulder = v(45, 75, 0), rElbow = v(60, 0, 0) }),
-		pose = table.freeze({ waist = v(2, -35, 0), neck = v(0, 30, 0) }),
+		pose = table.freeze({ waist = v(2, -15, 0), neck = v(0, 12, 0) }),
 		legs = table.freeze({
 			lHip = v(18, 0, -14),
 			lKnee = v(-20, 0, 0),
