@@ -233,8 +233,7 @@ end
 type CellEntry = { cell: TextButton, key: string }
 local cells: { [string]: CellEntry } = {}
 
-local function renderGrid(list: { Items.Item }, worn: { [string]: boolean })
-	local shown = visible(list, worn)
+local function renderGrid(shown: { Items.Item }, worn: { [string]: boolean })
 	local keep: { [string]: boolean } = {}
 	local m = mats()
 	for i, it in shown do
@@ -614,13 +613,15 @@ local function renderConfirm(it: Items.Item, w: number, h: number)
 	go.Parent = bar
 end
 
-local function renderDetail(it: Items.Item?, worn: { [string]: boolean })
+local function renderDetail(it: Items.Item?, worn: { [string]: boolean }, filtered: boolean)
 	clear(detail)
 	local w, h = detail.Size.X.Offset, detail.Size.Y.Offset
 	if not it then
 		local empty = textLine(
 			detail,
-			"No items for this hero yet. Collect loot in a Rift and come back.",
+			if filtered
+				then "No items match this filter."
+				else "No items for this hero yet. Collect loot in a Rift and come back.",
 			20,
 			C.Muted,
 			w,
@@ -643,11 +644,14 @@ end
 -- ------------------------------------------------------------------ Flow
 function ForgeController.render()
 	local list, worn = forgeList()
-	if not find(list, selectedItem) then
-		suggest(list, worn)
+	-- The selection is always one of the shown cells: a tab or filter that hides it picks the
+	-- best candidate among the shown ones instead
+	local shown = visible(list, worn)
+	if not find(shown, selectedItem) then
+		suggest(shown, worn)
 	end
-	renderGrid(list, worn)
-	renderDetail(find(list, selectedItem), worn)
+	renderGrid(shown, worn)
+	renderDetail(find(shown, selectedItem), worn, #list > 0)
 end
 
 function ForgeController.toggle()
