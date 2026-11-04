@@ -207,7 +207,12 @@ local function renderCards()
 		for k, id in kit.bar do
 			local sk = Skills.ById[id]
 			if sk then
-				table.insert(rows, { skill = sk, tag = KEYS[k] or "" })
+				-- new heroes unlock starting skills 3 and 4 at level 2 and 3 (Skills.StartUnlock)
+				local at = Skills.StartUnlock[k] or 1
+				table.insert(
+					rows,
+					{ skill = sk, tag = if at > 1 then "Lv " .. at else KEYS[k] or "" }
+				)
 			end
 		end
 		for k, r in rows do

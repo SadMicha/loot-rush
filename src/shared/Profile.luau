@@ -511,6 +511,7 @@ function Profile.newCharacter(account: Account, name: string, class: string, now
 		created = now,
 	})
 	char.id = Profile.nextId(account.characters)
+	char.progress.gradual = true -- new heroes learn their starting skills one by one
 	table.insert(account.characters, char)
 	return char
 end

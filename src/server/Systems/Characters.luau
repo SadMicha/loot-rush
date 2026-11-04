@@ -117,6 +117,11 @@ function Characters.setup(player: Player, name: any, classId: any): (boolean, st
 	profile.name = clean
 	profile.class = classId
 	profile.setupDone = true
+	-- A brand-new hero learns its starting skills one by one (Skills.StartUnlock); a hero that
+	-- somehow played before its setup keeps all of them
+	if profile.level <= 1 and profile.xp <= 0 then
+		profile.progress.gradual = true
+	end
 	player:SetAttribute("CharacterName", clean)
 	player:SetAttribute("SetupDone", true)
 	applyClass(player)

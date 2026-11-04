@@ -106,7 +106,8 @@ local function renderList()
 	local level = playerLevel()
 	for i, skill in kit().list do
 		local on = skill.id == selected
-		local locked = level < (skill.unlock or 1)
+		local need = Progression.unlockLevel(skill, ProgressController.data())
+		local locked = level < need
 		local slot = slotOf(skill.id)
 		local row = Instance.new("ImageButton")
 		row.Name = skill.id
@@ -133,7 +134,7 @@ local function renderList()
 		local eff = effectiveOf(skill)
 		local sub = Kit.label(
 			if locked
-				then string.format("Unlocks at level %d", skill.unlock or 1)
+				then string.format("Unlocks at level %d", need)
 				else string.format(
 					"Lv %d - %s dmg - %s s",
 					progressOf(skill).level,
@@ -604,7 +605,8 @@ local function renderDetail()
 		b.Parent = detail
 		return
 	end
-	local okEquip, why = Progression.canEquip(skill.id, playerLevel(), Kit.playerClass())
+	local okEquip, why =
+		Progression.canEquip(skill.id, playerLevel(), Kit.playerClass(), ProgressController.data())
 	if not okEquip then
 		local b = Kit.button(why or "Locked", C.Muted, Vector2.new(w, 60), "lock")
 		Kit.setEnabled(b, false)
@@ -620,11 +622,14 @@ local function renderDetail()
 	Kit.list(row, Enum.FillDirection.Horizontal, gap)
 	for i = 1, Skills.SLOTS do
 		local here = slot == i
+		-- a key whose skill is still locked (new heroes) cannot be swapped onto
+		local held = Progression.barSkill(data, i)
+		local shut = held ~= nil and not Progression.isUnlocked(held, playerLevel(), data)
 		local b = Kit.button(KEYS[i], if here then C.Gold else C.Cyan, Vector2.new(bw, 60))
 		b.Name = "Slot" .. i
 		b.LayoutOrder = i
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
-		Kit.setEnabled(b, not here)
+		Kit.setEnabled(b, not here and not shut)
 		b.Activated:Connect(function()
 			if b.Active then
 				Net.Loadout:FireServer("equip", i, skill.id)

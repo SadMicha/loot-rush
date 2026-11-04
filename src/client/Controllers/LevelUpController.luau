@@ -2,20 +2,25 @@
 -- Level-up moment (audit #11, docs/CRITERIA-AUDIT.md): the world effect (ring + "LEVEL N!") lives
 -- in FxController; this adds a short card for the own player that says what the level gave:
 -- life and damage, the Star Web point, and "New skill: X" when a skill unlocks at this level
--- (Skills `unlock`, 8/12/16/20). Several levels at once (a big boss kill) show as one card.
+-- (Progression.unlockLevel: new heroes' starting skills at Skills.StartUnlock, skills 5-8 at
+-- 8/12/16/20), with the key or "tap" to use it. Several levels at once (a big boss kill) show as
+-- one card.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Quests = require(ReplicatedStorage.Shared.Quests)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
+local ProgressController = require(script.Parent.ProgressController)
 
 local LevelUpController = {}
 
@@ -39,15 +44,22 @@ local known = 0 -- last level seen (the server sends one event for a multi-level
 local shownFrom = 0 -- level before the jump the open card counts from
 local stamp = 0
 
--- Skills that unlock at a level in (from, to] for the own class
+local KEYS = { "Q", "E", "R", "F" }
+
+-- Skills that unlock at a level in (from, to] for the own hero
 local function unlockedBetween(from: number, to: number): { Skills.Skill }
-	local out = {}
-	for _, s in Skills.forClass(Kit.playerClass()).list do
-		if s.unlock and s.unlock > from and s.unlock <= to then
-			table.insert(out, s)
-		end
+	return Progression.unlockedBetween(ProgressController.data(), Kit.playerClass(), from, to)
+end
+
+-- "New skill: X" plus how to use it when it already sits on the bar (pure, used by the spec)
+function LevelUpController.skillLine(skill: Skills.Skill, bar: { string }, touch: boolean): string
+	local slot = table.find(bar, skill.id)
+	if not slot then
+		return "New skill: " .. skill.name .. " · equip it in Skills"
 	end
-	return out
+	return "New skill: "
+		.. skill.name
+		.. (if touch then " · tap its new button" else " · press " .. (KEYS[slot] or "?"))
 end
 
 -- Pure text of the card (also used by the spec): stats line for a jump from → to
@@ -86,7 +98,11 @@ local function show(level: number)
 	skillRow.Visible = #new > 0
 	if #new > 0 then
 		local s = new[#new]
-		skillText.Text = "New skill: " .. s.name
+		skillText.Text = LevelUpController.skillLine(
+			s,
+			ProgressController.data().bar,
+			UserInputService.TouchEnabled
+		)
 		for _, child in skillIcon:GetChildren() do
 			child:Destroy()
 		end
@@ -146,7 +162,13 @@ local function build(root: Frame)
 	skillIcon = Flat.frame(UDim2.fromOffset(36, 36))
 	skillIcon.LayoutOrder = 1
 	skillIcon.Parent = skillRow
+	-- Fixed width, grows down: the line also says how to use the skill and may wrap
+	skillRow.AutomaticSize = Enum.AutomaticSize.Y
+	rl.VerticalAlignment = Enum.VerticalAlignment.Center
 	skillText = Flat.text("", 15, C.Gold, Theme.Font.UI)
+	skillText.AutomaticSize = Enum.AutomaticSize.Y
+	skillText.Size = UDim2.fromOffset(CARD_W - 20 - 36 - 8, 0)
+	skillText.TextWrapped = true
 	skillText.LayoutOrder = 2
 	skillText.Parent = skillRow
 	skillRow.Parent = body

@@ -33,6 +33,14 @@ after every spawn (details in `docs/TECH.md` "Weapons").
 Basic attack is always automatic; skills are cast by hand (no auto-cast). 8 skills per class, 4 on
 the bar (Q/E/R/F); skills 5–8 unlock at level 8/12/16/20.
 
+**Gradual start (new heroes, audit #15):** a new hero starts with starting skills 1 and 2 (Q, E);
+skill 3 unlocks at level 2, skill 4 at level 3 (`Skills.StartUnlock`). Locked slots are hidden on
+the HUD, the server refuses to cast them, the Skills window shows "Unlocks at level N"; the level-up
+card says "New skill: X - press R" and a transient "NEW SKILL" callout points at the new button.
+Rule: `Progression.unlockLevel` / `isUnlocked` / `unlockedBetween`. Save: `progress.gradual` (true
+for heroes made by `Profile.newCharacter` or the level-1 first-join setup; older heroes load as
+`false` and keep all four from level 1).
+
 | Class | Basic | Starting bar | Unlocks |
 |---|---|---|---|
 | Knight Brix (`warrior`) | Sword Slash (arc) | Shield Bash, Whirlwind, Charge (leap), Battle Cry (buff) | Ground Slam, Taunt, Stone Armor, Blade Storm |

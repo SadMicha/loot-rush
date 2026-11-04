@@ -507,9 +507,23 @@ local shownDash = ""
 local dashSize = H.DashSize -- touch screens use the bigger size (set in buildSkills)
 
 -- Loadout or class changed: new icons (skill art and the sprint icon depend on the class)
+local skillShown: { boolean } = {} -- slot button visible (the hero has learned its skill)
 local function refreshSkillButtons()
 	for i, btn in skillButtons do
 		local skill = SkillController.skill(i)
+		-- New heroes learn their starting skills one by one (Skills.StartUnlock): a locked slot
+		-- is hidden and bounces in once it unlocks (HintsController points at it)
+		local open = SkillController.unlocked(i)
+		if open ~= btn.Visible then
+			btn.Visible = open
+		end
+		if open and skillShown[i] == false then
+			local motion = btn:FindFirstChild("Motion")
+			if motion and motion:IsA("UIScale") then
+				Spring.impulse(motion, "Scale", 3, "Bouncy")
+			end
+		end
+		skillShown[i] = open
 		if skill then
 			local art = Kit.skillArt(skill.id) or H.SkillArt[skill.id]
 			local key = skill.id .. "|" .. (art or "")
@@ -1562,6 +1576,7 @@ function HudController.start()
 
 	ProgressController.changed:Connect(refreshSkillButtons)
 	player:GetAttributeChangedSignal("Class"):Connect(refreshSkillButtons)
+	player:GetAttributeChangedSignal("Level"):Connect(refreshSkillButtons)
 	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()

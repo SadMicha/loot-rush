@@ -5,7 +5,9 @@
 -- window open, alive), one at a time. It stays until the player does the thing, taps the card or
 -- Config.HINT_SHOW_TIME runs out, and only then counts as seen: a hint that never reached the screen
 -- (or was only up for a blink) comes back later.
---   hintSkills   in a Rift, the first enemy within Config.HINT_SKILL_RANGE   → skill button 1
+--   hintSkills   in a Rift, the first enemy within Config.HINT_SKILL_RANGE   → first skill button
+--   newSkill     a starting skill just unlocked (new heroes, Skills.StartUnlock) → its new button
+--                (not saved: comes once per unlock, closes when the skill is used)
 --   hintDodge    the first enemy telegraph within Config.HINT_TELEGRAPH_RANGE → dash button
 --   hintRush     Rush meter at Config.HINT_RUSH_AT (or the first Rush)       → Rush meter
 --   hintBreak    the first boss                                              → boss Break bar
@@ -25,12 +27,17 @@ local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Momentum = require(ReplicatedStorage.Shared.Momentum)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local Rush = require(ReplicatedStorage.Shared.Rush)
+local Skills = require(ReplicatedStorage.Shared.Skills)
 local Callout = require(script.Parent.Parent.UI.Callout)
+local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
 local Prefs = require(script.Parent.Parent.Prefs)
+local ProgressController = require(script.Parent.ProgressController)
 local QuestController = require(script.Parent.QuestController)
+local SkillController = require(script.Parent.SkillController)
 
 local HintsController = {}
 
@@ -48,6 +55,9 @@ type Hint = {
 	valid: (() -> boolean)?, -- still makes sense (e.g. a boss lives); pending hints wait for it
 	done: (() -> boolean)?, -- the player did it: close
 	press: { Enum.KeyCode }?, -- PC keys that count as doing it
+	text: (() -> (string, string))?, -- dynamic (touch, keys) texts instead of touch/keys
+	pressNow: (() -> { Enum.KeyCode })?, -- dynamic keys instead of press
+	transient: boolean?, -- not a saved one-time hint: queued by code each time its moment comes
 }
 
 local function inRift(): boolean
@@ -86,6 +96,26 @@ local function dashButton(): GuiObject?
 	return find(hudRoot(), "Dash")
 end
 
+local SLOT_KEYS = { "Q", "E", "R", "F" }
+local SLOT_CODES = { Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F }
+
+-- Bar slots whose skill the hero has learned (new heroes start with one, Skills.StartUnlock)
+local function openSlots(): { number }
+	local out = {}
+	for slot = 1, #SLOT_KEYS do
+		if SkillController.unlocked(slot) then
+			table.insert(out, slot)
+		end
+	end
+	return out
+end
+
+local function skillButton(slot: number?): GuiObject?
+	return if slot then find(hudRoot(), "Skills", "Skill" .. slot) else nil
+end
+
+local newSlot: number? = nil -- slot of the skill the newSkill hint points at
+
 local HINTS: { Hint } = {
 	{
 		key = "hintDodge",
@@ -102,12 +132,56 @@ local HINTS: { Hint } = {
 		title = "SKILLS",
 		touch = "Your hero attacks on its own. Tap your skill buttons for big hits!",
 		keys = "Your hero attacks on its own. Press Q, E, R or F for big hits!",
+		-- A new hero has fewer skills: name only its keys and say that more are coming
+		text = function()
+			local open = openSlots()
+			local keys = {}
+			for _, slot in open do
+				table.insert(keys, SLOT_KEYS[slot])
+			end
+			local list = if #keys > 1
+				then table.concat(keys, ", ", 1, #keys - 1) .. " or " .. keys[#keys]
+				else keys[1] or "Q"
+			local more = if #open < #SLOT_KEYS then " More skills unlock as you level up." else ""
+			return "Your hero attacks on its own. Tap your skill buttons for big hits!" .. more,
+				"Your hero attacks on its own. Press " .. list .. " for big hits!" .. more
+		end,
 		target = function()
-			return find(hudRoot(), "Skills", "Skill1")
+			return skillButton(openSlots()[1])
 		end,
 		round = true,
 		valid = inRift,
-		press = { Enum.KeyCode.Q, Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F },
+		-- only the keys of learned skills count (a locked key does nothing)
+		pressNow = function()
+			local out = {}
+			for _, slot in openSlots() do
+				table.insert(out, SLOT_CODES[slot])
+			end
+			return out
+		end,
+	},
+	{
+		key = "newSkill",
+		title = "NEW SKILL",
+		touch = "",
+		keys = "",
+		text = function()
+			local skill = if newSlot then SkillController.skill(newSlot) else nil
+			local name = if skill then skill.name else "A new skill"
+			return name .. " is ready. Tap its new button!",
+				string.format("%s is ready. Press %s!", name, SLOT_KEYS[newSlot or 1] or "?")
+		end,
+		target = function()
+			return skillButton(newSlot)
+		end,
+		round = true,
+		valid = function()
+			return inRift() and newSlot ~= nil and SkillController.unlocked(newSlot)
+		end,
+		done = function()
+			return newSlot ~= nil and SkillController.remaining(newSlot) > 0
+		end,
+		transient = true,
 	},
 	{
 		key = "hintRush",
@@ -187,6 +261,10 @@ local inputConn: RBXScriptConnection? = nil
 local targetConn: RBXScriptConnection? = nil
 
 local function unseen(key: string): boolean
+	local h = byKey[key]
+	if h and h.transient then
+		return Prefs.loaded()
+	end
 	return Prefs.loaded() and Prefs.get(key) == false
 end
 
@@ -276,7 +354,9 @@ local function finish(c: Current)
 	current = nil
 	if c.did or c.callout.tapped() or c.shown >= Config.HINT_MIN_SEEN then
 		pending[c.hint.key] = nil
-		Prefs.set(c.hint.key, true)
+		if not c.hint.transient then
+			Prefs.set(c.hint.key, true)
+		end
 		if c.hint.key == "hintBreak" then
 			breakBoss = boss()
 		end
@@ -284,7 +364,11 @@ local function finish(c: Current)
 end
 
 local function open(h: Hint, target: GuiObject)
-	local text = if UserInputService.TouchEnabled then h.touch else h.keys
+	local touchText, keysText = h.touch, h.keys
+	if h.text then
+		touchText, keysText = h.text()
+	end
+	local text = if UserInputService.TouchEnabled then touchText else keysText
 	local c: Current = {
 		hint = h,
 		callout = Callout.new(target, h.title, text, h.round),
@@ -300,7 +384,7 @@ local function open(h: Hint, target: GuiObject)
 			c.did = true
 		end
 	end)
-	local keys = h.press
+	local keys = if h.pressNow then h.pressNow() else h.press
 	if keys then
 		inputConn = UserInputService.InputBegan:Connect(
 			function(input: InputObject, processed: boolean)
@@ -366,11 +450,52 @@ local function pick()
 	end
 end
 
+-- Learned skills on the bar at the last poll, by id (nil until the first snapshot and the level
+-- are known, so a rejoin does not count its skills as new; ids, so a bar swap is not "new")
+local knownOpen: { [string]: boolean }? = nil
+local knownClass = ""
+
+-- A starting skill just unlocked (level up): point at its new button
+local function watchUnlocks()
+	if
+		not ProgressController.loaded()
+		or typeof(player:GetAttribute("Level")) ~= "number"
+		or typeof(player:GetAttribute("Class")) ~= "string"
+	then
+		return
+	end
+	if knownClass ~= Kit.playerClass() then
+		knownClass = Kit.playerClass()
+		knownOpen = nil -- class set (setup): start counting from here
+	end
+	local data = ProgressController.data()
+	local level = player:GetAttribute("Level") :: number
+	local now: { [string]: boolean } = {}
+	for _, skill in Skills.forClass(Kit.playerClass()).list do
+		if Progression.isUnlocked(skill, level, data) then
+			now[skill.id] = true
+		end
+	end
+	local before = knownOpen
+	knownOpen = now
+	if not before then
+		return
+	end
+	for id in now do
+		local slot = table.find(data.bar, id)
+		if not before[id] and slot then
+			newSlot = slot -- one at a time; a multi-level jump points at one of them
+			HintsController.queue("newSkill")
+		end
+	end
+end
+
 -- Moments that queue a hint (polled)
 local function triggers()
 	if not Prefs.loaded() then
 		return
 	end
+	watchUnlocks()
 	if inRift() and unseen("hintSkills") and enemyNear(Config.HINT_SKILL_RANGE) then
 		HintsController.queue("hintSkills")
 	end
