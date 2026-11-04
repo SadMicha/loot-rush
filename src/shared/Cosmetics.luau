@@ -17,7 +17,7 @@ export type Cosmetic = {
 	icon: string, -- Assets.Icon or Assets.IconImage
 	colors: { Color3 }, -- start → end of the effect (world VFX, not UI)
 	light: number, -- LightEmission of the effect (0..1)
-	texture: string?, -- trails: Assets.Vfx key of the painted ribbon (empty id = flat color ribbon)
+	texture: string?, -- Assets.Vfx key: trail ribbon or aura sprite sheet (empty id = flat look)
 }
 
 Cosmetics.Slots = table.freeze({ "trail", "aura" } :: { Slot })
@@ -30,6 +30,7 @@ Cosmetics.TRAIL_TEXTURE_LENGTH = 6 -- studs one repeat of a painted trail textur
 Cosmetics.AURA_RATE = 14 -- particles per second
 Cosmetics.AURA_SIZE = 0.35 -- studs
 Cosmetics.AURA_LIFETIME = 1.4
+Cosmetics.AURA_TEXTURE_SIZE = 0.7 -- studs of a painted aura sprite (it has empty margins)
 
 local LIST: { Cosmetic } = {
 	{
@@ -60,6 +61,7 @@ local LIST: { Cosmetic } = {
 		icon = "aura_ember",
 		colors = { Color3.fromHex("#FFD36A"), Color3.fromHex("#FF5A2A") },
 		light = 0.9,
+		texture = "aura_ember",
 	},
 	{
 		id = "frost_trail",
@@ -79,6 +81,7 @@ local LIST: { Cosmetic } = {
 		icon = "aura_frost",
 		colors = { Color3.fromHex("#FFFFFF"), Color3.fromHex("#7FD4FF") },
 		light = 0.8,
+		texture = "aura_frost",
 	},
 	{
 		id = "void_trail",
@@ -98,6 +101,7 @@ local LIST: { Cosmetic } = {
 		icon = "aura_void",
 		colors = { Color3.fromHex("#F0D8FF"), Color3.fromHex("#7A3CFF") },
 		light = 1,
+		texture = "aura_void",
 	},
 }
 

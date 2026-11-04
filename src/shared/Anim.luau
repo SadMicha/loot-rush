@@ -28,7 +28,7 @@ export type Move = {
 
 local Anim = {}
 
--- Joints every move may use. R6 has no waist, elbows or knees: waist folds into the root there.
+-- Joints every move may use. R6 has no waist, elbows, wrists or knees: waist folds into the root there.
 Anim.JOINTS = table.freeze({
 	"root",
 	"waist",
@@ -41,6 +41,8 @@ Anim.JOINTS = table.freeze({
 	"lHip",
 	"rKnee",
 	"lKnee",
+	"rWrist",
+	"lWrist",
 })
 
 -- Motor6D per joint: { part that holds the motor, motor name }
@@ -56,6 +58,8 @@ Anim.R15 = table.freeze({
 	lHip = { "LeftUpperLeg", "LeftHip" },
 	rKnee = { "RightLowerLeg", "RightKnee" },
 	lKnee = { "LeftLowerLeg", "LeftKnee" },
+	rWrist = { "RightHand", "RightWrist" },
+	lWrist = { "LeftHand", "LeftWrist" },
 })
 Anim.R6 = table.freeze({
 	root = { "HumanoidRootPart", "RootJoint" },
@@ -446,69 +450,98 @@ Anim.STYLE = table.freeze({
 	druid_scepter = "staff",
 } :: { [string]: string })
 
--- Holding stance per held weapon (Shared/Weapons ids): a pose added on top of the hold pose
--- (Weapons.HOLD_ANIM / arm hanging) and breathing while the character stands; it fades to
--- STANCE_MOVING while walking and to STANCE_ACTING while a move plays, so attacks keep their shape.
--- The weapon arm sways slowly (STANCE_SWAY degrees) so the weapon never looks frozen.
---   sword    guard: weight back, right shoulder turned away, blade lowered to guard height,
---            off hand forward
---   bow      relaxed: bow arm slightly forward, draw hand resting near the string
---   staff    planted: staff arm lowered and out, the staff stands beside the body
---   scepter  close: scepter held in front of the chest with both hands near it
+-- Holding stance per held weapon (Shared/Weapons ids). Two parts:
+--   hold  the weapon arm (shoulder, elbow, wrist) as an ABSOLUTE pose in the same angles as moves
+--         (parent space, 0 = arm hanging straight). It replaces whatever the Animator put on that
+--         arm (Weapons.HOLD_ANIM, walk swing), so the weapon's angle in the world is known and the
+--         specs can check it (tests/Anim.spec.luau "Holding stances" computes the weapon axis).
+--   pose  the rest of the body (waist, neck, off arm, hips), ADDED on top of idle/walk.
+-- `ref` is the arm pose the attack moves were made for (Roblox's tool-hold arm: raised straight
+-- forward); nil = the Animator's own arm (the bow arm hangs and swings while walking). Standing,
+-- the arm takes `hold`; it eases toward `ref` while running (STANCE_MOVING) and while a move plays
+-- (STANCE_ACTING), so attacks keep their shape. The weapon arm sways slowly (STANCE_SWAY degrees).
+-- Weapon angles in the hand: Weapons.grip (hand +Y up the arm, -Z forward while the arm hangs).
+-- Shoulder X + elbow X + wrist X = how far the hand frame is turned forward/up: 90 = the hand's -Z
+-- points up, which holds sword, staff and scepter upright with their grips.
+--   sword    guard: hand low in front, blade up and leaning toward the enemy, weight back
+--   bow      relaxed: bow arm a little forward and out, wrist keeps the bow upright, draw hand
+--            resting near the string
+--   staff    planted: elbow bent, the staff stands upright beside the body
+--   scepter  close: scepter upright in front of the chest, off hand near it
 Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
 Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
 Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
 Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
 Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
+
+-- Arm joints per hand, shoulder to wrist
+Anim.ARM = table.freeze({
+	right = table.freeze({ "rShoulder", "rElbow", "rWrist" }),
+	left = table.freeze({ "lShoulder", "lElbow", "lWrist" }),
+} :: { [string]: { string } })
+
+local READY: Pose = table.freeze({ rShoulder = v(90, 0, 0) }) -- Roblox's tool-hold arm
+
+export type Stance = {
+	hand: string, -- "right" | "left" (Anim.ARM)
+	ref: Pose?,
+	hold: Pose,
+	pose: Pose,
+	lift: Vector3?,
+}
+
 Anim.STANCE = table.freeze({
 	warrior_sword = table.freeze({
-		arm = "rShoulder",
-		lift = Vector3.new(0, -0.15, 0),
+		hand = "right",
+		ref = READY,
+		hold = table.freeze({ rShoulder = v(45, 15, 0), rElbow = v(30, 0, 0) }),
+		lift = v(0, -0.15, 0),
 		pose = table.freeze({
-			waist = Vector3.new(0, -12, 0),
-			neck = Vector3.new(0, 10, 0),
-			rShoulder = Vector3.new(-15, 0, 0),
-			rElbow = Vector3.new(25, 0, 0),
-			lShoulder = Vector3.new(20, 0, -10),
-			lElbow = Vector3.new(30, 0, 0),
-			rHip = Vector3.new(8, 0, 0),
-			lHip = Vector3.new(-8, 0, 0),
+			waist = v(0, -12, 0),
+			neck = v(0, 10, 0),
+			lShoulder = v(20, 0, -10),
+			lElbow = v(30, 0, 0),
+			rHip = v(8, 0, 0),
+			lHip = v(-8, 0, 0),
 		}),
 	}),
 	ranger_bow = table.freeze({
-		arm = "lShoulder",
+		hand = "left",
+		hold = table.freeze({
+			lShoulder = v(12, 0, -10),
+			lElbow = v(20, 0, 0),
+			lWrist = v(-32, 0, 0),
+		}),
 		pose = table.freeze({
-			waist = Vector3.new(0, 8, 0),
-			neck = Vector3.new(0, -6, 0),
-			lShoulder = Vector3.new(25, 0, -8),
-			lElbow = Vector3.new(15, 0, 0),
-			rShoulder = Vector3.new(15, 0, 0),
-			rElbow = Vector3.new(50, 0, 0),
+			waist = v(0, 8, 0),
+			neck = v(0, -6, 0),
+			rShoulder = v(15, 0, 0),
+			rElbow = v(50, 0, 0),
 		}),
 	}),
 	mage_staff = table.freeze({
-		arm = "rShoulder",
+		hand = "right",
+		ref = READY,
+		hold = table.freeze({ rShoulder = v(10, 0, 5), rElbow = v(90, 0, 0) }),
 		pose = table.freeze({
-			waist = Vector3.new(-3, 0, 0),
-			neck = Vector3.new(3, 0, 0),
-			rShoulder = Vector3.new(-25, 0, 8),
-			rElbow = Vector3.new(20, 0, 0),
-			lShoulder = Vector3.new(0, 0, -6),
-			lElbow = Vector3.new(15, 0, 0),
+			waist = v(-3, 0, 0),
+			neck = v(3, 0, 0),
+			lShoulder = v(0, 0, -6),
+			lElbow = v(15, 0, 0),
 		}),
 	}),
 	druid_scepter = table.freeze({
-		arm = "rShoulder",
+		hand = "right",
+		ref = READY,
+		hold = table.freeze({ rShoulder = v(20, 30, 0), rElbow = v(80, 0, 0) }),
 		pose = table.freeze({
-			waist = Vector3.new(-5, 0, 0),
-			neck = Vector3.new(-4, 0, 0),
-			rShoulder = Vector3.new(-10, 0, 0),
-			rElbow = Vector3.new(45, 0, 0),
-			lShoulder = Vector3.new(20, 0, -6),
-			lElbow = Vector3.new(40, 0, 0),
+			waist = v(-5, 0, 0),
+			neck = v(-4, 0, 0),
+			lShoulder = v(20, 0, -6),
+			lElbow = v(40, 0, 0),
 		}),
 	}),
-} :: { [string]: { arm: string, lift: Vector3?, pose: Pose } })
+} :: { [string]: Stance })
 
 -- Target stance weight 0..1: `run` = 0..1 of full run speed, `acting` = a move plays
 function Anim.stanceWeight(run: number, acting: boolean): number
@@ -516,8 +549,8 @@ function Anim.stanceWeight(run: number, acting: boolean): number
 	return if acting then math.min(w, Anim.STANCE_ACTING) else w
 end
 
--- Adds the stance of `weaponId` at `weight` into `out` (with the arm sway at time `now`);
--- returns the body lift in studs. Unknown weapons add nothing.
+-- Adds the body part of the stance of `weaponId` at `weight` into `out` (plus the weapon arm's
+-- sway at time `now`); returns the body lift in studs. Unknown weapons add nothing.
 function Anim.stance(weaponId: string?, weight: number, now: number, out: Pose): Vector3
 	local s = weaponId and Anim.STANCE[weaponId]
 	if not s or weight <= 0 then
@@ -527,8 +560,33 @@ function Anim.stance(weaponId: string?, weight: number, now: number, out: Pose):
 		out[joint] = (out[joint] or Vector3.zero) + a * weight
 	end
 	local sway = math.sin(now * Anim.STANCE_SWAY_RATE) * Anim.STANCE_SWAY * weight
-	out[s.arm] = (out[s.arm] or Vector3.zero) + Vector3.new(sway, 0, sway * 0.4)
+	local arm = Anim.ARM[s.hand][1]
+	out[arm] = (out[arm] or Vector3.zero) + Vector3.new(sway, 0, sway * 0.4)
 	return (s.lift or Vector3.zero) * weight
+end
+
+-- Absolute weapon-arm pose of `weaponId` at stance `weight` into `out` (every arm joint, zero =
+-- straight); returns how much of it replaces the Animator's arm (0..1). With a `ref` the arm is
+-- always ours (ref..hold); without one the Animator's arm blends toward `hold` by `weight`.
+-- R6 has no elbow or wrist: their angles fold into the shoulder (the weapon keeps its angle).
+function Anim.hold(weaponId: string?, weight: number, r6: boolean, out: Pose): number
+	local s = weaponId and Anim.STANCE[weaponId]
+	if not s then
+		return 0
+	end
+	local w = math.clamp(weight, 0, 1)
+	local ref = s.ref
+	local names = Anim.ARM[s.hand]
+	for _, joint in names do
+		local hold = s.hold[joint] or Vector3.zero
+		out[joint] = if ref then (ref[joint] or Vector3.zero):Lerp(hold, w) else hold
+	end
+	if r6 then
+		out[names[1]] = out[names[1]] + out[names[2]] + out[names[3]]
+		out[names[2]] = nil
+		out[names[3]] = nil
+	end
+	return if ref then 1 else w
 end
 
 -- Skills with their own move (otherwise the skill kind decides)

@@ -111,27 +111,153 @@ describe("Animations", function()
 	end)
 end)
 
+-- Forward kinematics of the weapon arm on a standard R15 block rig (UpperTorso space, origin at
+-- its center, +X right, +Y up, -Z forward): shoulder, elbow and wrist positions from the rig
+-- attachments, then Weapons.grip. Gives where the held weapon points and where it is.
+local DEG = math.pi / 180
+local function rot(a: Vector3?): CFrame
+	local x = a or Vector3.zero
+	return CFrame.fromEulerAnglesYXZ(x.X * DEG, x.Y * DEG, x.Z * DEG)
+end
+
+local function weaponFrame(w: Weapons.Weapon, arm: Anim.Pose): CFrame
+	local side = if w.hand == "left" then -1 else 1
+	local names = Anim.ARM[w.hand]
+	return CFrame.new(side * 1, 0.563, 0)
+		* rot(arm[names[1]])
+		* CFrame.new(side * 0.5, -0.75, 0)
+		* rot(arm[names[2]])
+		* CFrame.new(0, -0.66, 0)
+		* rot(arm[names[3]])
+		* CFrame.new(0, -0.28, 0)
+		* w.grip
+end
+
+-- Points along the weapon (weapon space: grip at the origin, tip +Y); the bow also its string
+local function weaponPoints(w: Weapons.Weapon): { Vector3 }
+	local out = {}
+	for i = 0, 10 do
+		local y = (-w.gripAt + i / 10) * w.length
+		table.insert(out, Vector3.new(0, y, 0))
+		if w.id == "ranger_bow" and math.abs(y) < w.length * 0.45 then
+			table.insert(out, Vector3.new(-0.6, y, 0)) -- string side
+		end
+	end
+	return out
+end
+
+-- Torso, hips, legs and head (arms excluded)
+local BODY = {
+	{ min = Vector3.new(-1, -3.1, -0.5), max = Vector3.new(1, 0.8, 0.5) },
+	{ min = Vector3.new(-0.6, 0.8, -0.6), max = Vector3.new(0.6, 2, 0.6) },
+}
+local function inBody(p: Vector3): boolean
+	for _, b in BODY do
+		if
+			p.X > b.min.X
+			and p.X < b.max.X
+			and p.Y > b.min.Y
+			and p.Y < b.max.Y
+			and p.Z > b.min.Z
+			and p.Z < b.max.Z
+		then
+			return true
+		end
+	end
+	return false
+end
+
+local function tilt(f: CFrame): number
+	return math.deg(math.acos(math.clamp(f.UpVector.Y, -1, 1)))
+end
+
 describe("Holding stances", function()
-	it("every weapon has its own stance on real joints, with a moderate pose", function()
+	it("every weapon has its own stance on real joints, with a moderate body pose", function()
 		local seen = {}
 		for _, w in Weapons.List do
 			local s = Anim.STANCE[w.id]
 			expect(s).toBeTruthy()
-			expect(isJoint(s.arm)).toBe(true)
+			expect(s.hand).toBe(w.hand)
+			local names = Anim.ARM[s.hand]
+			for joint in s.hold do
+				expect(table.find(names, joint)).toBeTruthy()
+			end
+			-- the ready arm (ref) is used by exactly the weapons that raise the arm
+			expect(s.ref ~= nil).toBe(w.ready)
 			for joint, a in s.pose do
 				expect(isJoint(joint)).toBe(true)
+				expect(table.find(names, joint)).toBeNil() -- the weapon arm is `hold`, not added
 				expect(math.max(math.abs(a.X), math.abs(a.Y), math.abs(a.Z))).toBeLessThanOrEqual(
 					60
 				)
 			end
 			local key = {}
-			for joint, a in s.pose do
+			for joint, a in s.hold do
 				table.insert(key, `{joint}{a}`)
 			end
 			table.sort(key)
 			local sig = table.concat(key)
 			expect(seen[sig]).toBeNil() -- no two weapons share a stance
 			seen[sig] = true
+		end
+	end)
+
+	it("holds every weapon upright, never leaning back, clear of the body", function()
+		for _, w in Weapons.List do
+			for _, weight in { 1, Anim.STANCE_MOVING, Anim.STANCE_ACTING } do
+				local arm = {}
+				local mix = Anim.hold(w.id, weight, false, arm)
+				if mix < 1 then
+					continue -- the Animator's arm takes part: only the full stance is ours alone
+				end
+				local f = weaponFrame(w, arm)
+				expect(tilt(f)).toBeLessThan(35)
+				expect(f.UpVector.Z).toBeLessThan(0.1) -- tip not toward the face/back
+				for _, p in weaponPoints(w) do
+					expect(inBody(f * p)).toBe(false)
+				end
+			end
+		end
+	end)
+
+	it("matches the weapon's own pose", function()
+		local function standing(id: string): CFrame
+			local arm = {}
+			Anim.hold(id, 1, false, arm)
+			return weaponFrame(Weapons.ById[id], arm)
+		end
+		local sword = standing("warrior_sword")
+		expect(sword.Position.Z).toBeLessThan(-1) -- in front of the body
+		expect(sword.UpVector.Z).toBeLessThan(-0.3) -- blade leans toward the enemy (guard)
+		local staff = standing("mage_staff")
+		expect(tilt(staff)).toBeLessThan(10) -- upright beside the body
+		expect(staff.Position.X).toBeGreaterThan(1.2)
+		local scepter = standing("druid_scepter")
+		expect(tilt(scepter)).toBeLessThan(10) -- upright in front of the chest
+		expect(scepter.Position.X).toBeLessThan(1)
+		expect(scepter.Position.Z).toBeLessThan(-0.8)
+		local bow = standing("ranger_bow")
+		expect(tilt(bow)).toBeLessThan(15) -- limbs vertical at the side
+		expect(bow.Position.X).toBeLessThan(-1.2)
+		-- the ready arm the attack moves were made for: blade up, 15° forward
+		local arm = {}
+		Anim.hold("warrior_sword", 0, false, arm)
+		local ref = weaponFrame(Weapons.ById.warrior_sword, arm)
+		expect(math.abs(tilt(ref) - 15)).toBeLessThan(1)
+	end)
+
+	it("folds elbow and wrist into the shoulder on R6", function()
+		for _, w in Weapons.List do
+			local r15, r6 = {}, {}
+			Anim.hold(w.id, 1, false, r15)
+			Anim.hold(w.id, 1, true, r6)
+			local names = Anim.ARM[w.hand]
+			expect(r6[names[2]]).toBeNil()
+			expect(r6[names[3]]).toBeNil()
+			expect((r6[names[1]] - (r15[names[1]] + r15[names[2]] + r15[names[3]])).Magnitude).toBeLessThan(
+				1e-6
+			)
+			expect(Anim.R6[names[1]]).never.toBeNil()
 		end
 	end)
 
@@ -142,12 +268,17 @@ describe("Holding stances", function()
 		local pose = {}
 		local lift = Anim.stance("warrior_sword", 1, 0, pose)
 		expect(lift.Y).toBeLessThan(0) -- guard crouch
-		expect(pose.rShoulder).toBeTruthy()
+		expect(pose.waist).toBeTruthy()
 		local none = {}
 		expect(Anim.stance("nope", 1, 0, none)).toBe(Vector3.zero)
 		expect(next(none)).toBeNil()
+		expect(Anim.hold("nope", 1, false, none)).toBe(0)
+		expect(next(none)).toBeNil()
 		local half = {}
 		Anim.stance("mage_staff", 0.5, 0, half)
-		expect(half.rElbow.X).toBe(Anim.STANCE.mage_staff.pose.rElbow.X * 0.5)
+		expect(half.lElbow.X).toBe(Anim.STANCE.mage_staff.pose.lElbow.X * 0.5)
+		-- ready weapons: the arm is always ours; the bow arm blends with the Animator's by weight
+		expect(Anim.hold("mage_staff", 0.3, false, {})).toBe(1)
+		expect(Anim.hold("ranger_bow", 0.3, false, {})).toBe(0.3)
 	end)
 end)

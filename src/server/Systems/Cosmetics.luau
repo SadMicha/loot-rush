@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
+local Kit = require(ReplicatedStorage.Shared.Models.Kit)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Cosmetics)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
@@ -101,6 +102,17 @@ function Cosmetics.apply(player: Player)
 		p.LightInfluence = 0
 		p.Shape = Enum.ParticleEmitterShape.Cylinder
 		p.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+		if aura.texture and Kit.vfx(p, aura.texture) then
+			-- Painted sprites are already in color: white tint, a bit larger, slow spin
+			p.Color = ColorSequence.new(Color3.new(1, 1, 1))
+			p.Size = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(0.2, Rules.AURA_TEXTURE_SIZE),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			p.Rotation = NumberRange.new(0, 360)
+			p.RotSpeed = NumberRange.new(-40, 40)
+		end
 		p.Parent = root
 	end
 end

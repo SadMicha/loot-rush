@@ -49,11 +49,23 @@ target (`face`), so a basic attack while walking still points at the enemy.
 
 ## Holding stances (`Shared/Anim.STANCE`)
 
-Each class weapon has its own stance, added on top of the hold pose while the character stands:
-sword = guard (weight back, blade lowered, off hand forward), bow = relaxed (bow arm forward, draw
-hand near the string), staff = planted beside the body, scepter = held close to the chest. The
-stance fades to `STANCE_MOVING` while running and to `STANCE_ACTING` while a move plays, eased
-with `STANCE_BLEND`; the weapon arm sways by `STANCE_SWAY`. Tune the angles in `Anim.STANCE`.
+Each class weapon has its own stance in two parts:
+
+- `hold`: the weapon arm (shoulder, elbow, wrist) as an absolute pose. It replaces whatever the
+  Animator put on that arm (`Weapons.HOLD_ANIM`, walk swing), so the weapon's angle in the world
+  is known. `tests/Anim.spec.luau` computes the weapon axis on an R15 block rig and checks that
+  every weapon stays upright, never leans back toward the face and never cuts through the body.
+- `pose`: waist, neck, off arm and hips, added on top of idle/walk.
+
+Sword = guard (hand low in front, blade leaning toward the enemy, weight back), bow = relaxed (bow
+arm a little forward and out, the wrist keeps the limbs vertical), staff = planted (elbow bent,
+staff upright beside the body), scepter = upright in front of the chest. The stance fades to
+`STANCE_MOVING` while running and to `STANCE_ACTING` while a move plays, eased with
+`STANCE_BLEND`: the weapon arm then moves toward `ref`, the raised-forward arm the attack moves
+were made for (the bow has no `ref`: its arm blends back to the Animator's hanging/swinging arm).
+The weapon arm sways by `STANCE_SWAY`. On R6 the elbow and wrist angles fold into the shoulder.
+Rule of thumb for `hold`: shoulder X + elbow X + wrist X = 90 turns the hand so the grips in
+`Shared/Weapons` hold the weapon upright (the sword's grip then leans it 15° forward).
 
 ## Triggers
 

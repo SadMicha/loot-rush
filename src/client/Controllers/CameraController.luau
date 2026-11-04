@@ -1,6 +1,8 @@
 --!strict
 -- Isometric ARPG camera: follows the character smoothly, mouse wheel/pinch = zoom,
 -- drag right mouse button = rotate, on touch: swipe with one finger over free space.
+-- Touch zoom is our own two-finger pinch over free space. Roblox's TouchPinch is not used: it
+-- also fires for the move-stick finger plus a finger on a skill button, so walking zoomed in.
 -- Movement (WASD/stick) automatically aligns to the camera.
 -- The camera is Scriptable, so Roblox rotates nothing itself - all input for it lives here.
 
@@ -23,6 +25,7 @@ local focus: Vector3? = nil
 local rotating = false
 local touchTurn: InputObject? = nil -- finger currently rotating the camera
 local freeTouches: { [InputObject]: true } = {} -- fingers on free space (two = pinch zoom)
+local pinchDist = 0 -- finger distance when the current pinch started (0 = no pinch)
 
 local MOUSE_TURN = 0.006 -- radians per pixel
 local TOUCH_TURN = 0.008
@@ -60,6 +63,35 @@ local function inThumbstickZone(pos: Vector3): boolean
 	return pos.X < v.X * 0.4 and pos.Y > v.Y * 0.45
 end
 
+-- The two free fingers of a pinch, or nil when not exactly two are down
+local function pinchPair(): (InputObject?, InputObject?)
+	local a = next(freeTouches)
+	local b = a and next(freeTouches, a)
+	if not a or not b or next(freeTouches, b) ~= nil then
+		return nil, nil
+	end
+	return a, b
+end
+
+local function fingerDistance(): number
+	local a, b = pinchPair()
+	if not a or not b then
+		return 0
+	end
+	return (Vector2.new(a.Position.X, a.Position.Y) - Vector2.new(b.Position.X, b.Position.Y)).Magnitude
+end
+
+-- Re-reads the touch set: one free finger rotates, exactly two pinch, anything else does neither
+local function refreshTouches()
+	local count = 0
+	for _ in freeTouches do
+		count += 1
+	end
+	touchTurn = if count == 1 then next(freeTouches) else nil
+	pinchStart = zoom
+	pinchDist = if count == 2 then fingerDistance() else 0
+end
+
 local function step(dt: number)
 	local camera = workspace.CurrentCamera
 	if not camera then
@@ -94,6 +126,15 @@ function CameraController.init()
 			yaw -= input.Delta.X * MOUSE_TURN * turnSpeed()
 		elseif input == touchTurn then
 			yaw -= input.Delta.X * TOUCH_TURN * turnSpeed()
+		elseif freeTouches[input] and pinchDist > 0 then
+			local dist = fingerDistance()
+			if dist > 0 then
+				zoom = math.clamp(
+					pinchStart * pinchDist / dist,
+					Config.CAMERA_MIN_DISTANCE,
+					Config.CAMERA_MAX_DISTANCE
+				)
+			end
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
@@ -105,7 +146,7 @@ function CameraController.init()
 				return
 			end
 			freeTouches[input] = true
-			touchTurn = if next(freeTouches, (next(freeTouches))) == nil then input else nil
+			refreshTouches()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
@@ -113,34 +154,17 @@ function CameraController.init()
 			rotating = false
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 		elseif input.UserInputType == Enum.UserInputType.Touch then
-			freeTouches[input] = nil
-			if input == touchTurn then
+			if freeTouches[input] then
+				freeTouches[input] = nil
+				-- the finger left over after a pinch does not start rotating mid-gesture
 				touchTurn = nil
+				pinchDist = 0
+				if next(freeTouches) == nil then
+					refreshTouches()
+				end
 			end
 		end
 	end)
-	UserInputService.TouchPinch:Connect(
-		function(
-			_positions: { Vector2 },
-			scale: number,
-			_velocity: number,
-			state: Enum.UserInputState,
-			processed: boolean
-		)
-			if processed then
-				return
-			end
-			if state == Enum.UserInputState.Begin then
-				pinchStart = zoom
-			elseif state == Enum.UserInputState.Change and scale > 0 then
-				zoom = math.clamp(
-					pinchStart / scale,
-					Config.CAMERA_MIN_DISTANCE,
-					Config.CAMERA_MAX_DISTANCE
-				)
-			end
-		end
-	)
 end
 
 function CameraController.start()

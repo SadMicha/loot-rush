@@ -958,6 +958,60 @@
    "registry": "Assets.Vfx"
   },
   {
+   "key": "vfx_aura_ember",
+   "file": "assets/vfx/aura_ember.png",
+   "size": [
+    512,
+    512
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_aura_frost",
+   "file": "assets/vfx/aura_frost.png",
+   "size": [
+    512,
+    512
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_aura_void",
+   "file": "assets/vfx/aura_void.png",
+   "size": [
+    512,
+    512
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_smoke_puff",
+   "file": "assets/vfx/smoke_puff.png",
+   "size": [
+    512,
+    512
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_spark",
+   "file": "assets/vfx/spark.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
+   "key": "vfx_mote_stud",
+   "file": "assets/vfx/mote_stud.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.Vfx"
+  },
+  {
    "key": "egg_star",
    "file": "assets/ui/icons/store/egg_star.png",
    "size": [
