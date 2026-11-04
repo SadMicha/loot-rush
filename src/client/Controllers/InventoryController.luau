@@ -653,7 +653,7 @@ local function renderCompare()
 end
 
 -- ------------------------------------------------------------------ Grid (right)
--- Upgrade marker per bag item (Items.upgradeMarks, same rule as the "▲ UPGRADE" drop label)
+-- Upgrade marker per bag item (Items.upgradeMarks, same rule as the "UPGRADE" drop label)
 local marks: { [string]: Items.UpgradeMark } = {}
 local upgradeTotal = 0
 
@@ -1352,7 +1352,7 @@ local function buildHeader(parent: Frame)
 	countLabel.Parent = count
 	count.Parent = titleRow
 
-	-- "▲ 3 Upgrades": bag items that beat the worn piece of their slot (hidden at 0)
+	-- Arrow icon + "3 Upgrades": bag items that beat the worn piece of their slot (hidden at 0)
 	upgradeChip = Instance.new("Frame")
 	upgradeChip.Name = "Upgrades"
 	upgradeChip.LayoutOrder = 3
@@ -1370,7 +1370,7 @@ local function buildHeader(parent: Frame)
 	up.Parent = upgradeChip
 	local ul = Kit.list(upgradeChip, Enum.FillDirection.Horizontal, 6)
 	ul.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	local arrow = Flat.text("▲", 12, C.Good)
+	local arrow = Kit.icon("upgrade", 20)
 	arrow.LayoutOrder = 1
 	arrow.Parent = upgradeChip
 	upgradeLabel = Flat.text("0 Upgrades", 12, C.Good)

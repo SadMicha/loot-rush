@@ -688,6 +688,8 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	journey = { id = "rbxassetid://109061225455736", size = Vector2.new(256, 256) },
 	season_beta = { id = "rbxassetid://122505326588873", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
+	-- Bag cell "not an upgrade" marker (Flat.cell): red arrow down, recolor of the "upgrade" arrow
+	downgrade = { id = "rbxassetid://131358976671714", size = Vector2.new(256, 256) },
 }
 local iconImage: { [string]: Fixed } = {}
 for name, c in ICON_IMAGE do

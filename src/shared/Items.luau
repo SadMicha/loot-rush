@@ -249,7 +249,7 @@ function Items.upgradeGain(item: Item, worn: Item?): number
 end
 
 -- Does `item` beat what is worn in its slot? Empty slot = always an upgrade. Pure, used by the
--- server (pickup "▲ UPGRADE"), the HUD (Inventory dot) and the bag grid markers.
+-- server (pickup "UPGRADE" tag), the HUD (Inventory dot) and the bag grid arrow icons.
 function Items.isUpgrade(item: Item, worn: Item?): boolean
 	return Items.upgradeGain(item, worn) > 1e-6
 end

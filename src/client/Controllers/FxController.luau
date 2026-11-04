@@ -34,7 +34,15 @@ local function part(size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartTy
 	return p
 end
 
-local function popText(pos: Vector3, text: string, color: Color3, size: number, pop: number?)
+-- `icon` (Kit.icon name) sits left of the text, e.g. the green arrow on "UPGRADE"
+local function popText(
+	pos: Vector3,
+	text: string,
+	color: Color3,
+	size: number,
+	pop: number?,
+	icon: string?
+)
 	local anchor = part(Vector3.one * 0.1, CFrame.new(pos), color)
 	anchor.Transparency = 1
 	local gui = Instance.new("BillboardGui")
@@ -52,11 +60,35 @@ local function popText(pos: Vector3, text: string, color: Color3, size: number, 
 	label.TextStrokeColor3 = C.Bg0
 	label.TextStrokeTransparency = 0.2
 	label.Parent = gui
+	local art: GuiObject? = nil
+	if icon then
+		-- Icon + text side by side, centered as one row
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.fromScale(1, 1)
+		local list = Instance.new("UIListLayout")
+		list.FillDirection = Enum.FillDirection.Horizontal
+		list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		list.VerticalAlignment = Enum.VerticalAlignment.Center
+		list.Padding = UDim.new(0, 4)
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Parent = row
+		local ic = Kit.icon(icon, math.floor(size * 1.15))
+		ic.LayoutOrder = 1
+		ic.Parent = row
+		art = ic
+		label.LayoutOrder = 2
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.Size = UDim2.fromScale(0, 1)
+		label.Parent = row
+		row.Parent = gui
+	end
+	local scaled: GuiObject = if art then label.Parent :: GuiObject else label
 	if pop then
 		-- Short overshoot: starts small, pops to `pop` and settles at 1
 		local scale = Instance.new("UIScale")
 		scale.Scale = 0.5
-		scale.Parent = label
+		scale.Parent = scaled
 		local up =
 			TweenInfo.new(Theme.Damage.PopTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		local settle = TweenInfo.new(
@@ -78,6 +110,13 @@ local function popText(pos: Vector3, text: string, color: Color3, size: number, 
 	):Play()
 	local fade = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.45)
 	TweenService:Create(label, fade, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	if art then
+		for _, img in art:GetDescendants() do
+			if img:IsA("ImageLabel") then
+				TweenService:Create(img, fade, { ImageTransparency = 1 }):Play()
+			end
+		end
+	end
 	Debris:AddItem(anchor, 0.9)
 end
 
@@ -106,7 +145,7 @@ function handlers.dmg(d)
 		popText(pos, d.text, (d.color :: Color3?) or C.Gold, 22)
 		if d.upgrade == true then
 			-- Loot pickup that beats the worn piece (Systems/Loot): big green tag above the name
-			popText(pos + Vector3.new(0, 1.6, 0), "▲ UPGRADE", C.Good, 30, 1.4)
+			popText(pos + Vector3.new(0, 1.6, 0), "UPGRADE", C.Good, 30, 1.4, "upgrade")
 		end
 	elseif d.hurt then
 		popText(pos, "-" .. tostring(d.amount), C.Danger, 28)
