@@ -7,6 +7,7 @@
 -- of the region (Atlas.bonus): deeper = higher item power, more gold, rare items more often.
 -- Gold per kill is carried by the enemy itself (attribute Gold, Systems/Enemies).
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -251,7 +252,25 @@ function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string
 	end
 end
 
--- Picks up a drop for its owner. false = inventory full, the item stays on the ground.
+-- "Bag full" popup for an upgrade that stays on the ground: at most once per BAG_WARN seconds
+local BAG_WARN = 4
+local warned: { [Player]: number } = {}
+
+local function warnFull(player: Player, item: Items.Item, at: Vector3)
+	local now = os.clock()
+	if now - (warned[player] or -math.huge) < BAG_WARN then
+		return
+	end
+	warned[player] = now
+	Net.Fx:FireClient(player, "dmg", {
+		pos = at + Vector3.new(0, 4, 0),
+		text = "Bag full! Make room for " .. item.name,
+		color = Theme.Color.Danger,
+	})
+end
+
+-- Picks up a drop for its owner. false = bag full and the item is an upgrade: it stays on the
+-- ground (anything else is salvaged when the bag is full, Inventory.add).
 -- at = position for the text popup; without at silent and without the Picked signal (Loot.collect).
 local function pickup(d: Drop, at: Vector3?): boolean
 	local item = d.item
@@ -259,11 +278,17 @@ local function pickup(d: Drop, at: Vector3?): boolean
 	local color: Color3
 	local upgrade = false
 	if item then
-		local stored, salvaged = Inventory.add(d.owner, item, true)
+		local stored, salvaged, full = Inventory.add(d.owner, item, true)
 		if not stored then
+			if at then
+				warnFull(d.owner, item, at)
+			end
 			return false
 		end
-		text = if salvaged then "Salvaged " .. item.name else item.name
+		text = if full
+			then "Bag full · Salvaged " .. item.name
+			elseif salvaged then "Salvaged " .. item.name
+			else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 		-- Beats the worn piece of its slot (or the slot is empty): the client adds "▲ UPGRADE"
 		local profile = Data.get(d.owner)
@@ -289,7 +314,8 @@ local function pickup(d: Drop, at: Vector3?): boolean
 end
 
 -- Rift end: collect everything on the ground that still belongs to the player, right away.
--- Returns what actually arrived (inventory full: the item expires with the arena).
+-- Returns what actually arrived. An upgrade that does not fit is salvaged rather than lost
+-- with the arena (gold + materials; it does not count as an item of the run).
 function Loot.collect(player: Player): (number, { Items.Item })
 	local gold, items = 0, {}
 	for i = #drops, 1, -1 do
@@ -301,6 +327,8 @@ function Loot.collect(player: Player): (number, { Items.Item })
 				else
 					gold += d.gold
 				end
+			elseif d.item then
+				Inventory.salvageLoot(player, d.item)
 			end
 			d.model:Destroy()
 			table.remove(drops, i)
@@ -358,6 +386,9 @@ function Loot.init()
 	folder.Name = "Loot"
 	folder.Parent = workspace
 	Combat.EnemyKilled.Event:Connect(onKilled)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		warned[player] = nil
+	end)
 end
 
 function Loot.start()

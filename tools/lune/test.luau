@@ -1,7 +1,8 @@
 --!nocheck
 -- Unit tests without Roblox Studio: runs tests/**/*.spec.luau in the sandbox.
 --
---   lune run tools/lune/test [filter]
+--   lune run tools/lune/test [filter] [--shard=i/n]
+--   --shard=i/n runs only part i of n (CI); files are spread by tests/timings.json (seconds).
 --
 -- Available in a spec file:
 --   describe(name, fn) · it(name, fn) · expect(value).toBe(…) (see lib/Expect.luau)
@@ -15,13 +16,23 @@
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local process = require("@lune/process")
+local serde = require("@lune/serde")
 
 local Checks = require("./lib/Checks")
 local Expect = require("./lib/Expect")
 local Place = require("./lib/Place")
 local Sandbox = require("./lib/Sandbox")
 
-local filter = process.args[1]
+local filter: string? = nil
+local shardIndex, shardCount = 1, 1
+for _, arg in process.args do
+	local i, n = arg:match("^%-%-shard=(%d+)/(%d+)$")
+	if i then
+		shardIndex, shardCount = tonumber(i) :: number, tonumber(n) :: number
+	else
+		filter = arg
+	end
+end
 local placePath = Place.build()
 local dumpPath = Place.apiDump()
 local sourceFiles = Place.sourceFiles()
@@ -42,10 +53,49 @@ local function findSpecs(dir: string, out: { string })
 	return out
 end
 
+-- Longest specs first, each onto the shard with the least time so far (same result on every shard)
+local function shard(files: { string }): { string }
+	if shardCount <= 1 then
+		return files
+	end
+	local okRead, weights = pcall(function()
+		return serde.decode("json", fs.readFile("tests/timings.json"))
+	end)
+	if not okRead then
+		weights = {}
+	end
+	local function weight(f: string): number
+		return weights[f] or 20
+	end
+	local sorted = table.clone(files)
+	table.sort(sorted, function(a, b)
+		if weight(a) ~= weight(b) then
+			return weight(a) > weight(b)
+		end
+		return a < b
+	end)
+	local load = table.create(shardCount, 0)
+	local mine = {}
+	for _, f in sorted do
+		local best = 1
+		for k = 2, shardCount do
+			if load[k] < load[best] then
+				best = k
+			end
+		end
+		load[best] += weight(f)
+		if best == shardIndex then
+			table.insert(mine, f)
+		end
+	end
+	table.sort(mine)
+	return mine
+end
+
 local passed, failed = 0, 0
 local failures = {}
 
-for _, file in findSpecs("tests", {}) do
+for _, file in shard(findSpecs("tests", {})) do
 	local sb = Sandbox.new({
 		placePath = placePath,
 		dumpPath = dumpPath,
