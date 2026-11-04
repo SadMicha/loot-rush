@@ -67,4 +67,18 @@ describe("Character animation rig", function()
 		expect(maxTurn("UpperTorso", "Waist", 2)).toBeGreaterThan(0.2)
 		expect(maxTurn("Head", "Neck", 2)).toBeGreaterThan(0.1)
 	end)
+
+	it("dumps the own rig's joints for the Dbg panel", function()
+		local result = { ok = false, text = "" }
+		sim:runAs("client", function(req)
+			local AnimController = req(
+				"Players." .. sim.player.Name .. ".PlayerScripts.Client.Controllers.AnimController"
+			)
+			local ok, text = pcall(AnimController.dump)
+			result.ok = ok
+			result.text = tostring(text)
+		end)
+		expect(result.ok).toBe(true)
+		expect(string.find(result.text, "Waist", 1, true)).never.toBeNil() -- the joint the spec built
+	end)
 end)

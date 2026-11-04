@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local AnimController = require(script.Parent.AnimController)
 
 local DebugController = {}
 
@@ -22,6 +23,8 @@ local player = Players.LocalPlayer
 local REFRESH = 0.5 -- seconds between text updates
 
 local panel: Frame
+local dumpView: Frame -- on-screen copy of the last "Dump Joints" (phones have no Output)
+local dumpText: TextLabel
 local text: TextLabel
 local tools: Frame
 
@@ -42,6 +45,13 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
 	{ label = "All Cosmetics", command = "cosmetics" },
+	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
+}
+local LOCAL_COMMANDS: { [string]: () -> () } = {
+	joints = function()
+		dumpText.Text = AnimController.dump()
+		dumpView.Visible = true
+	end,
 }
 
 -- Overlay only in Studio or for whitelisted developers (Systems/Debug sets "DebugTools")
@@ -121,7 +131,12 @@ function DebugController.init()
 		b.LayoutOrder = i
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(13)
 		b.Activated:Connect(function()
-			Net.Debug:FireServer(entry.command, entry.value)
+			local run = LOCAL_COMMANDS[entry.command]
+			if run then
+				run()
+			else
+				Net.Debug:FireServer(entry.command, entry.value)
+			end
 		end)
 		b.Parent = tools
 	end
@@ -157,6 +172,42 @@ function DebugController.init()
 		button.Visible = allowed()
 	end)
 	button.Parent = root
+
+	-- Dump view: scrollable text in the middle of the screen, tap "Close" to hide it
+	dumpView = Kit.panel(Vector2.new(620, 400), Theme.Color.Line2)
+	dumpView.Name = "JointDump"
+	dumpView.AnchorPoint = Vector2.new(0.5, 0.5)
+	dumpView.Position = UDim2.fromScale(0.5, 0.5)
+	dumpView.Visible = false
+	dumpView.ZIndex = 20
+	dumpView.Parent = root
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Position = UDim2.fromOffset(PAD, PAD)
+	scroll.Size = UDim2.new(1, -2 * PAD, 1, -2 * PAD - 44)
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.ScrollBarThickness = 6
+	scroll.ZIndex = 21
+	scroll.Parent = dumpView
+	dumpText = Kit.label("", 11, Theme.Color.Text, Theme.Font.Body)
+	dumpText.AutomaticSize = Enum.AutomaticSize.Y
+	dumpText.Size = UDim2.new(1, -8, 0, 0)
+	dumpText.TextWrapped = true
+	dumpText.TextXAlignment = Enum.TextXAlignment.Left
+	dumpText.TextYAlignment = Enum.TextYAlignment.Top
+	dumpText.ZIndex = 22
+	dumpText.Parent = scroll
+	local close = Kit.button("Close", Theme.Color.Bg3, Vector2.new(120, 36))
+	close.Name = "CloseDump"
+	close.AnchorPoint = Vector2.new(1, 1)
+	close.Position = UDim2.new(1, -PAD, 1, -PAD)
+	close.ZIndex = 22
+	close.Activated:Connect(function()
+		dumpView.Visible = false
+	end)
+	close.Parent = dumpView
 
 	gui.Parent = player:WaitForChild("PlayerGui")
 end
