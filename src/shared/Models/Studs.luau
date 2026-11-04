@@ -61,6 +61,25 @@ function Studs.apply(part: BasePart)
 	end
 end
 
+-- Stud look for parts that get resized or are small and worn (gear on the hero's body). Native
+-- surface studs sit on the top face only and are cut off on thin pieces, so with the variant
+-- every shape and every face gets the same 1-stud tiling as the ball/cylinder world parts
+-- (StudsPerTile 1 does not depend on the part size). Without the variant it falls back to
+-- Studs.apply (surface studs).
+function Studs.applyAllFaces(part: BasePart)
+	if Studs.keeps(part) then
+		return
+	end
+	if not variantReady() then
+		Studs.apply(part)
+		return
+	end
+	part.Material = Enum.Material.Plastic
+	part.TopSurface = Enum.SurfaceType.Smooth -- the variant draws the studs, no doubled surface studs
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.MaterialVariant = Studs.VARIANT
+end
+
 -- Gives every part under `root` (and root itself) the stud look. Returns how many parts got it.
 function Studs.applyTree(root: Instance): number
 	local n = 0
@@ -81,6 +100,9 @@ end
 function Studs.styled(part: BasePart): boolean
 	if Studs.keeps(part) then
 		return true
+	end
+	if part.Material == Enum.Material.Plastic and part.MaterialVariant == Studs.VARIANT then
+		return true -- Studs.applyAllFaces
 	end
 	return part.Material == Enum.Material.Plastic
 		and part.TopSurface == Enum.SurfaceType.Studs

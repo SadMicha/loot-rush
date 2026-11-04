@@ -89,6 +89,9 @@ studded parts and `Kit.finish` re-applies it:
 | Ball, Cylinder | MaterialVariant `LootStuds` (Plastic + `assets/world/Stud_Color.png`/`Stud_Normal.png`, StudsPerTile 1); plain Plastic until it exists |
 | Neon, Glass, ForceField, invisible, `NoStuds = true` | unchanged |
 
+- **Worn gear** (`Systems/Gear`) uses `Studs.applyAllFaces`: with `LootStuds` present every piece
+  (any shape, all faces) gets the 1-stud variant tiling instead of top-only surface studs, which
+  are cut off on thin resized pieces; gems stay Glass/Neon. Without the variant: surface studs.
 - `World.build` and `Hub.init` run `Studs.applyTree` as a safety net; `tests/Studs.spec.luau` fails
   if any part lacks the look. New builders go into `Props`/`Buildings`/`Creatures` with `Kit.*`.
   Particles `Kit.emit(part, "smoke"|"sparks"|"motes")`, light `Kit.light`.
