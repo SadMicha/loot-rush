@@ -1,5 +1,5 @@
 --!strict
--- Shared frame of the fullscreen windows (Abilities, Star Net, Forge, Atlas):
+-- Shared frame of the fullscreen windows (Abilities, Star Web, Forge, Atlas):
 -- scene image or dimming, title at the top left (next to the Roblox buttons), close at the top right,
 -- own hotkey. The content lives in `body` (fixed design area Window.BODY), which is centered below the header
 -- and scaled down if needed - so it fits phone, tablet and PC.
@@ -245,10 +245,10 @@ export type NodeOptions = {
 	rarity: string?,
 	dim: boolean?,
 	selected: boolean?,
-	tint: Color3?, -- tints the ring image (branch color in the Star Net)
+	tint: Color3?, -- tints the ring image (branch color in the Star Web)
 }
 
--- Round tree node (skill bloom, Star Net), centered on `pos`
+-- Round tree node (skill bloom, Star Web), centered on `pos`
 function Window.node(iconName: string, size: number, pos: Vector2, opts: NodeOptions): ImageButton
 	local ring = if opts.art and not FRAME_ART[opts.art] then Assets.Art[opts.art] else nil
 	local b: ImageButton

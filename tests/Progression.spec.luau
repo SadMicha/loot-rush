@@ -123,7 +123,7 @@ describe("Skill levels and Bloom", function()
 	end)
 end)
 
-describe("Star Net", function()
+describe("Star Web", function()
 	it("only allocates connected stars with enough points", function()
 		local data = Progression.fresh()
 		expect((Progression.canAllocate(data, "m1", 1))).toBe(false) -- level 1 = 0 points

@@ -6,8 +6,8 @@ Setup: `bash tools/packages.sh`, `rojo serve`, Studio → Connect → Play (Stud
 - [ ] Output shows no red errors during the first 30 seconds
 - [ ] Fresh save: the class picker opens; pick a class, its weapon is held and its 4 skills sit on the arc
 - [ ] Lumenhaven hub loads; minimap shows ground (no holes, round, no square corners)
-- [ ] HUD: hub icon bar visible (Inventory, Star Net, Skills, Pets, Atlas, Forge, Shop), settings gear, dash button
-- [ ] Open and close Inventory, Abilities, Star Web, Forge, Atlas, Shop windows; no overlap, close button works
+- [ ] HUD: hub icon bar visible (Inventory, Star Web, Skills, Pets, Atlas, Forge, Shop), settings gear, dash button
+- [ ] Open and close Inventory, Skills, Star Web, Forge, Atlas, Shop windows; no overlap, close button works
 - [ ] Enter a Rift: orbs, skill arc and dash diamonds slide in, the Rush meter shows above the orbs, minimap follows
 - [ ] Use each skill and the dash once: cooldown veil runs, one dash diamond turns dark then cyan again
 - [ ] Kill a few enemies: they shatter into bricks, studs fly to you, Rush meter fills, loot drops, equip an item

@@ -68,4 +68,51 @@ describe("First drops server", function()
 		end
 		expect(weapon).toBe(true)
 	end)
+
+	-- Criteria audit #3: the pickup says "UPGRADE" when the item beats the worn piece of its slot
+	it("tags a pickup as an upgrade only when it beats the worn piece", function()
+		local tags = {}
+		sim:runAs("client", function(req)
+			req("ReplicatedStorage.Shared.Net").Fx.OnClientEvent:Connect(function(kind, data)
+				if kind == "dmg" and data.pickup and data.pickup ~= "gold" then
+					table.insert(tags, data.upgrade == true)
+				end
+			end)
+		end)
+		-- Wear a piece in every slot: weak (empty) or far too strong, then drop Rare+ items
+		local function drop(strong: boolean)
+			server(function(req, player)
+				local Items = req("ReplicatedStorage.Shared.Items")
+				local profile = req("ServerScriptService.Server.Systems.Data").get(player)
+				profile.inventory = {}
+				for _, slot in Items.Slots do
+					profile.equipped[slot] = {
+						id = "worn_" .. slot,
+						slot = slot,
+						rarity = "magic",
+						name = "Worn",
+						ilvl = if strong then 999 else 1,
+						affixes = if strong
+							then { { stat = "life", value = 1e6 }, { stat = "damage", value = 1e6 } }
+							else {},
+					}
+				end
+				local Loot = req("ServerScriptService.Server.Systems.Loot")
+				Loot.bonus(player, player.Character.HumanoidRootPart.Position, 3, nil, 3)
+				Loot.vacuum(player)
+			end)
+			sim:run(0.3)
+		end
+		drop(false)
+		expect(#tags).toBeGreaterThan(0)
+		for _, t in tags do
+			expect(t).toBe(true)
+		end
+		table.clear(tags)
+		drop(true)
+		expect(#tags).toBeGreaterThan(0)
+		for _, t in tags do
+			expect(t).toBe(false)
+		end
+	end)
 end)

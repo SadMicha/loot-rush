@@ -13,7 +13,7 @@ Notched phone = device emulation at **844x390** landscape (e.g. iPhone 12/13/14)
 - [ ] After dying and respawning the map fills again within about 1 s
 - [ ] No blobs from pets, loot drops or skill/hit effects on the map (only terrain and the intended markers)
 - [ ] No holes or stripes on the minimap at the hub terrace stairs (west/east) and the rift stairs; no missing slivers at the map rim next to the stairs or market square
-- [ ] Opening a full-screen window (Inventory, Abilities, Star Web, Forge, Atlas, Shop) pauses the minimap; closing it resumes without a stale or empty map
+- [ ] Opening a full-screen window (Inventory, Skills, Star Web, Forge, Atlas, Shop) pauses the minimap; closing it resumes without a stale or empty map
 - [ ] Low-end phone: frame time stays steady with the minimap on (MicroProfiler / Ctrl+F6 in Studio; on the phone no visible stutter while walking through the hub and a rift)
 
 ## Text shadows / outlines
@@ -24,7 +24,7 @@ Notched phone = device emulation at **844x390** landscape (e.g. iPhone 12/13/14)
 - [ ] Item slots (inventory, equipment): shadow sits directly under the icon, no offset
 - [ ] Skill rings in the skill bar: shadow aligned
 - [ ] Hub bar buttons: shadow aligned
-- [ ] Window nodes (Star Web, Abilities): shadow aligned
+- [ ] Window nodes (Star Web, Skills): shadow aligned
 - [ ] Dimmed icons (locked/unavailable): shadow dims with the icon and stays aligned
 
 ## Orbs

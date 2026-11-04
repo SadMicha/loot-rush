@@ -1,5 +1,5 @@
 --!strict
--- Progress besides gear: skill levels, Skill Blooms, Star Net and Forge materials.
+-- Progress besides gear: skill levels, Skill Blooms, Star Web and Forge materials.
 -- Pure data and rules (saveable, no instances) for server and client.
 -- The server (Systems/Progress, Systems/Forge) changes the data, the client only displays it.
 -- Save fields: profile.progress (Data) and profile.materials (Materials).
@@ -268,7 +268,7 @@ function Progression.canBloom(sp: SkillProgress, skillId: string, key: string): 
 	return true, nil
 end
 
--- ------------------------------------------------------------------ Star Net
+-- ------------------------------------------------------------------ Star Web
 -- Roots: the heart and the class start point of the player's class (free and always allocated)
 function Progression.isAllocated(data: Data, id: string, classId: string?): boolean
 	return id == "heart"

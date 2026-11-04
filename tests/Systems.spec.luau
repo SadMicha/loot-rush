@@ -1,4 +1,4 @@
--- Server systems behind the windows: Star Net, Skill Bloom and Forge via real remotes.
+-- Server systems behind the windows: Star Web, Skill Bloom and Forge via real remotes.
 local StarNet = require("ReplicatedStorage.Shared.StarNet")
 local function server(fn)
 	local out = {}

@@ -1,5 +1,5 @@
 --!strict
--- Snapshot of skill levels, skill blooms, Star Net and materials (Net.Progress).
+-- Snapshot of skill levels, skill blooms, Star Web and materials (Net.Progress).
 -- The windows only read from here and send requests to the server; validation happens there (Systems/Progress).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

@@ -9,7 +9,7 @@
 --   RiftResult (S→C): RiftRun.Summary - after every boss (kind "clear") and at the end of the run (kind "end")
 --   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
 --   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill Bloom)
---   Star      (C→S): action: "alloc" | "remove" | "reset", starId: string? (Star Net)
+--   Star      (C→S): action: "alloc" | "remove" | "reset", starId: string? (Star Web)
 --   ForgeAct  (C→S): actionId: string, itemId: string, affix: number? (Forge)
 --   ForgeResult (S→C): { ok, text, itemId?, used? } - Forge feedback
 --   Buy       (C→S): offerId: string - in-game purchase in the shop (Systems/Shop)

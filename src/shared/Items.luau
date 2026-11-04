@@ -15,7 +15,7 @@ export type Affix = {
 	tier: number?,
 	sealed: boolean?,
 }
--- charges: Glitter charges for the Forge; missing on old items (= rarity's starting value)
+-- charges: Forge charges for the Forge; missing on old items (= rarity's starting value)
 export type Item = {
 	id: string,
 	slot: string,
@@ -128,7 +128,7 @@ Items.TierMult = table.freeze({ 2.4, 2.05, 1.75, 1.5, 1.3, 1.15, 1 })
 Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
 Items.IP_PER_LEVEL = 10 -- item power = item level × 10
 
--- Glitter charges of new items per rarity (balancing: Loot · Affixes & Salvage)
+-- Forge charges of new items per rarity (balancing: Loot · Affixes & Salvage)
 -- Uniques are finished items: no charges, the Forge cannot change them
 Items.Charges =
 	table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5, unique = 0 } :: { [string]: number })
@@ -212,6 +212,39 @@ end
 -- Item power of an item: level × 10 + rarity bonus
 function Items.itemPower(item: Item): number
 	return item.ilvl * Items.IP_PER_LEVEL + (Balance.IpBonus[item.rarity] or 0)
+end
+
+-- Gear score for the "UPGRADE" signal: every stat counted in average base rolls at item level
+-- `ref` (value / middle of its roll range there), so damage, life, crit and speed weigh the same
+-- and life is not inflated by its level growth. Implicit stats count too.
+function Items.score(item: Item, ref: number?): number
+	local level = ref or item.ilvl
+	local total = 0
+	for _, a in item.affixes do
+		local r = RANGE[a.stat]
+		if r and typeof(a.value) == "number" and a.value == a.value then
+			total += a.value / ((r[1] + r[2]) / 2 * levelScale(a.stat, level))
+		end
+	end
+	return total
+end
+
+-- Does `item` beat what is worn in its slot? Empty slot = always an upgrade. A weapon's item
+-- power scales all damage (Balance.weaponFactor, Systems/Stats): its gain counts as that many
+-- percent of extra damage. Pure, used by the server (pickup) and the HUD (Inventory dot).
+function Items.isUpgrade(item: Item, worn: Item?): boolean
+	if not worn then
+		return true
+	end
+	local ref = math.max(item.ilvl, worn.ilvl)
+	local gain = Items.score(item, ref) - Items.score(worn, ref)
+	if item.slot == "weapon" then
+		local ratio = Balance.weaponFactor(Items.itemPower(item))
+			/ Balance.weaponFactor(Items.itemPower(worn))
+		local r = RANGE.damage
+		gain += (ratio - 1) * 100 / ((r[1] + r[2]) / 2)
+	end
+	return gain > 1e-6
 end
 
 export type RollOpts = {
