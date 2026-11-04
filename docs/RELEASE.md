@@ -1,44 +1,72 @@
-# Release checklist (first public version)
+# Release checklist, PR template and security review
 
-Everything the code can't take care of by itself. Order = suggestion.
+Everything the code can't take care of by itself. Playtest: `docs/TEST-RELEASE.md`.
+Publishing setup: `docs/PUBLISH.md`. Robux ids: `docs/MONETIZATION.md`.
 
 ## 1. Creator Hub (game settings)
 
-- [ ] **Basic Settings → Max Players:** 12 (matches `Config.RIFT_SLOTS` = 12 arenas per server).
-  More players work too, then raise `RIFT_SLOTS` accordingly.
+- [ ] **Basic Settings → Max Players:** 12 (= `Config.RIFT_SLOTS`; raise both together).
 - [ ] **Security → Enable Studio Access to API Services** on (otherwise Studio doesn't save).
-- [ ] Upload **genre, description, icon (512²), thumbnails (1920×1080)**.
-- [ ] **Maturity:** fill in the questionnaire (combat against fantasy enemies, no graphic violence).
-- [ ] **Devices:** computer, phone, tablet on (touch is tested, console is not).
-- [ ] **Monetization:** create products and passes, enter the IDs in `src/shared/Monetization.luau`
-  (`docs/MONETIZATION.md`).
-- [ ] **Private → Public** only after the test run below.
+- [ ] Genre, description, icon (512²), thumbnails (1920×1080).
+- [ ] **Maturity** questionnaire (combat against fantasy enemies, no graphic violence).
+- [ ] **Devices:** computer, phone, tablet on (console off for 1.0).
+- [ ] Monetization: all products and passes exist (2026-11-03); check prices match `Monetization.luau`.
+- [ ] **Private → Public** only after the test run.
 
 ## 2. Code
 
-- [ ] `DEV_USERS` in `src/server/Systems/Debug.luau`: enter your own UserId so the
-  debug menu works in the live game for you (and only you).
-- [ ] Upload: push to `main` → GitHub Action uploads to the test place (`docs/PUBLISH.md`).
-  For the real place, point the secrets `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game
-  or publish once manually from Studio.
+- [ ] `DEV_USERS` in `src/server/Systems/Debug.luau`: your own UserId only, so the debug menu works
+  for you and nobody else in the live game.
+- [ ] Upload: push to `main` uploads to the test place. For the real place point the secrets
+  `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game or publish once from Studio.
+- [ ] Sounds: spot-check in Studio, Output shows `[Sound] N sound ids checked, M failed` with every
+  failed hook named. Swap a sound by changing only its id in `src/shared/Sounds.luau`.
+- [ ] New art in `assets/`: run "Upload UI assets" and register the ids (`assets/ui-asset-ids.csv` →
+  `Assets.luau`); missing ids fall back to parts/flat icons.
 
-- [ ] **Sounds:** all ids are filled in `src/shared/Sounds.luau` (hooks, ambience, music), mostly from
-  the Roblox-licensed libraries (@ProSoundEffects, @APMOfficial). Spot-check in Studio: Play, then look
-  for `[Sound] N sound ids checked, M failed` in the Output; every failed id is named with its hook.
-  Swap a sound by changing only its id there. Volume/mute hook for the settings window: `Client/Audio`.
-- [ ] **Weapons/skill icons:** run the "Upload UI assets" workflow for anything new in `assets/`
-  and register the ids (`assets/ui-asset-ids.csv` → `Assets.luau`); missing ids fall back to parts/flat icons.
+## 3. PR template
 
-## 3. Test run before publishing
+Goal: Micha sees in 2 minutes what's new and what to look at in Studio or on the phone.
 
-See `docs/TEST-RELEASE.md` (Studio + phone, about 30 minutes).
+```markdown
+**What changed?** (1–3 sentences, from the player's view)
 
-## Deliberately not in yet
+**Checked automatically** (`bash tools/check.sh`)
+- [ ] format · lint · types · build · test · ui green, no new warnings in the UI report
 
-Now in 1.0 (owner, 2026-11-03): leaderboard, daily rewards, Beta Season (`docs/ROADMAP-1.0.md`).
+**Please look at** (only what the checks can't see: feel, real images, phone controls, saving)
+| Where | What to do | What should happen |
+|---|---|---|
 
-- Village, rebirth, offline income and idle systems: dropped (pure ARPG, `docs/DECISIONS.md`).
-- After 1.0 (`docs/DECISIONS.md` §6): master classes, world boss, party/co-op, Season 1 and later seasons,
-  cosmetics, trading between players.
-- Movement checks against speed/teleport hacks: the server checks damage, loot and purchases,
-  but not walking (Roblox default). Worst case: a cheater collects their own loot faster.
+**Get there faster** (Dbg button bottom left, Studio only)
+
+**Known gaps / not tested**
+```
+
+The UI check flags text under the Roblox top bar, text behind icons, text over panel edges, empty
+rows, unlabeled capsules and odd close buttons. Fix false alarms in `tools/lune/lib/Checks.luau`,
+not in game code. Phone test in Studio: *Test → Device* (e.g. 844×390 landscape).
+
+## 4. Security review (2026-11-03, against `2939c0a`)
+
+Scope: every client→server remote, Robux handling, saves, client trust in combat, movement and loot,
+rate limits, debug commands.
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | Game pass unlocked on `PromptGamePassPurchaseFinished` alone (fakeable) | **Fixed**: `Monetization.passPurchased` confirms with `UserOwnsGamePassAsync`; unconfirmed unlocks for the session only |
+| 2 | No server movement check (speed, teleport, noclip) | **Fixed**: `Systems/Movement` samples positions, pulls back on a strike; runs with a strike never reach a leaderboard |
+| 3 | `CastSkill` accepts a client origin up to 12 studs off | Accepted (feel over a tiny gain) |
+| 4 | Receipt for an unknown product id stayed silent | **Fixed**: warning, never credited |
+| 5 | Market buys and egg hatches don't check distance to the station | Design choice |
+
+Checked and fine: all client→server remotes have a per-player token bucket and check types, ranges,
+string lengths, NaN and infinity; currency, items, damage, XP, loot, cooldowns, depth and rewards are
+server-side; drops belong to the killer; `ProcessReceipt` is idempotent via `account.receipts` and
+grants only after the save is stored; ProfileStore session lock, kick instead of an empty save,
+`sanitize` before every save; names filtered through `TextService`; Dbg only in Studio or for `DEV_USERS`.
+
+## 5. Not in 1.0
+
+Village, rebirth, offline income, idle systems (dropped, pure ARPG). After 1.0 (`DECISIONS.md` §6):
+master classes, world boss, party/co-op, Season 1 and later seasons, trading.

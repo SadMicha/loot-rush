@@ -1,5 +1,5 @@
 --!strict
--- Heroes screen (docs/CLASSES.md): the account's characters and creating new ones.
+-- Heroes screen (docs/GAMEPLAY.md "Classes"): the account's characters and creating new ones.
 --  • Setup: opens by itself while the active character is not set up (attribute SetupDone =
 --    false, first join): name + class; it reopens until the hero is created.
 --  • From the Skills window ("Heroes"): list of characters with "Play" (switch = rejoin) and

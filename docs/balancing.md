@@ -19,7 +19,7 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 |---|---|
 | Depth 30 on Normal (end of the region path) | ~3-4 hours of real play; sim 1.5-5 h of pure run time without Star Web/Forge (now ~3.4 h) |
 | Max level 100 | not on the first pass (sim: ~level 65-70 at depth 30); World Tiers carry the rest |
-| World Tiers Veteran → Mythic | several more hours each (unchanged factors, `docs/WORLD-TIERS.md`) |
+| World Tiers Veteran → Mythic | several more hours each (unchanged factors, `docs/GAMEPLAY.md "World Tiers"`) |
 | One run (Rift Trail: 3 clearings + boss) | 1-1.5 minutes, fits a phone session |
 | Farming | the next depth is "ready" when a normal enemy dies in ≤ 1 s, the player survives ≥ 5 hits and the boss takes ≤ 40 s; until then the sim farms the depth before. Some farming from region 2 on, more in the Altered World |
 
@@ -120,12 +120,12 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 - **Rift length:** 3 Rift Trail clearings of 6–24 enemies + boss instead of 150 enemies + 3 elites. Per minute,
   XP, gold and items still come close to the spreadsheet (depth 1: ~800 XP, ~100 gold, ~7 items per minute;
   spreadsheet ~900 / ~120 / ~9).
-- **Elites** exist since the loot PR (see `docs/LOOT.md`); the simulation table above does not count them yet.
+- **Elites** exist since the loot PR (see `docs/GAMEPLAY.md "Loot"`); the simulation table above does not count them yet.
 - **Boss damage:** factor per boss 1.2–1.7 (taken from the old values).
 - **Deep curve (2026-11-02, replaces the rebirth soft wall):** from depth 20 (`deep_from`) enemy
   health additionally grows ×1.06 per depth (`deep_growth`, depth 30: ×1.8), so deeper depths stay
   harder than gear progress. Damage stays per spreadsheet. Big difficulty steps come from the
-  **World Tiers** (`Shared/WorldTiers`, docs/WORLD-TIERS.md).
+  **World Tiers** (`Shared/WorldTiers`, docs/GAMEPLAY.md "World Tiers").
 - **Boss items** are 1 level (10 IP) above the depth.
 - **Damage per level:** +2% (before +10%). The spreadsheet scales damage only via the weapon; with
   +10% the player became far too strong from depth 15.

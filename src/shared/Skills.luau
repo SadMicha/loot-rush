@@ -1,5 +1,5 @@
 --!strict
--- Skill definitions of the four classes (docs/CLASSES.md): Knight Brix (warrior), Ranger Fynn
+-- Skill definitions of the four classes (docs/GAMEPLAY.md "Classes"): Knight Brix (warrior), Ranger Fynn
 -- (ranger), Spark Mage Zap (mage), Mushroom Shaman Mora (mushroom). Each class has one automatic
 -- basic attack and 8 skills, 4 of them on the bar.
 -- The client uses them for display and cooldown preview, the server for the real effect.

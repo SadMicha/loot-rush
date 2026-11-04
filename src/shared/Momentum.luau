@@ -1,5 +1,5 @@
 --!strict
--- Momentum (docs/BOSSES.md "Fight loop"): staying in the fight speeds your skills up, so a boss is
+-- Momentum (docs/GAMEPLAY.md "Bosses" "Fight loop"): staying in the fight speeds your skills up, so a boss is
 -- fought with the basic attack, dodges and positioning instead of waiting for cooldowns.
 --   Basic attack: every swing at an enemy shortens all running skill cooldowns (more on a boss
 --     or elite).

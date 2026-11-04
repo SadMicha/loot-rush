@@ -1,4 +1,4 @@
--- Guaranteed first drops (docs/ROADMAP-1.0.md O3, Balance.FirstDrops): a new character's first
+-- Guaranteed first drops (docs/ROADMAP.md O3, Balance.FirstDrops): a new character's first
 -- normal kills always drop an item, the very first one a Magic+ weapon.
 local Balance = require("ReplicatedStorage.Shared.Balance")
 local Items = require("ReplicatedStorage.Shared.Items")

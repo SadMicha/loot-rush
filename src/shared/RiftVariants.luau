@@ -1,5 +1,5 @@
 --!strict
--- Rift variants (docs/RIFT-VARIANTS.md): each depth from FROM_DEPTH on may roll a twist.
+-- Rift variants (docs/GAMEPLAY.md "Rift variants"): each depth from FROM_DEPTH on may roll a twist.
 --   swarm      – many more, weaker enemies
 --   elite_hunt – every wave opens with elites
 --   goblin     – a Treasure Goblin flees through the first wave: catch it for a gold shower

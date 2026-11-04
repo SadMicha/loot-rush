@@ -1,5 +1,5 @@
 --!strict
--- Stud Rush (docs/STUD-RUSH.md): the server counts the Rush meter from the kills it already
+-- Stud Rush (docs/GAMEPLAY.md "Stud Rush"): the server counts the Rush meter from the kills it already
 -- knows (no client stud claims) and owns the Rush state.
 --   RushMeter (number 0..Rush.METER), RushUntil (server time, workspace:GetServerTimeNow()),
 --   Rushing (bool) are player attributes. A full meter starts the Rush on its own (no remote):

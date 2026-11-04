@@ -2,7 +2,7 @@
 -- Combat feel tuning ("juice"): hitstop, camera shake, hit flash, brick debris (Brick Break,
 -- Stud VFX). Client-side except knockback (server, Systems/Enemies); the server tags its Fx
 -- events with who caused them.
--- docs/COMBAT-FEEL.md explains each value.
+-- docs/GAMEPLAY.md "Combat feel" explains each value.
 
 return table.freeze({
 	-- Hitstop: the local character's animations pause briefly on heavy hits (seconds)
@@ -35,7 +35,7 @@ return table.freeze({
 	KNOCKBACK_CRIT = 22, -- studs/s on a crit
 	KNOCKBACK_DECAY = 9, -- per second (exponential)
 	KNOCKBACK_BOSS = 0.15, -- factor for bosses and elites (they barely move)
-	-- Boss fights (docs/BOSSES.md): Break, Counter, the victory finisher, area clears
+	-- Boss fights (docs/GAMEPLAY.md "Bosses"): Break, Counter, the victory finisher, area clears
 	SHAKE_BREAK = 0.45,
 	HITSTOP_BREAK = 0.09,
 	BREAK_BRICKS = 18,

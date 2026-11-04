@@ -1,6 +1,6 @@
 # Loot Rush
 
-Roblox ARPG that plays like an incremental. Built with [Rojo](https://rojo.space).
+Roblox action RPG (pure ARPG: rifts, loot, four classes), mobile first. Built with [Rojo](https://rojo.space).
 
 ## Setup (once)
 

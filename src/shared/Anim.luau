@@ -1,5 +1,5 @@
 --!strict
--- Character animations without uploaded assets (docs/ANIMATIONS.md). Every move is a short list
+-- Character animations without uploaded assets (docs/TECH.md "Animations"). Every move is a short list
 -- of keyframes per joint; AnimController layers them on top of Roblox's own idle/walk/run and the
 -- weapon hold pose by rotating the rig's joints (Motor6D or AnimationConstraint) every frame (client only, nothing is
 -- replicated). Pure data and math here, so the specs can sample every move headless.

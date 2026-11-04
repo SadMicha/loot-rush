@@ -447,6 +447,79 @@ export type CellOptions = {
 	upgrade: "up" | "down" | nil, -- corner icon: beats the worn piece (green arrow up) or not (red down)
 }
 
+-- Upgrade corner icon of a cell (top left): painted green arrow up for upgrades, red arrow down
+-- otherwise (Theme.Flat.UpgradeMark*), nil = none. Until the red "downgrade" image is uploaded,
+-- the green library arrow turned upside down and faded stands in. Changed in place.
+function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "down" | nil)
+	local old = b:FindFirstChild("Upgrade")
+	if old and old:GetAttribute("Kind") == kind then
+		return
+	end
+	if old then
+		old:Destroy()
+	end
+	if not kind then
+		return
+	end
+	local up = kind == "up"
+	local d = math.max(F.UpgradeMarkMin, math.floor(size * F.UpgradeMarkScale))
+	local mark = Instance.new("Frame")
+	mark.Name = "Upgrade"
+	mark.BackgroundTransparency = 1
+	mark.Position = UDim2.fromOffset(F.UpgradeMarkInset, F.UpgradeMarkInset)
+	mark.Size = UDim2.fromOffset(d, d)
+	mark.ZIndex = 3
+	mark:SetAttribute("Kind", kind)
+	local painted = up or Assets.IconImage.downgrade ~= nil
+	local ic = Kit.icon(if up or not painted then "upgrade" else "downgrade", d)
+	ic.Size = UDim2.fromScale(1, 1)
+	ic.ZIndex = 3
+	if not up then
+		if not painted then
+			ic.Rotation = 180
+		end
+		Kit.setIconTransparency(ic, F.UpgradeMarkDownFade)
+	end
+	ic.Parent = mark
+	mark.Parent = b
+end
+
+-- Salvage mark of a cell (red veil with a cross), changed in place
+function Flat.setCellMarked(b: GuiObject, on: boolean)
+	local old = b:FindFirstChild("Mark")
+	if (old ~= nil) == on then
+		return
+	end
+	if old then
+		old:Destroy()
+		return
+	end
+	local veil = Instance.new("Frame")
+	veil.Name = "Mark"
+	veil.BackgroundColor3 = C.Danger
+	veil.BackgroundTransparency = 0.72
+	veil.BorderSizePixel = 0
+	veil.Size = UDim2.fromScale(1, 1)
+	veil.ZIndex = 4
+	Flat.corner(veil, F.Radius.M)
+	local x = Flat.text("×", 26, C.Text, Theme.Font.UI, Enum.TextXAlignment.Center)
+	x.AnchorPoint = Vector2.new(1, 0)
+	x.Position = UDim2.new(1, -5, 0, 0)
+	x.ZIndex = 5
+	x.Parent = veil
+	veil.Parent = b
+end
+
+-- State of an existing cell (Flat.cell) without rebuilding it: selection (edge, rest scale),
+-- salvage mark and upgrade icon. Tint, halo, icon and the running light sweep stay untouched, so
+-- a click never restarts a cell's animations. `size` and `rarity` must match the cell.
+function Flat.setCell(b: GuiButton, size: number, opts: CellOptions)
+	Shape.cellState(b, { rarity = opts.rarity, selected = opts.selected, marked = opts.marked })
+	Flat.setCellUpgrade(b, size, opts.upgrade)
+	Flat.setCellMarked(b, opts.marked == true)
+	Shape.setRest(b, if opts.selected then F.SelectScale else 1)
+end
+
 -- Square item cell: rarity tint (gradient from the corner), rarity edge, halo glow by rarity
 -- (Theme.Flat.Glow), icon, optional count. Hover/press/selection spring via UIScale.
 function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextButton
@@ -483,49 +556,8 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 		n.Parent = b
 	end
 
-	if o.upgrade then
-		-- Top left corner: painted green arrow up for upgrades, red arrow down otherwise
-		-- (Theme.Flat.UpgradeMark*). Until the red "downgrade" image is uploaded, the green
-		-- library arrow turned upside down and faded stands in.
-		local up = o.upgrade == "up"
-		local d = math.max(F.UpgradeMarkMin, math.floor(size * F.UpgradeMarkScale))
-		local mark = Instance.new("Frame")
-		mark.Name = "Upgrade"
-		mark.BackgroundTransparency = 1
-		mark.Position = UDim2.fromOffset(F.UpgradeMarkInset, F.UpgradeMarkInset)
-		mark.Size = UDim2.fromOffset(d, d)
-		mark.ZIndex = 3
-		mark:SetAttribute("Kind", o.upgrade)
-		local painted = up or Assets.IconImage.downgrade ~= nil
-		local ic = Kit.icon(if up or not painted then "upgrade" else "downgrade", d)
-		ic.Size = UDim2.fromScale(1, 1)
-		ic.ZIndex = 3
-		if not up then
-			if not painted then
-				ic.Rotation = 180
-			end
-			Kit.setIconTransparency(ic, F.UpgradeMarkDownFade)
-		end
-		ic.Parent = mark
-		mark.Parent = b
-	end
-
-	if o.marked then
-		local veil = Instance.new("Frame")
-		veil.Name = "Mark"
-		veil.BackgroundColor3 = C.Danger
-		veil.BackgroundTransparency = 0.72
-		veil.BorderSizePixel = 0
-		veil.Size = UDim2.fromScale(1, 1)
-		veil.ZIndex = 4
-		Flat.corner(veil, F.Radius.M)
-		local x = Flat.text("×", 26, C.Text, Theme.Font.UI, Enum.TextXAlignment.Center)
-		x.AnchorPoint = Vector2.new(1, 0)
-		x.Position = UDim2.new(1, -5, 0, 0)
-		x.ZIndex = 5
-		x.Parent = veil
-		veil.Parent = b
-	end
+	Flat.setCellUpgrade(b, size, o.upgrade)
+	Flat.setCellMarked(b, o.marked == true)
 
 	if o.caption then
 		local side = o.captionSide or "below"

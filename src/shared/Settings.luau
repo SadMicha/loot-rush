@@ -1,5 +1,5 @@
 --!strict
--- Player settings (settings window, docs/ROADMAP-1.0.md S1/U1, C4, A3): one table per ACCOUNT,
+-- Player settings (settings window, docs/ROADMAP.md S1/U1, C4, A3): one table per ACCOUNT,
 -- so they apply to every hero. Pure rules (defaults, validation, sanitizing) shared by the
 -- server (Systems/Settings saves them) and the client (Client/Prefs applies them live).
 --

@@ -1,4 +1,4 @@
--- Quest waypoint (docs/ROADMAP-1.0.md O1): beam to the active quest's hub station + minimap marker.
+-- Quest waypoint (docs/ROADMAP.md O1): beam to the active quest's hub station + minimap marker.
 local Quests = require("ReplicatedStorage.Shared.Quests")
 
 describe("Quest waypoint rules", function()

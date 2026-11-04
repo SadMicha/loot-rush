@@ -1,5 +1,5 @@
 --!strict
--- Seasons (docs/specs/SEASONS.md, docs/ROADMAP-1.0.md §6): the season clock, the Season Journey
+-- Seasons (docs/specs/SEASONS.md, docs/ROADMAP.md §6): the season clock, the Season Journey
 -- challenges and the reward track. Pure rules shared by the server (Systems/Seasons) and the
 -- window (SeasonController).
 --   • Challenges count only while the season is live. A challenge is either a counter (fed by
@@ -80,7 +80,7 @@ local function step(points: number, name: string, icon: string, reward: Journey.
 	return table.freeze({ points = points, name = name, icon = icon, reward = table.freeze(reward) })
 end
 
--- The Beta Season (ROADMAP-1.0 §6): ~15 challenges over the whole game. Owner, 2026-11-04: it has
+-- The Beta Season (docs/ROADMAP.md §6): ~15 challenges over the whole game. Owner, 2026-11-04: it has
 -- no end; it runs until the owner drops it for Season 1. To end it later set BETA_ENDS to a unix
 -- time (UTC): the window then counts down and the challenges stop counting at that moment.
 local BETA_STARTS = 1793750400 -- 2026-11-04 00:00 UTC

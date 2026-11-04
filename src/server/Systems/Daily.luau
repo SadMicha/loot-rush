@@ -1,5 +1,5 @@
 --!strict
--- Daily rewards (Shared/Daily, docs/ROADMAP-1.0.md §4.2): one claim per UTC day per account, a
+-- Daily rewards (Shared/Daily, docs/ROADMAP.md §4.2): one claim per UTC day per account, a
 -- 7-day calendar that never resets. The reward lands on the active hero (gold, materials, spell
 -- stones) and the account (Soulstars). The day comes from the server clock only: the client
 -- just says "claim". After loading and after every claim the state goes out (Net.DailyState).

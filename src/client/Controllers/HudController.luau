@@ -815,6 +815,7 @@ local gearW = 0
 local GEAR_CELLS = 5 -- trophy, Journey, season, chest, gear
 local GEAR_MIN_SCALE = 0.7 -- smallest share the row may shrink to next to the status block
 local gearScale: UIScale
+local gearTopMarked = false -- the row stands at the top (phones): toasts drop in below it
 local questTitle: TextLabel
 local questCount: TextLabel
 local questReward: TextLabel
@@ -1312,7 +1313,6 @@ local function layoutHud()
 	-- Quest card under the minimap; when it would run into the gear row, the gear row moves to
 	-- the left of the quest card instead (phones / large HUD size)
 	local questH = questGroup.AbsoluteSize.Y / s
-	local questW = questGroup.AbsoluteSize.X / s
 	setHome(
 		questGroup,
 		Vector2.new(1, 0),
@@ -1329,15 +1329,27 @@ local function layoutHud()
 		gearScale.Scale = math.clamp(gearRoom / gearW, GEAR_MIN_SCALE, 1)
 	end
 	if rightTop + questH + GAP > gearTop then
-		local x = -(M + questW + GAP)
-		fitGear(width - M - questW - GAP)
+		-- Short screens (phones): no room above the dash. The row moves up under the capsule row,
+		-- right-aligned against the minimap, where it stays clear of the quest card, the world
+		-- prompts (bottom center) and the player in the middle. Toasts drop in below it.
+		local top = if stacked then 18 else 18 + 40 * rs + GAP
+		local rightEdge = mapLeft - GAP
+		gearScale.Scale = math.clamp((rightEdge - resLeftMin) / gearW, GEAR_MIN_SCALE, 1)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 0),
-			UDim2.new(1, x, 0, rightTop),
-			UDim2.new(1, gearW + 10, 0, rightTop) -- fully off the right edge
+			UDim2.fromOffset(rightEdge, top),
+			UDim2.new(1, gearW + 10, 0, top) -- fully off the right edge
 		)
+		if not gearTopMarked then
+			gearTopMarked = true
+			Kit.markTopCenter(gearGroup)
+		end
 	else
+		if gearTopMarked then
+			gearTopMarked = false
+			Kit.unmarkTopCenter(gearGroup)
+		end
 		fitGear(width + gearX)
 		setHome(
 			gearGroup,
@@ -1362,17 +1374,37 @@ local function layoutHud()
 	-- Windows keep clear of the menu dock (screen pixels): bottom row, or left column on phones
 	if camera then
 		local vertical = camera.ViewportSize.Y < PHONE_HEIGHT
-		local cellW = H.BarIcon + 12
-		local colW = cellW + 2 * H.DockPad
-		local btnH = H.BarIcon + H.BarCaption
-		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
 		-- Phone column: from below the Roblox buttons down to the bottom margin; shrinks further on
 		-- short screens / large HUD sizes instead of running under the Roblox buttons
 		local barBottom = if inset.Height > 0
 			then (inset.Max.Y - hudGui.AbsolutePosition.Y) / s + GAP
 			else M
 		local colRoom = height - math.max(barBottom, M) - M
-		local dockScale = if vertical then math.min(PHONE_DOCK, colRoom / colH) else 1
+		-- The buttons grow to the touch minimum (Kit.touchTarget) at the column's small scale: the
+		-- column is sized for the grown buttons, else the list overflows and the group clips the
+		-- first and last icon. Solved a few rounds, since the scale depends on the height.
+		local dockScale = 1
+		local cellW = H.BarIcon + 12
+		local btnH = H.BarIcon + H.BarCaption
+		local colW = cellW + 2 * H.DockPad
+		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+		if vertical then
+			local touch = UserInputService.TouchEnabled
+			dockScale = PHONE_DOCK
+			for _ = 1, 4 do
+				local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
+				btnH = math.max(H.BarIcon + H.BarCaption, min)
+				colW = math.max(cellW, min) + 2 * H.DockPad
+				colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+				dockScale = math.min(PHONE_DOCK, colRoom / colH)
+			end
+			-- the last round may have shrunk the scale once more: size for that scale's buttons
+			local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
+			btnH = math.max(H.BarIcon + H.BarCaption, min)
+			colW = math.max(cellW, min) + 2 * H.DockPad
+			colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+			menuBar.Size = UDim2.fromOffset(colW, colH)
+		end
 		menuScale.Scale = dockScale
 		if menuVertical ~= vertical then
 			menuVertical = vertical
@@ -1462,6 +1494,14 @@ function HudController.init()
 	buildStatus()
 	buildCalmPanels()
 	buildMenuDock()
+
+	-- World labels keep clear of these (NameplateController); prompts stand above the hub bar
+	local blocks: { GuiObject } =
+		{ mapBox, questGroup, gearGroup, resGroup, hubBar, dashButton, xpChip }
+	for _, block in blocks do
+		Kit.markHudBlock(block)
+	end
+	Kit.markBottomCenter(hubBar)
 
 	hudGui.Parent = player:WaitForChild("PlayerGui")
 

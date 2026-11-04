@@ -1,5 +1,5 @@
 --!strict
--- Reward chips (docs/ROADMAP-1.0.md U5 "one shared reward card component"): a row of icon +
+-- Reward chips (docs/ROADMAP.md U5 "one shared reward card component"): a row of icon +
 -- amount for a Shared/Journey reward table, used by the Journey and Season windows.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

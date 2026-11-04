@@ -1,5 +1,5 @@
 --!strict
--- Held weapon on the avatar (rules and ids: Shared/Weapons, Assets.Weapon; docs/WEAPONS.md).
+-- Held weapon on the avatar (rules and ids: Shared/Weapons, Assets.Weapon; docs/TECH.md "Weapons").
 -- Sets the player attribute "Class" from the save and welds the class weapon into its hand
 -- (Shared/Weapons: hand, grip, arm pose) after every spawn. With uploaded ids the FBX mesh is loaded once per weapon
 -- (InsertService) and cloned; without ids, or if loading fails, a part-built weapon is used.

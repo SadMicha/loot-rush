@@ -1,5 +1,5 @@
 --!strict
--- Combat feel ("juice", docs/COMBAT-FEEL.md): camera shake, hitstop, white hit flash on enemies
+-- Combat feel ("juice", docs/GAMEPLAY.md "Combat feel"): camera shake, hitstop, white hit flash on enemies
 -- and the Stud VFX that turn hits, kills and skills into flying bricks (BrickController).
 -- Listens to the same Net.Fx events as FxController; the server tags them with `by` (attacker
 -- UserId), `who` (hurt player), `target` (enemy model) and `big` (boss or elite).

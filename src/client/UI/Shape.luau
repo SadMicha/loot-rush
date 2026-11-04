@@ -188,11 +188,13 @@ end
 
 -- ------------------------------------------------------------------ Glow clock
 -- Halo strokes breathe, edge gradients spin and light bands sweep; one Heartbeat for all of them,
--- only while their ScreenGui is enabled. Entries vanish with their instances (weak keys).
+-- only while their ScreenGui is enabled. Entries are dropped by the clock once their instance has
+-- no parent any more. Strong keys on purpose: Roblox may collect the Lua handle of a living
+-- Instance from a weak table, and a light band then froze mid-sweep or stopped for good.
 type Pulse = { base: number, phase: number }
-local pulses: { [UIStroke]: Pulse } = setmetatable({}, { __mode = "k" }) :: any
-local spins: { [UIGradient]: number } = setmetatable({}, { __mode = "k" }) :: any
-local shines: { [Frame]: number } = setmetatable({}, { __mode = "k" }) :: any
+local pulses: { [UIStroke]: Pulse } = {}
+local spins: { [UIGradient]: number } = {}
+local shines: { [Frame]: number } = {}
 local clock: RBXScriptConnection? = nil
 
 local function visible(inst: Instance): boolean
@@ -290,6 +292,7 @@ function Shape.spin(stroke: UIStroke, color: Color3)
 		ColorSequenceKeypoint.new(0.55, color),
 		ColorSequenceKeypoint.new(1, color),
 	})
+	g.Name = "Spin"
 	g.Parent = stroke
 	spins[g] = math.random() * 360
 	runClock()
@@ -459,38 +462,65 @@ end
 function Shape.motion(b: GuiButton, rest: number?): UIScale
 	local scale = Instance.new("UIScale")
 	scale.Name = "Motion"
-	local base = rest or 1
-	scale.Scale = base
+	scale.Scale = rest or 1
+	scale:SetAttribute("Rest", rest or 1)
 	scale.Parent = b
 	local hovering = false
+	-- resting scale, changed by Shape.setRest (kept in a local: handlers may still fire while
+	-- the button is being destroyed)
+	local restNow = rest or 1
+	scale:GetAttributeChangedSignal("Rest"):Connect(function()
+		local r = scale:GetAttribute("Rest")
+		restNow = if typeof(r) == "number" then r else 1
+	end)
+	local function base(): number
+		return restNow
+	end
 	b.MouseEnter:Connect(function()
 		hovering = true
-		Spring.target(scale, { Scale = base * F.HoverScale }, "Snappy")
+		Spring.target(scale, { Scale = base() * F.HoverScale }, "Snappy")
 	end)
 	b.MouseLeave:Connect(function()
 		hovering = false
-		Spring.target(scale, { Scale = base }, "Snappy")
+		Spring.target(scale, { Scale = base() }, "Snappy")
 	end)
 	b.MouseButton1Down:Connect(function(x: number, y: number)
-		Spring.target(scale, { Scale = base * F.PressScale }, "Snappy")
+		Spring.target(scale, { Scale = base() * F.PressScale }, "Snappy")
 		if b:GetAttribute("Enabled") ~= false then
 			Shape.ripple(b, Vector2.new(x, y))
 			Shape.sound("ui_click")
 		end
 	end)
 	b.MouseButton1Up:Connect(function()
-		Spring.target(scale, { Scale = if hovering then base * F.HoverScale else base }, "Bouncy")
+		Spring.target(
+			scale,
+			{ Scale = if hovering then base() * F.HoverScale else base() },
+			"Bouncy"
+		)
 	end)
 	return scale
+end
+
+-- New resting scale of a button made by Shape.motion (selection grows a cell); springs there
+function Shape.setRest(b: GuiObject, rest: number)
+	local scale = b:FindFirstChild("Motion")
+	if not scale or not scale:IsA("UIScale") then
+		return
+	end
+	local was = scale:GetAttribute("Rest")
+	if was == rest then
+		return
+	end
+	scale:SetAttribute("Rest", rest)
+	local k = if typeof(was) == "number" and was > 0 then scale.Scale / was else 1
+	Spring.target(scale, { Scale = rest * k }, "Snappy")
 end
 
 -- ------------------------------------------------------------------ Number ticker
 -- Counts a label toward `value` (Theme.Flat.Tick.Time) and gives it a small pop when it grows.
 -- `format` turns the number into text (default: whole number with thousands separators).
-local tickers: { [TextLabel]: { from: number, to: number, start: number } } = setmetatable(
-	{},
-	{ __mode = "k" }
-) :: any
+-- strong keys: a running count must not lose its entry (it removes itself when done)
+local tickers: { [TextLabel]: { from: number, to: number, start: number } } = {}
 local tickConn: RBXScriptConnection? = nil
 local formats: { [TextLabel]: (number) -> string } = setmetatable({}, { __mode = "k" }) :: any
 
@@ -610,18 +640,34 @@ function Shape.cell(b: GuiObject, size: number, look: CellLook): UIStroke
 		Shape.topLine(b, 0.93)
 	end
 
-	local edgeColor = if look.marked then C.Danger elseif look.selected then C.GoldHi else color
-	local edge = Shape.stroke(
-		b,
-		edgeColor,
-		if look.selected or look.marked then F.SelectStroke else F.Stroke,
-		if rarity or look.selected then 0 else 0.35
-	)
+	local edge = Shape.stroke(b, color)
 	edge.Name = "Edge"
-	if glow and glow.spin and not look.selected and not look.marked then
-		Shape.spin(edge, color)
-	end
+	Shape.cellState(b, look)
 	return edge
+end
+
+-- Selection / salvage mark of a cell made by Shape.cell, changed in place: edge color, width and
+-- the rotating highlight. The cell keeps its tint, halo and light sweep (no rebuild, no restart).
+function Shape.cellState(b: GuiObject, look: CellLook)
+	local edge = b:FindFirstChild("Edge")
+	if not edge or not edge:IsA("UIStroke") then
+		return
+	end
+	local rarity = look.rarity
+	local color = look.tint
+		or (if rarity then Theme.Rarity[rarity] or Theme.Rarity.normal else F.Edge)
+	local glow = if rarity then F.Glow[rarity] or F.Glow.normal else nil
+	edge.Color = if look.marked then C.Danger elseif look.selected then C.GoldHi else color
+	edge.Thickness = if look.selected or look.marked then F.SelectStroke else F.Stroke
+	edge.Transparency = if rarity or look.selected then 0 else 0.35
+	local wantSpin = glow ~= nil and glow.spin and not look.selected and not look.marked
+	local g = edge:FindFirstChild("Spin")
+	if wantSpin and not g then
+		Shape.spin(edge, color)
+	elseif not wantSpin and g then
+		spins[g :: UIGradient] = nil
+		g:Destroy()
+	end
 end
 
 -- Close button (×): dark square tile with a hairline, turns red on hover; same in every window

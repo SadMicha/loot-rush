@@ -2,7 +2,7 @@
 -- Save schema: defaults, migration of old saves, sanitizing. Pure logic without DataStore
 -- (testable); loading, saving and sessions are Systems/Data on ProfileStore.
 --
--- Since v4 the save is an ACCOUNT holding CHARACTERS (docs/specs/SEASONS.md §6, docs/CLASSES.md):
+-- Since v4 the save is an ACCOUNT holding CHARACTERS (docs/specs/SEASONS.md §6, docs/GAMEPLAY.md "Classes"):
 --   Account   = account-wide values (Soulstars, Robux receipts, game passes, pets, cosmetics) +
 --               characters
 --   Character = everything a hero owns (gold, level, gear, skills, atlas, class …); the class is
