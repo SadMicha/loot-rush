@@ -151,6 +151,11 @@ local LEAP_HEIGHT = 5 -- studs of arc at the middle of the jump
 local POOL_TICK = 0.5 -- seconds between burns
 local POOL_DAMAGE = 0.2 -- share of the hit damage per burn
 local POOL_COLOR = Color3.fromHex("#FF9A2A")
+-- Burning ground must not blend into lava and ember cracks (Fire Desert, audit V2): a solid
+-- danger-red rim around the orange fill, and the fill pulses (lava and decor never do)
+local POOL_RIM = 0.7 -- studs of red rim outside the burning area
+local POOL_PULSE = 0.45 -- seconds per pulse of the fill
+local POOL_PULSE_LOW = 0.25 -- most opaque fill transparency of the pulse
 local BASE_BODY_Y = Creatures.BODY_Y
 -- Walking area: arena grid without the raised north edge and side cliffs (see Systems/World)
 local MAX_X = math.floor(Config.ARENA_TILES_X / 2) * Config.TILE_SIZE - 10
@@ -989,6 +994,16 @@ local function pool(e: Enemy, at: Vector3, radius: number, now: number)
 		flat(CFrame.new(at.X, 0.15, at.Z) * ROT, Vector3.new(0.15, d, d), POOL_COLOR, 0.55, folder)
 	part.Shape = Enum.PartType.Cylinder
 	part.Name = "Pool"
+	local rimD = d + POOL_RIM * 2
+	local rim =
+		flat(CFrame.new(at.X, 0.09, at.Z) * ROT, Vector3.new(0.06, rimD, rimD), DANGER, 0.15, part)
+	rim.Shape = Enum.PartType.Cylinder
+	rim.Name = "Rim"
+	TweenService:Create(
+		part,
+		TweenInfo.new(POOL_PULSE, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Transparency = POOL_PULSE_LOW }
+	):Play()
 	table.insert(pools, {
 		part = part,
 		at = Vector3.new(at.X, 0, at.Z),
