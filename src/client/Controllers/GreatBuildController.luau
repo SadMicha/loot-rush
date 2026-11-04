@@ -1,13 +1,14 @@
 --!strict
 -- Great Build window (hub station "GreatBuild" at the donation chute, Systems/GreatBuild,
 -- Shared/GreatBuild): the global monument every server raises together.
---   top:          stage, the bar of the current stage, the ten stage cells, the global buff
+--   top:          stage, the bar of the current stage, the ten stage cells, the season bonus
 --   bottom left:  donate buttons (+10, +100, Max), today's cap, personal milestones
 --   bottom right: top builders
 -- Also a small board above the monument in the hub and a toast on every finished stage.
 -- The server checks every donation (Net.GreatBuildState answers); the client only asks.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.GreatBuild)
@@ -44,7 +45,6 @@ type Mine = { total: number, today: number, left: number, paid: { [string]: bool
 type State = {
 	total: number,
 	stages: number,
-	buffLeft: number,
 	mine: Mine,
 	shards: number,
 	top: { Donor },
@@ -53,7 +53,6 @@ type State = {
 
 local win: Window.Window
 local state: State? = nil
-local stateAt = 0
 local sending = false
 
 local stageText: TextLabel
@@ -73,6 +72,8 @@ local listNote: TextLabel
 
 local boardStage: TextLabel? = nil
 local boardSet: ((number, boolean?) -> ())? = nil
+local boardGui: BillboardGui? = nil
+local boardScale: UIScale? = nil
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -80,16 +81,6 @@ local function clear(parent: Instance)
 			child:Destroy()
 		end
 	end
-end
-
-local function duration(seconds: number): string
-	seconds = math.max(0, math.floor(seconds))
-	local h = seconds // 3600
-	local m = (seconds % 3600) // 60
-	if h > 0 then
-		return `{h}h {m}m`
-	end
-	return `{m}m {seconds % 60}s`
 end
 
 local function globalTotal(): number
@@ -140,14 +131,17 @@ local function renderTop()
 			end
 		end
 	end
-	local s = state
-	local left = if s then s.buffLeft - (os.clock() - stateAt) else 0
-	if left > 0 then
-		buffText.Text = `Global buff active: {Rules.BUFF_TEXT} - {duration(left)} left`
+	-- Season bonus of the confirmed stages (GreatBuildStages, what the server applies); `done` may
+	-- already count donations that are not in the global record yet
+	local confirmed = ReplicatedStorage:GetAttribute("GreatBuildStages")
+	local active =
+		Rules.bonusText(Rules.bonus(if typeof(confirmed) == "number" then confirmed else 0))
+	if active ~= "" then
+		buffText.Text = `Season bonus for everyone: {active}`
 		buffText.TextColor3 = C.Good
 	else
 		buffText.Text =
-			`Every finished stage gives everyone {Rules.BUFF_TEXT} for {Rules.BUFF_SECONDS // 3600} hours`
+			`Every finished stage gives everyone {Rules.STAGE_TEXT} for the whole season`
 		buffText.TextColor3 = C.Muted
 	end
 end
@@ -247,7 +241,23 @@ local function render()
 end
 
 -- ------------------------------------------------------------------ Board in the hub
+-- Board size: HUD size setting × device factor (phones see the hub from far away; at full size the
+-- board covered the top of the screen)
+local function sizeBoard()
+	local gui, sc = boardGui, boardScale
+	if not gui or not sc then
+		return
+	end
+	local N = Theme.Nameplate
+	local k = Kit.hudScale() * (if UserInputService.TouchEnabled then N.BoardTouch else N.Board)
+	if math.abs(sc.Scale - k) > 0.001 then
+		sc.Scale = k
+		gui.Size = UDim2.fromOffset(math.ceil(BOARD_SIZE.X * k), math.ceil(BOARD_SIZE.Y * k))
+	end
+end
+
 local function renderBoard()
+	sizeBoard()
 	local st, set = boardStage, boardSet
 	if not st or not set or st.Parent == nil then
 		return
@@ -271,8 +281,18 @@ local function buildBoard(beacon: BasePart)
 	gui.MaxDistance = 110
 	gui.LightInfluence = 0
 	gui.ResetOnSpawn = false
-	local back = Flat.card(UDim2.fromScale(1, 1), F.Surface0)
+	-- Drawn at design size and scaled as a whole (sizeBoard)
+	local back = Flat.card(UDim2.fromOffset(BOARD_SIZE.X, BOARD_SIZE.Y), F.Surface0)
+	back.AnchorPoint = Vector2.new(0.5, 0.5)
+	back.Position = UDim2.fromScale(0.5, 0.5)
+	local sc = Instance.new("UIScale")
+	sc.Scale = 1
+	sc.Parent = back
 	back.Parent = gui
+	if not boardGui then
+		Kit.onHudScale(sizeBoard)
+	end
+	boardGui, boardScale = gui, sc
 	local title = Window.gilded(string.upper(Rules.NAME), 22)
 	title.AnchorPoint = Vector2.new(0.5, 0)
 	title.Position = UDim2.new(0.5, 0, 0, 8)
@@ -529,7 +549,6 @@ local function onState(s: any)
 	state = {
 		total = num(s.total),
 		stages = num(s.stages),
-		buffLeft = num(s.buffLeft),
 		mine = {
 			total = num(s.mine.total),
 			today = num(s.mine.today),
@@ -540,7 +559,6 @@ local function onState(s: any)
 		top = top,
 		shared = s.shared == true,
 	}
-	stateAt = os.clock()
 	if typeof(s.donated) == "number" then
 		sending = false -- only the answer to a donation unlocks the buttons, not a sync poll
 	end
@@ -580,7 +598,7 @@ function GreatBuildController.init()
 		if typeof(n) == "number" and typeof(lastStages) == "number" and n > lastStages then
 			Shape.sound("ui_reward")
 			QuestController.toast(
-				`Great Build stage {n} finished! Everyone gets {Rules.BUFF_TEXT}`,
+				`Great Build stage {n} finished! Season bonus now {Rules.bonusText(Rules.bonus(n))}`,
 				C.GoldHi
 			)
 		end

@@ -471,6 +471,7 @@ local MONUMENT_COLORS = {
 	C.gold,
 }
 local GHOST = Color3.fromHex("#9FE8FF")
+local KEEP_OUT = Vector3.new(16, Config.BOUNDARY_HEIGHT, 16) -- invisible box around the monument
 
 local function monument(parent: Instance)
 	local x, z = 26, SPAWN.Z
@@ -523,6 +524,21 @@ local function monument(parent: Instance)
 	beacon:SetAttribute("Brick", 5)
 	beacon:SetAttribute("BuiltColor", C.gold)
 	beacon:SetAttribute("BuiltMaterial", "Neon")
+	-- Keep-out shell: the stepped layers are a staircase, so one invisible solid box around the
+	-- whole monument, taller than any jump, leap or dash can reach, keeps everyone off it. The
+	-- camera is Scriptable (no occlusion); leap raycasts stop at it like at the hub boundary.
+	local shell = Instance.new("Part")
+	shell.Name = "KeepOut"
+	shell.Anchored = true
+	shell.CanCollide = true
+	shell.CanQuery = true
+	shell.CanTouch = false
+	shell.CastShadow = false
+	shell.Transparency = 1
+	shell.Size = KEEP_OUT
+	shell.CFrame = at(Vector3.new(x, y + KEEP_OUT.Y / 2, z))
+	shell:SetAttribute("NoStuds", true)
+	shell.Parent = model
 	model.Parent = parent
 	table.insert(reserved, Vector3.new(x, 0, z))
 	-- Donation chute at the monument's south-west corner, off the spawn plaza: standing on the
