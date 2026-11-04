@@ -21,9 +21,9 @@ local function arenaHas(name: string): boolean
 	end)
 end
 
-local function enter(id: string?)
+local function enter(id: string?, depth: any?)
 	sim:runAs("client", function(req)
-		req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", id)
+		req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", id, depth)
 	end)
 	sim:run(0.5)
 end
@@ -48,6 +48,34 @@ describe("Atlas rules", function()
 		expect(Atlas.isOpen("fire_desert", bests({ crystal_caves = 15 }))).toBe(true)
 		expect(Atlas.isOpen("fire_desert", bests({ green_plains = 99 }))).toBe(false)
 		expect(Atlas.isOpen("does_not_exist", bests({}))).toBe(false)
+	end)
+
+	it("resumes at the first depth not cleared yet on the tier", function()
+		local key = Atlas.reachKey
+		expect(Atlas.maxStart("green_plains", 1, {}, {})).toBe(1)
+		-- left at depth 2 after clearing depth 1: the next run starts at 2
+		expect(Atlas.maxStart("green_plains", 1, { [key(1, "green_plains")] = 1 }, {})).toBe(2)
+		-- old saves without reach: the region best counts on Normal
+		expect(Atlas.maxStart("green_plains", 1, {}, { green_plains = 7 })).toBe(8)
+		-- … but not on a harder tier: Veteran starts from its own clears
+		expect(Atlas.maxStart("green_plains", 2, {}, { green_plains = 25 })).toBe(1)
+		expect(Atlas.maxStart("green_plains", 2, { [key(2, "green_plains")] = 4 }, {})).toBe(5)
+		-- clears on a harder tier count for easier ones
+		expect(Atlas.maxStart("green_plains", 1, { [key(3, "green_plains")] = 9 }, {})).toBe(10)
+		-- never below the region's own start, other regions do not count
+		expect(Atlas.maxStart("crystal_caves", 1, {}, { green_plains = 5 })).toBe(6)
+		expect(Atlas.maxStart("does_not_exist", 1, {}, {})).toBe(1)
+	end)
+
+	it("clamps the wanted start depth to region start .. resume depth", function()
+		expect(Atlas.startDepth("green_plains", nil, 4)).toBe(4)
+		expect(Atlas.startDepth("green_plains", 2, 4)).toBe(2)
+		expect(Atlas.startDepth("green_plains", 99, 4)).toBe(4)
+		expect(Atlas.startDepth("green_plains", -5, 4)).toBe(1)
+		expect(Atlas.startDepth("green_plains", 2.5, 4)).toBe(4)
+		expect(Atlas.startDepth("green_plains", 0 / 0, 4)).toBe(4)
+		expect(Atlas.startDepth("green_plains", "3", 4)).toBe(4)
+		expect(Atlas.startDepth("crystal_caves", 1, 8)).toBe(6)
 	end)
 
 	it("has gapless starting depths along the paths", function()
@@ -135,6 +163,27 @@ describe("Regions in game", function()
 		expect(sim.player:GetAttribute("RiftRegion")).toBeNil()
 		expect(arenaHas("Region_green_plains")).toBe(true)
 		expect(arenaHas("Region_crystal_caves")).toBe(false)
+	end)
+
+	it("resumes a left run at the next depth and allows a lower start", function()
+		server(function(req, player)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(player)
+			profile.reach[Atlas.reachKey(1, "green_plains")] = 3
+			req("ServerScriptService.Server.Systems.Rift").publishBest(player)
+		end)
+		expect(sim.player:GetAttribute(Atlas.startAttr("green_plains"))).toBe(6) -- atlas 5 from above
+		enter("green_plains")
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(6)
+		leave()
+		sim:run(1.5) -- enter/leave rate limit
+		enter("green_plains", 2)
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(2)
+		leave()
+		sim:run(1.5)
+		enter("green_plains", 40) -- deeper than cleared: clamped
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(6)
+		leave()
+		sim:run(1.5)
 	end)
 
 	it("builds every region as its own arena without errors", function()

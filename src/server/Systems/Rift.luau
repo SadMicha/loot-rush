@@ -1,7 +1,8 @@
 --!strict
 -- Rift flow: choose a region (Atlas) → waves → boss → choice "deeper" or "back to the Hub".
 -- Every region starts at its own depth and rolls its waves from its enemy mix
--- (Shared/Atlas). Cleared depths go into the save (atlas) and unlock follow-up regions.
+-- (Shared/Atlas). Cleared depths go into the save (atlas, per tier in reach) and unlock follow-up
+-- regions; a new run resumes at the first depth not cleared yet (or a lower one the player picks).
 -- Every player has their own Rift on their own arena slot (World, Config.RIFT_SLOTS);
 -- enemies carry the run number and only count for their run. State lives as attributes on the
 -- owner (see Types.luau), the client only reads. Leaving or aborting end the run. Dying inside a
@@ -42,6 +43,7 @@ type Run = {
 	center: Vector3, -- center of the arena
 	region: Atlas.Region,
 	depth: number, -- absolute depth (scales the enemies)
+	depth0: number, -- depth the run started at (region start, or deeper when resumed)
 	tier: number, -- World Tier (Shared/WorldTiers), chosen before the run
 	wave: number,
 	variant: string, -- rift variant of the current depth (Shared/RiftVariants, "" = normal)
@@ -106,6 +108,15 @@ function Rift.publishBest(player: Player)
 		player:SetAttribute(Atlas.attr(region.id), if depth > 0 then depth else nil)
 	end
 	local profile = Data.get(player)
+	-- Deepest start depth per region on the selected tier (the Atlas depth picker)
+	for _, region in Atlas.Regions do
+		player:SetAttribute(
+			Atlas.startAttr(region.id),
+			if profile
+				then Atlas.maxStart(region.id, profile.tier.selected, profile.reach, profile.atlas)
+				else region.depth
+		)
+	end
 	player:SetAttribute("BestDepth", if profile then Atlas.bestDepth(profile.atlas) else 0)
 	-- World Tier: chosen and highest unlocked (the client shows the picker)
 	player:SetAttribute("WorldTier", if profile then profile.tier.selected else 1)
@@ -119,13 +130,19 @@ local function record(r: Run)
 	end
 	-- A new World Tier: the client toasts on the attribute change (AtlasController)
 	local unlocked = WorldTiers.unlockAfter(profile.tier, r.tier, r.depth)
-	if unlocked or r.depth > (profile.atlas[r.region.id] or 0) then
+	local key = Atlas.reachKey(r.tier, r.region.id)
+	local reached = r.depth > (profile.reach[key] or 0)
+	if reached then
+		profile.reach[key] = r.depth -- the next run on this tier may start one deeper
+	end
+	if unlocked or reached or r.depth > (profile.atlas[r.region.id] or 0) then
 		profile.atlas[r.region.id] = math.max(r.depth, profile.atlas[r.region.id] or 0)
 		Rift.publishBest(r.owner)
 	end
 	-- Leaderboards: the run's best goes out once at the run end (Leaderboard.flush). Runs with a
-	-- movement strike (speed/teleport hack, Systems/Movement) are left out.
-	if Movement.strikes(r.owner) == r.strikes then
+	-- movement strike (speed/teleport hack, Systems/Movement) are left out, and so are resumed
+	-- runs (started deeper than the region start): their run time would not compare.
+	if r.depth0 == r.region.depth and Movement.strikes(r.owner) == r.strikes then
 		Leaderboard.note(r.owner, r.tier, profile.class, r.depth, os.clock() - r.tally.startedAt)
 	end
 end
@@ -476,7 +493,7 @@ local function play(r: Run)
 	publish(r, "clear")
 end
 
-local function begin(player: Player, regionId: any)
+local function begin(player: Player, regionId: any, wanted: any)
 	local model, _, humanoid = character(player)
 	if runs[player] or not model or not humanoid or humanoid.Health <= 0 then
 		return
@@ -486,6 +503,12 @@ local function begin(player: Player, regionId: any)
 	if not region or not Atlas.isOpen(id, bestOf(player)) then
 		return
 	end
+	local profile = Data.get(player)
+	local tier = if profile then profile.tier.selected else 1
+	local max = if profile
+		then Atlas.maxStart(id, tier, profile.reach, profile.atlas)
+		else region.depth
+	local depth = Atlas.startDepth(id, wanted, max)
 	local slot = 0
 	for i = 1, Config.RIFT_SLOTS do
 		if not slots[i] then
@@ -503,12 +526,13 @@ local function begin(player: Player, regionId: any)
 		center = World.center(slot),
 		owner = player,
 		region = region,
-		depth = region.depth,
-		tier = if Data.get(player) then (Data.get(player) :: any).tier.selected else 1,
+		depth = depth,
+		depth0 = depth,
+		tier = tier,
 		wave = 0,
 		variant = "",
 		restored = Smoothing.restored(region.depth, bestOf(player)(region.id)),
-		tally = RiftRun.newTally(id, region.depth, bestOf(player), level(player), os.clock()),
+		tally = RiftRun.newTally(id, depth, bestOf(player), level(player), os.clock()),
 		revives = Config.RIFT_REVIVES,
 		downed = false,
 		strikes = Movement.strikes(player),
@@ -560,7 +584,7 @@ end
 local allow = RateLimit.new(1, 3) -- entering builds a whole arena: slow down spam
 local allowTier = RateLimit.new(4, 8) -- tier picker steps are cheap and must not eat the enter budget
 
-local function onAction(player: Player, action: any, regionId: any)
+local function onAction(player: Player, action: any, regionId: any, depth: any)
 	if action == "tier" then
 		if allowTier(player) then
 			chooseTier(player, regionId)
@@ -571,7 +595,7 @@ local function onAction(player: Player, action: any, regionId: any)
 		return
 	end
 	if action == "enter" then
-		begin(player, regionId)
+		begin(player, regionId, depth)
 	elseif action == "deeper" then
 		deeper(player)
 	elseif action == "leave" then

@@ -3,6 +3,8 @@
 --   the map with areas and paths on the left, profile of the selected area and "Travel" on the right.
 -- Traveling starts the area's Rift (Net.Rift "enter", area). Whether an area is open follows from
 -- the personal bests that the server sets as attributes AtlasBest_<area> (rule in Shared/Atlas).
+-- A run resumes at the first depth not cleared yet on the chosen World Tier (AtlasStart_<area>);
+-- the depth picker can start lower ("enter", area, depth; the server clamps it).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,6 +25,7 @@ local C = Theme.Color
 local PAD = 28
 local ACTION_H = 84 -- bottom row (tier arrows + Travel): touch size on phones without growing
 local ARROW_W = 84
+local STEP_H = 52 -- depth picker row (resume depth)
 local SIDE_W = 440
 local LABEL = Vector2.new(230, 98) -- aspect ratio like plaque_region
 local DOT_GAP = 18
@@ -33,6 +36,23 @@ local map: Frame
 local side: Frame
 
 local selected = Atlas.Start
+local picked: { [string]: number } = {} -- start depth chosen this session (nil = deepest)
+local pickedMax: { [string]: number } = {} -- deepest start when it was picked
+
+-- Deepest start depth of a region on the selected tier (server attribute)
+local function maxStart(r: Atlas.Region): number
+	local v = Players.LocalPlayer:GetAttribute(Atlas.startAttr(r.id))
+	return if typeof(v) == "number" then math.max(r.depth, v) else r.depth
+end
+
+-- Start depth the next run of this region uses: the pick, or the deepest when the deepest moved
+local function startOf(r: Atlas.Region): number
+	local max = maxStart(r)
+	if picked[r.id] and pickedMax[r.id] ~= max then
+		picked[r.id] = nil -- cleared deeper or switched tier: resume at the new frontier
+	end
+	return math.clamp(picked[r.id] or max, r.depth, max)
+end
 
 local function best(id: string): number
 	return (Players.LocalPlayer:GetAttribute(Atlas.attr(id)) or 0) :: number
@@ -261,12 +281,12 @@ local function renderSide()
 	desc.Parent = side
 
 	local rewardHead = Window.heading("Possible Rewards", 16, C.Text)
-	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 490)
+	rewardHead.Position = UDim2.fromOffset(PAD, PAD + 464)
 	rewardHead.Parent = side
-	local rewards = row(PAD + 524, w)
-	rewards.Size = UDim2.fromOffset(w, 64)
+	local rewards = row(PAD + 492, w)
+	rewards.Size = UDim2.fromOffset(w, 48)
 	for i, rw in r.rewards do
-		local s = Kit.itemSlot(60, rw.icon, { rarity = rw.rarity })
+		local s = Kit.itemSlot(48, rw.icon, { rarity = rw.rarity })
 		s.Active = false
 		s.LayoutOrder = i
 		s.Parent = rewards
@@ -310,6 +330,48 @@ local function renderSide()
 
 	local inRift = RiftController.active()
 	local open = isOpen(r)
+
+	-- Start depth picker: [-] Start: Depth N [+], from the region start up to the resume depth
+	local max = maxStart(r)
+	local start = startOf(r)
+	if open then
+		local depthRow = Window.frame(UDim2.fromOffset(w, STEP_H))
+		depthRow.Name = "StartDepth"
+		depthRow.AnchorPoint = Vector2.new(0, 1)
+		depthRow.Position = UDim2.new(0, PAD, 1, -PAD - ACTION_H - 46)
+		local function step(text: string, delta: number)
+			local target = start + delta
+			local b = Kit.button(text, C.Gold, Vector2.new(STEP_H, STEP_H))
+			b.Name = if delta < 0 then "DepthDown" else "DepthUp"
+			b.AnchorPoint = Vector2.new(if delta < 0 then 0 else 1, 0.5)
+			b.Position = UDim2.new(if delta < 0 then 0 else 1, 0, 0.5, 0)
+			Kit.setEnabled(b, target >= r.depth and target <= max and not inRift)
+			b.Activated:Connect(function()
+				if b.Active then
+					picked[r.id] = target
+					pickedMax[r.id] = max
+					renderSide()
+				end
+			end)
+			b.Parent = depthRow
+		end
+		step("-", -1)
+		step("+", 1)
+		local startText = Kit.label(
+			string.format("Start: Depth %d", start),
+			20,
+			if start == max then C.Text else C.Muted
+		)
+		startText.Name = "StartText"
+		startText.Size = UDim2.new(1, -2 * (STEP_H + 8), 1, 0)
+		startText.AutomaticSize = Enum.AutomaticSize.None
+		startText.TextXAlignment = Enum.TextXAlignment.Center
+		startText.TextTruncate = Enum.TextTruncate.AtEnd
+		startText.AnchorPoint = Vector2.new(0.5, 0.5)
+		startText.Position = UDim2.fromScale(0.5, 0.5)
+		startText.Parent = depthRow
+		depthRow.Parent = side
+	end
 	local text = if not open
 		then string.format("Clear Depth %d first", r.depth - 1)
 		elseif inRift then "Already in Rift"
@@ -328,7 +390,7 @@ local function renderSide()
 		if not go.Active then
 			return
 		end
-		Net.Rift:FireServer("enter", r.id)
+		Net.Rift:FireServer("enter", r.id, startOf(r))
 		win.close()
 	end)
 	go.Parent = bottom

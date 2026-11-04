@@ -5,6 +5,10 @@
 -- map area (1060×790), `next` = paths to follow-up regions (dotted lines).
 -- Unlocking: a region is open as soon as depth `depth − 1` is cleared in a predecessor
 -- (region with a path here). The save stores the best values per region (atlas).
+-- Resume: a run may start anywhere from the region's start up to the first depth not cleared yet
+-- on its World Tier (save field reach, Atlas.maxStart), so leaving a Rift never costs progress.
+
+local WorldTiers = require(script.Parent.WorldTiers)
 
 export type Mod = { icon: string, text: string }
 -- Real region bonuses (shares, 0.1 = +10%): gold = gold per drop, xp = XP per enemy,
@@ -236,6 +240,48 @@ function Atlas.isOpen(id: string, best: (string) -> number): boolean
 		end
 	end
 	return false
+end
+
+-- Save key of profile.reach: highest depth cleared in region `id` on World Tier `tier`
+function Atlas.reachKey(tier: number, id: string): string
+	return tostring(tier) .. ":" .. id
+end
+
+-- Deepest depth a run in region `id` on World Tier `tier` may start at: the first depth not
+-- cleared yet there. Clears on a harder tier count for the easier ones; on Normal the region best
+-- (atlas, saves from before reach existed) counts too. Never below the region's start.
+function Atlas.maxStart(
+	id: string,
+	tier: number,
+	reach: { [string]: number },
+	atlas: { [string]: number }
+): number
+	local r = byId[id]
+	if not r then
+		return 1
+	end
+	local t = WorldTiers.get(tier).id
+	local cleared = if t == 1 then atlas[id] or 0 else 0
+	for k = t, WorldTiers.MAX do
+		cleared = math.max(cleared, reach[Atlas.reachKey(k, id)] or 0)
+	end
+	return math.max(r.depth, cleared + 1)
+end
+
+-- Start depth of a run: `wanted` (client value, untrusted) clamped to region start .. `max`;
+-- anything that is not a whole number starts at `max` (resume where the player stopped)
+function Atlas.startDepth(id: string, wanted: any, max: number): number
+	local r = byId[id]
+	local low = if r then r.depth else 1
+	if typeof(wanted) ~= "number" or wanted ~= wanted or wanted ~= math.floor(wanted) then
+		return math.max(low, max)
+	end
+	return math.clamp(wanted, low, math.max(low, max))
+end
+
+-- Attribute with the deepest start depth per region on the selected World Tier (Systems/Rift)
+function Atlas.startAttr(id: string): string
+	return "AtlasStart_" .. id
 end
 
 -- Attribute on the player with the best result per region (set by Systems/Rift)
