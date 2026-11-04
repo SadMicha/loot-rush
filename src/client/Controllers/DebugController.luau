@@ -80,17 +80,20 @@ local function render(fps: number)
 	)
 end
 
+-- Dbg button above the HUD's level/XP chip (bottom left of the safe area), panel above the button
+local DBG_BOTTOM = 48
+
 function DebugController.init()
 	if not Config.DEBUG_OVERLAY then
 		return
 	end
-	local gui, root = Kit.scaledGui("LootRushDebug", 10)
+	local gui, root = Kit.scaledGui("LootRushDebug", 10, false, nil, true)
 
 	-- Fixed sizes instead of AutomaticSize: the panel grows upward from the Dbg button and stays on screen
 	local W, PAD, TEXT_H, GAP, COLS, CELL_W = 560, 10, 54, 8, 3, 174
 	panel = Kit.panel(Vector2.new(W, 0), Theme.Color.Line2)
 	panel.AnchorPoint = Vector2.new(0, 1)
-	panel.Position = UDim2.new(0, 28, 1, -72)
+	panel.Position = UDim2.new(0, 28, 1, -(DBG_BOTTOM + 44))
 	panel.Visible = false
 	Kit.padding(panel, PAD)
 	panel.Parent = root
@@ -146,7 +149,7 @@ function DebugController.init()
 	Kit.buttonLabel(button).TextColor3 = Theme.Color.Muted
 	Kit.buttonLabel(button).TextSize = Kit.fontSize(13)
 	button.AnchorPoint = Vector2.new(0, 1)
-	button.Position = UDim2.new(0, 28, 1, -28)
+	button.Position = UDim2.new(0, 28, 1, -DBG_BOTTOM)
 	button.Activated:Connect(toggle)
 	button.Visible = allowed()
 	player:GetAttributeChangedSignal("DebugTools"):Connect(function()

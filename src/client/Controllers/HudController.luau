@@ -233,6 +233,7 @@ end
 local xpFill: Frame
 local xpTip: Frame
 local xpText: TextLabel
+local xpChip: Frame
 
 local function buildXpBar()
 	local bar = Instance.new("Frame")
@@ -284,6 +285,7 @@ local function buildXpBar()
 	xpText.Position = UDim2.fromScale(0, 0.5)
 	xpText.Parent = chip
 	chip.Parent = root
+	xpChip = chip
 end
 
 local function refreshShield()
@@ -796,6 +798,13 @@ local starText: TextLabel
 local resGroup: CanvasGroup
 local resList: UIListLayout
 local questGroup: CanvasGroup
+local resScale: UIScale -- shrinks the capsule row so it fits between the Roblox buttons and the minimap
+local hubBar: CanvasGroup
+local hubBarW = 0
+local hubBarH = 0
+local hubBarScale: UIScale -- shrinks the hub icon bar so it stays clear of the dash button
+local gearGroup: CanvasGroup
+local gearW = 0
 local questTitle: TextLabel
 local questCount: TextLabel
 local questReward: TextLabel
@@ -965,10 +974,15 @@ local function buildCalmPanels()
 	end
 	place(res, Vector2.new(0, 0), UDim2.new(0.5, -RES_WIDTH / 2, 0, 18))
 	resGroup = res
+	resScale = Instance.new("UIScale")
+	resScale.Parent = res
 
 	-- Hub icon bar at the bottom center
 	local bar, barH = buildBar()
 	bar.Name = "HubBar"
+	hubBar, hubBarW, hubBarH = bar, bar.Size.X.Offset, barH
+	hubBarScale = Instance.new("UIScale")
+	hubBarScale.Parent = bar
 	addFly(
 		bar,
 		Vector2.new(0.5, 1),
@@ -984,7 +998,8 @@ local function buildCalmPanels()
 	-- Left of it: the leaderboard (trophy) and the daily rewards (chest, gold dot while a reward
 	-- waits), both at rest only.
 	local cellW = H.GearSize + 12
-	local gearGroup = group(Vector2.new(3 * cellW, H.GearSize))
+	gearGroup = group(Vector2.new(3 * cellW, H.GearSize))
+	gearW = 3 * cellW
 	gearGroup.Name = "Settings"
 	local gearList = Kit.list(gearGroup, Enum.FillDirection.Horizontal, 0)
 	gearList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -1159,7 +1174,8 @@ end
 
 -- ------------------------------------------------------------------ Layout inside the safe area
 -- Change the rest position of a flying panel; if it is currently resting, move there immediately
-local function setHome(g: CanvasGroup, home: UDim2, away: UDim2)
+local function setHome(g: CanvasGroup, anchor: Vector2, home: UDim2, away: UDim2)
+	g.AnchorPoint = anchor
 	for _, fly in flies do
 		if fly.group == g then
 			fly.home = home
@@ -1171,8 +1187,16 @@ local function setHome(g: CanvasGroup, home: UDim2, away: UDim2)
 	end
 end
 
--- Resources sit at the top center, right of the Roblox buttons; if there is not enough room before the
--- minimap (small / narrow screens) the capsules stack right-aligned below it and the quests move down.
+-- Smallest share the capsule row may shrink to before it stacks below the minimap instead
+local RES_MIN_SCALE = 0.7
+-- Smallest share the hub icon bar may shrink to (narrow phones with a large HUD size)
+local BAR_MIN_SCALE = 0.6
+local GAP = 8 -- clearance between neighbouring HUD blocks (design pixels)
+
+-- Everything is laid out in design pixels of the HUD root, so it holds for any HUD size setting
+-- and any safe area. Top: Roblox buttons | resources | minimap. Right column at rest: minimap,
+-- quests, then the trophy/chest/gear row above the dash button. Bottom: XP chip | hub bar | dash.
+-- On short screens (phones, large HUD size) the blocks shrink or move instead of overlapping.
 local function layoutHud()
 	local scale = root:FindFirstChildOfClass("UIScale")
 	if not scale then
@@ -1185,7 +1209,8 @@ local function layoutHud()
 		pixels = camera.ViewportSize.X
 	end
 	local width = pixels / s
-	if width <= 0 then
+	local height = hudGui.AbsoluteSize.Y / s
+	if width <= 0 or height <= 0 then
 		return
 	end
 	-- End of the Roblox buttons (top left) in design pixels, relative to the safe area
@@ -1195,24 +1220,75 @@ local function layoutHud()
 		left = (inset.Min.X - hudGui.AbsolutePosition.X) / s + 10
 	end
 	local M = H.Margin
-	local resMax = width - M - MAP_SIZE - M - RES_WIDTH -- directly before the minimap
-	local resLeft = math.max((width - RES_WIDTH) / 2, left)
-	local stacked = resLeft > resMax
-	local mapBottom = 10 + MAP_SIZE + 18
-	local questTop = mapBottom + 12
+	local mapShown = mapBox.Visible
+	local mapLeft = if mapShown then width - M - MAP_SIZE else width
+	local mapBottom = if mapShown then 10 + MAP_SIZE + 18 else 0
+
+	-- Resources: one row between the Roblox buttons and the minimap, shrunk if needed; only when
+	-- even the shrunk row does not fit do the capsules stack right-aligned below the minimap
+	local resLeftMin = math.max(left, M)
+	local room = mapLeft - GAP - resLeftMin
+	local rs = math.clamp(room / RES_WIDTH, 0, 1)
+	local stacked = rs < RES_MIN_SCALE
+	local rightTop = mapBottom + 12 -- next free y in the right column
 	if stacked then
+		resScale.Scale = 1
 		resList.FillDirection = Enum.FillDirection.Vertical
 		resList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		resGroup.AnchorPoint = Vector2.new(1, 0)
 		resGroup.Position = UDim2.new(1, -M, 0, mapBottom + 10)
-		questTop = mapBottom + 10 + 3 * 40 + 2 * 8 + 12
+		rightTop = mapBottom + 10 + 3 * 40 + 2 * 8 + 12
 	else
+		resScale.Scale = rs
+		local w = RES_WIDTH * rs
 		resList.FillDirection = Enum.FillDirection.Horizontal
 		resList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		resGroup.AnchorPoint = Vector2.new(0, 0)
-		resGroup.Position = UDim2.fromOffset(resLeft, 18)
+		resGroup.Position = UDim2.fromOffset(math.max((width - w) / 2, resLeftMin), 18)
 	end
-	setHome(questGroup, UDim2.new(1, -M, 0, questTop), UDim2.new(1, 300, 0, questTop))
+
+	-- Trophy/chest/gear row above the dash button (its home from buildCalmPanels)
+	local dashTop = height - M - dashSize - H.DashDiamond - 6
+	local gearTop = dashTop - H.GearSize
+	-- Quest card under the minimap; when it would run into the gear row, the gear row moves to
+	-- the left of the quest card instead (phones / large HUD size)
+	local questH = questGroup.AbsoluteSize.Y / s
+	local questW = questGroup.AbsoluteSize.X / s
+	setHome(
+		questGroup,
+		Vector2.new(1, 0),
+		UDim2.new(1, -M, 0, rightTop),
+		UDim2.new(1, 300, 0, rightTop)
+	)
+	local gearCell = H.GearSize + 12
+	local gearX = -(M + dashSize / 2 - gearCell / 2)
+	local gearY = -(M + dashSize + H.DashDiamond + 6)
+	if rightTop + questH + GAP > gearTop then
+		local x = -(M + questW + GAP)
+		setHome(
+			gearGroup,
+			Vector2.new(1, 0),
+			UDim2.new(1, x, 0, rightTop),
+			UDim2.new(1, gearW + 10, 0, rightTop) -- fully off the right edge
+		)
+	else
+		setHome(
+			gearGroup,
+			Vector2.new(1, 1),
+			UDim2.new(1, gearX, 1, gearY),
+			UDim2.new(1, gearW + 10, 1, gearY)
+		)
+	end
+
+	-- Hub icon bar: centered, but kept between the XP chip (bottom left) and the dash button
+	-- (bottom right); shrinks when the gap is narrower than the bar
+	local minLeft = 8 + xpChip.AbsoluteSize.X / s + GAP
+	local maxRight = width - M - dashSize - GAP
+	local bs = math.clamp((maxRight - minLeft) / hubBarW, BAR_MIN_SCALE, 1)
+	local half = hubBarW * bs / 2
+	local cx = math.clamp(width / 2, minLeft + half, math.max(minLeft + half, maxRight - half))
+	hubBarScale.Scale = bs
+	setHome(hubBar, Vector2.new(0.5, 1), UDim2.new(0, cx, 1, -M), UDim2.new(0, cx, 1, hubBarH + 80))
 
 	-- Windows keep clear of the menu dock (screen pixels): bottom row, or left column on phones
 	if camera then
@@ -1309,7 +1385,6 @@ function HudController.init()
 
 	hudGui.Parent = player:WaitForChild("PlayerGui")
 
-	layoutHud()
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(layoutHud)
 	-- After Kit.scaledGui (new scaling): safe area or screen size changed
 	hudGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
@@ -1322,8 +1397,13 @@ function HudController.init()
 	Prefs.changed:Connect(function(key: string, value: any)
 		if key == "minimap" then
 			mapBox.Visible = value ~= false
+			layoutHud()
 		end
 	end)
+	-- The quest card grows with its text and the XP chip with the level: keep the neighbours clear
+	questGroup:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
+	xpChip:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
+	layoutHud()
 	local camera = workspace.CurrentCamera
 	if camera then
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutHud)
