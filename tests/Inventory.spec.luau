@@ -43,6 +43,13 @@ local function gridButtons(inv)
 	return out
 end
 
+-- Upgrade marker text of a bag cell ("▲" / "▼") or nil
+local function upgradeMark(cell)
+	local mark = cell:FindFirstChild("Upgrade")
+	local label = mark and mark:FindFirstChildWhichIsA("TextLabel")
+	return label and label.Text
+end
+
 local function buttonWithText(inv, text)
 	for _, d in inv:GetDescendants() do
 		if d:IsA("TextLabel") and d.Text == text then
@@ -83,6 +90,9 @@ describe("Inventory", function()
 		inv.Enabled = true
 		local grid = gridButtons(inv)
 		expect(#grid).toBeGreaterThan(0)
+		-- Empty slot: the bag cell already says "upgrade", and the header counts it
+		expect(upgradeMark(grid[1])).toBe("▲")
+		expect(texts(inv)["1 Upgrade"]).toBe(1)
 		sim:click(grid[1])
 		sim:run(0.2)
 
@@ -107,6 +117,12 @@ describe("Inventory", function()
 		sim:run(0.5)
 		local grid = gridButtons(inv)
 		expect(#grid).toBe(1)
+		-- The cell marker follows the drop label rule against the worn piece
+		local up = Items.isUpgrade(second, first)
+		expect(upgradeMark(grid[1])).toBe(if up then "▲" else "▼")
+		local chip = inv:FindFirstChild("Upgrades", true)
+		expect(chip).never.toBeNil()
+		expect(chip.Visible).toBe(up)
 		sim:click(grid[1])
 		sim:run(0.2)
 		expect(deltas(inv)).toBeGreaterThan(0)

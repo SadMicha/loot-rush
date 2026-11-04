@@ -229,12 +229,12 @@ function Items.score(item: Item, ref: number?): number
 	return total
 end
 
--- Does `item` beat what is worn in its slot? Empty slot = always an upgrade. A weapon's item
--- power scales all damage (Balance.weaponFactor, Systems/Stats): its gain counts as that many
--- percent of extra damage. Pure, used by the server (pickup) and the HUD (Inventory dot).
-function Items.isUpgrade(item: Item, worn: Item?): boolean
+-- How much `item` beats what is worn in its slot, in average base rolls (Items.score). Empty
+-- slot = math.huge. A weapon's item power scales all damage (Balance.weaponFactor, Systems/Stats):
+-- its gain counts as that many percent of extra damage.
+function Items.upgradeGain(item: Item, worn: Item?): number
 	if not worn then
-		return true
+		return math.huge
 	end
 	local ref = math.max(item.ilvl, worn.ilvl)
 	local gain = Items.score(item, ref) - Items.score(worn, ref)
@@ -244,7 +244,37 @@ function Items.isUpgrade(item: Item, worn: Item?): boolean
 		local r = RANGE.damage
 		gain += (ratio - 1) * 100 / ((r[1] + r[2]) / 2)
 	end
-	return gain > 1e-6
+	return if gain == gain then gain else 0
+end
+
+-- Does `item` beat what is worn in its slot? Empty slot = always an upgrade. Pure, used by the
+-- server (pickup "▲ UPGRADE"), the HUD (Inventory dot) and the bag grid markers.
+function Items.isUpgrade(item: Item, worn: Item?): boolean
+	return Items.upgradeGain(item, worn) > 1e-6
+end
+
+export type UpgradeMark = "up" | "down"
+
+-- Upgrade marker per bag item against the worn gear (same rule as the drop label): "up" beats
+-- the worn piece of its slot, "down" does not; items without an equipment slot get none.
+-- Also returns how many bag items are upgrades.
+function Items.upgradeMarks(
+	bag: { Item },
+	equipped: { [string]: Item }
+): ({ [string]: UpgradeMark }, number)
+	local marks: { [string]: UpgradeMark } = {}
+	local ups = 0
+	for _, it in bag do
+		if Items.SlotName[it.slot] then
+			if Items.isUpgrade(it, equipped[it.slot]) then
+				marks[it.id] = "up"
+				ups += 1
+			else
+				marks[it.id] = "down"
+			end
+		end
+	end
+	return marks, ups
 end
 
 export type RollOpts = {
