@@ -463,7 +463,8 @@ Anim.STYLE = table.freeze({
 -- Weapon angles in the hand: Weapons.grip (hand +Y up the arm, -Z forward while the arm hangs).
 -- Shoulder X + elbow X + wrist X = how far the hand frame is turned forward/up: 90 = the hand's -Z
 -- points up, which holds sword, staff and scepter upright with their grips.
---   sword    guard: hand low in front, blade up and leaning toward the enemy, weight back
+--   sword    shoulder rest: hand in front of the chest, the blade leans back over the right
+--            shoulder (reads clearly from the high camera, unlike a forward guard)
 --   bow      relaxed: bow arm a little forward and out, wrist keeps the bow upright, draw hand
 --            resting near the string
 --   staff    planted: elbow bent, the staff stands upright beside the body
@@ -494,7 +495,7 @@ Anim.STANCE = table.freeze({
 	warrior_sword = table.freeze({
 		hand = "right",
 		ref = READY,
-		hold = table.freeze({ rShoulder = v(45, 15, 0), rElbow = v(30, 0, 0) }),
+		hold = table.freeze({ rShoulder = v(30, 25, 0), rElbow = v(110, 0, 0) }),
 		lift = v(0, -0.15, 0),
 		pose = table.freeze({
 			waist = v(0, -12, 0),
@@ -522,7 +523,7 @@ Anim.STANCE = table.freeze({
 	mage_staff = table.freeze({
 		hand = "right",
 		ref = READY,
-		hold = table.freeze({ rShoulder = v(10, 0, 5), rElbow = v(90, 0, 0) }),
+		hold = table.freeze({ rShoulder = v(0, 0, 8), rElbow = v(95, 0, 0) }),
 		pose = table.freeze({
 			waist = v(-3, 0, 0),
 			neck = v(3, 0, 0),
@@ -588,24 +589,6 @@ function Anim.hold(weaponId: string?, weight: number, r6: boolean, out: Pose): n
 	end
 	return if ref then 1 else w
 end
-
--- Body parts each arm joint moves, and the part chain from the root down to them: an
--- AnimationTrack (KeyframeSequence) needs every Pose nested under its parent part's Pose.
-Anim.PART = table.freeze({
-	R15 = table.freeze({
-		rShoulder = "RightUpperArm",
-		rElbow = "RightLowerArm",
-		rWrist = "RightHand",
-		lShoulder = "LeftUpperArm",
-		lElbow = "LeftLowerArm",
-		lWrist = "LeftHand",
-	}),
-	R6 = table.freeze({ rShoulder = "Right Arm", lShoulder = "Left Arm" }),
-} :: { [string]: { [string]: string } })
-Anim.CHAIN = table.freeze({
-	R15 = table.freeze({ "HumanoidRootPart", "LowerTorso", "UpperTorso" }),
-	R6 = table.freeze({ "HumanoidRootPart", "Torso" }),
-} :: { [string]: { string } })
 
 -- Skills with their own move (otherwise the skill kind decides)
 Anim.SKILL_MOVE = table.freeze({
