@@ -109,6 +109,15 @@ describe("Quests in game", function()
 		expect(q.done[1]).toBe("Enter a Rift from the Atlas")
 	end)
 
+	it("shows the active quest under the Rift run card (ticker)", function()
+		local card = sim.player.PlayerGui.LootRushRift:FindFirstChild("RunInfo", true)
+		local ticker = card:FindFirstChild("QuestTicker")
+		expect(ticker).toBeTruthy()
+		local q = Quests.Chain[2]
+		expect(ticker.Text.Text).toBe(string.format("%s  0/%d", q.text, q.target))
+		expect(ticker.Visible).toBe(true)
+	end)
+
 	it("unlocks windows when the level rises", function()
 		server(function(_, player)
 			player:SetAttribute("Level", 6)
