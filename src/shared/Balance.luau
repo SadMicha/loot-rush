@@ -191,6 +191,22 @@ Balance.FirstDrops = table.freeze({
 	firstSlot = "weapon",
 })
 
+-- Bag upgrades (Shared/Bag, docs/GAMEPLAY.md "Bag"): capacity = base + step × level, level 0 to
+-- maxLevel, bought with gold. Level L → L + 1 costs price × growth^L (rounded like shop prices),
+-- a fixed price: the curve itself is the gold sink, it does not follow Balance.shopFactor.
+--   Income reference (docs/balancing.md): ~100 gold/min at depth 1, ×1.13 per depth, so ~300/min
+--   at depth 10 (minute ~18), ~1,000/min at depth 20 (minute ~57), ~3,300/min at depth 30.
+--   Level 1 (1,200) is a first-session buy around minute 10-15; levels 1-6 (~50k in total) land
+--   in the first few hours; level 12 alone (770k) is hours of deep / Veteran farming, all 12
+--   together ~1.74M. Account-wide and reset every season (Shared/Seasons).
+Balance.Bag = table.freeze({
+	base = 40,
+	step = 5,
+	maxLevel = 12,
+	price = 1200,
+	growth = 1.8,
+})
+
 -- The Great Build (docs/specs/SEASONS.md §7, Shared/GreatBuild): one monument the whole player
 -- base raises together by donating Crystal Shards. Stage n needs first × growth^(n-1) shards on
 -- top of the stages before it (Beta numbers: few players, retune after week 1).
