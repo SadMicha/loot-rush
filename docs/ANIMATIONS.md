@@ -78,7 +78,7 @@ camera. All of it is data in `Anim.STANCE`:
 | Weapon | Stance |
 |---|---|
 | Sword | Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at the right hip angled forward at the enemy, left fist raised as a guard |
-| Bow | Nocked: side-on, bow arm extended toward the front, bow vertical at arm's length, draw hand at the string in front of the chest |
+| Bow | Nocked: bow arm extended straight ahead, the bow vertical in front of the chest at arm's length (riser toward the enemy), draw hand at the string |
 | Staff | Planted: wide square stance, chest open, the (taller) staff's foot on the ground beside the right foot, left hand raised with the spell ready |
 | Scepter | Ritual: deep wide crouch, scepter raised upright before the face, left hand spread low over the ground, head bowed |
 
