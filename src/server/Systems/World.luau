@@ -321,6 +321,7 @@ local function sparkles(
 		NumberSequenceKeypoint.new(0.2, p.size),
 		NumberSequenceKeypoint.new(1, 0),
 	})
+	Models.Kit.vfx(e, "mote_stud")
 	e.Parent = box
 end
 

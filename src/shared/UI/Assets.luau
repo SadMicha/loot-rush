@@ -683,15 +683,29 @@ Assets.Weapon = table.freeze({
 	}),
 } :: { [string]: { model: string, texture: string } })
 
--- World VFX textures (assets/vfx/*.png, upload keys "vfx_<name>"), e.g. Trail.Texture of the
--- cosmetic trails (Shared/Cosmetics `texture`). Paste the ids from assets/ui-asset-ids.csv after the
--- upload. Empty = the effect keeps its flat color look.
+-- World VFX textures (assets/vfx/*.png, upload keys "vfx_<name>"): Trail.Texture of the cosmetic
+-- trails, ParticleEmitter.Texture of the cosmetic auras (Shared/Cosmetics `texture`) and of the prop
+-- and region particles (Kit.vfx). Names in VfxSheet are 2x2 flipbook sheets. Paste the ids from
+-- assets/ui-asset-ids.csv after the upload. Empty = the effect keeps its flat/default look.
 Assets.Vfx = table.freeze({
 	trail_gilded = "rbxassetid://112657872833926",
 	trail_ember = "rbxassetid://97154003089217",
 	trail_frost = "rbxassetid://133044313718164",
 	trail_void = "rbxassetid://137876026395589",
+	aura_ember = "",
+	aura_frost = "",
+	aura_void = "",
+	smoke_puff = "",
+	spark = "",
+	mote_stud = "",
 } :: { [string]: string })
+Assets.VfxSheet = table.freeze({
+	aura_ember = true,
+	aura_frost = true,
+	aura_void = true,
+	smoke_puff = true,
+	spark = true,
+} :: { [string]: boolean })
 
 -- Robux glyph (Roblox built-in texture). Empty string = the shop writes "R$" instead.
 Assets.Robux = "rbxasset://textures/ui/common/robux.png"

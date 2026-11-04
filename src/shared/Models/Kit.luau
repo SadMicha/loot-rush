@@ -5,6 +5,7 @@
 -- is built around the origin, pivot bottom center - placed with model:PivotTo(cf).
 -- Building blocks: block, wedge, cornerWedge, ball, cylinder, truss (all studded).
 
+local Assets = require(script.Parent.Parent.UI.Assets)
 local Studs = require(script.Parent.Studs)
 
 local Kit = {}
@@ -138,6 +139,27 @@ function Kit.light(parent: Instance, color: Color3, range: number, brightness: n
 	return l
 end
 
+-- Frames per second of a 2x2 VFX sheet: so slow that each particle keeps the random frame it
+-- starts on (one variant per particle, no flicker)
+Kit.VFX_SHEET_FPS = 0.01
+
+-- Painted VFX texture (Assets.Vfx key) on an emitter. Empty id = keeps the default texture.
+-- Returns whether a texture was set.
+function Kit.vfx(e: ParticleEmitter, key: string): boolean
+	local id = Assets.Vfx[key]
+	if not id or id == "" then
+		return false
+	end
+	e.Texture = id
+	if Assets.VfxSheet[key] then
+		e.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid2x2
+		e.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+		e.FlipbookFramerate = NumberRange.new(Kit.VFX_SHEET_FPS)
+		e.FlipbookStartRandom = true
+	end
+	return true
+end
+
 -- Particle presets for props: "smoke" (chimneys), "sparks" (forge, lava), "motes" (magic glow)
 function Kit.emit(
 	parent: BasePart,
@@ -187,6 +209,10 @@ function Kit.emit(
 			NumberSequenceKeypoint.new(1, 0),
 		})
 	end
+	Kit.vfx(
+		e,
+		if kind == "smoke" then "smoke_puff" elseif kind == "sparks" then "spark" else "mote_stud"
+	)
 	e.Parent = parent
 	return e
 end
