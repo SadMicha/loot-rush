@@ -1172,6 +1172,15 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "downgrade",
+   "file": "assets/ui/icons/store/downgrade.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
   }
  ]
 }
