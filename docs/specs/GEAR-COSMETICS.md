@@ -56,9 +56,10 @@ per slot, trail, aura, later pet skin and nameplate/badge frame) is built in tha
   armor at the Great Build milestone, trail/aura at the top of the track (as now).
 - Paid part (Shop, Soulstars): about 3 pieces in the same theme (gloves, belt, amulet), priced like
   the table below, plus the full set bundle.
-- Availability: free track pieces are **earned only during their season** and stay forever for
-  whoever earned them, never sold later (status). Paid season pieces are sold during the season
-  and may come back later in a "returning" shop rotation, never the free ones.
+- Availability (Micha 2026-11-04): **season cosmetics, free and paid, are obtainable only during
+  their season** and never come back (not in the rotating shop, not in bundles). Owned stays owned
+  forever. Server check on every grant and purchase: `Seasons.phaseFor(starts, ends, os.time()) == "live"` for the
+  cosmetic's `season`, else refused (client hides the buy button too).
 
 Theme ideas:
 
@@ -86,13 +87,29 @@ To live in a `Price` table next to the catalog, never inline.
 
 A single piece is about one small to medium Soulstar pack; a set is about one large pack.
 
+## Rotating shop (non-season items)
+
+Micha 2026-11-04: the shop rotates.
+
+- Pool: every paid non-season skin, trail and aura. Season items are never in the pool.
+- Slots: **4 daily** (rotate 00:00 UTC) + **2 weekly featured** (Monday 00:00 UTC, sets go here).
+- Rotation is deterministic from the date (seeded `Random(dayIndex)` / `weekIndex` over the pool),
+  so every server shows the same offers without a DataStore; a piece shown recently (last 3 days)
+  is skipped so it does not repeat back to back.
+- Server check: a purchase is valid only if the item is in today's or this week's rotation
+  (computed on the server from `os.time()`), never trusting the client's list.
+- UI: countdown "Refreshes in 5h 12m" on the shop header, "Leaves in 2d 4h" chip on weekly
+  cards, season items with "Season only, ends in 12d".
+- Data: `Shared/ShopRotation` (pure): `daily(day)`, `weekly(week)`, `leavesIn(now)`; tests check
+  determinism, no season items, no repeat within 3 days.
+
 ## Monetization and fairness
 
 - Paid skins: Soulstars (premium currency) or Robux bundles in the Shop, next to trails and auras.
   Prices in `Shared/Monetization`, ids as placeholders until Creator Hub.
 - Never pay-to-win: no stat, no exclusive power. Free skins must look as good as paid ones
   (earned skins are status: "I reached depth 30").
-- Season skins are never sold later (same rule as season trails, `Cosmetics.season`).
+- Season cosmetics are only obtainable during their season, free or paid, never later.
 - Preview before buying: the inventory figure with the skin applied (same builder).
 - Roblox rules: no random paid boxes for skins (paid random items need odds shown and are
   restricted in some regions); direct purchase only.
@@ -114,4 +131,5 @@ A single piece is about one small to medium Soulstar pack; a set is about one la
 - Soulstar prices: estimates above (Micha 2026-11-04: "just do some estimated numbers").
 - Hide-helmet toggle: built (Settings "Hide helmet", `settings.hideHelmet`).
 - Skins are per slot; sets are bundles (mix and match).
+- Rotating shop for non-season items (4 daily + 2 weekly); season cosmetics only during their season, never again.
 - Season sets: one theme per season for every cosmetic of it; Beta theme "Beacon Dawn" (`Seasons` `theme`).
