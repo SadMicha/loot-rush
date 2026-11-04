@@ -140,7 +140,7 @@ local function num(player: Player, attr: string): number
 	return if typeof(v) == "number" then v else 0
 end
 
--- Skill with level, Skill Bloom and Star Net applied (Shared.Progression)
+-- Skill with level, Skill Bloom and Star Web applied (Shared.Progression)
 local function effective(player: Player, skill: Skills.Skill): Skills.Skill
 	local profile = Data.get(player)
 	if not profile then
@@ -542,7 +542,11 @@ function Combat.hurtPlayer(player: Player, amount: number, source: Model?): bool
 	end
 	if os.clock() < st.iframesUntil then
 		local now = os.clock()
-		local counter = source ~= nil and now - st.counterAt >= Momentum.COUNTER_GAP
+		-- Counter is taught from Bosses.COUNTER_FROM on: earlier enemies' misses are plain dodges
+		local depth = if source then source:GetAttribute("Depth") else nil
+		local counter = source ~= nil
+			and (typeof(depth) ~= "number" or depth >= Bosses.COUNTER_FROM)
+			and now - st.counterAt >= Momentum.COUNTER_GAP
 		if counter then
 			st.counterAt = now
 			st.focusUntil = now + Momentum.FOCUS_TIME

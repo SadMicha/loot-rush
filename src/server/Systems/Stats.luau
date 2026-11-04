@@ -1,5 +1,5 @@
 --!strict
--- Player stats from gear and Star Net → player attributes read by Combat, PlayerSetup and the UI.
+-- Player stats from gear and Star Web → player attributes read by Combat, PlayerSetup and the UI.
 --   StatDamage/StatLife/StatCrit/StatSpeed: gear + stars (as before)
 --   StatLifePct, StatCritDamage, StatAttackSpeed, StatDouble, StatLowLife, StatDash,
 --   StatArmor, StatBlock, StatCritShard, StatArcaneShield: stars only

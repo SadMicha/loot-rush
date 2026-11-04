@@ -48,7 +48,23 @@ local function text(value: string, size: number, color: Color3, font: Font, y: n
 end
 
 local title = text("LOOT RUSH", 64, C.GoldHi, Theme.Font.Title, -24)
-local status = text("Loading…", 20, C.Muted, Theme.Font.UI, 40)
+-- After a hero switch the old server sends the hero name as teleport data (Systems/Characters);
+-- display only, so anything odd falls back to the plain line
+local TeleportService = game:GetService("TeleportService")
+local hero: string? = nil
+pcall(function()
+	local data = TeleportService:GetLocalPlayerTeleportData()
+	if typeof(data) == "table" and typeof(data.hero) == "string" and #data.hero <= 32 then
+		hero = data.hero
+	end
+end)
+local status = text(
+	if hero and hero ~= "" then "Loading " .. hero .. "…" else "Loading…",
+	20,
+	C.Muted,
+	Theme.Font.UI,
+	40
+)
 
 gui.Parent = player:WaitForChild("PlayerGui")
 ReplicatedFirst:RemoveDefaultLoadingScreen()

@@ -123,16 +123,27 @@ function Characters.setup(player: Player, name: any, classId: any): (boolean, st
 	return true, nil
 end
 
+-- Teleport into a fresh server of this place; the hero name rides along as teleport data so
+-- the loading screen there says "Loading Fynn…" (display only, ReplicatedFirst/LootRushLoading)
+local function teleport(player: Player, name: string): boolean
+	return pcall(function()
+		local options = Instance.new("TeleportOptions")
+		options:SetTeleportData({ hero = string.sub(name, 1, Profile.NAME_MAX) })
+		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+	end)
+end
+
 -- Rejoins the game into the account's active character
 local function rejoin(player: Player, name: string)
 	switching[player] = true
+	-- The client covers the screen right away ("Switching to Fynn…", SwitchController) and
+	-- hands that cover to the teleport, so the switch reads as a loading screen, not a crash
+	player:SetAttribute("SwitchingTo", name)
 	Data.saveNow(player)
 	if not player.Parent then
 		return
 	end
-	local ok = pcall(function()
-		TeleportService:TeleportAsync(game.PlaceId, { player })
-	end)
+	local ok = teleport(player, name)
 	if not ok then
 		task.wait(1) -- a teleport may still fail later: no kick while it might go through
 	end
@@ -252,7 +263,27 @@ function Characters.init()
 		end
 		Net.CharacterResult:FireClient(player, { ok = ok, text = why or "", action = action })
 	end)
+	-- A teleport that fails after TeleportAsync returned: one retry, then the rejoin hint
+	local retried: { [Player]: boolean } = {}
+	TeleportService.TeleportInitFailed:Connect(function(player: Player)
+		if not switching[player] or not player.Parent then
+			return
+		end
+		local name = player:GetAttribute("SwitchingTo")
+		local hero = if typeof(name) == "string" then name else "your hero"
+		if not retried[player] then
+			retried[player] = true
+			task.wait(2)
+			if player.Parent and teleport(player, hero) then
+				return
+			end
+		end
+		if player.Parent then
+			player:Kick("Switched to " .. hero .. ". Please rejoin to play.")
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
+		retried[player] = nil
 		switching[player] = nil
 		busy[player] = nil
 	end)

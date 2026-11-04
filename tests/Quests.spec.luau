@@ -51,6 +51,16 @@ describe("Quest rules", function()
 		expect(Quests.isOpen(d, "forge", 1, 0)).toBe(true) -- stays unlocked
 	end)
 
+	it("hands over what the next step teaches (Forge materials, a spell stone)", function()
+		local byId = {}
+		for _, q in Quests.Chain do
+			byId[q.id] = q
+		end
+		expect(Quests.extraText(byId.depth_5)).toBe("+6 Rune Candy · +20 Crystal Shards")
+		expect(Quests.extraText(byId.depth_3)).toBe("+1 Spell Stone")
+		expect(Quests.extraText(byId.first_kills)).toBe("")
+	end)
+
 	it("repairs broken saves", function()
 		local d =
 			Quests.reconcile({ step = 0 / 0, count = -3, unlocks = { forge = true, bogus = true } })
@@ -107,6 +117,42 @@ describe("Quests in game", function()
 		local q = lastQuest()
 		expect(q.step).toBe(2)
 		expect(q.done[1]).toBe("Enter a Rift from the Atlas")
+	end)
+
+	it("shows the active quest under the Rift run card (ticker)", function()
+		local card = sim.player.PlayerGui.LootRushRift:FindFirstChild("RunInfo", true)
+		local ticker = card:FindFirstChild("QuestTicker")
+		expect(ticker).toBeTruthy()
+		local q = Quests.Chain[2]
+		expect(ticker.Text.Text).toBe(string.format("%s  0/%d", q.text, q.target))
+		expect(ticker.Visible).toBe(true)
+	end)
+
+	it("pays the extra reward with the quest (spell stone for depth 3)", function()
+		local before = server(function(req, player)
+			local p = req("ServerScriptService.Server.Systems.Data").get(player)
+			p.quests.step = 5 -- "Clear depth 3"
+			p.quests.count = 0
+			local n = 0
+			for _, c in p.progress.stones do
+				n += c
+			end
+			return n
+		end)
+		server(function(_, player)
+			player:SetAttribute("BestDepth", 3)
+		end)
+		sim:run(0.5)
+		local after, step = server(function(req, player)
+			local p = req("ServerScriptService.Server.Systems.Data").get(player)
+			local n = 0
+			for _, c in p.progress.stones do
+				n += c
+			end
+			return n, p.quests.step
+		end)
+		expect(step).toBeGreaterThan(5)
+		expect(after - before).toBe(1)
 	end)
 
 	it("unlocks windows when the level rises", function()

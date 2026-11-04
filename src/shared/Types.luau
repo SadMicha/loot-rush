@@ -27,7 +27,7 @@ export type EnemyAttributes = {
 }
 
 -- Net.Fx events (server → all clients): kind → data
---   dmg     { pos, amount?, text?, crit?, critTier?, hurt?, pickup? }
+--   dmg     { pos, amount?, text?, crit?, critTier?, hurt?, pickup?, upgrade? }
 --           pickup = item rarity or "gold" on the owner's own pickup popup (pickup sound)
 --           crit = tier >= 1; critTier (optional, >= 1 only on crits) = overcrit tier, 2 = double crit
 --   proj    { from, to, time, color, size }

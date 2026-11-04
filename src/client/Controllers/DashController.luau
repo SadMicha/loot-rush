@@ -1,5 +1,5 @@
 --!strict
--- Dash: Space / Shift / Gamepad B / tap on the dash slot of the skill bar (HUD). 2 charges (+ Star Net "StatDash"), recharge over time.
+-- Dash: Space / Shift / Gamepad B / tap on the dash slot of the skill bar (HUD). 2 charges (+ Star Web "StatDash"), recharge over time.
 -- Charges are published as local player attributes, the HUD reads them.
 -- Invulnerability is granted by the server (Systems/Combat), not by this controller.
 -- A dash never rams into scenery: two probes (root height and just above the feet) look ahead

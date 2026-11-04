@@ -104,6 +104,10 @@ function handlers.dmg(d)
 		end
 	elseif d.text then
 		popText(pos, d.text, (d.color :: Color3?) or C.Gold, 22)
+		if d.upgrade == true then
+			-- Loot pickup that beats the worn piece (Systems/Loot): big green tag above the name
+			popText(pos + Vector3.new(0, 1.6, 0), "▲ UPGRADE", C.Good, 30, 1.4)
+		end
 	elseif d.hurt then
 		popText(pos, "-" .. tostring(d.amount), C.Danger, 28)
 	elseif not Prefs.get("damageNumbers") then

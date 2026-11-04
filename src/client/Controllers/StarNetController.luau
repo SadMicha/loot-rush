@@ -1,5 +1,5 @@
 --!strict
--- Star Net window (key N or menu button): the 100-star web on the left in a scroll area that
+-- Star Web window (key N or menu button): the 100-star web on the left in a scroll area that
 -- opens on the player's class start point (drag to pan, also on touch), points, star details
 -- and actions on the right.
 -- Allocations are validated and saved by the server (Systems/Progress); the window shows the snapshot
@@ -340,7 +340,7 @@ end
 function StarNetController.init()
 	win = Window.new({
 		name = "StarNet",
-		title = "Star Net",
+		title = "Star Web",
 		icon = "star_net",
 		key = Enum.KeyCode.N,
 		unlock = "star_net",

@@ -190,6 +190,7 @@ Theme.Hud = table.freeze({
 	SkillPad = 16, -- room around the skill arc for glow and touch growth (the group clips)
 	XpBar = 6, -- experience bar along the bottom edge of the screen
 	GearSize = 48,
+	NoticeDot = 14, -- dot on an icon button (daily reward waits, upgrade in the bag)
 	BarIcon = 64, -- hub icon bar: icon edge
 	BarCaption = 16,
 	BarGap = 8,
@@ -211,7 +212,7 @@ Theme.Hud = table.freeze({
 	-- Hub icon bar: menu id, Assets.Hud key, atlas fallback icon, caption
 	Bar = table.freeze({
 		{ id = "inventory", art = "menu_inventory", icon = "inventory", caption = "Inventory" },
-		{ id = "star_net", art = "menu_star_net", icon = "star_net", caption = "Stars" },
+		{ id = "star_net", art = "menu_star_net", icon = "star_net", caption = "Star Web" },
 		{ id = "skills", art = "menu_skills", icon = "skills", caption = "Skills" },
 		{ id = "hub", art = "menu_hub", icon = "hub", caption = "Hub" },
 		{ id = "atlas", art = "menu_atlas", icon = "atlas", caption = "Atlas" },
@@ -352,5 +353,25 @@ Theme.Tween = table.freeze({
 	Bar = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 })
 Theme.Stagger = 0.06 -- seconds of offset between panels flying in
+
+-- Tutorial callouts (client/UI/Callout, HintsController): a card next to the button it explains and
+-- a pulsing ring around that button. Sizes in HUD design px (the callout layer scales like the HUD).
+Theme.Callout = table.freeze({
+	Width = 300, -- card width
+	WidthTouch = 340, -- phones: a little wider, the text is bigger there
+	Pad = 14,
+	Gap = 18, -- between the target and the card
+	Margin = 12, -- min distance to the screen edge
+	TitleSize = 20,
+	BodySize = 16,
+	BodySizeTouch = 18,
+	FootSize = 12,
+	Ring = 10, -- the pulse ring is this much larger than the target on each side
+	RingStroke = 3,
+	RingGrow = 1.18, -- pulse: ring scale at the peak
+	PulseTime = 0.55, -- seconds per half pulse
+	Pointer = 16, -- the little diamond that points at the target
+	PopTime = 0.22,
+})
 
 return table.freeze(Theme)

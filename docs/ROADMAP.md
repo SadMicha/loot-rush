@@ -20,7 +20,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 
 | # | Milestone | Content | Status |
 |---|---|---|---|
-| M6 | Windows & systems | Windows Abilities, Star Web, Forge, Atlas (UI from mock-ups); skill levels, skill bloom, Star Web, Forge server-side; salvage; shop behind the + of the capsules | 🔧 ready to test (`TEST-UI-WINDOWS` 0/19) |
+| M6 | Windows & systems | Windows Skills, Star Web, Forge, Atlas (UI from mock-ups); skill levels, skill bloom, Star Web, Forge server-side; salvage; shop behind the + of the capsules | 🔧 ready to test (`TEST-UI-WINDOWS` 0/19) |
 | M7 | Rift run & regions | Atlas regions playable (own enemies/bosses, unlocking), arena per region, loot by depth, run summary `RiftResult`, death ends the run, loot collection (`docs/RIFT-RUN.md`) | 🔧 ready to test |
 | M8 | Combat depth | Armor, block, crit shards, Arcane Shield, all special nodes of the skill blooms, helpers with region XP | 🔧 ready to test |
 | M9 | Balancing per spreadsheet | Enemies, XP, gold, loot per depth (`docs/balancing.md`, `Shared/Balance`) | 🔧 ready to test (real runs against the spreadsheet open, see M5) |

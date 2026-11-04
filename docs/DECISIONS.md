@@ -23,7 +23,8 @@ can be overturned at any time. Where the concept already answers a question, the
 | Star Web | **100 nodes** (concept MVP), cross-class builds possible (concept). |
 | Spell stones | Support stones in skills, up to 3 (concept MVP: "Zaubersteine"). |
 | Loot | 9 equipment slots (owner, #43), rarities Normal → Magic → Rare → Epic → Unique; uniques with one signature effect (concept). Loot filter unlocks early (concept). |
-| Forge | Glitter Forge with charges stays (concept). |
+| Forge | Forge with charges stays (concept). |
+| Names | **One name per thing** (2026-11-04, criteria audit #6): **Star Web** (bar, window, quests), **Skills** (bar, window), **Forge** (bar, window, hub station; its item charges are "Forge charges", the material stays Glitter Dust), **Shop** = Robux shop (bar), **Market** = gold and Soulstar trades (hub stall, + on capsules, button inside the Shop). Ids, remotes and window instance names (`StarNet`, `Abilities`, station attribute `Shop`) stay. |
 | Enemy readability | Every enemy attack shows a red/orange ground telegraph (concept). |
 | Basic attack | Always automatic; skills are manual (no auto-cast: that was an idle feature). |
 | Dash | Becomes a **dodge roll**: 2 charges, i-frames, cancels skill recovery (concept: "Dash has 2 charges and short invulnerability"). |

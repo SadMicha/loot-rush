@@ -32,6 +32,11 @@ return table.freeze({
 	MOVE_GRACE = 4, -- studs per sample on top (replication jitter)
 	HINT_SKILL_RANGE = 35, -- studs: the first enemy this close shows the skills hint
 	HINT_TELEGRAPH_RANGE = 40, -- studs: the first enemy telegraph this close shows the dodge hint
+	HINT_CALM_RANGE = 20, -- studs: hints wait until no enemy is this close (and no telegraph near)
+	HINT_RUSH_AT = 0.5, -- Rush meter share that queues the Rush hint
+	HINT_SHOW_TIME = 8, -- seconds a hint callout stays up unless the player acts or taps it
+	HINT_MIN_SEEN = 1.5, -- seconds on screen before a hint counts as seen when it closes by itself
+	HINT_HIDDEN_GIVE_UP = 1, -- seconds the target may be hidden before the callout closes
 	WAYPOINT_HIDE = 14, -- studs from the quest station where the waypoint beam and marker hide
 	MOVE_BURST = 40, -- studs of extra distance banked for dashes (refills over DASH_RECHARGE)
 

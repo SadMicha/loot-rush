@@ -184,7 +184,11 @@ function QuestController.lines(): (string, string, string)
 		return "Push deeper!", string.format("Best depth %d", depth), ""
 	end
 	local reward = if state.gold then "+" .. Format.big(state.gold) .. " Gold" else ""
-	return state.text, string.format("%d / %d", QuestController.count(), state.target), reward
+	-- Extra rewards (Forge materials, spell stones) on their own line under the objective
+	local q = Rules.Chain[state.step]
+	local extra = if q then Rules.extraText(q) else ""
+	local text = if extra ~= "" then state.text .. "\nReward: " .. extra else state.text
+	return text, string.format("%d / %d", QuestController.count(), state.target), reward
 end
 
 function QuestController.init()

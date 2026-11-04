@@ -20,7 +20,7 @@ debug commands. Read against commit `2939c0a` (after #80).
   ranges, string lengths, NaN and infinity before touching state.
 - Currency, items, damage, XP, loot rolls, dash charges, cooldowns, Rift depth and rewards are
   computed on the server. Drops belong to the killer only.
-- Skill Bloom, Star Net, loadout, sockets, forge, pets, cosmetics (must be owned) and settings
+- Skill Bloom, Star Web, loadout, sockets, forge, pets, cosmetics (must be owned) and settings
   all validate against the shared rules before changing the save.
 - `ProcessReceipt`: idempotent via `account.receipts` (capped), `PurchaseGranted` only after the
   save is stored, account-wide so character switching cannot double-book.

@@ -165,3 +165,62 @@ describe("Items.roll per balancing table", function()
 		expect(ip("epic")).toBe(120)
 	end)
 end)
+
+describe("Items.isUpgrade", function()
+	local function item(affixes): any
+		return {
+			id = "x",
+			slot = "ring",
+			rarity = "magic",
+			name = "Ring",
+			ilvl = 1,
+			affixes = affixes,
+		}
+	end
+
+	it("an empty slot always takes an upgrade", function()
+		expect(Items.isUpgrade(item({ { stat = "speed", value = 1 } }), nil)).toBe(true)
+	end)
+
+	it("weighs stats by their roll range, so life does not win by its bigger numbers", function()
+		-- 6 crit = 3 average crit rolls; 22 life = 2 average life rolls
+		local crit = item({ { stat = "crit", value = 6 } })
+		local life = item({ { stat = "life", value = 22 } })
+		expect(Items.score(crit)).toBeCloseTo(3, 3)
+		expect(Items.score(life)).toBeCloseTo(2, 3)
+		expect(Items.isUpgrade(crit, life)).toBe(true)
+		expect(Items.isUpgrade(life, crit)).toBe(false)
+	end)
+
+	it("an equal item is no upgrade, NaN and unknown stats count as nothing", function()
+		local a = item({ { stat = "damage", value = 4.5 } })
+		local b = item({ { stat = "damage", value = 4.5 }, { stat = "luck", value = 99 } })
+		local nan = item({ { stat = "damage", value = 0 / 0 } })
+		expect(Items.isUpgrade(a, b)).toBe(false)
+		expect(Items.isUpgrade(b, a)).toBe(false)
+		expect(Items.score(nan)).toBe(0)
+	end)
+
+	it(
+		"life is weighed at the higher item level, so its level growth does not win alone",
+		function()
+			local low = item({ { stat = "crit", value = 4 } })
+			local high = item({ { stat = "life", value = 30 } })
+			high.ilvl = 20 -- 30 life at level 20 is below one average roll there
+			expect(Items.isUpgrade(high, low)).toBe(false)
+			expect(Items.isUpgrade(low, high)).toBe(true)
+		end
+	)
+
+	it("a much deeper weapon is an upgrade (item power scales all damage)", function()
+		local better = 0
+		for seed = 1, 200 do
+			local low = Items.roll(2, Random.new(seed), nil, { slot = "weapon" })
+			local high = Items.roll(30, Random.new(seed + 1000), nil, { slot = "weapon" })
+			if Items.isUpgrade(high, low) then
+				better += 1
+			end
+		end
+		expect(better).toBeGreaterThan(180)
+	end)
+end)

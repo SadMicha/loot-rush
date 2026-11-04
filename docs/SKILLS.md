@@ -19,7 +19,7 @@ Every skill has its own Skill Bloom (3 branches) built only from existing bloom 
 combat code needed no new mechanics. A bloom effect that the skill already has (e.g. burn)
 adds on top of the base value.
 
-The Abilities window lists all 8 skills; the detail panel has Q/E/R/F buttons to put the selected
+The Skills window lists all 8 skills; the detail panel has Q/E/R/F buttons to put the selected
 skill on a key (an equipped skill moving to another key swaps places). Saved as
 `profile.progress.bar`; cooldowns are tracked per skill, so swapping does not reset them.
 Remote `Net.Loadout` ("equip", slot, id); the server checks the unlock level.

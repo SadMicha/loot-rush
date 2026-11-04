@@ -1,9 +1,9 @@
-# Test: Windows Abilities, Star Web, Forge, Atlas
+# Test: Windows Skills, Star Web, Forge, Atlas
 
 Open via the menu on the left (visible when idle) or by key. Only one window at a time; × or the same key closes it.
 As long as the scene images and nodes from ChatGPT are missing (`Assets.Art` empty), you see a darkened background and slots as nodes.
 
-## Abilities (key K)
+## Skills (key K)
 - [ ] Q/E/R/F at the top and the list on the left show the 4 skills; tapping selects a skill (gold frame)
 - [ ] Center: skill bloom with trunk + 2 branches, nodes 0/5; tapping a node shows text at the bottom
 - [ ] Right: name, description, damage / cooldown / range match the game

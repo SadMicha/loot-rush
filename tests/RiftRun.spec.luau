@@ -168,6 +168,23 @@ describe("Rift run in game", function()
 		expect(left).toBe(0)
 	end)
 
+	it('offers "Play again" at the resume depth once back in the Hub', function()
+		sim:run(1.5)
+		local gui = sim.player.PlayerGui:FindFirstChild("LootRushReplay")
+		expect(gui).toBeTruthy()
+		local card = gui:FindFirstChild("PlayAgain", true)
+		expect(card).toBeTruthy()
+		expect(card.Visible).toBe(true)
+		local text = ""
+		for _, d in card:GetDescendants() do
+			if d:IsA("TextLabel") then
+				text ..= d.Text .. "|"
+			end
+		end
+		expect(string.find(text, "Play again · D2", 1, true)).toBeTruthy()
+		expect(string.find(text, "Green Plains", 1, true)).toBeTruthy()
+	end)
+
 	it("reports an abort in the middle of a depth", function()
 		rift("enter", "green_plains")
 		expect(phase()).toBe("wave")

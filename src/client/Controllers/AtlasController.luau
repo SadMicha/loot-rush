@@ -426,6 +426,13 @@ function AtlasController.init()
 
 	win.onOpen(AtlasController.render)
 	local player = Players.LocalPlayer
+	-- Open on the region played last, so "one more run" is a single tap on Travel
+	player:GetAttributeChangedSignal("RiftRegion"):Connect(function()
+		local id = player:GetAttribute("RiftRegion")
+		if typeof(id) == "string" and Atlas.ById[id] then
+			selected = id
+		end
+	end)
 	player:GetAttributeChangedSignal("WorldTier"):Connect(function()
 		if win.isOpen() then
 			AtlasController.render()
