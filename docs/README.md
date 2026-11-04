@@ -10,6 +10,7 @@
 | [balancing.md](balancing.md) | Balance values vs. `LootRush_Balancing.xlsx`, pacing targets, simulation |
 | [MONETIZATION.md](MONETIZATION.md) | Robux products, passes, Shop and Market |
 | [ART-STYLE.md](ART-STYLE.md) | One art style for all icons and images, asset inventory, regeneration list with prompts |
+| [ANALYTICS.md](ANALYTICS.md) | Fetching Roblox analytics (DAU, retention, revenue) via Open Cloud into `docs/analytics/` |
 | [PUBLISH.md](PUBLISH.md) | Auto-upload to Roblox (GitHub Actions, Open Cloud) |
 | [RELEASE.md](RELEASE.md) | Release checklist, PR template, security review |
 | [SMOKE-TEST.md](SMOKE-TEST.md) | 5-minute check after any merge |

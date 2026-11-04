@@ -1,0 +1,18 @@
+{
+  "_comment": "Queries for tools/fetch-analytics.py (Roblox Open Cloud Analytics Query API, beta). One file per name under docs/analytics/<date>/. A metric name Roblox does not know is reported in summary.md and skipped; fix or remove it here. Docs: docs/ANALYTICS.md.",
+  "queries": [
+    { "name": "dau", "metric": "DailyActiveUsers", "granularity": "OneDay" },
+    { "name": "dau-by-platform", "metric": "DailyActiveUsers", "granularity": "OneDay", "breakdown": ["Platform"] },
+    { "name": "dau-by-country", "metric": "DailyActiveUsers", "granularity": "OneDay", "breakdown": ["Country"] },
+    { "name": "new-users", "metric": "NewUsers", "granularity": "OneDay" },
+    { "name": "mau", "metric": "MonthlyActiveUsers", "granularity": "OneDay" },
+    { "name": "session-length", "metric": "AverageSessionLength", "granularity": "OneDay" },
+    { "name": "playtime-per-user", "metric": "PlaytimePerUser", "granularity": "OneDay" },
+    { "name": "retention-d1", "metric": "RetentionD1", "granularity": "OneDay" },
+    { "name": "retention-d7", "metric": "RetentionD7", "granularity": "OneDay" },
+    { "name": "retention-d30", "metric": "RetentionD30", "granularity": "OneDay" },
+    { "name": "revenue", "metric": "DailyRevenue", "granularity": "OneDay" },
+    { "name": "revenue-total", "metric": "Revenue", "granularity": "OneDay" },
+    { "name": "paying-users", "metric": "PayingUsers", "granularity": "OneDay" }
+  ]
+}

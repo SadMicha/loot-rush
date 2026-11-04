@@ -1,0 +1,76 @@
+name: Fetch analytics
+
+# Pulls experience analytics (DAU, new users, retention, session length, revenue, ...) from the
+# Roblox Open Cloud Analytics Query API (tools/fetch-analytics.py) and commits them to
+# docs/analytics/<date>/ on main, plus a run artifact. Docs: docs/ANALYTICS.md.
+# Key scope needed: API system "universe-analytics" (universe.analytics:read) on the universe.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days back from today (UTC, whole days, max 365)"
+        default: "28"
+      universeId:
+        description: "Universe ID (empty = secret ROBLOX_UNIVERSE_ID)"
+        default: ""
+      commit:
+        description: "Commit the files to docs/analytics on main"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+concurrency:
+  group: fetch-analytics
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Roblox
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+      ANALYTICS_DAYS: ${{ inputs.days || '28' }}
+      ANALYTICS_UNIVERSE_ID: ${{ inputs.universeId }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch
+        id: fetch
+        shell: bash -eo pipefail {0}
+        run: python3 -u tools/fetch-analytics.py | tee fetch.log
+
+      - name: Summary
+        if: always()
+        run: |
+          f=$(ls -d docs/analytics/*/summary.md 2>/dev/null | sort | tail -1)
+          if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat fetch.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analytics
+          path: docs/analytics/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Commit
+        if: success() && (github.event_name == 'schedule' || inputs.commit)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add docs/analytics
+          git diff --cached --quiet && exit 0
+          git commit -m "Analytics: snapshot $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do git pull --rebase -q origin "${GITHUB_REF_NAME}" && git push && exit 0; sleep $((i * 5)); done
+          exit 1
