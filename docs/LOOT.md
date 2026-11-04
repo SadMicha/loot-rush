@@ -28,7 +28,7 @@ holds the ids comma-separated.
 - Rarity `unique`, only from depth 10 (`UNIQUE_FROM`); weight 0.45 with exponent 2 on the
   rarity shift, so better find makes them noticeably more likely.
 - 12 fixed items in `Items.Uniques` (one per slot type, each a base value plus fixed stats).
-  Values scale with item level; uniques have no Glitter charges and cannot be forged.
+  Values scale with item level; uniques have no Forge charges and cannot be forged.
 - Drop beam in the unique color (`Theme.Glow.unique`); never auto-salvaged; sell price × 25.
 
 ## Auto-salvage (loot filter)

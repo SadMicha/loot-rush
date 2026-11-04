@@ -6,7 +6,7 @@ Build order step 8 (`docs/DECISIONS.md`, concept "Zaubersteine"). Rules in
 - Up to **3 stones per skill**. Stones are kept as counts (`profile.progress.stones`); a stone in a
   socket is in use (`profile.progress.sockets[skillId]`), unsocketing gives it back.
 - Drops: 35 % per boss kill, 12 % per elite kill (random stone, popup over the player).
-- Abilities window → skill detail: three socket buttons. Tap cycles through the owned stones that
+- Skills window → skill detail: three socket buttons. Tap cycles through the owned stones that
   fit the skill, then back to empty. Remote `Net.Loadout` ("socket", skillId, { index, stoneId }),
   validated on the server (`Progression.socket`).
 

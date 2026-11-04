@@ -27,7 +27,7 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 
 | Depth | Region | Hits survived (normal / boss) | Normal enemy TTK | Boss s |
 |---|---|---|---|---|
-| 1 | Green Plains | 10 / 6 | 0.6 s | 38 |
+| 1 | Green Plains | 10 / 6 | 0.6 s | 21 (boss life ×0.55, `Bosses.EASE_HEALTH`) |
 | 5-10 | Green Plains → Crystal Caves | 15-20 / 9-12 | 0.4-1.0 s | 25-30 |
 | 11-15 | Mushroom Swamp | 8-10 / 8-11 | 0.7-1.1 s | 28-38 |
 | 16-20 | Fire Desert | 8-12 / 5-7 | 0.8-1.2 s | 25-34 |
@@ -140,28 +140,34 @@ Forge (costs, charges, tiers), salvage and archetype factors were already correc
 
 ## Simulation result (farming until ready, without stars/forge)
 
-Regenerated 2026-11-03 from `tests/Balancing.spec.luau` (Rift Trail: 3 clearings, 10 s walk/pause each). TTK1/Hits1 = on arrival at the depth,
+Regenerated 2026-11-04 from `tests/Balancing.spec.luau` (Rift Trail: 3 clearings, 10 s walk/pause each). TTK1/Hits1 = on arrival at the depth,
 TTK/Hits = after farming. Farm = extra runs of the depth before. Min = minutes since the start.
 The simulated player fills all nine slots (best piece per slot), crit uncapped with overcrit
 (`Shared/Crit`, the sim uses `Crit.expectedMult`).
 
 | Depth | Level | TTK1 | Boss s | Hits1 | Boss hits | Farm | Min |
 |---|---|---|---|---|---|---|---|
-| 1 | 1 | 0.64 | 38.3 | 10.0 | 6.2 | 0 | 1 |
+| 1 | 1 | 0.64 | 21.1 | 10.0 | 6.2 | 0 | 1 |
 | 5 | 5 | 0.49 | 29.5 | 17.2 | 10.8 | 0 | 6 |
-| 6 | 8 | 1.20 | 29.2 | 16.5 | 9.6 | 5 | 12 |
-| 10 | 10 | 0.90 | 27.5 | 14.2 | 7.0 | 0 | 17 |
-| 15 | 14 | 0.99 | 40.0 | 7.0 | 8.1 | 1 | 27 |
-| 20 | 24 | 1.16 | 32.6 | 7.9 | 5.6 | 5 | 50 |
-| 24 | 32 | 1.18 | 24.4 | 7.0 | 5.7 | 8 | 72 |
-| 26 | 43 | 1.21 | 38.8 | 6.7 | 4.4 | 13 | 98 |
-| 27 | 50 | 1.24 | 39.6 | 6.5 | 4.2 | 30 | 135 |
-| 30 | 67 | 1.13 | 35.1 | 5.2 | 3.7 | 30 | 204 |
+| 6 | 7 | 1.07 | 33.1 | 17.2 | 9.1 | 2 | 9 |
+| 7 | 8 | 1.14 | 27.7 | 17.6 | 10.0 | 2 | 13 |
+| 9 | 9 | 1.01 | 32.8 | 18.0 | 8.6 | 1 | 17 |
+| 10 | 10 | 0.92 | 31.5 | 17.7 | 8.3 | 0 | 18 |
+| 15 | 14 | 1.01 | 39.0 | 7.8 | 9.2 | 2 | 30 |
+| 20 | 25 | 1.14 | 31.1 | 8.7 | 5.7 | 5 | 57 |
+| 24 | 32 | 1.12 | 23.9 | 7.8 | 5.7 | 2 | 76 |
+| 26 | 44 | 1.22 | 38.7 | 6.9 | 4.2 | 14 | 109 |
+| 27 | 50 | 1.24 | 38.6 | 6.3 | 4.1 | 22 | 137 |
+| 30 | 65 | 1.13 | 36.3 | 5.2 | 3.6 | 25 | 204 |
 
 - Real play is slower than the sim (dodging, walking, menus; the old sim said 24 minutes, the
   playtest took 30-40), while Star Web and Forge make the player stronger than the sim. Together
   that lands around 3-4 hours to depth 30.
 - The Altered World (26+) is the farm zone before Veteran: most of the farming happens there.
+- Depth 6 wall smoothed (2026-11-04, audit #8): Crystal Caves used to average ×1.42 enemy life
+  (two tank crabs in five) against ×0.68 in Green Plains, so depth 6 needed 5 farm runs at
+  minute 6, right after the Forge unlock. The mix now has a second slime (×1.27): at most 2 farm
+  runs per depth before depth 10, spread over depths 6, 7 and 9.
 - Early depths are still forgiving on raw hits (15-20); the pressure there comes from leaps,
   packs and leading shots, not from damage.
 

@@ -6,7 +6,7 @@
 -- Simulation assumptions (not in the game):
 --   • skill hits per cast in waves (TARGETS), the basic attack hits one enemy
 --   • kill XP is split evenly across the 4 skills on the bar (skill levels)
---   • without Star Net and Forge (= lower bound of player strength)
+--   • without Star Web and Forge (= lower bound of player strength)
 --   • all nine gear slots (Items.Slots), best piece per slot by score; crit uncapped with overcrit (Shared/Crit)
 --   • walk/pause time per clearing of the Rift Trail WAVE_OVERHEAD seconds
 local Atlas = require("ReplicatedStorage.Shared.Atlas")
@@ -313,6 +313,15 @@ describe("Balancing depth 1–30", function()
 		end
 		expect(total).toBeGreaterThan(30)
 		expect(early).toBeGreaterThan(5)
+	end)
+
+	-- Audit #8: no farm wall in the first 15 minutes (the old depth 6 wall needed 5 runs)
+	it("never asks for more than 2 farm runs per depth before depth 10", function()
+		for _, r in rows do
+			if r.depth < 10 then
+				expect(r.farm).toBeLessThan(3)
+			end
+		end
 	end)
 
 	it("gets harder per depth: fewer hits survived at depth 30 than at depth 10", function()

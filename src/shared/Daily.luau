@@ -7,6 +7,7 @@
 -- Save: account.daily = { claimed = total claims, last = UTC day number of the last claim (0 = never) }
 
 local Balance = require(script.Parent.Balance)
+local Quests = require(script.Parent.Quests)
 
 local Daily = {}
 
@@ -24,6 +25,21 @@ export type Reward = {
 Daily.CYCLE = #Balance.Daily
 Daily.DAY = 86400 -- seconds per UTC day
 Daily.MAX_CLAIMED = 1e6 -- sanity cap for the counter in a save
+
+-- The calendar pops up by itself only after the player's first fight (docs/CRITERIA-AUDIT.md §3 #5):
+-- once this quest is done and the player is back out of the Rift. The chest button works any time.
+Daily.POPUP_AFTER = "enter_rift"
+local popupStep = 1
+for i, q in Quests.Chain do
+	if q.id == Daily.POPUP_AFTER then
+		popupStep = i
+	end
+end
+
+-- May the calendar pop up by itself? questStep = index of the active quest (Shared/Quests)
+function Daily.popupAllowed(questStep: number, inRift: boolean): boolean
+	return not inRift and typeof(questStep) == "number" and questStep > popupStep
+end
 
 -- UTC day number of a unix time
 function Daily.dayOf(now: number): number

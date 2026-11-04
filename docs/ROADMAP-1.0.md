@@ -63,6 +63,10 @@ Priority: **P0** blocks 1.0 · **P1** strongly affects how the game feels or ret
 `HintsController` (hidden account settings `hintSkills`/`hintDodge`/`hintRush`), O2 preload
 + loading screen (`PreloadController`, `src/first/LootRushLoading.client.luau` in
 ReplicatedFirst, fades out on the `ClientReady` attribute).
+**2026-11-04 (CRITERIA-AUDIT §3 #2, #5):** hints are callouts next to the button they explain
+(`client/UI/Callout`, `Theme.Callout`), shown at calm moments, saved only after they were on
+screen; new hints `hintBreak`/`hintCounter`/`hintEquip`. The Daily popup waits until the first
+quest ("Enter a Rift") is done and the player is back out (`Daily.popupAllowed`).
 | O6 | No skip for players who already know ARPGs. | P2 | "Skip tutorial hints" toggle in settings (S1). |
 
 ### 3.2 Combat feel
@@ -96,7 +100,7 @@ screen sizes, but no human has ticked `TEST-HUD` (0/35) or `TEST-UI-WINDOWS` (0/
 |---|---|---|---|
 | U1 | The settings gear only opens the Roblox menu. There is no own settings window. | P1 | **S1 settings window** (Kit): music/effects volume, shake, damage numbers, effects quality (drives `DEBRIS_LOW`, minimap `PartCapTouch`), hints on/off. Account-wide save. |
 | U2 | Item comparison: unknown whether tooltips show "vs. equipped" deltas (needs a look in Studio). | P1 | Green/red stat deltas against the equipped item, on hover (PC) and long-press (touch). |
-| U3 | Many windows (Inventory, Abilities, Star Web, Forge, Atlas, Shop, Pets) compete for the bottom bar on phones. | P2 | After the Studio pass: decide if Pets and Forge move into a "Hub" tab group on phones. |
+| U3 | Many windows (Inventory, Skills, Star Web, Forge, Atlas, Shop, Pets) compete for the bottom bar on phones. | P2 | After the Studio pass: decide if Pets and Forge move into a "Hub" tab group on phones. |
 | U4 | No controller support declared (consoles are off in `RELEASE.md`). | P2 | Keep consoles off for 1.0. |
 | U5 | Leaderboard, daily reward, season badge and Journey need new UI (§4). | P0 (1.0 scope) | Build them in the Gilded Ink look via Kit, one shared "reward card" component. |
 

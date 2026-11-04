@@ -1,5 +1,5 @@
 --!strict
--- Abilities window after the "Abilities" mockup (key K or menu button):
+-- Skills window after the "Abilities" mockup (key K or menu button):
 --   left: skill bar Q/E/R/F and all 8 skills, center: skill bloom, right: details with the
 --   slot buttons (equip a skill to Q/E/R/F).
 -- Values come from Shared.Skills, combined with level, bloom and stars (Progression.effectiveSkill).
@@ -658,7 +658,7 @@ end
 function AbilitiesController.init()
 	win = Window.new({
 		name = "Abilities",
-		title = "Abilities",
+		title = "Skills",
 		icon = "skills",
 		key = Enum.KeyCode.K,
 		background = "bg_skills",

@@ -20,6 +20,44 @@ describe("Rift variants", function()
 	end)
 end)
 
+describe("Boss teaching by depth", function()
+	it("starts with the Break meter only and adds one idea at a time", function()
+		local d1 = Bosses.rules(1)
+		expect(d1.maxPhase).toBe(1)
+		expect(d1.adds).toBe(false)
+		expect(d1.mortar).toBe(false)
+		expect(d1.openings).toBe(false)
+		expect(d1.counter).toBe(false)
+		expect(d1.pursuit).toBe(false)
+		expect(d1.health < 0.6).toBe(true)
+		local d3 = Bosses.rules(3)
+		expect(d3.maxPhase).toBe(2)
+		expect(d3.openings).toBe(true)
+		expect(d3.counter).toBe(true)
+		expect(d3.adds).toBe(false)
+		expect(Bosses.rules(4).pursuit).toBe(true)
+		local d5 = Bosses.rules(5)
+		expect(d5.maxPhase).toBe(3)
+		expect(d5.adds).toBe(true)
+		expect(d5.mortar).toBe(true)
+		expect(d5.health).toBe(1)
+		expect(Bosses.rules(30).health).toBe(1)
+		expect(Bosses.rules(0 / 0).maxPhase).toBe(1) -- NaN depth: the gentlest rules
+		-- life grows back to full over the first depths
+		for d = 2, 5 do
+			expect(Bosses.rules(d).health >= Bosses.rules(d - 1).health).toBe(true)
+		end
+	end)
+
+	it("measures Pursuit against the player's own reach", function()
+		-- Green Plains boss: range 11. Ranger basic 38, Spark Mage 30
+		expect(Bosses.reach(11, 38)).toBe(38 + Bosses.PURSUIT_MARGIN)
+		expect(Bosses.reach(11, 30)).toBe(30 + Bosses.PURSUIT_MARGIN)
+		expect(Bosses.reach(11, 8)).toBe(11 + Bosses.PURSUIT_MARGIN)
+		expect(Bosses.reach(11, nil)).toBe(11 + Bosses.PURSUIT_MARGIN)
+	end)
+end)
+
 local function server(fn)
 	local out = {}
 	sim:runAs("server", function(req)
@@ -189,6 +227,58 @@ describe("Bosses and variants in game", function()
 		expect(focus).never.toBeNil()
 		server(function(req)
 			req("ServerScriptService.Server.Systems.Enemies").clear(47)
+		end)
+	end)
+
+	it("keeps a depth 1 boss in phase 1, without adds, and shorter", function()
+		local phase, eased, full = server(function(req, player)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local root = player.Character.HumanoidRootPart
+			local m = Enemies.spawn(
+				"crystal_king",
+				root.Position + Vector3.new(0, 0, -30),
+				1,
+				{ center = root.Position, run = 48 }
+			)
+			m:SetAttribute("Health", math.floor(m:GetAttribute("MaxHealth") * 0.2))
+			return m,
+				Enemies.stats("crystal_king", 1).health,
+				Enemies.stats("crystal_king", 5).health
+		end)
+		sim:run(0.3)
+		local stage, n = server(function(req)
+			return phase:GetAttribute("BossPhase"),
+				req("ServerScriptService.Server.Systems.Enemies").count(48)
+		end)
+		expect(stage).toBeNil() -- never left phase 1
+		expect(n).toBe(1)
+		-- depth 1 life is eased well below what depth growth alone gives
+		local Balance = require("ReplicatedStorage.Shared.Balance")
+		local raw = full / Balance.enemyHealth(5) * Balance.enemyHealth(1)
+		expect(math.abs(eased - raw * Bosses.rules(1).health) <= 2).toBe(true)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(48)
+		end)
+	end)
+
+	it("treats a dodge at depth 1 as a plain dodge, not a Counter", function()
+		local got, poise = server(function(req, player)
+			local Enemies = req("ServerScriptService.Server.Systems.Enemies")
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local root = player.Character.HumanoidRootPart
+			local m = Enemies.spawn(
+				"crystal_king",
+				root.Position + Vector3.new(0, 0, -30),
+				1,
+				{ center = root.Position, run = 49 }
+			)
+			Combat.dash(player)
+			return Combat.hurtPlayer(player, 5, m), m:GetAttribute("Poise")
+		end)
+		expect(got).toBe(false)
+		expect(poise).toBe(Bosses.POISE)
+		server(function(req)
+			req("ServerScriptService.Server.Systems.Enemies").clear(49)
 		end)
 	end)
 

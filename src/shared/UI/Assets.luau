@@ -422,7 +422,7 @@ for name, code in ICON_ALIAS do
 end
 Assets.Icon = table.freeze(icon)
 
--- Scene images and nodes of the Abilities, Star Net, Forge, Atlas and Shop windows
+-- Scene images and nodes of the Abilities, Star Web, Forge, Atlas and Shop windows
 -- (upload package LootRush_Upload_v8_Fenster). Entries without an ID are ignored; the windows
 -- then show the flat style (nodes as slots, lines as thin strokes).
 local ART: { [string]: Fixed } = {

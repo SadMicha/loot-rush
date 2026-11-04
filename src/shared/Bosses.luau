@@ -6,11 +6,16 @@
 -- Broken: it stops, drops its attack and takes extra damage for a few seconds. Hits during the
 -- Opening right after a boss attack lands chip twice as much and deal more damage; a dodge roll
 -- through a boss attack (Counter) chips a big piece. Poise refills when nobody hits the boss.
--- Pursuit: a player who keeps away gets jumped (slam bosses) or shelled (others).
+-- Pursuit: a player who keeps out of their own reach and stops hitting gets jumped (slam bosses)
+-- or shelled (others). Reach = max(boss attack range, the player's basic attack range) + margin,
+-- so a Ranger shooting from 38 studs is never "keeping away".
+-- Teaching by depth: the first bosses are short and show one idea at a time (see the *_FROM
+-- values and Bosses.rules). Break meter from depth 1, Openings + Counter from 3, Pursuit from 4,
+-- adds, enrage and the phase-2 mortar from 5.
 -- Server rules in Systems/Enemies and Systems/Combat; attributes for the client:
 --   BossPhase (1-3), Enraged, Poise, PoiseMax, Broken (bool), Opening (bool).
 
-return table.freeze({
+local Bosses = {
 	PHASE2 = 0.66, -- life share that starts phase 2
 	PHASE3 = 0.33, -- life share that starts phase 3 (enrage)
 	ADDS = 4, -- adds called at each phase change
@@ -44,4 +49,46 @@ return table.freeze({
 	PURSUIT_MARGIN = 10, -- studs beyond the boss's attack range that count as "keeping away"
 	PURSUIT_TIME = 2.2, -- seconds of keeping away before the boss reacts
 	PURSUIT_LEAP = 44, -- slam bosses jump this far at a kiting player
-})
+
+	-- Teaching by depth (docs/BOSSES.md "Teaching by depth")
+	PHASE2_FROM = 3, -- phase 2 (faster tempo) from this depth; before it the boss stays in phase 1
+	OPENINGS_FROM = 3, -- Openings after a boss attack
+	COUNTER_FROM = 3, -- Counter (dodge through an enemy attack, Shared/Momentum) on enemies of this depth
+	PURSUIT_FROM = 4,
+	ADDS_FROM = 5, -- adds at the phase changes and the phase-2 mortar
+	ENRAGE_FROM = 5, -- phase 3 (enrage)
+	-- boss life factor at depth 1, 2, 3, ... (1 after the list): the first boss takes ~20 s, not 38
+	EASE_HEALTH = table.freeze({ 0.55, 0.65, 0.8, 0.9 }),
+}
+
+export type Rules = {
+	maxPhase: number, -- 1-3
+	adds: boolean,
+	mortar: boolean, -- phase-2 mortar
+	openings: boolean,
+	counter: boolean,
+	pursuit: boolean,
+	health: number, -- life factor
+}
+
+-- Which boss mechanics are on at this depth
+function Bosses.rules(depth: number): Rules
+	local d = if depth == depth then math.max(1, math.floor(depth)) else 1
+	local maxPhase = if d >= Bosses.ENRAGE_FROM then 3 elseif d >= Bosses.PHASE2_FROM then 2 else 1
+	return {
+		maxPhase = maxPhase,
+		adds = d >= Bosses.ADDS_FROM,
+		mortar = d >= Bosses.ADDS_FROM,
+		openings = d >= Bosses.OPENINGS_FROM,
+		counter = d >= Bosses.COUNTER_FROM,
+		pursuit = d >= Bosses.PURSUIT_FROM,
+		health = Bosses.EASE_HEALTH[d] or 1,
+	}
+end
+
+-- How far a player may stand from the boss and still be "in the fight" (Pursuit)
+function Bosses.reach(bossRange: number, playerRange: number?): number
+	return math.max(bossRange, playerRange or 0) + Bosses.PURSUIT_MARGIN
+end
+
+return table.freeze(Bosses)

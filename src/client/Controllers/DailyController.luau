@@ -1,7 +1,8 @@
 --!strict
 -- Daily rewards window (Shared/Daily, Systems/Daily): seven day cards and one Claim button.
--- Opens by itself once per session when a reward is waiting (after the hero setup, when no other
--- window is open and the player is not in a Rift); later from the chest button on the HUD.
+-- Opens by itself once per session when a reward is waiting (after the hero setup and the player's
+-- first fight (Daily.popupAllowed), when no other window is open and the player is not in a Rift);
+-- any time from the chest button on the HUD.
 -- The server owns the calendar (Net.DailyState); the client only asks to claim.
 
 local Players = game:GetService("Players")
@@ -232,7 +233,11 @@ local function autoOpen()
 		player.Parent
 		and (
 			player:GetAttribute("SetupDone") ~= true
-			or player:GetAttribute("RiftRegion") ~= nil
+			or not QuestController.ready()
+			or not Daily.popupAllowed(
+				QuestController.state().step,
+				player:GetAttribute("RiftRegion") ~= nil
+			)
 			or Window.anyOpen()
 		)
 	do

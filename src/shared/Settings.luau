@@ -45,6 +45,9 @@ Settings.Defs = table.freeze({
 	hintSkills = { kind = "bool", default = false },
 	hintDodge = { kind = "bool", default = false },
 	hintRush = { kind = "bool", default = false },
+	hintBreak = { kind = "bool", default = false },
+	hintCounter = { kind = "bool", default = false },
+	hintEquip = { kind = "bool", default = false },
 } :: { [string]: Def })
 
 -- Net.Setting key that puts every setting back to its default in one request (Defaults button)

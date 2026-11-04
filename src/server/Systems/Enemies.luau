@@ -27,6 +27,8 @@ local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Creatures = require(ReplicatedStorage.Shared.Models.Creatures)
 local Bosses = require(ReplicatedStorage.Shared.Bosses)
+local Classes = require(ReplicatedStorage.Shared.Classes)
+local Skills = require(ReplicatedStorage.Shared.Skills)
 local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
 local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
@@ -103,6 +105,8 @@ type Enemy = {
 	zoneMax: Vector3,
 	aloneSince: number, -- since when no player stands in the zone (0 = someone is in it)
 	-- Boss Break meter, Opening and Pursuit (Shared/Bosses)
+	rules: Bosses.Rules, -- which boss mechanics are on at this depth
+	lastHit: { [Player]: number }, -- last direct hit per player (Pursuit spares who keeps hitting)
 	poise: number,
 	poiseMax: number,
 	poiseShown: number, -- last value written to the Poise attribute
@@ -564,7 +568,16 @@ function Enemies.stats(kindName: string, depth: number, tier: number?)
 	assert(kind, "unknown enemy type")
 	local t = WorldTiers.get(tier)
 	return {
-		health = math.max(1, math.floor(kind.health * Balance.enemyHealth(depth) * t.health)),
+		-- the first bosses are shorter (Bosses.EASE_HEALTH)
+		health = math.max(
+			1,
+			math.floor(
+				kind.health
+					* Balance.enemyHealth(depth)
+					* t.health
+					* (if kind.boss then Bosses.rules(depth).health else 1)
+			)
+		),
 		damage = math.max(1, math.floor(kind.damage * Balance.enemyDamage(depth) * t.damage + 0.5)),
 		xp = math.floor(kind.xp * Balance.xp(depth) * t.reward + 0.5),
 		gold = kind.gold * Balance.gold(depth) * t.reward, -- unrounded: Loot rounds only after the region bonus
@@ -733,6 +746,8 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		zoneMin = zoneMin,
 		zoneMax = zoneMax,
 		aloneSince = 0,
+		rules = Bosses.rules(depth),
+		lastHit = {},
 		poise = Bosses.POISE,
 		poiseMax = Bosses.POISE,
 		poiseShown = Bosses.POISE,
@@ -1076,7 +1091,7 @@ local function resolveAttack(e: Enemy, now: number)
 		end
 	end
 	-- Opening: the boss recovers from its attack (after a charge: once it stops)
-	if kind.boss then
+	if kind.boss and e.rules.openings then
 		e.openUntil = now + Bosses.OPENING_TIME + (if kind.ai == "charge" then CHARGE_TIME else 0)
 		e.model:SetAttribute("Opening", true)
 	end
@@ -1201,6 +1216,7 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 	end
 	local share = hp / max
 	local target = if share <= Bosses.PHASE3 then 3 elseif share <= Bosses.PHASE2 then 2 else 1
+	target = math.min(target, e.rules.maxPhase) -- the first depths keep fewer phases
 	-- one phase per call: a big hit from 70 % to 30 % still plays phase 2 first (next frame: 3)
 	if target <= e.stage then
 		return
@@ -1225,14 +1241,27 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 		glow.DepthMode = Enum.HighlightDepthMode.Occluded
 		glow.Parent = model
 	end
-	e.summoned = true
-	summon(e, pos, Bosses.ADDS)
+	if e.rules.adds then
+		e.summoned = true
+		summon(e, pos, Bosses.ADDS)
+	end
 	Net.Fx:FireAllClients("phase", { pos = pos, stage = stage })
 	Net.Fx:FireAllClients("nova", {
 		pos = Vector3.new(pos.X, 0.5, pos.Z),
 		radius = 14 * e.kind.scale / 2,
 		color = if stage == 3 then DANGER_CORE else e.kind.color,
 	})
+end
+
+-- Pursuit (Shared/Bosses): is `player` keeping away from the boss? Not while they stand within
+-- their own basic attack reach (ranged classes) or hit the boss within PURSUIT_TIME.
+local function kiting(e: Enemy, player: Player, dist: number, now: number): boolean
+	local basic = Skills.forClass(Classes.valid(player:GetAttribute("Class"))).basic
+	if dist <= Bosses.reach(e.kind.attackRange, basic.range) then
+		return false
+	end
+	local hit = e.lastHit[player]
+	return hit == nil or now - hit > Bosses.PURSUIT_TIME
 end
 
 -- Does a living player stand in the enemy's zone (Shared/Leash)?
@@ -1309,8 +1338,9 @@ local function step(dt: number)
 		if kind.boss then
 			phaseCheck(e, pos)
 			broken = stepPoise(e, now, dt)
-			-- Pursuit: keeping away from the boss does not work for long
-			if target and dist > kind.attackRange + Bosses.PURSUIT_MARGIN then
+			-- Pursuit: keeping away from the boss does not work for long. Away = out of both the
+			-- boss's and the player's own basic attack reach, and not hitting the boss either
+			if target and e.rules.pursuit and kiting(e, target, dist, now) then
 				if e.farSince == 0 then
 					e.farSince = now
 				end
@@ -1335,7 +1365,7 @@ local function step(dt: number)
 			target
 			and targetPos
 			and not broken
-			and (e.mods.mortar or (kind.boss and (e.stage >= 2 or pursuing)))
+			and (e.mods.mortar or (kind.boss and ((e.stage >= 2 and e.rules.mortar) or pursuing)))
 			and dist <= Config.COMBAT_RADIUS -- only once the fight is on (combat HUD, on camera)
 			and now >= e.nextMortar
 		then
@@ -1535,11 +1565,14 @@ end
 function Enemies.start()
 	RunService.Heartbeat:Connect(step)
 	Combat.EnemyHit.Event:Connect(
-		function(model: Model, from: Vector3, crit: boolean, basic: boolean?)
+		function(model: Model, from: Vector3, crit: boolean, basic: boolean?, player: Player?)
 			Enemies.knockback(model, from, crit)
 			local e = byModel[model]
 			if e and e.kind.boss then
 				local now = os.clock()
+				if player then
+					e.lastHit[player] = now
+				end
 				local amount = Bosses.POISE_BASIC
 				if basic ~= true then
 					if now - e.skillPoiseAt < Bosses.POISE_SKILL_GAP then

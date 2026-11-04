@@ -1261,6 +1261,29 @@ function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item
 	return items, equipped
 end
 
+-- "Upgrade waits" dot on the Inventory button (HUD): a bag item beats the worn piece of its slot
+-- and the player has not opened the Inventory since it arrived. Opening the window clears it.
+local upgradeSeen: { [string]: boolean } = {}
+local upgradeEvent = Instance.new("BindableEvent")
+InventoryController.upgradeChanged = upgradeEvent.Event
+
+function InventoryController.upgradeWaiting(): boolean
+	for _, it in items do
+		if not upgradeSeen[it.id] and Items.SlotName[it.slot] then
+			if Items.isUpgrade(it, equipped[it.slot]) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function seeUpgrades()
+	for _, it in items do
+		upgradeSeen[it.id] = true
+	end
+end
+
 function InventoryController.slotIcon(slot: string): string
 	return slotArt(slot)
 end
@@ -1277,6 +1300,8 @@ function InventoryController.toggle()
 		if next(freshIds) ~= nil then
 			InventoryController.render() -- loot that came in while closed gets its reveal now
 		end
+		seeUpgrades()
+		upgradeEvent:Fire()
 	else
 		Flat.sound("ui_close")
 		if not Window.anyOpen() then
@@ -1408,8 +1433,17 @@ function InventoryController.start()
 			end
 		end
 		seenIds = now
+		for id in upgradeSeen do
+			if not now[id] then
+				upgradeSeen[id] = nil
+			end
+		end
+		if gui.Enabled then
+			seeUpgrades() -- arrived while looking at the bag
+		end
 		InventoryController.render()
 		changed:Fire()
+		upgradeEvent:Fire()
 	end)
 	player:GetAttributeChangedSignal("AutoSalvage"):Connect(function()
 		InventoryController.render()

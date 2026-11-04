@@ -1,5 +1,5 @@
 --!strict
--- Glitter Forge on the server: checks the request, rolls (Shared.Forge.apply), deducts materials
+-- Forge on the server: checks the request, rolls (Shared.Forge.apply), deducts materials
 -- and replaces the item in the inventory or in the gear. The client only sends
 -- action + item ID + affix number and gets inventory, materials and feedback back.
 

@@ -136,7 +136,7 @@ Skills.bar = table.freeze({
 	}),
 })
 
--- Skills 5-8: unlock with the player level, equip in the Abilities window
+-- Skills 5-8: unlock with the player level, equip in the Skills window
 Skills.extra = table.freeze({
 	def({
 		id = "meteor",

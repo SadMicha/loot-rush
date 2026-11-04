@@ -1,5 +1,5 @@
 --!strict
--- Skill levels, Skill Blooms, Star Net and Forge materials (rules in Shared.Progression).
+-- Skill levels, Skill Blooms, Star Web and Forge materials (rules in Shared.Progression).
 --   • Skills gain XP when they land the killing blow (the enemy's XP)
 --   • Bloom Points (1 per skill level) and star points (1 per level) are only allocated by the server
 --   • Materials: salvage (Inventory → Progress.salvage) and boss kills
@@ -170,7 +170,7 @@ local function onBloom(player: Player, action: any, skillId: any, key: any)
 	send(player)
 end
 
--- Bar loadout (Abilities window)
+-- Bar loadout (Skills window)
 local function onLoadout(player: Player, action: any, a: any, b: any)
 	if not allow(player) or typeof(action) ~= "string" then
 		return
