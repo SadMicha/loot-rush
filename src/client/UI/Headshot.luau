@@ -4,8 +4,11 @@
 -- URL, so nothing yields and the engine caches and loads it per userId (works for players on
 -- other servers or offline). A placeholder with the name's initial is drawn over it until the image
 -- has loaded, so it shows while loading, on failure, and for ids without a profile (Studio test
--- players are ≤ 0).
+-- players are ≤ 0). "Loaded" comes from ContentProvider:PreloadAsync (once per userId, also
+-- answers at once for a cached image) and ImageLabel.IsLoaded, whichever is first: the
+-- IsLoaded change signal alone does not fire reliably, which left the letter on the photo.
 
+local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -18,6 +21,45 @@ local H = Theme.Headshot
 local Headshot = {}
 
 local urls: { [number]: string } = {}
+local ready: { [number]: boolean } = {} -- userId → image fetched
+local waiting: { [number]: { () -> () } } = {} -- userId → hide callbacks of placeholders
+
+local function markReady(userId: number)
+	ready[userId] = true
+	local list = waiting[userId]
+	waiting[userId] = nil
+	if list then
+		for _, hide in list do
+			hide()
+		end
+	end
+end
+
+-- Fetch once per userId; every placeholder of that user hides when it arrives
+local function fetch(userId: number, url: string, hide: () -> ())
+	if ready[userId] then
+		hide()
+		return
+	end
+	local list = waiting[userId]
+	if list then
+		table.insert(list, hide)
+		return -- already fetching
+	end
+	waiting[userId] = { hide }
+	task.spawn(function()
+		local ok = pcall(function()
+			ContentProvider:PreloadAsync({ url }, function(_: string, status: Enum.AssetFetchStatus)
+				if status == Enum.AssetFetchStatus.Success then
+					markReady(userId)
+				end
+			end)
+		end)
+		if not ok or not ready[userId] then
+			waiting[userId] = nil -- failed: placeholders stay; the next row asks again
+		end
+	end)
+end
 
 -- Content URL of a user's headshot, or nil for ids that have no Roblox profile
 function Headshot.url(userId: number): string?
@@ -88,12 +130,19 @@ function Headshot.new(o: Options): Frame
 	letter.FontFace = Theme.Font.UI
 	letter.ZIndex = 2 -- above the image until it has loaded
 	letter.Parent = f
-	if img then
-		local function loaded()
-			letter.Visible = not img.IsLoaded
+	if img and url then
+		local function hide()
+			letter.Visible = false
+			f.BackgroundTransparency = 1 -- no placeholder tint around the photo
 		end
-		img:GetPropertyChangedSignal("IsLoaded"):Connect(loaded)
-		loaded()
+		local function check()
+			if img.IsLoaded then
+				hide()
+			end
+		end
+		img:GetPropertyChangedSignal("IsLoaded"):Connect(check)
+		check()
+		fetch(o.userId, url, hide)
 	end
 	return f
 end
