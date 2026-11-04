@@ -1008,7 +1008,7 @@ local function renderGrid()
 	footNormal.Visible = not salvageMode
 	footSalvage.Visible = salvageMode
 	salvageLabel.Text = if salvagedCount > 0
-		then string.format("Salvaged %d - +%s Gold", salvagedCount, Format.big(salvagedGold))
+		then string.format("Salvaged %d - +%s Gold", salvagedCount, Format.currency(salvagedGold))
 		else "Tap items to salvage"
 	salvageLabel.TextColor3 = if salvagedCount > 0 then C.Gold else F.Faint
 	quickNormal.Text = if quickArmed == "normal"
@@ -1474,7 +1474,7 @@ local function buildHeader(parent: Frame)
 		pill.LayoutOrder = order
 		pill.Parent = right
 		local function refresh()
-			label.Text = Format.big((player:GetAttribute(attr) or 0) :: number)
+			label.Text = Format.currency((player:GetAttribute(attr) or 0) :: number)
 		end
 		refresh()
 		player:GetAttributeChangedSignal(attr):Connect(refresh)

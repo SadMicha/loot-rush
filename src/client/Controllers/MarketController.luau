@@ -126,7 +126,7 @@ local function renderLeft(have: Shop.Wallet)
 		name.Position = UDim2.new(0, 44, 0.5, 0)
 		name.Parent = row
 		local n = have[kind :: Shop.Kind] or 0
-		local amount = Kit.label(Format.int(n), 17, C.Text)
+		local amount = Kit.label(Format.currency(n), 17, C.Text)
 		amount.AnchorPoint = Vector2.new(1, 0.5)
 		amount.Position = UDim2.fromScale(1, 0.5)
 		amount.Parent = row
@@ -147,7 +147,7 @@ local function priceButton(offer: Shop.Offer, have: Shop.Wallet, w: number): (Im
 	local best = bestDepth()
 	local price = Shop.price(offer, best)
 	local ok, why = Shop.check(offer, have, best)
-	local b = Kit.button(Format.int(price.amount), C.Gold, size, Shop.KindIcon[price.kind])
+	local b = Kit.button(Format.currency(price.amount), C.Gold, size, Shop.KindIcon[price.kind])
 	Kit.setEnabled(b, ok)
 	b.Activated:Connect(function()
 		if b.Active then
@@ -186,7 +186,7 @@ local function card(offer: Shop.Offer, have: Shop.Wallet, w: number): Frame
 	local gain = Kit.label(
 		string.format(
 			"+%s %s",
-			Format.int(Shop.amount(offer, bestDepth())),
+			Format.currency(Shop.amount(offer, bestDepth())),
 			Shop.KindName[offer.give]
 		),
 		18,

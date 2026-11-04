@@ -250,7 +250,7 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	ic.LayoutOrder = 1
 	ic.Parent = priceRow
 	local amount = Kit.label(
-		if price == 0 then "FREE" else Format.int(price),
+		if price == 0 then "FREE" else Format.currency(price),
 		24,
 		if affordable then C.Gold else C.Danger
 	)
@@ -426,7 +426,7 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 		l.Parent = body
 	end
 	local note = if level >= Pets.MAX_LEVEL
-		then string.format("Max level. A duplicate gives %d Crystal Shards.", Pets.DUPE_SHARDS)
+		then `Max level. A duplicate gives {Format.currency(Pets.DUPE_SHARDS)} Crystal Shards.`
 		else string.format("Next level: %s", table.concat(bonusLines(id, level + 1), ", "))
 	local n = wrapLabel(note, 15, C.Muted, inner)
 	n.LayoutOrder = 10

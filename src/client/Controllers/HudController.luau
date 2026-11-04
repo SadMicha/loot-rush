@@ -1009,7 +1009,7 @@ local function buildCalmPanels()
 	do
 		local value = (player:GetAttribute(spec[2] :: string) or 0) :: number
 		local pill, pillText, plus =
-			Kit.pill(spec[1] :: string, Format.big(value), spec[3] :: Color3)
+			Kit.pill(spec[1] :: string, Format.currency(value), spec[3] :: Color3)
 		if spec[1] == "gold" then
 			goldText = pillText
 		elseif spec[1] == "crystal" then
@@ -1559,13 +1559,13 @@ function HudController.start()
 	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
-		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.big)
+		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.currency)
 	end)
 	player:GetAttributeChangedSignal("Shards"):Connect(function()
-		Shape.tickTo(shardText, (player:GetAttribute("Shards") or 0) :: number, Format.big)
+		Shape.tickTo(shardText, (player:GetAttribute("Shards") or 0) :: number, Format.currency)
 	end)
 	player:GetAttributeChangedSignal("Soulstars"):Connect(function()
-		Shape.tickTo(starText, (player:GetAttribute("Soulstars") or 0) :: number, Format.big)
+		Shape.tickTo(starText, (player:GetAttribute("Soulstars") or 0) :: number, Format.currency)
 	end)
 
 	local function refreshLevel()

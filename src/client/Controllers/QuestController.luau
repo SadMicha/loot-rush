@@ -199,7 +199,7 @@ function QuestController.lines(): (string, string, string)
 		local depth = (player:GetAttribute("BestDepth") or 0) :: number
 		return "Push deeper!", string.format("Best depth %d", depth), ""
 	end
-	local reward = if state.gold then "+" .. Format.big(state.gold) .. " Gold" else ""
+	local reward = if state.gold then "+" .. Format.currency(state.gold) .. " Gold" else ""
 	-- Extra rewards (Forge materials, spell stones) on their own line under the objective
 	local q = Rules.Chain[state.step]
 	local extra = if q then Rules.extraText(q) else ""
