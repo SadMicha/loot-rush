@@ -2,11 +2,13 @@
 local Quests = require("ReplicatedStorage.Shared.Quests")
 
 describe("Quest waypoint rules", function()
-	it("points hub goals at their station and Rift/window goals nowhere", function()
+	it("points hub and Rift goals at their station and window goals nowhere", function()
 		expect(Quests.waypoint(1)).toBe("Atlas") -- enter a Rift: the Rift Gate
 		for step, q in Quests.Chain do
 			local w = Quests.waypoint(step)
-			if q.goal == "kill" or q.goal == "pickup" or q.goal == "equip" or q.goal == "level" then
+			if q.goal == "kill" or q.goal == "pickup" or q.goal == "level" or q.goal == "depth" then
+				expect(w).toBe("Atlas") -- done in a Rift: back to the gate after a death or leave
+			elseif q.goal == "equip" or q.goal == "star" or q.goal == "salvage" then
 				expect(w).toBeNil()
 			end
 		end

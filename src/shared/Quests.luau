@@ -146,10 +146,14 @@ Quests.Names = table.freeze({
 } :: { [string]: string })
 
 -- Quest waypoint (docs/ROADMAP.md O1): the hub station a goal is done at, by the window name
--- of its prompt (Hub builds a part "Station_<window>"). Goals that happen in a Rift or in a
--- window have none.
+-- of its prompt (Hub builds a part "Station_<window>"). Goals that are done inside a Rift
+-- (kills, pickups, levels, depths) point back at the Rift Gate: a player who died or left before
+-- finishing them stands in the hub with nothing to do otherwise. Window goals have none.
 Quests.Waypoints = table.freeze({
 	rift = "Atlas",
+	kill = "Atlas",
+	pickup = "Atlas",
+	level = "Atlas",
 	depth = "Atlas",
 	forge = "Forge",
 	hatch = "Pets",
