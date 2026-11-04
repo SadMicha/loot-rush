@@ -562,8 +562,15 @@ local function renderPets()
 	grid.Name = "Grid"
 	grid.BackgroundTransparency = 1
 	grid.BorderSizePixel = 0
-	grid.Position = UDim2.fromOffset(PAD, TOP)
-	grid.Size = UDim2.fromOffset(gridW, h)
+	-- Inner padding: the scroll area clips at its edge and cut the selection glow of the first row/column
+	grid.Position = UDim2.fromOffset(PAD - 8, TOP - 8)
+	grid.Size = UDim2.fromOffset(gridW + 16, h + 16)
+	local gridPad = Instance.new("UIPadding")
+	gridPad.PaddingLeft = UDim.new(0, 8)
+	gridPad.PaddingTop = UDim.new(0, 8)
+	gridPad.PaddingRight = UDim.new(0, 8)
+	gridPad.PaddingBottom = UDim.new(0, 8)
+	gridPad.Parent = grid
 	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	grid.CanvasSize = UDim2.new()
 	grid.ScrollingDirection = Enum.ScrollingDirection.Y
