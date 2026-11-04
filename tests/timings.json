@@ -8,7 +8,7 @@
 	"tests/Classes.spec.luau": 29,
 	"tests/Daily.spec.luau": 16,
 	"tests/Data.spec.luau": 306,
-	"tests/DataLoad.spec.luau": 963,
+	"tests/DataLoad.spec.luau": 330,
 	"tests/DataLock.spec.luau": 248,
 	"tests/DataMock.spec.luau": 11,
 	"tests/Debug.spec.luau": 60,

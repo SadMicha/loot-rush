@@ -23,8 +23,6 @@ export type Account = ProfileSchema.Account
 -- New name for the ProfileStore format: saves from LootRush_Profile_v2 (own lock format) are ignored
 local STORE_NAME = "LootRush_Profile_v3"
 local SAVE_TIMEOUT = 15 -- saveNow gives up after this long (a purchase then stays NotProcessedYet)
--- Passing Cancel switches off ProfileStore's own START_SESSION_TIMEOUT, so the load needs its own
-local LOAD_TIMEOUT = 120
 -- ProfileStore default is 300 s: a server crash would lose up to that much gold/XP/drops
 local AUTO_SAVE_PERIOD = 120
 
@@ -57,6 +55,10 @@ type Session = {
 }
 
 local Data = {}
+
+-- Passing Cancel switches off ProfileStore's own START_SESSION_TIMEOUT, so the load needs its own.
+-- A field so the outage spec can shorten it (simulating 120 s of game time costs ~15 min in CI).
+Data.LOAD_TIMEOUT = 120
 
 local sessions: { [Player]: Session } = {}
 local loading: { [Player]: boolean } = {}
@@ -120,7 +122,7 @@ local function open(player: Player)
 	local profile
 	if live then
 		-- Cancel is a real StartSessionAsync param, the package type only lists Steal
-		local deadline = os.clock() + LOAD_TIMEOUT
+		local deadline = os.clock() + Data.LOAD_TIMEOUT
 		local params: any = {
 			Cancel = function(): boolean
 				return not present(player) or os.clock() >= deadline

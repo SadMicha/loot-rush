@@ -89,17 +89,21 @@ describe("Data loads that do not start a session", function()
 
 	it("kicks after the load deadline during a DataStore outage", function()
 		sim.datastoreAccess = false
+		sim:runAs("server", function(require)
+			-- 120 s in the game; shorter here because every simulated second costs CI time
+			require(DATA).LOAD_TIMEOUT = 15
+		end)
 		local player = sim:joinPlayer("Outage")
 		local waited, returned = false, nil
 		sim:runAs("server", function(require)
 			returned = require(DATA).waitFor(player)
 			waited = true
 		end)
-		sim:run(60)
+		sim:run(10)
 		expect(#takeKicks()).toBe(0) -- still retrying
 		expect(waited).toBe(false)
-		-- Data's LOAD_TIMEOUT is 120 s; ProfileStore checks Cancel between retries (backoff up to 20 s)
-		sim:run(90)
+		-- ProfileStore checks Cancel between retries (backoff up to 20 s)
+		sim:run(30)
 		sim.datastoreAccess = true
 		local kicks = takeKicks()
 		expect(#kicks).toBe(1)
@@ -108,6 +112,9 @@ describe("Data loads that do not start a session", function()
 		expect(waited).toBe(true)
 		expect(returned).toBeNil()
 		expect(raw("p_4")).toBeNil()
+		sim:runAs("server", function(require)
+			require(DATA).LOAD_TIMEOUT = 120
+		end)
 	end)
 
 	it(
