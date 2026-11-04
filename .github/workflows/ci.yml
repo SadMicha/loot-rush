@@ -5,47 +5,111 @@ on:
     branches: [main]
   pull_request:
 
+# Only the newest commit of a PR (or of main) matters: a newer push cancels the older run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  # Docs-only changes skip the checks. Skipped jobs still let "CI ok" pass (required check).
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '!docs/**'
+              - '!**/*.md'
 
-      - name: Install tools and Wally packages (rojo, selene, stylua, lune, luau-lsp, wally)
+  fast:
+    name: Format, lint, types, build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache toolchain and Wally packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bin
+            .tools/roblox
+            .tools/out/packages.stamp
+            Packages
+            ServerPackages
+            ~/.cache/selene
+          key: ci-tools-${{ runner.os }}-${{ hashFiles('rokit.toml', 'wally.toml', 'wally.lock') }}
+      - name: Install tools and Wally packages
         run: bash tools/setup.sh
-
       - name: wally.lock up to date
         run: git diff --exit-code -- wally.lock || { echo "::error::wally install changed wally.lock - run it locally and commit the lock file"; exit 1; }
+      - name: Format, lint, types, build
+        run: bash tools/check.sh format lint types build
 
-      - name: Format
-        run: bash tools/check.sh format
+  tests:
+    name: Unit tests ${{ matrix.shard }}/3
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache toolchain and Wally packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bin
+            .tools/roblox
+            .tools/out/packages.stamp
+            Packages
+            ServerPackages
+            ~/.cache/selene
+          key: ci-tools-${{ runner.os }}-${{ hashFiles('rokit.toml', 'wally.toml', 'wally.lock') }}
+      - name: Install tools and Wally packages
+        run: bash tools/setup.sh
+      - name: Unit tests (shard ${{ matrix.shard }} of 3)
+        run: |
+          export PATH="$PWD/.tools/bin:$PATH"
+          lune run tools/lune/test --shard=${{ matrix.shard }}/3
 
-      - name: Lint
-        if: ${{ !cancelled() }}
-        run: bash tools/check.sh lint
-
-      - name: Typecheck
-        if: ${{ !cancelled() }}
-        run: bash tools/check.sh types
-
-      - name: Rojo build
-        if: ${{ !cancelled() }}
-        run: bash tools/check.sh build
-
-      - name: Unit tests
-        if: ${{ !cancelled() }}
-        run: bash tools/check.sh test
-
+  ui:
+    name: UI check
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache toolchain and Wally packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bin
+            .tools/roblox
+            .tools/out/packages.stamp
+            Packages
+            ServerPackages
+            ~/.cache/selene
+          key: ci-tools-${{ runner.os }}-${{ hashFiles('rokit.toml', 'wally.toml', 'wally.lock') }}
+      - name: Install tools and Wally packages
+        run: bash tools/setup.sh
       - name: Playwright for UI screenshots
-        if: ${{ !cancelled() }}
         run: |
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps chromium
-
       - name: UI check
-        if: ${{ !cancelled() }}
         run: bash tools/check.sh ui
-
       - name: Upload UI report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -53,3 +117,16 @@ jobs:
           name: ui-check
           path: .tools/out/ui
           if-no-files-found: ignore
+
+  # The one check to require in the main branch ruleset (needed for auto-merge).
+  ci-ok:
+    name: CI ok
+    if: always()
+    needs: [changes, fast, tests, ui]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::a CI job failed or was cancelled"
+            exit 1
+          fi
