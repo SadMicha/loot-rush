@@ -224,6 +224,44 @@ describe("Gear slots on the server", function()
 	end)
 end)
 
+describe("Full bag", function()
+	it("salvages loot that is no upgrade and keeps upgrades on the ground", function()
+		local stored, salvaged, full, goldGain, upStored, upFull, count =
+			nil, nil, nil, 0, nil, nil, 0
+		sim:runAs("server", function(req)
+			local player = game:GetService("Players"):GetPlayers()[1]
+			local Items = req("ReplicatedStorage.Shared.Items")
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			local p = Data.get(player)
+			p.autoSalvage = ""
+			local rng = Random.new(3)
+			while #p.inventory < Items.BAG_MAX do
+				table.insert(p.inventory, Items.roll(1, rng))
+			end
+			-- worn weapon far above the loot: a level 1 weapon is no upgrade
+			local worn = Items.roll(60, rng, nil, { slot = "weapon" })
+			p.equipped.weapon = worn
+			local weak = Items.roll(1, rng, nil, { slot = "weapon" })
+			local gold0 = p.gold
+			stored, salvaged, full = Inventory.add(player, weak, true)
+			goldGain = p.gold - gold0
+			-- an empty slot: anything is an upgrade there
+			p.equipped.boots = nil
+			upStored, _, upFull =
+				Inventory.add(player, Items.roll(1, rng, nil, { slot = "boots" }), true)
+			count = #p.inventory
+		end)
+		expect(stored).toBe(true)
+		expect(salvaged).toBe(true)
+		expect(full).toBe(true)
+		expect(goldGain).toBeGreaterThan(0)
+		expect(upStored).toBe(false)
+		expect(upFull).toBe(true)
+		expect(count).toBe(require("ReplicatedStorage.Shared.Items").BAG_MAX)
+	end)
+end)
+
 describe("Fullscreen windows", function()
 	local function menuButton(name)
 		for _, d in sim.player.PlayerGui.LootRushHUD:GetDescendants() do

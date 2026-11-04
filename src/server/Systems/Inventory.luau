@@ -15,7 +15,7 @@ local Stats = require(script.Parent.Stats)
 
 local Inventory = {}
 
-local MAX_ITEMS = 40
+local MAX_ITEMS = Items.BAG_MAX
 
 -- Every action sends the whole inventory snapshot back: throttle spam
 local allow = RateLimit.new(8, 16)
@@ -48,25 +48,45 @@ local function autoSalvages(profile: Data.Profile, item: Items.Item): boolean
 	return limit > 0 and Items.rank(item.rarity) <= limit
 end
 
--- Puts an item into the bag. fromLoot = picked up in a Rift: the auto-salvage setting applies.
--- Returns (stored or salvaged, salvaged).
-function Inventory.add(player: Player, item: Items.Item, fromLoot: boolean?): (boolean, boolean)
+-- Salvage an item that never reached the bag (gold + materials, counts for the salvage quest)
+function Inventory.salvageLoot(player: Player, item: Items.Item)
+	Inventory.addGold(player, Items.sellValue(item))
+	Progress.salvage(player, item)
+	Actions.fire(player, "salvage")
+end
+
+function Inventory.isFull(player: Player): boolean
+	local profile = Data.get(player)
+	return profile ~= nil and #profile.inventory >= MAX_ITEMS
+end
+
+-- Puts an item into the bag. fromLoot = picked up in a Rift: the auto-salvage setting applies,
+-- and with a full bag loot that is no upgrade is salvaged instead of left behind (audit #7:
+-- items used to vanish without a word). An upgrade stays on the ground until there is room.
+-- Returns (stored or salvaged, salvaged, bag was full).
+function Inventory.add(
+	player: Player,
+	item: Items.Item,
+	fromLoot: boolean?
+): (boolean, boolean, boolean)
 	local profile = Data.get(player)
 	if not profile then
-		return false, false
+		return false, false, false
 	end
 	if fromLoot and autoSalvages(profile, item) then
-		Inventory.addGold(player, Items.sellValue(item))
-		Progress.salvage(player, item)
-		Actions.fire(player, "salvage")
-		return true, true
+		Inventory.salvageLoot(player, item)
+		return true, true, false
 	end
 	if #profile.inventory >= MAX_ITEMS then
-		return false, false
+		if fromLoot and not Items.isUpgrade(item, profile.equipped[item.slot]) then
+			Inventory.salvageLoot(player, item)
+			return true, true, true
+		end
+		return false, false, true
 	end
 	table.insert(profile.inventory, item)
 	snapshot(player)
-	return true, false
+	return true, false, false
 end
 
 function Inventory.addGold(player: Player, amount: number)
