@@ -541,7 +541,9 @@ local function onState(s: any)
 		shared = s.shared == true,
 	}
 	stateAt = os.clock()
-	sending = false
+	if typeof(s.donated) == "number" then
+		sending = false -- only the answer to a donation unlocks the buttons, not a sync poll
+	end
 	if typeof(s.text) == "string" then
 		statusText.Text = s.text
 	elseif typeof(s.donated) == "number" and s.donated > 0 then

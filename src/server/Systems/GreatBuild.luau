@@ -342,17 +342,21 @@ function GreatBuild.flush(): boolean
 end
 
 -- ------------------------------------------------------------------ Donors
-local function writeDonors()
-	if next(donors) == nil or os.clock() - lastDonorWrite < Rules.DONOR_WRITE then
+local function writeDonors(force: boolean?)
+	if next(donors) == nil or (not force and os.clock() - lastDonorWrite < Rules.DONOR_WRITE) then
 		return
+	end
+	if localMode then
+		donors = {} -- offline: nothing is shared, the top list uses `seen`
+		return
+	end
+	local st = getDonorStore()
+	if not st then
+		return -- keep them for the next round
 	end
 	lastDonorWrite = os.clock()
 	local list = donors
 	donors = {}
-	local st = if localMode then nil else getDonorStore()
-	if not st then
-		return
-	end
 	for userId, amount in list do
 		local ok, err = pcall(function()
 			st:UpdateAsync(tostring(userId), function(old: any): any
@@ -599,6 +603,7 @@ function GreatBuild.start()
 			end
 			GreatBuild.flush()
 		end
+		writeDonors(true) -- the board must not wait for the 60 s throttle
 	end)
 	task.spawn(function()
 		while true do
