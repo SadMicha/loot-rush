@@ -27,6 +27,7 @@ local ACTION_H = 84 -- bottom row (tier arrows + Travel): touch size on phones w
 local ARROW_W = 84
 local STEP_H = 52 -- depth picker row (resume depth)
 local SIDE_W = 440
+local INFO_PAD = 8 -- room for glows/strokes inside the clipping info scroll area
 local LABEL = Vector2.new(230, 98) -- aspect ratio like plaque_region
 local DOT_GAP = 18
 local MARK_Y = 22 -- diamond/lock sits this far below the plate
@@ -248,8 +249,19 @@ local function renderSide()
 	info.Name = "Info"
 	info.BackgroundTransparency = 1
 	info.BorderSizePixel = 0
-	info.Position = UDim2.fromOffset(PAD, PAD)
-	info.Size = UDim2.fromOffset(w + 8, Window.BODY.Y - 2 * PAD - controlsH - 10)
+	-- Inner padding: a ScrollingFrame clips at its own edge, which cut the halo/selection stroke of
+	-- the first tile and slot (left/top). The frame is grown by the padding so content stays at PAD.
+	info.Position = UDim2.fromOffset(PAD - INFO_PAD, PAD - INFO_PAD)
+	info.Size = UDim2.fromOffset(
+		w + 8 + 2 * INFO_PAD,
+		Window.BODY.Y - 2 * PAD - controlsH - 10 + 2 * INFO_PAD
+	)
+	local infoPad = Instance.new("UIPadding")
+	infoPad.PaddingLeft = UDim.new(0, INFO_PAD)
+	infoPad.PaddingTop = UDim.new(0, INFO_PAD)
+	infoPad.PaddingRight = UDim.new(0, INFO_PAD)
+	infoPad.PaddingBottom = UDim.new(0, INFO_PAD)
+	infoPad.Parent = info
 	info.ScrollingDirection = Enum.ScrollingDirection.Y
 	info.ScrollBarThickness = 4
 	info.ScrollBarImageColor3 = C.Gold
@@ -316,6 +328,7 @@ local function renderSide()
 
 	add(Window.heading("Possible Rewards", 16, C.Text))
 	local rewards = tileRow()
+	rewards.Size = UDim2.fromOffset(w, 64) -- slot halos need air above and below
 	rewards:SetAttribute("Media", true)
 	for i, rw in r.rewards do
 		local s = Kit.itemSlot(52, rw.icon, { rarity = rw.rarity })

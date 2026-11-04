@@ -51,6 +51,10 @@ local side: Frame
 
 local allocated: { [string]: boolean } = { heart = true }
 local selected = "heart"
+-- Mouse drag-to-pan: true while a drag is past the threshold or ended a moment ago, so releasing
+-- the button over a star after panning does not select it
+local panning = false
+local PAN_THRESHOLD = 6 -- pixels the mouse must move before a press becomes a pan
 
 local function classId(): string?
 	local c = player:GetAttribute("Class")
@@ -130,6 +134,9 @@ local function renderNet()
 			tint = if on and s.kind ~= "core" then colorOf(s) else nil,
 		})
 		b.Activated:Connect(function()
+			if panning then
+				return
+			end
 			selected = s.id
 			StarNetController.render()
 		end)
@@ -505,13 +512,11 @@ function StarNetController.init()
 		updateScrolling()
 	end
 
-	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively)
+	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively). Started from the global
+	-- input (a star button sinks the press before the ScrollingFrame sees it) and only counts as a
+	-- pan after PAN_THRESHOLD pixels, so a plain click still selects a star.
+	local pressAt: Vector2? = nil
 	local dragging = false
-	view.InputBegan:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-		end
-	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local t = input.UserInputType
 		if isGamepad(t) and not touchPan then
@@ -552,9 +557,22 @@ function StarNetController.init()
 			touchPan = true
 			updateScrolling()
 		end
-		if dragging and t == Enum.UserInputType.MouseMovement then
-			local d = input.Delta
-			view.CanvasPosition -= Vector2.new(d.X, d.Y) / math.max(windowScale(), 0.01)
+		if pressAt and t == Enum.UserInputType.MouseMovement then
+			local m = UserInputService:GetMouseLocation()
+			if not dragging and (m - pressAt).Magnitude >= PAN_THRESHOLD then
+				dragging = true
+				panning = true
+			end
+			if dragging then
+				local d = input.Delta
+				local p = view.CanvasPosition
+					- Vector2.new(d.X, d.Y) / math.max(windowScale(), 0.01)
+				local size = canvas * zoom
+				view.CanvasPosition = Vector2.new(
+					math.clamp(p.X, 0, math.max(0, size.X - area.X)),
+					math.clamp(p.Y, 0, math.max(0, size.Y - area.Y))
+				)
+			end
 		elseif t == Enum.UserInputType.MouseWheel then
 			local m = UserInputService:GetMouseLocation()
 			if win.isOpen() and inView(m) then
@@ -578,7 +596,14 @@ function StarNetController.init()
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressAt = nil
 			dragging = false
+			-- Activated fires right after the release: keep the guard up for a moment
+			task.delay(0.1, function()
+				if pressAt == nil then
+					panning = false
+				end
+			end)
 		elseif touches[input] then
 			touches[input] = nil
 			refreshPinch()
