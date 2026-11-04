@@ -79,7 +79,8 @@ def run_query(universe, key, query, start, end):
     status, data = request("POST", f"{BASE}/universes/{universe}/metrics", key, body)
     deadline = time.time() + POLL_SECONDS
     wait = 2
-    while status == 200 and isinstance(data, dict) and data.get("done") is False and data.get("path"):
+    # Large queries answer 202 Accepted with done = false and an operation path to poll.
+    while 200 <= status < 300 and isinstance(data, dict) and data.get("done") is False and data.get("path"):
         if time.time() > deadline:
             return body, 0, {"error": "operation still pending after %ds" % POLL_SECONDS, "last": data}
         time.sleep(wait)
@@ -119,7 +120,7 @@ def main():
     denied = 0
     for q in queries:
         body, status, data = run_query(universe, key, q, start, end)
-        ok = status == 200 and not (isinstance(data, dict) and "error" in data)
+        ok = 200 <= status < 300 and not (isinstance(data, dict) and ("error" in data or data.get("done") is False))
         if status in (401, 403):
             denied += 1
         with open(os.path.join(out, q["name"] + ".json"), "w", encoding="utf-8") as f:
