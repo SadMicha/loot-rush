@@ -204,19 +204,23 @@ function Callout.new(target: GuiObject, title: string, body: string, round: bool
 
 		local w = width
 		local h = math.max(card.AbsoluteSize.Y / s, 60)
-		local gap = T.Ring + T.Gap
+		-- Clear of the ring at the peak of its pulse too (it grows by T.RingGrow on each side), so
+		-- the pointer never touches it
+		local growX = (size.X + 2 * T.Ring) * (T.RingGrow - 1) / 2
+		local growY = (size.Y + 2 * T.Ring) * (T.RingGrow - 1) / 2
+		local gapX, gapY = T.Ring + T.Gap + growX, T.Ring + T.Gap + growY
 		local x, y, px, py
 		if center.Y < screen.Y * 0.35 then -- top of the screen: below the target
-			x, y = center.X - w / 2, pos.Y + size.Y + gap
+			x, y = center.X - w / 2, pos.Y + size.Y + gapY
 			px, py = center.X, y - T.Pointer / 2
 		elseif center.X > screen.X * 0.6 then -- right side (skills, dash): to the left
-			x, y = pos.X - gap - w, center.Y - h / 2
+			x, y = pos.X - gapX - w, center.Y - h / 2
 			px, py = x + w + T.Pointer / 2, center.Y
 		elseif center.X < screen.X * 0.4 then -- left side: to the right
-			x, y = pos.X + size.X + gap, center.Y - h / 2
+			x, y = pos.X + size.X + gapX, center.Y - h / 2
 			px, py = x - T.Pointer / 2, center.Y
 		else -- bottom centre (hub bar, Rush meter): above
-			x, y = center.X - w / 2, pos.Y - gap - h
+			x, y = center.X - w / 2, pos.Y - gapY - h
 			px, py = center.X, y + h + T.Pointer / 2
 		end
 		local m = T.Margin
