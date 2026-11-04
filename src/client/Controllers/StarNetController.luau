@@ -544,8 +544,12 @@ function StarNetController.init()
 		local t = input.UserInputType
 		-- The mouse always moves before a wheel tick: native scrolling (touch/gamepad) goes off
 		-- right then, so the wheel never scrolls and zooms at once
+		-- and a tilted thumbstick turns it back on: the device used last always wins
 		if t == Enum.UserInputType.MouseMovement and touchPan then
 			touchPan = false
+			updateScrolling()
+		elseif isGamepad(t) and not touchPan and input.Position.Magnitude > 0.3 then
+			touchPan = true
 			updateScrolling()
 		end
 		if dragging and t == Enum.UserInputType.MouseMovement then
