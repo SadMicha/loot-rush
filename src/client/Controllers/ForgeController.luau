@@ -113,6 +113,7 @@ end
 local function suggest(list: { Items.Item }, worn: { [string]: boolean })
 	local it = Forge.suggestItem(list, worn, mats())
 	selectedItem = if it then it.id else nil
+	lastResult = nil -- a result belongs to the item it was forged on
 	if it then
 		selectedAction, selectedAffix = Forge.suggestAction(it, mats())
 	else
