@@ -198,12 +198,27 @@ end
 
 -- Price of an egg for a player with this best depth (gold grows like in the shop,
 -- Soulstars stay fixed). Systems/Pets charges exactly this; the UI shows it.
+-- The first gold egg is free (audit #13): the Pets window opens at depth 8, when a Meadow Egg
+-- costs several times what the player has, so "Hatch a pet" hands over what it teaches.
+-- `owned` = number of pets the player has (nil = not known, normal price).
 
-function Pets.eggPrice(egg: Egg, bestDepth: number): number
+function Pets.eggPrice(egg: Egg, bestDepth: number, owned: number?): number
 	if egg.price.kind ~= "gold" then
 		return egg.price.amount
 	end
+	if owned == 0 then
+		return 0
+	end
 	return math.floor(egg.price.amount * Balance.shopFactor(bestDepth) + 0.5)
+end
+
+-- Number of pets owned (for eggPrice)
+function Pets.ownedCount(data: Data): number
+	local n = 0
+	for _ in data.owned do
+		n += 1
+	end
+	return n
 end
 
 function Pets.fresh(): Data

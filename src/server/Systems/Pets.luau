@@ -85,12 +85,15 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 	if not profile or not account or not egg then
 		return false, "Unknown egg", nil
 	end
-	local price = Rules.eggPrice(egg, Atlas.bestDepth(profile.atlas))
+	local price =
+		Rules.eggPrice(egg, Atlas.bestDepth(profile.atlas), Rules.ownedCount(account.pets))
 	local have = if egg.price.kind == "gold" then profile.gold else account.soulstars
 	if have < price then
 		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil
 	end
-	Shop.grant(player, egg.price.kind, -price)
+	if price > 0 then
+		Shop.grant(player, egg.price.kind, -price)
+	end
 	local pet = Rules.roll(egg, rng)
 	local level, shards = Rules.hatchResult(account.pets, pet.id)
 	local fresh = account.pets.owned[pet.id] == nil

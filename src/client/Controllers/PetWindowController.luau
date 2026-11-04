@@ -230,7 +230,15 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	desc.Parent = f
 
 	-- Price (live: gold grows with the best depth)
-	local price = Pets.eggPrice(egg, bestDepth())
+	-- nil until the first pet state arrived (no "FREE" flash for players who own pets)
+	local ownedNow: number? = nil
+	if typeof(PetController.state.owned) == "table" then
+		ownedNow = 0
+		for _ in owned() do
+			ownedNow = (ownedNow :: number) + 1
+		end
+	end
+	local price = Pets.eggPrice(egg, bestDepth(), ownedNow)
 	local affordable = walletOf(egg.price.kind) >= price
 	local priceRow = Window.frame(UDim2.fromOffset(textW, 32))
 	priceRow.Name = "Price"
@@ -241,10 +249,18 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	local ic = Kit.icon(Shop.KindIcon[egg.price.kind] or "gold", 30)
 	ic.LayoutOrder = 1
 	ic.Parent = priceRow
-	local amount = Kit.label(Format.int(price), 24, if affordable then C.Gold else C.Danger)
+	local amount = Kit.label(
+		if price == 0 then "FREE" else Format.int(price),
+		24,
+		if affordable then C.Gold else C.Danger
+	)
 	amount.LayoutOrder = 2
 	amount.Parent = priceRow
-	if egg.price.kind == "gold" then
+	if price == 0 then
+		local first = Kit.label("· your first pet", 14, C.Muted, Theme.Font.Body)
+		first.LayoutOrder = 3
+		first.Parent = priceRow
+	elseif egg.price.kind == "gold" then
 		local grows = Kit.label("· grows with depth", 14, C.Muted, Theme.Font.Body)
 		grows.LayoutOrder = 3
 		grows.Parent = priceRow

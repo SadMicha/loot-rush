@@ -11,6 +11,8 @@
 -- Unlocks are saved once reached and never lock again.
 -- The save stores the chain index: only append new quests at the end, never insert or reorder.
 
+local Forge = require(script.Parent.Forge)
+
 local Quests = {}
 
 export type Goal =
@@ -32,7 +34,12 @@ export type Quest = {
 	target: number,
 	gold: number, -- reward
 	unlocks: string?, -- window opened by finishing this quest (shown in the toast)
+	-- Extra reward that hands over what the next step teaches (audit #13): Forge materials when
+	-- the Forge opens, a spell stone to socket. Materials as in Shared/Forge, stones = count.
+	reward: Reward?,
 }
+
+export type Reward = { candy: number?, shards: number?, dust: number?, stones: number? }
 
 export type Data = {
 	step: number, -- index of the active quest; #Chain + 1 = chain done
@@ -51,7 +58,14 @@ Quests.Chain = table.freeze({
 	{ id = "first_kills", text = "Defeat 10 enemies", goal = "kill", target = 10, gold = 30 },
 	{ id = "first_loot", text = "Pick up 3 items", goal = "pickup", target = 3, gold = 30 },
 	{ id = "equip", text = "Equip an item", goal = "equip", target = 1, gold = 40 },
-	{ id = "depth_3", text = "Clear depth 3", goal = "depth", target = 3, gold = 60 },
+	{
+		id = "depth_3",
+		text = "Clear depth 3",
+		goal = "depth",
+		target = 3,
+		gold = 60,
+		reward = { stones = 1 },
+	},
 	{
 		id = "level_5",
 		text = "Reach level 5",
@@ -74,6 +88,7 @@ Quests.Chain = table.freeze({
 		target = 5,
 		gold = 120,
 		unlocks = "forge",
+		reward = { candy = 6, shards = 20 }, -- one Add Affix, a Reroll and a Tier upgrade
 	},
 	{ id = "first_forge", text = "Use the Forge once", goal = "forge", target = 1, gold = 120 },
 	{ id = "salvage", text = "Salvage 5 items", goal = "salvage", target = 5, gold = 150 },
@@ -90,6 +105,29 @@ Quests.Chain = table.freeze({
 	{ id = "depth_15", text = "Clear depth 15", goal = "depth", target = 15, gold = 800 },
 	{ id = "depth_20", text = "Clear depth 20", goal = "depth", target = 20, gold = 1500 },
 } :: { Quest })
+
+-- Extra rewards as text for the quest panel ("+6 Rune Candy · +20 Crystal Shards", "" = none);
+-- the gold sits in the panel's head row
+function Quests.extraText(q: Quest): string
+	local parts = {}
+	local r = q.reward
+	if r then
+		for _, key in { "candy", "shards", "dust" } do
+			local n = (r :: any)[key]
+			if typeof(n) == "number" and n > 0 then
+				local name = if n == 1 then Forge.MaterialName[key] else Forge.MaterialPlural[key]
+				table.insert(parts, string.format("+%d %s", n, name))
+			end
+		end
+		if r.stones and r.stones > 0 then
+			table.insert(
+				parts,
+				string.format("+%d Spell Stone%s", r.stones, if r.stones == 1 then "" else "s")
+			)
+		end
+	end
+	return table.concat(parts, " · ")
+end
 
 -- Windows behind an unlock: reached by level OR best depth (whatever comes first), or by
 -- finishing the quest that names them. Windows not listed are always open.

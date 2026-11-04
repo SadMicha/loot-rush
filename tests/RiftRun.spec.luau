@@ -168,7 +168,7 @@ describe("Rift run in game", function()
 		expect(left).toBe(0)
 	end)
 
-	it("offers \"Play again\" at the resume depth once back in the Hub", function()
+	it('offers "Play again" at the resume depth once back in the Hub', function()
 		sim:run(1.5)
 		local gui = sim.player.PlayerGui:FindFirstChild("LootRushReplay")
 		expect(gui).toBeTruthy()
