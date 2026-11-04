@@ -13,6 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Forge = require(ReplicatedStorage.Shared.Forge)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
+local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -1658,6 +1659,27 @@ function InventoryController.init()
 end
 
 function InventoryController.start()
+	-- Visible gear (Systems/Gear) is rebuilt on the server after an equip: show it in the open
+	-- preview too (the figure is a clone of the character)
+	local previewQueued = false
+	local function onCharacter(character: Model)
+		character.ChildAdded:Connect(function(child)
+			if child.Name ~= Gear.MODEL or previewQueued then
+				return
+			end
+			previewQueued = true
+			task.delay(0.15, function()
+				previewQueued = false
+				if gui.Enabled and player.Character == character then
+					refreshViewport()
+				end
+			end)
+		end)
+	end
+	if player.Character then
+		onCharacter(player.Character)
+	end
+	player.CharacterAdded:Connect(onCharacter)
 	-- A level-up can unlock gear (Items.requiredLevel): locks and upgrade marks follow it
 	-- (also while closed: the cells persist, and the first snapshot can come before the save's level)
 	player:GetAttributeChangedSignal("Level"):Connect(function()

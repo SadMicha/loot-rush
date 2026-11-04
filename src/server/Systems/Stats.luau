@@ -6,7 +6,8 @@
 --   StatWeapon: weapon base damage of the worn weapon as a factor (1 = IP 10 or no weapon)
 -- Skill-related stars (skill damage, cooldown …) are applied directly by Progression.effectiveSkill.
 -- No stat is capped; StatCrit above 100% overcrits (Shared/Crit).
--- Call Stats.refresh after every change to gear or stars.
+-- Call Stats.refresh after every change to gear or stars (it also updates the visible gear,
+-- Systems/Gear).
 -- Worn gear above the hero's level (Items.canWear; an older save, or a stash twink worn before
 -- the rule) gives nothing until the hero reaches its level; a level change refreshes.
 
@@ -18,6 +19,7 @@ local Items = require(ReplicatedStorage.Shared.Items)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
+local Gear = require(script.Parent.Gear)
 
 local Stats = {}
 
@@ -71,6 +73,7 @@ function Stats.refresh(player: Player, fill: boolean)
 		Balance.weaponFactor(if weapon then Items.itemPower(weapon) else Balance.P.ip_per_depth)
 	)
 	Combat.refreshStats(player, fill)
+	Gear.apply(player) -- worn look on the body (rebuilds only when it changed)
 end
 
 -- Hero level for gear requirements: the live attribute (set first on a level-up), else the save

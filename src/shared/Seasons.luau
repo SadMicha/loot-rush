@@ -40,6 +40,8 @@ export type Season = {
 	id: string,
 	name: string,
 	short: string, -- badge text ("BETA")
+	-- Look every cosmetic of this season is built in (trail, aura, gear skins, docs/specs/GEAR-COSMETICS.md)
+	theme: string?,
 	starts: number, -- unix time (UTC)
 	ends: number?, -- unix time (UTC); nil = runs until an end date is set
 	challenges: { Challenge },
@@ -89,6 +91,7 @@ local BETA: Season = {
 	id = "beta",
 	name = "Beta Season",
 	short = "BETA",
+	theme = "Beacon Dawn", -- warm gold + beacon teal (Beta Beacon, beta_trail/beta_aura)
 	starts = BETA_STARTS,
 	ends = BETA_ENDS,
 	challenges = table.freeze({

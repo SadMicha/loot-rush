@@ -136,6 +136,28 @@ Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Fo
   into `Assets.Weapon`. Missing id = weapon from studded parts, never an error. The place must be
   owned by the same account/group as the models.
 
+## Visible gear
+
+Worn helmet, armor, gloves, belt, boots and amulet show on the hero's body, built from studded
+parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear` (server).
+
+- A look ("style") is a list of pieces per slot. Each piece names an R15 body part and is sized and
+  placed in multiples of that part's size, so it fits every avatar scale. `{S}` = both sides.
+- Colors: `main`/`dark` from the look's palette (class), `trim`/`gem` = `Theme.Rarity` of the item;
+  gems glow (Neon) from `rare` up.
+- Class looks: Knight helm + steel plate (Brix), hood + leather vest (Fynn), pointed hat + robe
+  (Zap), mushroom cap + moss mantle (Mora). Gloves, boots, belt, amulet share one shape per class palette.
+- `Stats.refresh` calls `Gear.apply` after every gear change; it rebuilds only when
+  `Gear.signature` (class, slot rarities, skins) changed. Respawn, avatar loading and new
+  accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn; the setting "Hide helmet"
+  (`settings.hideHelmet`) leaves the helmet off the body (stats stay).
+- Budget: at most `Gear.MAX_PIECES` (6) massless, non-colliding, shadowless parts per slot, ~25 per
+  hero, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
+  same gear; it refreshes when a new `WornGear` model arrives while the window is open.
+- R6 or custom rigs: pieces whose body part is missing are skipped.
+- Gear skins (cosmetics) are further styles in `Gear.Styles`: `Gear.style(class, slot, skin)`;
+  plan in `docs/specs/GEAR-COSMETICS.md`.
+
 ## Debug tools
 
 - **Dbg button** bottom left (always in Studio; live only for `DEV_USERS` in `Systems/Debug`): test
