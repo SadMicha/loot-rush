@@ -447,7 +447,8 @@ function GreatBuild.state(player: Player): { [string]: any }?
 	local mine = account.greatBuild
 	local list = {}
 	for i, d in top do
-		list[i] = { name = d.name, amount = d.amount, me = d.userId == player.UserId }
+		list[i] =
+			{ userId = d.userId, name = d.name, amount = d.amount, me = d.userId == player.UserId }
 	end
 	return {
 		total = GreatBuild.total(),

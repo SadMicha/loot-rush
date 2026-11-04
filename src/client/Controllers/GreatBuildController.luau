@@ -15,6 +15,7 @@ local Rules = require(ReplicatedStorage.Shared.GreatBuild)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Flat = require(script.Parent.Parent.UI.Flat)
+local Headshot = require(script.Parent.Parent.UI.Headshot)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Reward = require(script.Parent.Parent.UI.Reward)
 local Shape = require(script.Parent.Parent.UI.Shape)
@@ -40,7 +41,7 @@ local ROW_H = 46
 local POLL = 5 -- seconds between refreshes while open
 local BOARD_SIZE = Vector2.new(320, 92) -- board above the monument (pixels)
 
-type Donor = { name: string, amount: number, me: boolean? }
+type Donor = { userId: number, name: string, amount: number, me: boolean? }
 type Mine = { total: number, today: number, left: number, paid: { [string]: boolean } }
 type State = {
 	total: number,
@@ -224,9 +225,23 @@ local function renderTop5()
 		f.Name = "Row" .. i
 		f.LayoutOrder = i
 		local color = if d.me then C.Cyan elseif i <= 3 then C.GoldHi else C.Text
-		local left = Flat.text(`#{i}  {d.name}`, 18, color, Theme.Font.UI)
+		local rank = Flat.text(`#{i}`, 18, color, Theme.Font.UI)
+		rank.AnchorPoint = Vector2.new(0, 0.5)
+		rank.Position = UDim2.fromScale(0, 0.5)
+		rank.Parent = f
+		local face = Headshot.new({
+			userId = d.userId,
+			name = d.name,
+			size = Theme.Headshot.Small,
+			top = i <= 3,
+			mine = d.me,
+		})
+		face.AnchorPoint = Vector2.new(0, 0.5)
+		face.Position = UDim2.new(0, 40, 0.5, 0)
+		face.Parent = f
+		local left = Flat.text(d.name, 18, color, Theme.Font.UI)
 		left.AnchorPoint = Vector2.new(0, 0.5)
-		left.Position = UDim2.fromScale(0, 0.5)
+		left.Position = UDim2.new(0, 40 + Theme.Headshot.Small + 12, 0.5, 0)
 		left.Parent = f
 		local right = Flat.text(
 			Format.currency(d.amount),
@@ -548,7 +563,8 @@ local function onState(s: any)
 	local top: { Donor } = {}
 	for _, d in s.top :: { any } do
 		if typeof(d) == "table" and typeof(d.name) == "string" and typeof(d.amount) == "number" then
-			table.insert(top, { name = d.name, amount = d.amount, me = d.me == true })
+			local id = if typeof(d.userId) == "number" and d.userId == d.userId then d.userId else 0
+			table.insert(top, { userId = id, name = d.name, amount = d.amount, me = d.me == true })
 		end
 	end
 	local function num(v: any): number
