@@ -40,6 +40,7 @@ Settings.Defs = table.freeze({
 	minimap = { kind = "bool", default = true },
 	hudScale = { kind = "number", default = 1, min = 0.8, max = 1.2, step = 0.1 },
 	camera = { kind = "number", default = 1, min = 0.5, max = 2, step = 0.1 }, -- turn speed
+	hideHelmet = { kind = "bool", default = false }, -- worn helmet not shown on the hero (Systems/Gear)
 	-- One-time hints already shown (HintsController, roadmap O4): not in the window; the Defaults
 	-- button clears them, so the hints come back once
 	hintSkills = { kind = "bool", default = false },

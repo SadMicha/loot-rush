@@ -236,6 +236,7 @@ local function build()
 		cam.set(((v :: number) - camMin) / camRange)
 	end
 	row(play, 6, "Camera speed", "Mouse or finger turning", cam.frame)
+	switchRow(play, 7, "hideHelmet", "Hide helmet", "Show hair and hats instead")
 
 	-- About + Roblox menu
 	local foot = Kit.panel(Vector2.new(body.X, FOOT_H))

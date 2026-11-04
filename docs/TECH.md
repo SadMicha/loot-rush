@@ -146,7 +146,8 @@ parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear`
   (Zap), mushroom cap + moss mantle (Mora). Gloves, boots, belt, amulet share one shape per class palette.
 - `Stats.refresh` calls `Gear.apply` after every gear change; it rebuilds only when
   `Gear.signature` (class, slot rarities, skins) changed. Respawn, avatar loading and new
-  accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn.
+  accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn; the setting "Hide helmet"
+  (`settings.hideHelmet`) leaves the helmet off the body (stats stay).
 - Budget: at most `Gear.MAX_PIECES` (6) massless, non-colliding, shadowless parts per slot, ~25 per
   hero, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
   same gear; it refreshes when a new `WornGear` model arrives while the window is open.

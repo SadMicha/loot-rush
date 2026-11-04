@@ -13,6 +13,9 @@ replaces the style of one slot and never touches stats.
   trim color, so other players still read how strong the gear is.
 - Skins are **account-wide** and **class-free** where the shape allows (a hat fits every head);
   class sets (e.g. "Paladin Set" for the Knight) are tied to that class.
+- **Per slot, mix and match**: every skin belongs to one slot and is worn per slot (helmet from
+  one set, armor from another is fine). A **set** is only a bundle of per-slot skins with one
+  theme: bought or earned as a whole, but each piece can also be unlocked alone. No set bonus.
 - A skin only shows on a slot with an item equipped (no "naked" skins), so the body still tells the
   gear story. Toggle per slot: class look or skin.
 - Ids are persisted: stable English ids like `skin_pumpkin_helm`.
@@ -29,17 +32,59 @@ replaces the style of one slot and never touches stats.
 | Daily Loyalist Belt | belt | free: Daily Rewards day 7 streak |
 | Journey Gauntlets | gloves | free: Journey milestone (depth 30) |
 | Seasonal set (helmet + armor) | helmet, armor | free: season reward track (like seasonal trails) |
-| Pumpkin Helm | helmet | paid (Soulstars) |
-| Crystal Plate | armor | paid (Soulstars) |
-| Ember Gauntlets | gloves | paid (Soulstars) |
-| Cloud Striders Deluxe | boots | paid (Soulstars) |
-| Paladin Set (Knight) | helmet, armor, gloves | paid bundle (Robux pack) |
-| Wildwood Set (Ranger) | helmet, armor, boots | paid bundle (Robux pack) |
-| Stormlord Set (Mage) | helmet, armor, amulet | paid bundle (Robux pack) |
-| Elder Spore Set (Shaman) | helmet, armor, belt | paid bundle (Robux pack) |
+| Pumpkin Helm | helmet | 600 Soulstars |
+| Crystal Plate | armor | 800 Soulstars |
+| Ember Gauntlets | gloves | 300 Soulstars |
+| Cloud Striders Deluxe | boots | 300 Soulstars |
+| Paladin Set (Knight) | helmet, armor, gloves | 1,400 Soulstars or 299 Robux pack |
+| Wildwood Set (Ranger) | helmet, armor, boots | 1,400 Soulstars or 299 Robux pack |
+| Stormlord Set (Mage) | helmet, armor, amulet | 1,400 Soulstars or 299 Robux pack |
+| Elder Spore Set (Shaman) | helmet, armor, belt | 1,400 Soulstars or 299 Robux pack |
 
 Split: about half free, half paid. Free skins come from play milestones that already exist
 (quests, depth, Journey, badges, Daily, Great Build, season track); no new grind loop needed.
+
+## Season sets
+
+Micha 2026-11-04: every season gets one theme, and **every cosmetic of that season** (gear skins
+per slot, trail, aura, later pet skin and nameplate/badge frame) is built in that theme.
+
+- Data: each cosmetic carries `season` (id in `Shared/Seasons`, exists today on trails/auras);
+  each season carries `theme` (name, set on the Beta). A season set = all skins with that season id,
+  still worn per slot (mix with other sets).
+- Free part (season track and Great Build): about 4 pieces, e.g. helmet + boots on the track,
+  armor at the Great Build milestone, trail/aura at the top of the track (as now).
+- Paid part (Shop, Soulstars): about 3 pieces in the same theme (gloves, belt, amulet), priced like
+  the table below, plus the full set bundle.
+- Availability: free track pieces are **earned only during their season** and stay forever for
+  whoever earned them, never sold later (status). Paid season pieces are sold during the season
+  and may come back later in a "returning" shop rotation, never the free ones.
+
+Theme ideas:
+
+| Season | Theme (default first) | Look |
+|---|---|---|
+| Beta Season | **Beacon Dawn** (set) | warm gold plates, beacon-teal glow, small lighthouse crest on the helm; matches Beta Beacon and the Beta trail/aura |
+| Beta Season | Pioneer's Kit | brown leather, brass rivets, compass amulet |
+| Season 1 Blueprints | **Architect's Ink** | blueprint blue cloth, white chalk-line trim, brass ruler/compass details |
+| Season 1 Blueprints | Clockwork Brass | brass gears, copper pipes, steam vents |
+| Season 1 Blueprints | Overgrown Ruins | mossy stone plates, vines, glowing runes |
+
+## Prices (estimates, tunable)
+
+Anchored to the Soulstar packs in `Shared/Monetization` (49 R$ = 100, 249 R$ = 550,
+499 R$ = 1,200, 999 R$ = 2,600; starter pack 300) and the trail/aura packs (199-399 R$).
+To live in a `Price` table next to the catalog, never inline.
+
+| Tier | Slots | Soulstars |
+|---|---|---|
+| Small | gloves, boots, belt, amulet | 300 |
+| Medium | helmet | 600 |
+| Large | armor | 800 |
+| Set (3 pieces) | bundle | 1,400 (about 20% off the pieces) |
+| Set as Robux pack | bundle | 299 R$ (refund 300 Soulstars per owned piece, like trail packs) |
+
+A single piece is about one small to medium Soulstar pack; a set is about one large pack.
 
 ## Monetization and fairness
 
@@ -64,7 +109,9 @@ Split: about half free, half paid. Free skins come from play milestones that alr
    shop cards with a 3D preview.
 5. Tests: reconcile, grant once, wear only owned + fitting slot, signature changes on wear.
 
-## Open decisions for Micha
+## Decided
 
-- Soulstar prices and which sets are Robux bundles.
-- Hide-helmet toggle (show hair/hat instead of the helmet) yes or no.
+- Soulstar prices: estimates above (Micha 2026-11-04: "just do some estimated numbers").
+- Hide-helmet toggle: built (Settings "Hide helmet", `settings.hideHelmet`).
+- Skins are per slot; sets are bundles (mix and match).
+- Season sets: one theme per season for every cosmetic of it; Beta theme "Beacon Dawn" (`Seasons` `theme`).

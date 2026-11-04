@@ -3,7 +3,8 @@
 -- parts into the model "WornGear" in the character, welded to the body parts. Built on the
 -- server, so it replicates to everyone; the inventory preview clones the character and shows it.
 -- Rebuilt only when the worn look changes (Gear.signature), after a respawn and when the avatar
--- swaps its body parts. While a helmet is worn, hat and hair accessories are hidden.
+-- swaps its body parts. While a helmet is worn, hat and hair accessories are hidden; the setting
+-- "Hide helmet" (account.settings.hideHelmet) leaves the helmet off the body (stats stay).
 -- Cost: no per-frame work, at most Gear.MAX_PIECES massless, non-colliding parts per slot.
 
 local Players = game:GetService("Players")
@@ -42,8 +43,13 @@ local function worn(player: Player): (string, { [string]: Items.Item })
 	if profile then
 		local level = player:GetAttribute("Level")
 		local lvl = if typeof(level) == "number" then level else profile.level
+		local account = Data.account(player)
+		local hideHelmet = account ~= nil and account.settings.hideHelmet == true
 		for _, slot in Gear.Slots do
 			local item = profile.equipped[slot]
+			if slot == "helmet" and hideHelmet then
+				continue -- settings "Hide helmet": hair and hats show instead
+			end
 			if item and Items.canWear(item, lvl, profile.class) then
 				out[slot] = item
 			end

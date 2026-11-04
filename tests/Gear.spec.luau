@@ -86,7 +86,14 @@ describe("Visible gear in game", function()
 				part.Parent = player.Character
 			end
 			for _, name in
-				{ "LeftHand", "RightHand", "LeftLowerLeg", "RightLowerLeg", "LeftFoot", "RightFoot" }
+				{
+					"LeftHand",
+					"RightHand",
+					"LeftLowerLeg",
+					"RightLowerLeg",
+					"LeftFoot",
+					"RightFoot",
+				}
 			do
 				local part = Instance.new("Part")
 				part.Name = name
@@ -126,6 +133,33 @@ describe("Visible gear in game", function()
 		end
 		expect(welded).toBe(true)
 		expect(after).toBe(0)
+	end)
+
+	it("leaves the helmet off with the setting Hide helmet", function()
+		local shown, hidden = server(function(req, player)
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local Settings = req("ServerScriptService.Server.Systems.Settings")
+			local Stats = req("ServerScriptService.Server.Systems.Stats")
+			local profile = Data.get(player)
+			profile.equipped.helmet =
+				Items.roll(1, Random.new(3), nil, { slot = "helmet", class = profile.class })
+			Stats.refresh(player, false)
+			local function helmets()
+				local n = 0
+				for _, p in player.Character[Gear.MODEL]:GetChildren() do
+					if p.Name == "helmet" then
+						n += 1
+					end
+				end
+				return n
+			end
+			local before = helmets()
+			Settings.set(player, "hideHelmet", true)
+			req("ServerScriptService.Server.Systems.Gear").apply(player) -- Settings.set defers it
+			return before, helmets()
+		end)
+		expect(shown > 0).toBe(true)
+		expect(hidden).toBe(0)
 	end)
 
 	it("runs without runtime errors", function()
