@@ -222,8 +222,10 @@ step 1 except the league field and character select across leagues.
 `Shared/Journey` (20 permanent milestones read from the save: depth, World Tier, level, region
 bosses, guide, Star Web), `Systems/Journey`, `JourneyController` (Journey button), `character.journey`.
 Both are additive save fields (no version bump). Dbg "Season: Next Challenge". Still open: leagues
-(step 1), season-end migration (step 2), ladder + feedback card (step 4); the Beta dates in
-`Shared/Seasons` are a placeholder until the launch day is set.
+(step 1), season-end migration (step 2), ladder + feedback card (step 4).
+**(owner, 2026-11-04) The Beta has no end date:** it runs until the owner says to drop it for
+Season 1 (the 4-week length above no longer applies). One switch: `BETA_ENDS` in `Shared/Seasons`
+(nil = open; a unix time turns on the countdown and stops counting then).
 
 ## 7. Season 1 (after the Beta)
 

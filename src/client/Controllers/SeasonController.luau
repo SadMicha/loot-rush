@@ -72,7 +72,9 @@ local function clockText(): string
 	if phase == "soon" then
 		return `Starts in {Rules.countdown(left)}`
 	elseif phase == "live" then
-		return `Ends in {Rules.countdown(left)}`
+		return if Rules.hasEnd()
+			then `Ends in {Rules.countdown(left)}`
+			else "Open season · runs until Season 1 arrives"
 	end
 	return "Season over · claim the rewards you earned"
 end

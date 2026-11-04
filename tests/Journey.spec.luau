@@ -87,11 +87,19 @@ describe("Journey rules", function()
 end)
 
 describe("Season rules", function()
-	it("has a clock with soon, live and over", function()
+	it("the Beta has no end: live forever until an end date is set", function()
+		expect(SEASON.ends).toBeNil()
+		expect(Seasons.hasEnd()).toBe(false)
 		expect(Seasons.phase(SEASON.starts - 1)).toBe("soon")
 		expect(Seasons.phase(SEASON.starts)).toBe("live")
-		expect(Seasons.phase(SEASON.ends)).toBe("over")
-		expect(Seasons.secondsLeft(SEASON.ends - 90)).toBe(90)
+		expect(Seasons.phase(SEASON.starts + 10 * 365 * 86400)).toBe("live") -- years later
+		expect(Seasons.secondsLeft(LIVE)).toBe(0)
+		-- with an end date (later seasons / BETA_ENDS): soon, live, over and a countdown
+		expect(Seasons.phaseFor(100, 200, 99)).toBe("soon")
+		expect(Seasons.phaseFor(100, 200, 150)).toBe("live")
+		expect(Seasons.phaseFor(100, 200, 200)).toBe("over")
+		expect(Seasons.secondsLeftFor(100, 200, 110)).toBe(90)
+		expect(Seasons.secondsLeftFor(100, 200, 250)).toBe(0)
 		expect(Seasons.countdown(2 * 86400 + 3 * 3600)).toBe("2d 3h")
 		expect(Seasons.countdown(125)).toBe("2m")
 	end)
@@ -106,7 +114,9 @@ describe("Season rules", function()
 		expect(d.counts.kills).toBe(2000) -- capped at the target
 		expect(#Seasons.add(d, "kill", 0 / 0, LIVE)).toBe(0)
 		expect(#Seasons.add(d, "kill", -3, LIVE)).toBe(0)
-		expect(#Seasons.add(d, "salvage", 50, SEASON.ends + 1)).toBe(0) -- over
+		local later = SEASON.starts + 60 * 86400 -- past the old 4-week end: still counts
+		expect(#Seasons.add(d, "salvage", 50, later)).toBe(1)
+		d.counts.salvage = nil
 		expect(Seasons.points(d)).toBe(Seasons.ChallengeById.kills.points)
 	end)
 
@@ -117,7 +127,7 @@ describe("Season rules", function()
 		expect(d.counts.depth_20).toBe(12)
 		Seasons.observe(d, { depth = 4 }, LIVE) -- a weaker hero never lowers it
 		expect(d.counts.depth_20).toBe(12)
-		Seasons.observe(d, { depth = 30 }, SEASON.ends) -- over: no change
+		Seasons.observe(d, { depth = 30 }, SEASON.starts - 1) -- not started: no change
 		expect(d.counts.depth_20).toBe(12)
 	end)
 

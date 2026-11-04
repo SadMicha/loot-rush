@@ -49,7 +49,7 @@ As long as the scene images and nodes from ChatGPT are missing (`Assets.Art` emp
 - [ ] Switch hero: the list shows the other hero's milestones
 
 ## Beta Season (Season button left of the daily chest, at rest)
-- [ ] Badge, "Ends in …" countdown, points bar with 5 ticks and 5 reward cards
+- [ ] Badge, "Open season · runs until Season 1 arrives" (no countdown), points bar with 5 ticks and 5 reward cards
 - [ ] Challenges count while playing (kills, cleared depths, salvage, forge, stars …); a toast on each finished one
 - [ ] Dbg "Season: Next Challenge" finishes one; at 20 / 50 points the step's Claim button appears
 - [ ] Claiming "Beta Trail" / "Beta Aura" puts it on the hero (wardrobe in the Shop's Cosmetics tab)

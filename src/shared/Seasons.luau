@@ -41,7 +41,7 @@ export type Season = {
 	name: string,
 	short: string, -- badge text ("BETA")
 	starts: number, -- unix time (UTC)
-	ends: number,
+	ends: number?, -- unix time (UTC); nil = runs until an end date is set
 	challenges: { Challenge },
 	track: { Step },
 }
@@ -80,15 +80,17 @@ local function step(points: number, name: string, icon: string, reward: Journey.
 	return table.freeze({ points = points, name = name, icon = icon, reward = table.freeze(reward) })
 end
 
--- The Beta Season (ROADMAP-1.0 §6): 4 weeks, ~15 challenges over the whole game. The dates are a
--- placeholder from the build day; set `starts` to the public launch (ends = starts + 28 days).
+-- The Beta Season (ROADMAP-1.0 §6): ~15 challenges over the whole game. Owner, 2026-11-04: it has
+-- no end; it runs until the owner drops it for Season 1. To end it later set BETA_ENDS to a unix
+-- time (UTC): the window then counts down and the challenges stop counting at that moment.
 local BETA_STARTS = 1793750400 -- 2026-11-04 00:00 UTC
+local BETA_ENDS: number? = nil
 local BETA: Season = {
 	id = "beta",
 	name = "Beta Season",
 	short = "BETA",
 	starts = BETA_STARTS,
-	ends = BETA_STARTS + 28 * 86400,
+	ends = BETA_ENDS,
 	challenges = table.freeze({
 		c("depth_10", "Halfway Down", "Clear depth 10", "portal", "fact", "depth", 10, 10),
 		c("depth_20", "Deep Delver", "Clear depth 20", "portal", "fact", "depth", 20, 15),
@@ -164,22 +166,36 @@ function Seasons.fresh(): Data
 	return { id = BETA.id, counts = {}, claimed = {} }
 end
 
-function Seasons.phase(now: number): Phase
-	if now < BETA.starts then
+-- Phase of a season window (ends nil = no end)
+function Seasons.phaseFor(starts: number, ends: number?, now: number): Phase
+	if now < starts then
 		return "soon"
 	end
-	return if now < BETA.ends then "live" else "over"
+	return if ends == nil or now < ends then "live" else "over"
 end
 
--- Seconds until the season starts ("soon") or ends ("live"); 0 when over
-function Seasons.secondsLeft(now: number): number
-	local p = Seasons.phase(now)
+-- Seconds until a season window starts ("soon") or ends ("live"); 0 when over or without an end
+function Seasons.secondsLeftFor(starts: number, ends: number?, now: number): number
+	local p = Seasons.phaseFor(starts, ends, now)
 	if p == "soon" then
-		return BETA.starts - now
-	elseif p == "live" then
-		return BETA.ends - now
+		return starts - now
+	elseif p == "live" and ends then
+		return ends - now
 	end
 	return 0
+end
+
+function Seasons.phase(now: number): Phase
+	return Seasons.phaseFor(BETA.starts, BETA.ends, now)
+end
+
+function Seasons.secondsLeft(now: number): number
+	return Seasons.secondsLeftFor(BETA.starts, BETA.ends, now)
+end
+
+-- Does the current season have an end date?
+function Seasons.hasEnd(): boolean
+	return BETA.ends ~= nil
 end
 
 -- "27d 4h", "5h 12m", "3m"
