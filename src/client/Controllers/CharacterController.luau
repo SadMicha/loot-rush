@@ -289,7 +289,7 @@ end
 function CharacterController.open()
 	say("", nil)
 	if nameBox.Text == "" then
-		nameBox.Text = Profile.validName(player.DisplayName) or ""
+		nameBox.Text = Profile.suggestName(player.DisplayName, player.Name, player.UserId)
 	end
 	render()
 	if not win.isOpen() then

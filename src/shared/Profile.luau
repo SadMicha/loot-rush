@@ -464,6 +464,28 @@ function Profile.validName(name: any): string?
 	return trimmed
 end
 
+-- Name proposal for the first-join setup, so a new player can start with one tap instead of
+-- typing on a phone keyboard: the display name, else the username, cleaned up to fit
+-- validName ("Cool_Guy_99" → "Cool Guy 99", emoji and accents dropped, cut to NAME_MAX),
+-- else "Hero" + the last digits of the user id. Always valid; the server still filters it.
+function Profile.suggestName(displayName: any, userName: any, userId: any): string
+	for _, raw in { displayName, userName } do
+		if typeof(raw) == "string" then
+			local s = string.gsub(string.sub(raw, 1, 64), "[_%-%.]", " ")
+			s = string.gsub(s, "[^%w ]", "")
+			s = string.gsub(s, "%s+", " ")
+			s = string.gsub(s, "^ ", "")
+			s = string.gsub(string.sub(s, 1, Profile.NAME_MAX), " $", "")
+			local ok = Profile.validName(s)
+			if ok then
+				return ok
+			end
+		end
+	end
+	local id = if typeof(userId) == "number" and userId == userId then math.abs(userId) else 0
+	return string.format("Hero%04d", math.floor(id) % 10000)
+end
+
 -- New, set-up character added to the account (not made active). nil when the account is full.
 function Profile.newCharacter(account: Account, name: string, class: string, now: number): Data?
 	if #account.characters >= Profile.MAX_CHARACTERS then

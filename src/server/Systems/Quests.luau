@@ -2,12 +2,11 @@
 -- Onboarding quest chain and window unlocks on the server (rules: Shared/Quests).
 --   • count goals come from Util/Actions (other systems fire them) plus kills and item pickups
 --   • state goals (level, best depth) are re-checked when the attributes "Level"/"BestDepth" change
---   • rewards are gold plus optional Forge materials / spell stones (Rules reward); every finished quest is one onboarding funnel step in AnalyticsService
+--   • rewards are gold plus optional Forge materials / spell stones (Rules reward); every finished quest is one onboarding funnel step (Systems/Analytics)
 -- The client only reads: snapshots via Net.Quest (no client → server remote).
 -- Unlocks are pacing, not security: the server does not refuse Forge/Star/Pet requests of
 -- locked windows (nothing to gain from it), the client hides them.
 
-local AnalyticsService = game:GetService("AnalyticsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,6 +14,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Quests)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Actions = require(script.Parent.Parent.Util.Actions)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -56,12 +56,6 @@ local function send(player: Player, data: Rules.Data, done: { string }?, unlocke
 		done = done,
 		unlocked = unlocked,
 	})
-end
-
-local function logStep(player: Player, step: number, id: string)
-	pcall(function()
-		AnalyticsService:LogOnboardingFunnelStepEvent(player, step, id)
-	end)
 end
 
 -- Extra quest reward (Forge materials, spell stones): what the next step teaches
@@ -107,7 +101,7 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 		Inventory.addGold(player, q.gold)
 		grant(player, q)
 		table.insert(doneTexts, q.text)
-		logStep(player, stepBefore + i - 1, q.id)
+		Analytics.quest(player, stepBefore + i - 1, q.id)
 	end
 	if #finished > 0 or #unlocked > 0 or data.count ~= countBefore then
 		send(

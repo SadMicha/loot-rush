@@ -23,6 +23,7 @@ local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Trail = require(ReplicatedStorage.Shared.Trail)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
 local Data = require(script.Parent.Data)
@@ -300,6 +301,7 @@ local function finish(r: Run, reason: EndReason)
 		string.format("Depth %d %s", r.depth, if failed then "failed" else "left")
 	)
 	local owner = r.owner
+	Analytics.riftEnd(owner, failed, r.region.id)
 	Leaderboard.flush(owner)
 	if reason ~= "gone" then
 		local gold, items = Loot.collect(owner)
@@ -417,6 +419,7 @@ end
 
 local function play(r: Run)
 	Metrics.begin(r.owner, r.id)
+	Analytics.riftStart(r.owner, r.depth, r.region.id)
 	r.variant = Rift.forceVariant or RiftVariants.roll(rng, r.depth)
 	local deadline = os.clock() + RiftVariants.TIMED_LIMIT
 	-- Rift Trail (Shared/Trail): one pack per clearing, in walking order. The next pack spawns
@@ -486,6 +489,7 @@ local function play(r: Run)
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
+	Analytics.riftClear(r.owner, r.depth, r.region.id)
 	-- Let the boss loot land, then pick up the leftovers before the choice (and its summary)
 	task.wait(Loot.VACUUM_DELAY)
 	if runs[r.owner] ~= r then

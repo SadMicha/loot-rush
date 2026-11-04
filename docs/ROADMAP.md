@@ -66,7 +66,7 @@ retention, P2 polish.
 | P4–P5 | Phone frame-time pass, server heartbeat with 4+ busy rifts | P1 | open (needs a playtest) |
 | R1–R2 | Leaderboard, daily rewards | P0 | built (§4) |
 | R3 | Season / weekly reason to return → Beta Season (§6) | P0 | partly built (§6) |
-| R4 | Analytics beyond the onboarding funnel (economy, rift progression, custom events; N10 in §10) | P0 | open |
+| R4 | Analytics beyond the onboarding funnel (economy, rift progression, custom events; N10 in §10) | P0 | partial: `Systems/Analytics` logs funnel (join, hero, quests), Rift progression per depth, LevelUp; economy open |
 | R5 | "Next goals" panel after the quest chain | P1 | built (Journey, §6) |
 | R6 | Unique codex | P2 | open |
 | M1 | Robux ids | P0 | done (2026-11-03) |
