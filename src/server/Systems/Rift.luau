@@ -307,12 +307,12 @@ local function finish(r: Run, reason: EndReason)
 		local gold, items = Loot.collect(owner)
 		r.tally.gold += gold
 		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
-		-- the run's gold as one economy event (pickups are not logged one by one; shards come
-		-- from salvage, pooled in Progress.salvage)
-		local profile = Data.get(owner)
-		if profile then
-			Analytics.economy(owner, "Gold", r.tally.gold, profile.gold, "Gameplay", "rift")
-		end
+	end
+	-- the run's gold as one economy event, also on a disconnect (pickups are not logged one by
+	-- one; shards come from salvage, pooled in Progress.salvage)
+	local profile = Data.get(owner)
+	if profile then
+		Analytics.economy(owner, "Gold", r.tally.gold, profile.gold, "Gameplay", "rift")
 	end
 	Enemies.clear(r.id)
 	-- After death the body stays in the arena until respawn: only tear down the floor after that

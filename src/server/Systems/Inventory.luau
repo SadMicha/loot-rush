@@ -49,9 +49,19 @@ local function autoSalvages(profile: Data.Profile, item: Items.Item): boolean
 	return limit > 0 and Items.rank(item.rarity) <= limit
 end
 
+-- Salvage/sell gold: pooled like the salvage shards (one economy event per minute, Systems/Analytics)
+local function salvageGold(player: Player, item: Items.Item)
+	local gold = Items.sellValue(item)
+	Inventory.addGold(player, gold)
+	local profile = Data.get(player)
+	if profile then
+		Analytics.pool(player, "Gold", gold, profile.gold, "Gameplay", "salvage")
+	end
+end
+
 -- Salvage an item that never reached the bag (gold + materials, counts for the salvage quest)
 function Inventory.salvageLoot(player: Player, item: Items.Item)
-	Inventory.addGold(player, Items.sellValue(item))
+	salvageGold(player, item)
 	Progress.salvage(player, item)
 	Actions.fire(player, "salvage")
 end
@@ -154,7 +164,7 @@ local function onSell(player: Player, id: any)
 		return
 	end
 	local item = table.remove(profile.inventory, index) :: Items.Item
-	Inventory.addGold(player, Items.sellValue(item))
+	salvageGold(player, item)
 	Progress.salvage(player, item)
 	snapshot(player)
 	Actions.fire(player, "salvage")
