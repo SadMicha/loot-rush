@@ -1,5 +1,6 @@
 --!strict
--- Sets base values for every character: walk speed, no jumping (space = dash).
+-- Sets base values for every character: walk speed, no jumping (space = dash), and switches off
+-- Roblox's own name/health overlay (the client draws Gilded Ink nameplates, Shared/Nameplate).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,6 +16,10 @@ local function onCharacter(character: Model)
 	humanoid.WalkSpeed = Config.WALK_SPEED * (1 + speed / 100)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 0
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	humanoid.NameDisplayDistance = 0
+	humanoid.HealthDisplayDistance = 0
 end
 
 local function onPlayer(player: Player)
