@@ -100,15 +100,20 @@ local SORTS = { "rarity", "upgrades", "level", "newest" }
 local SORT_NAME: { [string]: string } =
 	{ rarity = "Rarity", upgrades = "Upgrades", level = "Item Level", newest = "Newest" }
 
--- Class art of the slot (Kit.equipIcon) or the atlas icon while that is not uploaded; unknown slots: pouch
-local function slotArt(slot: string): string
-	return Kit.equipIcon(slot, SLOT_ICON[slot] or "pouch")
+-- Class art of the slot (Kit.equipIcon) or the atlas icon while that is not uploaded; unknown slots:
+-- pouch. `item` given: the art of the item's own class (Item.class), not the viewer's.
+local function slotArt(slot: string, item: Items.Item?): string
+	return Kit.equipIcon(
+		slot,
+		SLOT_ICON[slot] or "pouch",
+		if item then Items.classOf(item) else nil
+	)
 end
 
--- Hero level an item still needs (Items.requiredLevel), nil when it can be worn
-local function lockOf(item: Items.Item): number?
+-- Why this hero cannot wear the item (Items.lockOf): class name or level needed, nil when it can
+local function lockOf(item: Items.Item): (number | string)?
 	local level = (player:GetAttribute("Level") or 1) :: number
-	return if Items.canWear(item, level) then nil else Items.requiredLevel(item)
+	return Items.lockOf(item, level, Kit.playerClass())
 end
 
 -- ------------------------------------------------------------------ State
@@ -330,7 +335,7 @@ local function renderDoll()
 			entry = nil
 		end
 		if not entry then
-			local b = Flat.cell(DOLL_CELL, slotArt(slot), {
+			local b = Flat.cell(DOLL_CELL, slotArt(slot, item), {
 				rarity = if item then item.rarity else nil,
 				selected = isSel,
 				dim = item == nil,
@@ -442,7 +447,7 @@ local function itemHeader(parent: Frame, item: Items.Item)
 	local color = rarityColor(item.rarity)
 	local t, line = rhythm()
 	local top = line + 4 -- below the caption
-	local cell = Flat.cell(52, slotArt(item.slot), { rarity = item.rarity })
+	local cell = Flat.cell(52, slotArt(item.slot, item), { rarity = item.rarity })
 	cell.Active = false
 	cell.Position = UDim2.fromOffset(0, top + 2)
 	cell.Parent = parent
@@ -649,7 +654,10 @@ local function renderCompare()
 		al.HorizontalAlignment = Enum.HorizontalAlignment.Left
 		local need = lockOf(bagItem)
 		local equip = Flat.button(
-			if need then `Needs Level {need}` else "Equip",
+			if typeof(need) == "string"
+				then `{need} Only`
+				elseif need then `Needs Level {need}`
+				else "Equip",
 			"primary",
 			Vector2.new(COL_W - 118, buttonH())
 		)
@@ -659,7 +667,12 @@ local function renderCompare()
 		end
 		equip.Activated:Connect(function()
 			if need then
-				QuestController.toast(`Reach level {need} to wear this item.`, Theme.Color.Danger)
+				QuestController.toast(
+					if typeof(need) == "string"
+						then `Only a {need} can wear this item.`
+						else `Reach level {need} to wear this item.`,
+					Theme.Color.Danger
+				)
 				return
 			end
 			Net.Equip:FireServer(bagItem.id)
@@ -707,8 +720,12 @@ local marks: { [string]: Items.UpgradeMark } = {}
 local upgradeTotal = 0
 
 local function refreshMarks()
-	marks, upgradeTotal =
-		Items.upgradeMarks(items, equipped, (player:GetAttribute("Level") or 1) :: number)
+	marks, upgradeTotal = Items.upgradeMarks(
+		items,
+		equipped,
+		(player:GetAttribute("Level") or 1) :: number,
+		Kit.playerClass()
+	)
 end
 
 local function visibleItems(): { Items.Item }
@@ -920,7 +937,7 @@ local function renderItems(): number
 		if entry then
 			Flat.setCell(entry.cell, cellSize, state)
 		else
-			local b = Flat.cell(cellSize, slotArt(item.slot), state)
+			local b = Flat.cell(cellSize, slotArt(item.slot, item), state)
 			b.Name = "Item"
 			local id = item.id
 			b.Activated:Connect(function()
@@ -1539,8 +1556,8 @@ local function seeUpgrades()
 	end
 end
 
-function InventoryController.slotIcon(slot: string): string
-	return slotArt(slot)
+function InventoryController.slotIcon(slot: string, item: Items.Item?): string
+	return slotArt(slot, item)
 end
 
 function InventoryController.toggle()

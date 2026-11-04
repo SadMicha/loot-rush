@@ -547,10 +547,13 @@ function Kit.playerClass(): string
 	return string.lower(Theme.Class.Default)
 end
 
--- Icon name for an item slot (helmet, armor, ...): class art if uploaded, otherwise the atlas icon
-function Kit.equipIcon(slot: string, fallback: string): string
+-- Icon name for an item slot (helmet, armor, ...): class art if uploaded, otherwise the atlas icon.
+-- `classId` = the item's own class (Item.class), so stash items keep their look for every hero;
+-- nil (empty slot, class-less item) = the local player's class.
+function Kit.equipIcon(slot: string, fallback: string, classId: string?): string
 	local file = Theme.Class.EquipSlot[slot]
-	local key = if file then "equip_" .. Kit.playerClass() .. "_" .. file else ""
+	local class = if classId and Theme.Class.SkillName[classId] then classId else Kit.playerClass()
+	local key = if file then "equip_" .. class .. "_" .. file else ""
 	return if Assets.Class[key] then key else fallback
 end
 

@@ -106,7 +106,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	local pl = Kit.list(picker, Enum.FillDirection.Horizontal, 8, Enum.VerticalAlignment.Top)
 	pl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	for i, it in list do
-		local b = Kit.itemSlot(PICK, InventoryController.slotIcon(it.slot), {
+		local b = Kit.itemSlot(PICK, InventoryController.slotIcon(it.slot, it), {
 			rarity = it.rarity,
 			selected = item ~= nil and it.id == item.id,
 		})
@@ -258,7 +258,7 @@ local function renderCenter(item: Items.Item?)
 	end
 	mats.Parent = center
 	if item then
-		local big = Kit.itemSlot(220, InventoryController.slotIcon(item.slot), {
+		local big = Kit.itemSlot(220, InventoryController.slotIcon(item.slot, item), {
 			rarity = item.rarity,
 		})
 		big.Active = false

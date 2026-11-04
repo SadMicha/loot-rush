@@ -107,8 +107,9 @@ local function onEquip(player: Player, id: any)
 		return
 	end
 	local item = profile.inventory[index]
-	-- unknown slot, or above the hero's level (a stash twink, Items.requiredLevel)
-	if not Items.SlotName[item.slot] or not Items.canWear(item, profile.level) then
+	-- unknown slot, above the hero's level (a stash twink, Items.requiredLevel) or another class's
+	-- weapon from the shared stash (Items.classLock)
+	if not Items.SlotName[item.slot] or not Items.canWear(item, profile.level, profile.class) then
 		return
 	end
 	table.remove(profile.inventory, index)
