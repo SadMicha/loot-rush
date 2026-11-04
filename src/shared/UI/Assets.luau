@@ -386,6 +386,8 @@ local ICON_ALIAS: { [string]: string } = {
 	soulstars_l = "soulstar",
 	soulstars_xl = "soulstar",
 	starter_pack = "chest",
+	season_beta = "crown",
+	journey = "quest",
 	buff_chill = "ice",
 	buff_rush = "fire",
 	stone_linger = "skills",
@@ -683,6 +685,8 @@ local ICON_IMAGE: { [string]: Fixed } = {
 	stone_linger = { id = "rbxassetid://129916315129701", size = Vector2.new(256, 256) },
 	buff_rush = { id = "rbxassetid://92423849788133", size = Vector2.new(256, 256) },
 	buff_chill = { id = "rbxassetid://78368102043367", size = Vector2.new(256, 256) },
+	journey = { id = "rbxassetid://109061225455736", size = Vector2.new(256, 256) },
+	season_beta = { id = "rbxassetid://122505326588873", size = Vector2.new(256, 256) },
 	starter_pack = { id = "rbxassetid://70917385823543", size = Vector2.new(256, 256) },
 }
 local iconImage: { [string]: Fixed } = {}
