@@ -148,18 +148,26 @@ Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Fo
 Worn helmet, armor, gloves, belt, boots and amulet show on the hero's body, built from studded
 parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear` (server).
 
-- A look ("style") is a list of pieces per slot. Each piece names an R15 body part and is sized and
-  placed in multiples of that part's size, so it fits every avatar scale. `{S}` = both sides.
-- Colors: `main`/`dark` from the look's palette (class), `trim`/`gem` = `Theme.Rarity` of the item;
-  gems glow (Neon) from `rare` up.
-- Class looks: Knight helm + steel plate (Brix), hood + leather vest (Fynn), pointed hat + robe
-  (Zap), mushroom cap + moss mantle (Mora). Gloves, boots, belt, amulet share one shape per class palette.
+- A look ("style") is a list of chunky, layered pieces per slot. Each piece names an R15 body part
+  and is sized and placed in multiples of that part's size, so it fits every avatar scale. `{S}` =
+  both sides, `mirror` = a second copy at -X on the same part.
+- Colors by role: `main`/`dark`/`metal`/`accent` from the class palette, `rune` = the accent glowing
+  (Neon), `trim`/`gem`/`glow` = `Theme.Rarity` of the item.
+- Rarity shows on the body (`Gear.shows`, `Gear.pieces(style, slot, rarity)`): a piece appears from
+  its role's floor (`trim` magic, `gem` rare, `glow` epic) or its own `min`, whichever is higher.
+  Normal = plain base look; magic adds rarity trim plates; rare adds Neon gems and extra plates;
+  epic adds thin Neon edges; unique adds one more edge on some helmets. No particles (the gear is
+  server-built and could not follow each client's Effects quality); Neon edges glow with Bloom.
+- Class looks and piece counts: design table in `docs/specs/GEAR-COSMETICS.md` "Class looks".
+  The amulet is one shape for every class (class metal color), hung high on the chest; chest plates
+  stay below y = 0.3 in front so the pendant shows.
 - `Stats.refresh` calls `Gear.apply` after every gear change; it rebuilds only when
   `Gear.signature` (class, slot rarities, skins) changed. Respawn, avatar loading and new
   accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn; the setting "Hide helmet"
   (`settings.hideHelmet`) leaves the helmet off the body (stats stay).
-- Budget: at most `Gear.MAX_PIECES` (6) massless, non-colliding, shadowless parts per slot, ~25 per
-  hero, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
+- Budget: at most `Gear.MAX_PIECES` (16) parts per slot and `Gear.MAX_SET` (60) per full set at the
+  top rarity (today 27-31 at normal, 50-55 at unique); massless, CanCollide/CanQuery/CanTouch off,
+  shadowless, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
   same gear; it refreshes when a new `WornGear` model arrives while the window is open.
 - R6 or custom rigs: pieces whose body part is missing are skipped.
 - Gear skins (cosmetics) are further styles in `Gear.Styles`: `Gear.style(class, slot, skin)`;
