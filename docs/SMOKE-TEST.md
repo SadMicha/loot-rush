@@ -12,5 +12,6 @@ Setup: `bash tools/packages.sh`, `rojo serve`, Studio → Connect → Play (Stud
 - [ ] Use each skill and the dash once: cooldown veil runs, one dash diamond turns dark then cyan again
 - [ ] Kill a few enemies: they shatter into bricks, studs fly to you, Rush meter fills, loot drops, equip an item
 - [ ] Dbg "Fill Rush": the Rush starts by itself (toast with the buffs, Rush icon in the buff bar), glow and speed, the bar drains, then it ends
+- [ ] Fresh save (Settings → Defaults brings hints back): no Daily popup before the first Rift; in the Rift a gold callout points at a skill button, the dash (first red zone), the Rush meter and the boss Break bar, each only when no enemy is close; back in the hub it points at Inventory; tap closes it
 - [ ] Leave the Rift, rejoin the game: class, gold, level and equipped items are still there
 - [ ] Phone emulator 844x390: nothing under the notch, buttons tappable

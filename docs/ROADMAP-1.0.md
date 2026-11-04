@@ -63,6 +63,10 @@ Priority: **P0** blocks 1.0 · **P1** strongly affects how the game feels or ret
 `HintsController` (hidden account settings `hintSkills`/`hintDodge`/`hintRush`), O2 preload
 + loading screen (`PreloadController`, `src/first/LootRushLoading.client.luau` in
 ReplicatedFirst, fades out on the `ClientReady` attribute).
+**2026-11-04 (CRITERIA-AUDIT §3 #2, #5):** hints are callouts next to the button they explain
+(`client/UI/Callout`, `Theme.Callout`), shown at calm moments, saved only after they were on
+screen; new hints `hintBreak`/`hintCounter`/`hintEquip`. The Daily popup waits until the first
+quest ("Enter a Rift") is done and the player is back out (`Daily.popupAllowed`).
 | O6 | No skip for players who already know ARPGs. | P2 | "Skip tutorial hints" toggle in settings (S1). |
 
 ### 3.2 Combat feel
