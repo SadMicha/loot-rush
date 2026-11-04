@@ -1,6 +1,7 @@
 --!nocheck
 -- Hub stash (Shared/Stash, Systems/Stash, Client/StashController): pure move rules, the save
 -- field, and the real server + window: moves only at the station, never a duplicate.
+local Bag = require("ReplicatedStorage.Shared.Bag")
 local Items = require("ReplicatedStorage.Shared.Items")
 local Profile = require("ReplicatedStorage.Shared.Profile")
 local Stash = require("ReplicatedStorage.Shared.Stash")
@@ -37,10 +38,10 @@ describe("Stash rules", function()
 		expect(#bag).toBe(1)
 		expect(#data.tabs[2]).toBe(1)
 		expect(Stash.deposit(data, bag, "a", 1)).toBe("missing") -- already moved
-		expect(Stash.withdraw(data, bag, "a", Items.BAG_MAX)).toBe("ok")
+		expect(Stash.withdraw(data, bag, "a", Bag.BASE)).toBe("ok")
 		expect(#bag).toBe(2)
 		expect(count(data, "a")).toBe(0)
-		expect(Stash.withdraw(data, bag, "a", Items.BAG_MAX)).toBe("missing")
+		expect(Stash.withdraw(data, bag, "a", Bag.BASE)).toBe("missing")
 	end)
 
 	it("rejects bad tabs, a full tab, a full bag and duplicates", function()
@@ -414,7 +415,7 @@ describe("Item class", function()
 		local staff = again.characters[1].inventory[1]
 		expect(Stash.deposit(again.stash, again.characters[1].inventory, staff.id, 1)).toBe("ok")
 		local warrior = Profile.reconcile({ id = "c2", class = "warrior" })
-		expect(Stash.withdraw(again.stash, warrior.inventory, staff.id, Items.BAG_MAX)).toBe("ok")
+		expect(Stash.withdraw(again.stash, warrior.inventory, staff.id, Bag.BASE)).toBe("ok")
 		Profile.reconcile(warrior)
 		expect(warrior.inventory[1].class).toBe("mage")
 		expect(warrior.inventory[1].name).toBe(staff.name)
@@ -422,7 +423,7 @@ describe("Item class", function()
 		-- the mage's ring is a mage ring for the warrior too
 		local ring = again.characters[1].inventory[1]
 		expect(Stash.deposit(again.stash, again.characters[1].inventory, ring.id, 1)).toBe("ok")
-		expect(Stash.withdraw(again.stash, warrior.inventory, ring.id, Items.BAG_MAX)).toBe("ok")
+		expect(Stash.withdraw(again.stash, warrior.inventory, ring.id, Bag.BASE)).toBe("ok")
 		expect(Items.canWear(warrior.inventory[2], 10, warrior.class)).toBe(false)
 	end)
 

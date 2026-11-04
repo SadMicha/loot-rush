@@ -167,7 +167,6 @@ local TITLES = {
 Items.TierMult = table.freeze({ 2.4, 2.05, 1.75, 1.5, 1.3, 1.15, 1 })
 Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
 Items.IP_PER_LEVEL = 10 -- item power = item level × 10
-Items.BAG_MAX = 40 -- bag slots (Systems/Inventory, InventoryController); equipped gear not counted
 
 -- Forge charges of new items per rarity (balancing: Loot · Affixes & Salvage)
 -- Uniques are finished items: no charges, the Forge cannot change them

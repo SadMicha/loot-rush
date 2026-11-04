@@ -3,7 +3,8 @@
 --   CastSkill (C→S): slot: number, aim: Vector3, origin: Vector3 (client position)
 --   Dash      (C→S): report for invulnerability, server counts its own charges
 --   Fx        (S→C): kind: string, data: table (see Types.luau)
---   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item } }
+--   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item }, capacity: number, level: number }
+--                    capacity = bag slots (Shared/Bag), level = bag upgrade level
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
 --   Rift      (C→S): action: "enter" (region id, start depth?) | "deeper" | "leave" | "tier" (World Tier number) - state comes via player attributes (Types.luau)
 --   RiftResult (S→C): RiftRun.Summary - after every boss (kind "clear") and at the end of the run (kind "end")
@@ -28,6 +29,9 @@
 --   CharacterResult (S→C): { ok, text, action } - feedback for a Character request
 --   Quest     (S→C): { step, count, target, text?, unlocks } - active onboarding quest (Shared/Quests);
 --                    events: { done = { questText }, unlocked = { windowId } } on progress
+--   Bag       (C→S): "upgrade", level: number - buy that bag level (must be the next one; Shared/Bag,
+--                    Systems/Inventory). Player attributes BagLevel / BagMax carry the state.
+--   BagResult (S→C): { ok, text, level, capacity, price? } - upgrade feedback (price = gold paid)
 --   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
 --   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
@@ -84,6 +88,8 @@ local NAMES = {
 	"Characters",
 	"CharacterResult",
 	"AutoSalvage",
+	"Bag",
+	"BagResult",
 	"Loadout",
 	"SkillCast",
 	"SkillCooldown",
@@ -151,6 +157,8 @@ return table.freeze({
 	Characters = get("Characters"),
 	CharacterResult = get("CharacterResult"),
 	AutoSalvage = get("AutoSalvage"),
+	Bag = get("Bag"),
+	BagResult = get("BagResult"),
 	Loadout = get("Loadout"),
 	SkillCast = get("SkillCast"),
 	SkillCooldown = get("SkillCooldown"),

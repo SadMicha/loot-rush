@@ -10,8 +10,12 @@
 --   • Progress belongs to the season: a save from another season starts fresh.
 -- Leagues (fresh season characters, SEASONS §6) are not built yet: the Beta counts on the account.
 --
--- Save: account.season = { id, counts = { [challengeId] = n }, claimed = { ["<step>"] = true } }
+--   • The bag upgrade level (Shared/Bag) is season data too: it resets with the season.
+--
+-- Save: account.season = { id, counts = { [challengeId] = n }, claimed = { ["<step>"] = true },
+--                          bag = level }
 
+local Bag = require(script.Parent.Bag)
 local Journey = require(script.Parent.Journey)
 
 local Seasons = {}
@@ -52,6 +56,7 @@ export type Data = {
 	id: string,
 	counts: { [string]: number },
 	claimed: { [string]: boolean },
+	bag: number, -- bag upgrade level (Shared/Bag), account-wide for this season
 }
 
 export type Phase = "soon" | "live" | "over"
@@ -166,7 +171,7 @@ assert(
 )
 
 function Seasons.fresh(): Data
-	return { id = BETA.id, counts = {}, claimed = {} }
+	return { id = BETA.id, counts = {}, claimed = {}, bag = 0 }
 end
 
 -- Phase of a season window (ends nil = no end)
@@ -303,12 +308,14 @@ function Seasons.claim(data: Data, index: any): Step?
 	return BETA.track[index]
 end
 
--- Sanitized copy of a saved value; a save from another season starts fresh
+-- Sanitized copy of a saved value; a save from another season starts fresh (also the bag level:
+-- a new season starts with the base bag, Shared/Bag). Saves from before the bag get level 0.
 function Seasons.reconcile(raw: any): Data
 	local out = Seasons.fresh()
 	if typeof(raw) ~= "table" or raw.id ~= BETA.id then
 		return out
 	end
+	out.bag = Bag.level(raw.bag)
 	if typeof(raw.counts) == "table" then
 		for id, v in raw.counts do
 			local ch = if typeof(id) == "string" then challengeById[id] else nil

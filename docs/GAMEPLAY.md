@@ -171,8 +171,17 @@ Attribute `RiftVariant` ("" = normal). `Rift.forceVariant` for tests.
 ## Loot
 
 Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity.unique`, `UNIQUE_FROM`).
-- 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. Bag size `Items.BAG_MAX`;
-  a full bag salvages non-upgrades.
+- 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. A full bag salvages
+  non-upgrades from loot; upgrades stay on the ground ("Bag full" popup).
+- **Bag size** (`Shared/Bag`, numbers in `Balance.Bag`): 40 slots + 5 per upgrade level, level 0-12
+  (max 100). Bought with the active hero's gold in the Inventory header (gold button "+5 · price" next to the "N / 40" chip),
+  `Net.Bag` → `Net.BagResult`. Price of level L → L+1 = 1,200 × 1.8^L, rounded like shop prices
+  (1.2K, 2.2K, 3.9K, 7K, 13K, 23K, 41K, 73K, 130K, 240K, 430K, 770K; 1.73M in total), fixed (not
+  scaled by depth). The level is **account-wide** (every hero has the same bag) and **per season**:
+  saved in `account.season.bag`, so `Seasons.reconcile` resets it to 0 when the season id changes.
+  A smaller bag never deletes items: over capacity, every item stays, the bag shows red and takes
+  nothing new until it is below the capacity. Attributes `BagLevel`, `BagMax`; the `Net.Inv`
+  snapshot carries `capacity` and `level`.
 - **Elites:** the last `Config.RIFT_ELITES` packs open with elites (+1 per World Tier). Attribute
   `Elite`, golden outline, life ×4, damage ×1.5, loot ×5 with at least 2 Magic+ items.
 - **Elite modifiers** (`Shared/EliteMods`): one on Normal, +1 per tier, never twice; names prefix the

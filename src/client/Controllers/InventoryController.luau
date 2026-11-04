@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Bag = require(ReplicatedStorage.Shared.Bag)
 local Forge = require(ReplicatedStorage.Shared.Forge)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Gear = require(ReplicatedStorage.Shared.Gear)
@@ -32,7 +33,6 @@ local C = Theme.Color
 local F = Theme.Flat
 local player = Players.LocalPlayer
 
-local MAX_ITEMS = Items.BAG_MAX
 local SALVAGE_GAP = 0.15 -- seconds between salvage requests (server allows 8 per second)
 local SALVAGE_STALE = 3 -- seconds after sending: an item the server kept shows up again
 local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed
@@ -117,6 +117,15 @@ local function lockOf(item: Items.Item): (number | string)?
 	return Items.lockOf(item, level, Kit.playerClass())
 end
 
+-- Bag slots (server attribute BagMax, Shared/Bag) and the upgrade level bought this season
+local function capacity(): number
+	return Bag.fromAttribute(player:GetAttribute("BagMax"))
+end
+
+local function bagLevel(): number
+	return Bag.level(player:GetAttribute("BagLevel"))
+end
+
 -- ------------------------------------------------------------------ State
 local gui: ScreenGui
 local window: Frame
@@ -141,6 +150,8 @@ local sortLabel: TextLabel
 local filterLabel: TextLabel
 local upgradeChip: Frame
 local upgradeLabel: TextLabel
+local bagButton: TextButton -- "Upgrade +5 · 1.2K": next bag level (hidden at the largest bag)
+local bagButtonLabel: TextLabel
 local tabs: Flat.Tabs
 local searchFrame: Frame
 local salvageToggle: Flat.Toggle
@@ -960,7 +971,7 @@ local function renderItems(): number
 		end
 	end
 	-- Empty places up to full rows (at least the bag size in "All")
-	local total = math.max(#list, if category == "all" then MAX_ITEMS else 0, cols * 5)
+	local total = math.max(#list, if category == "all" then capacity() else 0, cols * 5)
 	total = math.ceil(total / cols) * cols
 	local need = total - #list
 	while #emptyPool < need do
@@ -986,9 +997,24 @@ local function quickCount(rarity: string): number
 	return n
 end
 
+-- Bag size chip and upgrade button: red text when the bag is full (or over capacity after a new
+-- season), the button dims while the gold is short
+local function renderBag()
+	local cap = capacity()
+	countLabel.Text = `{Format.int(#items)} / {Format.int(cap)}`
+	countLabel.TextColor3 = if #items >= cap then C.Danger else C.Muted
+	capLabel.Text = `{Format.int(#items)} / {Format.int(cap)}`
+	capLabel.TextColor3 = if #items >= cap then C.Danger else C.Text
+	local price = Bag.price(bagLevel())
+	bagButton.Visible = price ~= nil
+	if price then
+		bagButtonLabel.Text = `+{Bag.STEP} · {Format.currency(price)}`
+		Flat.setEnabled(bagButton, ((player:GetAttribute("Gold") or 0) :: number) >= price)
+	end
+end
+
 local function renderGrid()
-	countLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
-	capLabel.Text = string.format("%d / %d", #items, MAX_ITEMS)
+	renderBag()
 	refreshMarks()
 	upgradeChip.Visible = upgradeTotal > 0
 	upgradeLabel.Text =
@@ -1314,7 +1340,8 @@ local function relayout(h: number)
 	local bestCols, bestCell = 9, math.min(80, (inner - 8 * GAP) // 9)
 	for c = 6, 9 do
 		local size = math.min(CELL_MAX, (inner - (c - 1) * GAP) // c)
-		local rows = math.ceil(MAX_ITEMS / c)
+		-- sized for the base bag; an upgraded bag scrolls instead of shrinking the cells
+		local rows = math.ceil(Bag.BASE / c)
 		if rows * (size + GAP) - GAP + 2 * GRID_PAD <= gridH and size > 80 then
 			bestCols, bestCell = c, size
 			break
@@ -1438,10 +1465,31 @@ local function buildHeader(parent: Frame)
 	countLabel.Parent = count
 	count.Parent = titleRow
 
+	-- Bag upgrade (Net.Bag): asks for the next level; the server checks the gold and answers with
+	-- Net.BagResult. Short on gold: a hint, no request.
+	-- Fixed width (an AutomaticSize button grows without end with the press ripple, Flat.toggle);
+	-- fits the longest label "+5 · 770K". Kept short: the header row is full on small phones.
+	bagButton, bagButtonLabel = Flat.button("+5", "secondary", Vector2.new(130, 32), "gold")
+	bagButton.Name = "BagUpgrade"
+	bagButton.LayoutOrder = 3
+	bagButton.Activated:Connect(function()
+		local level = bagLevel()
+		local price = Bag.price(level)
+		if not price then
+			return
+		end
+		if ((player:GetAttribute("Gold") or 0) :: number) < price then
+			QuestController.toast(Bag.Text.gold, C.Danger)
+			return
+		end
+		Net.Bag:FireServer("upgrade", level + 1)
+	end)
+	bagButton.Parent = titleRow
+
 	-- Arrow icon + "3 Upgrades": bag items that beat the worn piece of their slot (hidden at 0)
 	upgradeChip = Instance.new("Frame")
 	upgradeChip.Name = "Upgrades"
-	upgradeChip.LayoutOrder = 3
+	upgradeChip.LayoutOrder = 4
 	upgradeChip.Visible = false
 	upgradeChip.BackgroundColor3 = F.Surface1
 	upgradeChip.BackgroundTransparency = 0.1
@@ -1747,6 +1795,17 @@ function InventoryController.start()
 	end)
 	player:GetAttributeChangedSignal("AutoSalvage"):Connect(function()
 		InventoryController.render()
+	end)
+	-- Bag size and its price (Shared/Bag): a new size re-renders the grid, gold only the button
+	player:GetAttributeChangedSignal("BagMax"):Connect(function()
+		InventoryController.render()
+	end)
+	player:GetAttributeChangedSignal("BagLevel"):Connect(renderBag)
+	player:GetAttributeChangedSignal("Gold"):Connect(renderBag)
+	Net.BagResult.OnClientEvent:Connect(function(result: any)
+		if typeof(result) == "table" and typeof(result.text) == "string" then
+			QuestController.toast(result.text, if result.ok == true then C.Gold else C.Danger)
+		end
 	end)
 	ProgressController.changed:Connect(function()
 		if category == "materials" then
