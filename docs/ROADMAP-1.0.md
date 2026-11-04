@@ -203,7 +203,7 @@ season machinery before Season 1 depends on it.
 | Rewards | Cosmetic and account-wide, forever: **"Beta Tester"** title, a gold stud trail, a hub banner. Nobody loses anything when the Beta ends. |
 | Ladder | Beta board per class and World Tier (§4.1), frozen at the end and shown in the hub as "Beta Season Hall of Fame". |
 | Feedback | The SEASONS §3 vote becomes a short **feedback card** after the 5th run: "How does combat feel?" (1–5), "What should we improve first?" (combat, loot, classes, maps, UI). Stored once per account, counted per server in batches. |
-| Great Build | Optional "Season 0" monument (SEASONS §7 says it can ship with 1.0). **Recommended: not in the Beta**, it is an M-sized system and the Beta should measure the core game. |
+| Great Build | **(owner, 2026-11-04) In the Beta** ("let's see how they like it"): the *Beta Beacon* east of the spawn, built as described in SEASONS §7 (as-built notes there). |
 | Report | End of week 3: `docs/seasons/BETA-REPORT.md` (retention D1/D7, where players stop, class pick rates, deaths per depth, feedback card results) → input for Season 1 tuning. |
 
 Code steps (subset of SEASONS §9, one PR each):
@@ -236,7 +236,7 @@ mechanic; characters work exactly like in the Beta (fresh league, moved into Leg
   the spec still describes arena waves. Update the spec once the trail lands.
 - League split + migration (SEASONS §6) is already proven by the Beta; Season 1 reuses it unchanged.
 - Use the Beta report to pick the 10-week numbers, Journey difficulty and ladder stat.
-- Great Build ships with Season 1 (Grand Blueprint Tower).
+- Season 1 builds a new Great Build monument (Grand Blueprint Tower): new `GreatBuild.ID`, the Beta Beacon stays as it is.
 
 ## 8. Open decisions for Micha
 
@@ -244,7 +244,7 @@ mechanic; characters work exactly like in the Beta (fresh league, moved into Leg
 2. **Beta length**: 4 weeks (recommended) or until Season 1 is ready.
 3. **Daily rewards**: no streak reset on a missed day (recommended, no loss mechanics) or classic
    reset.
-4. **Great Build**: with Season 1 (recommended) or already in the Beta.
+4. ~~Great Build~~ Decided (owner, 2026-11-04): already in the Beta.
 
 ## 9. Test plan
 

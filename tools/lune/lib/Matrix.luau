@@ -318,6 +318,28 @@ Matrix.SCREENS = {
 	{ name = "leaderboard", open = window("Leaderboard") },
 	{ name = "journey", open = window("Journey") },
 	{ name = "season", open = window("Season") },
+	{
+		name = "great-build", -- at the donation chute in the hub
+		open = function(sb)
+			sb:runAs("server", function(req)
+				local player = sb.player
+				local station = sb.game
+					:GetService("Workspace").Lumenhaven
+					:FindFirstChild("Station_GreatBuild", true)
+				req("ServerScriptService.Server.Systems.Movement").teleported(player)
+				player.Character:PivotTo(station.CFrame + Vector3.new(-3, 0, 0))
+			end)
+			sb:run(0.6)
+			sb:runAs("client", function(req)
+				req(
+					"Players."
+						.. sb.player.Name
+						.. ".PlayerScripts.Client.Controllers.GreatBuildController"
+				).open()
+			end)
+			sb:run(0.6)
+		end,
+	},
 }
 
 function Matrix.prepare(sb, screen)

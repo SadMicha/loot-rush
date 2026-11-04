@@ -125,6 +125,17 @@ local LIST: { Cosmetic } = {
 		light = 0.9,
 		season = "beta",
 	},
+	-- Great Build milestone (Shared/GreatBuild): donate 10,000 Crystal Shards in the Beta
+	{
+		id = "builder_aura",
+		slot = "aura",
+		name = "Builder Aura",
+		rarity = "legend",
+		icon = "great_build",
+		colors = { Color3.fromHex("#FFC83A"), Color3.fromHex("#E06A2A") },
+		light = 0.8,
+		season = "beta",
+	},
 }
 
 local byId: { [string]: Cosmetic } = {}

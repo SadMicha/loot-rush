@@ -202,6 +202,16 @@ local function nameOf(id: number): string
 	return names[id] or `Player {id}`
 end
 
+-- Display names for UserIds (batched, cached; also for the Great Build donors)
+function Leaderboard.names(ids: { number }): { [number]: string }
+	resolveNames(ids)
+	local out = {}
+	for _, id in ids do
+		out[id] = nameOf(id)
+	end
+	return out
+end
+
 local function readStore(boardId: string): { Rules.Entry }?
 	local store = storeOf(boardId)
 	if not store then

@@ -215,6 +215,27 @@ are retuned after week 1 through `LootRush_LiveConfig`.
 Effort **M**. It is not tied to the season mechanic, so it can also ship with 1.0 as a smaller
 "Season 0" monument.
 
+**As built for the Beta (2026-11-04, owner: "this should be in the Beta Season").** Monument
+*Beta Beacon* east of the spawn plaza, donation chute at its south-west corner. Code:
+`Shared/GreatBuild` (rules), `Systems/GreatBuild` (server), `GreatBuildController` (window, board
+above the monument, stage toast), numbers in `Balance.GreatBuild`, tests `tests/GreatBuild.spec.luau`.
+Differences from the sketch above, all on purpose for the smallest robust version:
+- Donations are **Crystal Shards** (salvage output): there is no brick currency in the save.
+  Daily cap 1,000 per account, stages 1,000 × 1.5ⁿ (10 stages, ≈ 113k total) for a small Beta crowd.
+- **No MemoryStore cache**: each server reads the DataStore record once per 30 s when it has no
+  batch of its own (2 reads/min per server, far under the 60 + 10 × players budget). A finished
+  stage is still pushed over MessagingService (`GreatBuild`) so other servers build at once.
+- Flush bookkeeping as above: `flushes[serverId] = { seq, at }`, pruned after 1 h; serverId is a GUID
+  per server start, batches strictly sequential, ticks never overlap; BindToClose flushes again.
+- Donor credit: `account.greatBuild = { id, total, day, today, paid }` (one build id; a new build id
+  starts fresh). One season-wide donor board `LootRush_GreatBuildDonors_beta` (top 5 in the window),
+  no per-stage plaques yet.
+- Personal milestones 100 / 1,000 / 10,000: gold, Soulstars + a spell stone, the *Builder Aura*.
+- Buff +20 % gold, +10 % item drop chance for 2 h after the newest stage (Boosts source + HUD status
+  `build`), not stacking.
+- Studio without DataStore access: the server runs on a local record (stages, buff and monument
+  work, nothing is shared). Dbg: "Build: +1,000 Shards", "Build: Finish Stage" (writes the global record!).
+
 ## 8. Season roadmap (proposal)
 
 | Season | Mechanic | Spec |
