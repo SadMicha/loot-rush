@@ -438,6 +438,14 @@ local function play(r: Run)
 		if lo and hi then
 			r.checkpoint = Vector3.new((lo.X + hi.X) / 2, 4, (lo.Z + hi.Z) / 2)
 		end
+		-- Area clear moment for the owner (toast, chime, stud burst: FeelController)
+		local _, ownRoot = character(r.owner)
+		Net.Fx:FireClient(r.owner, "areaclear", {
+			pos = if ownRoot then ownRoot.Position else r.checkpoint,
+			wave = wave,
+			waves = waves,
+			color = r.region.color,
+		})
 		task.wait(Config.RIFT_WAVE_PAUSE)
 		if not alive(r) then
 			return finish(r, "failed")

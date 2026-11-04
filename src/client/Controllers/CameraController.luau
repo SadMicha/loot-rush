@@ -110,7 +110,7 @@ local function step(dt: number)
 		math.sin(yaw) * math.cos(pitch),
 		math.sin(pitch),
 		math.cos(yaw) * math.cos(pitch)
-	) * zoom
+	) * zoom * FeelController.zoomFactor()
 	camera.CFrame = CFrame.lookAt(f + offset, f) * FeelController.shakeOffset(dt)
 end
 

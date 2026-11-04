@@ -15,6 +15,7 @@ Build order step 4 (`docs/DECISIONS.md`). All tuning lives in `src/shared/Feel.l
 | Projectile impact, chain lightning jumps | small brick bursts in the skill color | `FeelController` |
 | Dodge roll | trail of bricks in the class color behind the character | `DashController` |
 | Direct hit | knockback away from the attacker (crit pushes harder, bosses/elites barely move, charges are not interrupted) | server, `Systems/Enemies.knockback` |
+| Boss Broken / Counter / boss kill finisher / area clear | see `docs/BOSSES.md` "Clear payoff" | `FeelController`, `FxController`, `RiftController` |
 
 ## Rules
 

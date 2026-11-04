@@ -9,10 +9,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Balance = require(ReplicatedStorage.Shared.Balance)
 local Config = require(ReplicatedStorage.Shared.Config)
+local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Crit = require(ReplicatedStorage.Shared.Crit)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Classes = require(ReplicatedStorage.Shared.Classes)
 local Leash = require(ReplicatedStorage.Shared.Leash)
+local Momentum = require(ReplicatedStorage.Shared.Momentum)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
@@ -37,6 +39,8 @@ type PState = {
 	shieldUntil: number,
 	buffDamage: number, -- buff skills (Battle Cry): % damage until buffUntil
 	buffUntil: number,
+	focusUntil: number, -- Counter (Shared/Momentum): more damage until then
+	counterAt: number, -- last Counter (one per COUNTER_GAP)
 }
 
 local Combat = {
@@ -44,7 +48,11 @@ local Combat = {
 	EnemyKilled = Instance.new("BindableEvent"),
 	PlayerHurt = Instance.new("BindableEvent"), -- (player, amount), for Systems/Metrics
 	EnemyDied = Instance.new("BindableEvent"), -- (enemy, pos, killer) right before the model is destroyed
-	EnemyHit = Instance.new("BindableEvent"), -- (enemy, from: Vector3, crit), direct hits; knockback in Systems/Enemies
+	-- (enemy, from: Vector3, crit, basic: boolean, player), direct hits; knockback and the boss
+	-- Break meter in Systems/Enemies
+	EnemyHit = Instance.new("BindableEvent"),
+	-- (player, source: Model) a dodge roll went through an enemy attack (Systems/Enemies: boss poise)
+	Countered = Instance.new("BindableEvent"),
 }
 
 local states: { [Player]: PState } = {}
@@ -56,6 +64,12 @@ local function roll(): number
 	return rng:NextNumber()
 end
 local BODY_RADIUS = 1.7 -- enemy body, added to the hit radius
+
+-- Basic attack ids of every class (a basic hit chips a boss's Break meter differently)
+local basicIds: { [string]: boolean } = {}
+for _, c in Classes.List do
+	basicIds[Skills.forClass(c.id).basic.id] = true
+end
 
 -- Special effects (own assumptions, not in the balancing sheet)
 local MAX_ARMOR = 0.75 -- armor %: at most 75% less damage
@@ -343,6 +357,16 @@ local function shatter(pos: Vector3, amount: number, player: Player, skill: Skil
 	end
 end
 
+-- Damage factor of the target itself: a Broken boss or one in its Opening takes more (Shared/Bosses)
+local function taken(enemy: Model): number
+	if enemy:GetAttribute("Broken") == true then
+		return 1 + Bosses.BREAK_DAMAGE
+	elseif enemy:GetAttribute("Opening") == true then
+		return 1 + Bosses.OPENING_DAMAGE
+	end
+	return 1
+end
+
 -- The damage itself, without the zone check (damageEnemy below, Combat.slay)
 local function applyDamage(
 	enemy: Model,
@@ -365,6 +389,9 @@ local function applyDamage(
 	if pst and os.clock() < pst.buffUntil then
 		bonus += pst.buffDamage / 100
 	end
+	if pst and os.clock() < pst.focusUntil then
+		bonus += Momentum.FOCUS_DAMAGE / 100
+	end
 	local _, humanoid = body(player)
 	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
 		bonus += num(player, "StatLowLife") / 100
@@ -377,7 +404,8 @@ local function applyDamage(
 		base
 			* (if weapon > 0 then weapon else 1)
 			* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
-			* (1 + num(player, "BonusDamage") / 100), -- pet, passes … (Systems/Boosts)
+			* (1 + num(player, "BonusDamage") / 100) -- pet, passes … (Systems/Boosts)
+			* taken(enemy),
 		tier,
 		critMult
 	)
@@ -407,7 +435,8 @@ local function applyDamage(
 	if not proc and hp > 0 then
 		local root = body(player)
 		if root then
-			Combat.EnemyHit:Fire(enemy, root.Position, crit)
+			local basic = skill ~= nil and basicIds[skill.id] == true
+			Combat.EnemyHit:Fire(enemy, root.Position, crit, basic, player)
 		end
 	end
 
@@ -502,18 +531,30 @@ function Combat.slay(player: Player, enemy: Model)
 	applyDamage(enemy, 1e9, player, nil, true)
 end
 
--- Called by the enemy AI. Returns true if the hit got through.
-function Combat.hurtPlayer(player: Player, amount: number): boolean
+-- Called by the enemy AI. `source` = the attacking enemy for its own telegraphed attacks
+-- (a dodge roll through one is a Counter); nil for blasts and burning ground.
+-- Returns true if the hit got through.
+function Combat.hurtPlayer(player: Player, amount: number, source: Model?): boolean
 	local st = states[player]
 	local root, humanoid = body(player)
 	if not st or not root or not humanoid then
 		return false
 	end
 	if os.clock() < st.iframesUntil then
+		local now = os.clock()
+		local counter = source ~= nil and now - st.counterAt >= Momentum.COUNTER_GAP
+		if counter then
+			st.counterAt = now
+			st.focusUntil = now + Momentum.FOCUS_TIME
+			Status.set(player, "focus", Momentum.FOCUS_TIME)
+			Combat.reduceCooldowns(player, Momentum.COUNTER_CDR)
+			Combat.Countered:Fire(player, source)
+		end
 		Net.Fx:FireAllClients("dmg", {
 			pos = root.Position + Vector3.new(0, 3, 0),
-			text = "Dodged",
+			text = if counter then "Counter!" else "Dodged",
 			dodge = true,
+			counter = counter or nil,
 			who = player.UserId,
 		})
 		return false
@@ -562,6 +603,35 @@ function Combat.hurtPlayer(player: Player, amount: number): boolean
 		who = player.UserId,
 	})
 	return true
+end
+
+-- Shortens every running skill cooldown of the player by `seconds` (Shared/Momentum) and tells
+-- the client the new remaining times
+function Combat.reduceCooldowns(player: Player, seconds: number)
+	local st = states[player]
+	if not st or seconds <= 0 then
+		return
+	end
+	local now = os.clock()
+	local changed: { [string]: number } = {}
+	local any = false
+	for id, untilT in st.cdUntil do
+		if untilT > now then
+			local left = math.max(0, untilT - now - seconds)
+			st.cdUntil[id] = now + left
+			changed[id] = left
+			any = true
+		end
+	end
+	if any then
+		Net.SkillCooldown:FireClient(player, changed)
+	end
+end
+
+-- Remaining cooldown of a skill in seconds (0 = ready); for specs and the debug menu
+function Combat.cooldownLeft(player: Player, skillId: string): number
+	local st = states[player]
+	return if st then math.max(0, (st.cdUntil[skillId] or 0) - os.clock()) else 0
 end
 
 -- ------------------------------------------------------------------ Skills
@@ -1132,6 +1202,9 @@ local function dash(player: Player)
 	act(player, "dash", nil, false, nil)
 end
 
+-- Dodge roll as if the client asked (specs, debug)
+Combat.dash = dash
+
 -- ------------------------------------------------------------------ Lifecycle
 local function onPlayer(player: Player)
 	states[player] = {
@@ -1146,6 +1219,8 @@ local function onPlayer(player: Player)
 		chillUntil = 0,
 		buffDamage = 0,
 		buffUntil = 0,
+		focusUntil = 0,
+		counterAt = -10,
 		armorBuff = 0,
 		armorUntil = 0,
 		shield = 0,
@@ -1257,6 +1332,13 @@ function Combat.start()
 							basic = double
 						end
 						act(player, basic.kind, basic.id, true, enemyPos(target))
+						-- Momentum: swinging at enemies speeds the skills up (more on bosses/elites)
+						local big = target:GetAttribute("Boss") == true
+							or target:GetAttribute("Elite") == true
+						Combat.reduceCooldowns(
+							player,
+							if big then Momentum.BASIC_CDR_BIG else Momentum.BASIC_CDR
+						)
 						if basic.kind == "arc" then
 							castArc(player, root, basic, enemyPos(target))
 						else

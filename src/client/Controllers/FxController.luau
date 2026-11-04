@@ -97,7 +97,11 @@ local handlers: { [string]: (data: any) -> () } = {}
 function handlers.dmg(d)
 	local pos = d.pos :: Vector3
 	if d.dodge then
-		popText(pos, "Dodged!", C.Cyan, 22)
+		if d.counter then
+			popText(pos, "Counter!", C.GoldHi, 28)
+		else
+			popText(pos, "Dodged!", C.Cyan, 22)
+		end
 	elseif d.text then
 		popText(pos, d.text, (d.color :: Color3?) or C.Gold, 22)
 	elseif d.hurt then
@@ -117,6 +121,13 @@ function handlers.dmg(d)
 		)
 	else
 		popText(pos, tostring(d.amount), C.Text, Theme.Damage.NormalSize)
+	end
+end
+
+-- A boss is Broken (Systems/Enemies, Shared/Bosses): big gold text over it
+handlers["break"] = function(d)
+	if typeof(d.pos) == "Vector3" then
+		popText(d.pos + Vector3.new(0, 6, 0), "BROKEN!", C.GoldHi, 40, 1.6)
 	end
 end
 
