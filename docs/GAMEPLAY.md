@@ -136,10 +136,10 @@ Attributes `BossPhase` (1–3), `Enraged`; a ring marks each phase change.
 
 | Depth | On | Boss life |
 |---|---|---|
-| 1–2 | Break meter, phase 1 only | ×0.55 / ×0.65 |
-| 3 | + Openings, Counter, phase 2 (no adds) | ×0.8 |
-| 4 | + Pursuit | ×0.9 |
-| 5+ | + adds, enrage, phase-2 mortar | ×1 |
+| 1–2 | Break meter, phase 1 only | ×0.75 / ×0.85 |
+| 3 | + Openings, Counter, phase 2 (no adds) | ×0.95 |
+| 4 | + Pursuit | ×1 |
+| 5+ | + adds, enrage, phase-2 mortar | ×1 (all with `boss_hp` 26 since 2026-11-04) |
 
 Before depth 3 a dodge through an attack shows "Dodged" (no Counter reward).
 

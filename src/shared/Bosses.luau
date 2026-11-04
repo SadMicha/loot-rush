@@ -57,8 +57,9 @@ local Bosses = {
 	PURSUIT_FROM = 4,
 	ADDS_FROM = 5, -- adds at the phase changes and the phase-2 mortar
 	ENRAGE_FROM = 5, -- phase 3 (enrage)
-	-- boss life factor at depth 1, 2, 3, ... (1 after the list): the first boss takes ~20 s, not 38
-	EASE_HEALTH = table.freeze({ 0.55, 0.65, 0.8, 0.9 }),
+	-- boss life factor at depth 1, 2, 3, ... (1 after the list): the first boss takes ~19 s
+	-- (retuned with Balance.P.boss_hp 26, was 0.55/0.65/0.8/0.9 at boss_hp 40)
+	EASE_HEALTH = table.freeze({ 0.75, 0.85, 0.95 }),
 }
 
 export type Rules = {

@@ -27,12 +27,16 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 
 | Depth | Region | Hits survived (normal / boss) | Normal enemy TTK | Boss s |
 |---|---|---|---|---|
-| 1 | Green Plains | 10 / 6 | 0.6 s | 21 (boss life ×0.55, `Bosses.EASE_HEALTH`) |
-| 5-10 | Green Plains → Crystal Caves | 15-20 / 9-12 | 0.4-1.0 s | 25-30 |
-| 11-15 | Mushroom Swamp | 8-10 / 8-11 | 0.7-1.1 s | 28-38 |
-| 16-20 | Fire Desert | 8-12 / 5-7 | 0.8-1.2 s | 25-34 |
-| 21-25 | Sky Islands | 7-9 / 5-6 | 0.9-1.1 s | 23-29 |
-| 26-30 | Altered World | 6-7 / 4 | 1.0-1.1 s | 34-39 |
+| 1 | Green Plains | 10 / 6 | 0.6 s | 19 (boss life ×0.75, `Bosses.EASE_HEALTH`) |
+| 5-10 | Green Plains → Crystal Caves | 15-20 / 7-13 | 0.4-1.0 s | 16-22 |
+| 11-15 | Mushroom Swamp | 8-10 / 8-10 | 0.7-1.0 s | 19-25 |
+| 16-20 | Fire Desert | 8-11 / 5-7 | 0.8-1.2 s | 19-24 |
+| 21-25 | Sky Islands | 7-9 / 5-6 | 0.9-1.1 s | 17-21 |
+| 26-30 | Altered World | 6-7 / 4 | 1.0-1.1 s | 23-27 |
+
+2026-11-04 (CRITERIA-AUDIT R2/R6): `boss_hp` 40 → 26 and `EASE_HEALTH` 0.75/0.85/0.95, so a boss
+is ~25-35 % of a run instead of 36-44 %; `drop_early` 0.11 (instead of `drop_normal` 0.08) up to
+`Balance.EARLY_DROP_DEPTH` 10. Sim: depth 1-30 in 170 min (was 204).
 
 Hits are a ceiling: the real danger is that several enemies now attack at once and from range.
 

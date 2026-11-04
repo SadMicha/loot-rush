@@ -980,6 +980,8 @@ local function updateMenuDock()
 	end
 end
 
+local extras: { star: GuiObject? } = {} -- HUD parts behind the "extras" unlock
+
 local function buildCalmPanels()
 	-- Resources at the top center (stays visible in combat too)
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
@@ -1017,6 +1019,9 @@ local function buildCalmPanels()
 		end
 		pill.LayoutOrder = i
 		pill.Parent = res
+		if spec[1] == "soulstar" then
+			extras.star = pill
+		end
 	end
 	place(res, Vector2.new(0, 0), UDim2.new(0.5, -RES_WIDTH / 2, 0, 18))
 	resGroup = res
@@ -1095,6 +1100,22 @@ local function buildCalmPanels()
 			refreshDot()
 		end
 	end)
+	-- Leaderboard, Journey, Season and the Soulstar coin wait for the first boss (Quests.Unlocks
+	-- "extras"): the first hub visit only shows what the first quest needs
+	local function refreshExtras()
+		local open = QuestController.isOpen("extras")
+		local list: { GuiObject } = { board, journey, season }
+		if extras.star then
+			table.insert(list, extras.star)
+		end
+		for _, b in list do
+			if b.Visible ~= open then
+				b.Visible = open
+			end
+		end
+	end
+	refreshExtras()
+	QuestController.changed:Connect(refreshExtras)
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
 	gear.LayoutOrder = 5

@@ -512,7 +512,7 @@ function GreatBuild.donate(player: Player, want: number): (number, string?, { nu
 		return 0, if Rules.dailyLeft(account.greatBuild, now) <= 0 then Text.cap else Text.empty, {}
 	end
 	-- same step as the booking above: the shards are gone before anything can yield
-	Progress.addMaterials(player, { shards = -n })
+	Progress.addMaterials(player, { shards = -n }, "Gameplay", "great_build")
 	buffer += n
 	local total = account.greatBuild.total
 	if not profile.debugged then

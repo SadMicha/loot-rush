@@ -9,6 +9,7 @@ local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Progress = require(script.Parent.Progress)
 local Stats = require(script.Parent.Stats)
@@ -89,11 +90,16 @@ function Inventory.add(
 	return true, false, false
 end
 
-function Inventory.addGold(player: Player, amount: number)
+-- txn (Analytics transaction type) logs the change as one economy event; loot pickups pass none
+-- (Rift logs the run's gold once at its end)
+function Inventory.addGold(player: Player, amount: number, txn: string?, sku: string?)
 	local profile = Data.get(player)
 	if profile then
 		profile.gold += amount
 		player:SetAttribute("Gold", profile.gold)
+		if txn then
+			Analytics.economy(player, "Gold", amount, profile.gold, txn, sku)
+		end
 	end
 end
 

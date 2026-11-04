@@ -135,7 +135,11 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 	return {
 		ilvl = if boss then ilvl + Config.LOOT_BOSS_ILVL else ilvl,
 		goldMult = 1 + (bonus.gold or 0),
-		itemChance = math.min(1, Balance.P.drop_normal * (1 + (bonus.items or 0))),
+		itemChance = math.min(
+			1,
+			(if d <= Balance.EARLY_DROP_DEPTH then Balance.P.drop_early else Balance.P.drop_normal)
+				* (1 + (bonus.items or 0))
+		),
 		bossItems = Balance.P.drops_boss,
 		eliteItems = Balance.P.drops_elite,
 		shift = Balance.rarityShift(d) + t.shift,

@@ -34,7 +34,11 @@ describe("Analytics", function()
 		expect(joined.name).toBe("joined")
 		expect(joined.userId).toBe(sim.player.UserId)
 		sim:runAs("client", function(req)
-			req("ReplicatedStorage.Shared.Net").Character:FireServer("setup", "Stat Hero", "warrior")
+			req("ReplicatedStorage.Shared.Net").Character:FireServer(
+				"setup",
+				"Stat Hero",
+				"warrior"
+			)
 		end)
 		sim:run(1)
 		local hero = find("funnel", function(e)
@@ -51,6 +55,11 @@ describe("Analytics", function()
 		end)
 		expect(quest).toBeTruthy()
 		expect(quest.name).toBe("enter_rift")
+		local pay = find("economy", function(e)
+			return e.name == "Gold:Onboarding"
+		end)
+		expect(pay).toBeTruthy()
+		expect(pay.value).toBeGreaterThan(0)
 		local start = find("rift_start")
 		expect(start).toBeTruthy()
 		expect(start.value).toBe(1)
@@ -63,6 +72,27 @@ describe("Analytics", function()
 		end)
 		sim:run(1)
 		expect(find("rift_fail")).toBeNil()
+	end)
+
+	it("logs economy flows only with a transaction type, sinks negative", function()
+		local before = #recent()
+		server(function(req, player)
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			local Shop = req("ServerScriptService.Server.Systems.Shop")
+			Inventory.addGold(player, 5) -- a pickup: not logged
+			Shop.grant(player, "gold", -3, "Shop", "test_offer")
+			Shop.grant(player, "soulstars", 10, "IAP", "test_product")
+		end)
+		local after = recent()
+		local new = {}
+		for i = before + 1, #after do
+			table.insert(new, after[i])
+		end
+		expect(#new).toBe(2)
+		expect(new[1].name).toBe("Gold:Shop")
+		expect(new[1].value).toBe(-3)
+		expect(new[2].name).toBe("Soulstars:IAP")
+		expect(new[2].value).toBe(10)
 	end)
 
 	it("logs a fail only for an open depth, and LevelUp on level gains", function()

@@ -42,11 +42,16 @@ function Journey.grant(player: Player, reward: Rules.Reward): boolean
 	end
 	local r = Rules.scaled(reward, Atlas.bestDepth(profile.atlas))
 	if (r.gold or 0) > 0 then
-		Inventory.addGold(player, r.gold :: number)
+		Inventory.addGold(player, r.gold :: number, "Gameplay", "journey")
 	end
 	local candy, shards, dust = r.candy or 0, r.shards or 0, r.dust or 0
 	if candy + shards + dust > 0 then
-		Progress.addMaterials(player, { candy = candy, shards = shards, dust = dust })
+		Progress.addMaterials(
+			player,
+			{ candy = candy, shards = shards, dust = dust },
+			"Gameplay",
+			"journey"
+		)
 	end
 	for _ = 1, r.stones or 0 do
 		local id = SpellStones.roll(rng)

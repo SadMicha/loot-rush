@@ -174,7 +174,7 @@ Items.BAG_MAX = 40 -- bag slots (Systems/Inventory, InventoryController); equipp
 Items.Charges =
 	table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5, unique = 0 } :: { [string]: number })
 
--- Salvage yield: shards fixed, Rune Candy as expected value, Glitter Dust as a chance
+-- Salvage yield: shards fixed, Forge Candy as expected value, Glitter Dust as a chance
 Items.Salvage = table.freeze({
 	normal = { shards = 2, candy = 0, dust = 0 },
 	magic = { shards = 5, candy = 0, dust = 0 },

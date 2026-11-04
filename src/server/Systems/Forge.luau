@@ -75,7 +75,7 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 		reply(player, false, result.reason or "Not possible", itemId)
 		return
 	end
-	Progress.addMaterials(player, { [result.material] = -result.cost })
+	Progress.addMaterials(player, { [result.material] = -result.cost }, "Gameplay", "forge")
 	if bagIndex then
 		profile.inventory[bagIndex] = result.item
 	elseif slot then

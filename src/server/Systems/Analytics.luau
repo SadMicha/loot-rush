@@ -7,6 +7,10 @@
 --   • Progression "Rift": start / complete / fail per depth, level = depth, levelName = region id.
 --     Leaving mid-depth is not a fail (only a death without revives is).
 --   • Custom event "LevelUp" (value = new hero level).
+--   • Economy: Gold, Shards, Soulstars with transaction type (Enum.AnalyticsEconomyTransactionType
+--     name: Onboarding, TimedReward, Gameplay, Shop, IAP) and a short sku. Rift gold and shards are
+--     logged once per run (Systems/Rift), never per pickup. Callers pass the txn to
+--     Inventory.addGold / Progress.addMaterials / Shop.grant; no txn = not logged.
 -- Analytics.recent keeps the last events (tests, debug); nothing else reads it.
 
 local AnalyticsService = game:GetService("AnalyticsService")
@@ -74,6 +78,40 @@ function Analytics.riftEnd(player: Player, failed: boolean, region: string)
 		remember({ kind = "rift_fail", userId = player.UserId, value = depth, name = region })
 		call("LogProgressionFailEvent", player, Analytics.RIFT_PATH, depth, region)
 	end
+end
+
+-- One economy flow: amount > 0 = source, < 0 = sink; balance = after the change
+function Analytics.economy(
+	player: Player,
+	currency: string,
+	amount: number,
+	balance: number,
+	txn: string,
+	sku: string?
+)
+	if amount == 0 or amount ~= amount then
+		return
+	end
+	remember({
+		kind = "economy",
+		userId = player.UserId,
+		name = currency .. ":" .. txn,
+		value = amount,
+	})
+	pcall(function()
+		local flow = if amount > 0
+			then Enum.AnalyticsEconomyFlowType.Source
+			else Enum.AnalyticsEconomyFlowType.Sink
+		AnalyticsService:LogEconomyEvent(
+			player,
+			flow,
+			currency,
+			math.abs(amount),
+			math.max(0, balance),
+			txn,
+			sku
+		)
+	end)
 end
 
 function Analytics.custom(player: Player, name: string, value: number)

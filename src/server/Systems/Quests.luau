@@ -67,7 +67,9 @@ local function grant(player: Player, q: Rules.Quest)
 	end
 	Progress.addMaterials(
 		player,
-		{ candy = r.candy or 0, shards = r.shards or 0, dust = r.dust or 0 }
+		{ candy = r.candy or 0, shards = r.shards or 0, dust = r.dust or 0 },
+		"Onboarding",
+		q.id
 	)
 	for _ = 1, r.stones or 0 do
 		local id = SpellStones.roll(rng)
@@ -98,7 +100,7 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	table.sort(unlocked)
 	local doneTexts = {}
 	for i, q in finished do
-		Inventory.addGold(player, q.gold)
+		Inventory.addGold(player, q.gold, "Onboarding", q.id)
 		grant(player, q)
 		table.insert(doneTexts, q.text)
 		Analytics.quest(player, stepBefore + i - 1, q.id)
