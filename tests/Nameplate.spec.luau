@@ -79,8 +79,8 @@ describe("Nameplate rules", function()
 
 	it("reads the station window", function()
 		local p = Instance.new("Part")
-		p.Name = "Station_Inventory"
-		expect(Nameplate.windowOf(p)).toBe("Inventory")
+		p.Name = "Station_Stash"
+		expect(Nameplate.windowOf(p)).toBe("Stash")
 		p:SetAttribute(Nameplate.WINDOW_ATTR, "Atlas")
 		expect(Nameplate.windowOf(p)).toBe("Atlas")
 		p:Destroy()
@@ -123,7 +123,7 @@ describe("Nameplates in game", function()
 
 		-- the first quest points at the Rift Gate: its label is the gold one
 		local gate = workspace.Lumenhaven:FindFirstChild("Station_Atlas", true)
-		local stash = workspace.Lumenhaven:FindFirstChild("Station_Inventory", true)
+		local stash = workspace.Lumenhaven:FindFirstChild("Station_Stash", true)
 		expect(gate.StationLabel.Title.TextSize > stash.StationLabel.Title.TextSize).toBe(true)
 
 		-- the Forge is locked for a new hero

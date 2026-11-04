@@ -152,7 +152,6 @@ Quests.Waypoints = table.freeze({
 	rift = "Atlas",
 	depth = "Atlas",
 	forge = "Forge",
-	salvage = "Inventory",
 	hatch = "Pets",
 } :: { [string]: string })
 

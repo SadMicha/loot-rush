@@ -27,6 +27,7 @@ local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
 local Seasons = require(script.Parent.Seasons)
 local Settings = require(script.Parent.Settings)
+local Stash = require(script.Parent.Stash)
 local WorldTiers = require(script.Parent.WorldTiers)
 
 local Profile = {}
@@ -71,6 +72,7 @@ export type Account = {
 	boards: { [string]: number }, -- best value per leaderboard (Shared/Leaderboard ids)
 	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
 	season: Seasons.Data, -- Season Journey challenges and track claims (Shared/Seasons)
+	stash: Stash.Data, -- hub stash tabs shared by all characters (Shared/Stash)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -128,6 +130,7 @@ local ACCOUNT_DEFAULTS = {
 	boards = {},
 	unsent = {},
 	season = Seasons.fresh(), -- contents checked by Seasons.reconcile
+	stash = Stash.fresh(), -- contents checked by Stash.reconcile
 	characters = {},
 	active = "",
 }
@@ -395,6 +398,8 @@ function Profile.reconcileAccount(raw: any): Account
 		table.insert(list, char)
 	end
 	data.characters = list
+	-- Stash after the characters: an item a hero owns is never also kept in the stash
+	data.stash = Stash.reconcile(data.stash, Stash.owned(list))
 	if not seen[data.active] then
 		data.active = list[1].id
 	end

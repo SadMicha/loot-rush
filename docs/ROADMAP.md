@@ -37,6 +37,7 @@ As of: #61 (Stud Rush) plus the release pass. 1.0 scope is the pure ARPG in `doc
 | M21 | Star Web 100 (#60) | 100 nodes, class start points, cross-class paths, connected allocation (`docs/STAR-WEB.md`) | 🔧 ready to test |
 | M22 | Stud Rush (#61) | Kills pop studs, meter, Rush starts by itself when full; HUD Rush meter + buff/debuff bar (`docs/STUD-RUSH.md`) | 🔧 ready to test |
 | M23 | Difficulty & pacing pass | Enemy pressure (packs surround you, leaps, leading shots, burning ground, Mortar elites, boss shells from phase 2, faster deeper), retuned curves: depth 30 on Normal ~3-4 h instead of 30-40 min (`docs/balancing.md` "Pacing") | 🔧 ready to test |
+| M24 | Hub stash | Account-wide stash at the hub Stash station: 4 tabs × 42 items shared by all heroes, one tap moves an item between bag and stash, "Store All"; server checks station range, ids and room, no duplicates (`Shared/Stash`, `Systems/Stash`, `StashController`) | 🔧 ready to test |
 | M16 | Mobile/UI polish | Windows on phone/tablet, camera by swipe, HUD clear of the Roblox bar, UI images pack v8; PR #42 HUD pass (terrain minimap, text shadows/outlines, icon shadows, orbs, skill arc/cooldown veil, dash diamonds, class icons, hub bar, safe area, Lumenhaven) | 🔧 ready to test (real phone open, with M5; checklist `TEST-HUD` open) |
 
 ## Next milestones (in order)

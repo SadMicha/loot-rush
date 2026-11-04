@@ -490,7 +490,7 @@ local function buildTown(parent: Instance)
 	end
 	local stash = cell(17.8, 10.5)
 	put(deco, Buildings.stash(Props.chest()), stash.X, stash.Z, PLAZA)
-	station(parent, cell(15.8, 10.5) + Vector3.new(0, H.P, 0), "Open", "Stash", "Inventory")
+	station(parent, cell(15.8, 10.5) + Vector3.new(0, H.P, 0), "Open", "Stash", "Stash")
 	local market = cell(5.6, 12.6)
 	put(deco, Buildings.stall(C.roof, C.cream, 8, 5), market.X, market.Z, PLAZA)
 	station(parent, cell(6.6, 11.8) + Vector3.new(0, H.P, 0), "Trade", "Market", "Shop")
