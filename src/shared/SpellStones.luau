@@ -11,6 +11,7 @@ export type Stone = {
 	add: { [string]: number }, -- stat → value, same keys as bloom effects
 	kinds: { [string]: boolean }?, -- nil = fits every skill
 	color: Color3,
+	icon: string, -- Assets.Icon/IconImage key (socket buttons, stone picker)
 }
 
 local SpellStones = {}
@@ -30,6 +31,7 @@ end
 SpellStones.List = table.freeze({
 	{
 		id = "power",
+		icon = "stone_power",
 		name = "Power Stone",
 		text = "+30% damage, +0.5 s cooldown",
 		add = { damage = 0.3, cooldown = -0.5 },
@@ -37,6 +39,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "haste",
+		icon = "stone_haste",
 		name = "Haste Stone",
 		text = "−0.6 s cooldown, −10% damage",
 		add = { cooldown = 0.6, damage = -0.1 },
@@ -44,6 +47,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "wide",
+		icon = "stone_wide",
 		name = "Wide Stone",
 		text = "+2 studs radius",
 		add = { radius = 2 },
@@ -51,6 +55,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "ember",
+		icon = "stone_ember",
 		name = "Ember Stone",
 		text = "Hits burn for 30% damage",
 		add = { burn = 0.3 },
@@ -58,6 +63,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "echo",
+		icon = "stone_echo",
 		name = "Echo Stone",
 		text = "A second wave with 35% damage",
 		add = { echo = 0.35 },
@@ -66,6 +72,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "link",
+		icon = "stone_link",
 		name = "Link Stone",
 		text = "+2 jumps",
 		add = { chains = 2 },
@@ -74,6 +81,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "split",
+		icon = "stone_split",
 		name = "Split Stone",
 		text = "+2 projectiles in a fan",
 		add = { count = 2 },
@@ -82,6 +90,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "pierce",
+		icon = "stone_pierce",
 		name = "Pierce Stone",
 		text = "50% chance to fly through the first enemy",
 		add = { pierce = 0.5 },
@@ -90,6 +99,7 @@ SpellStones.List = table.freeze({
 	},
 	{
 		id = "linger",
+		icon = "stone_linger",
 		name = "Linger Stone",
 		text = "Zones and buffs last 50% longer",
 		add = { durationPct = 0.5 },
