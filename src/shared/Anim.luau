@@ -517,9 +517,11 @@ Anim.STYLE = table.freeze({
 -- points up, which holds every weapon upright with its grip.
 --   sword    Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at
 --            the right hip and angled forward at the enemy, left fist raised as a guard
---   bow      At rest: bow arm hanging slightly forward and out, the bow upright beside the left
---            leg, held at its grip, face toward the viewer and string toward the body; the shot
---            raises it straight ahead and the right hand draws the string to the chin
+--   bow      Epic archer: side-on, wide stance (left foot far forward, right foot braced behind
+--            and turned out, weight on the bent back knee), the left arm raised at the target
+--            holding the bow upright (tipped 10° forward), the right hand drawn-ready at the
+--            cheek with the elbow high, chest open, chin up, head along the aim line. The shot
+--            starts from `ref` alone (acting = 0), the legs and the stance end once walking
 --   staff    Planted: wide square stance, chest open, the staff's foot on the ground beside the
 --            right foot, the left hand raised in front with the spell ready
 --   scepter  Ritual: deep wide crouch, scepter raised upright before the face, the left hand
@@ -577,29 +579,41 @@ Anim.STANCE = table.freeze({
 	ranger_bow = table.freeze({
 		hand = "left",
 		ref = BOW_READY,
-		-- at rest like a real archer: the left arm hangs slightly forward and out, the fist holds
-		-- the grip at the bow's middle, the bow stands upright beside the left leg (lower tip just
-		-- above the ground), its back (outer curve) facing forward and a little out, the string
-		-- toward the body. Y on the shoulder turns the hanging arm (and the bow with it), shoulder
-		-- X + elbow X + wrist X = 90 keeps it upright. The draw hand rests (Animator's arm); the
-		-- shot move raises the bow from `ref`.
+		-- Epic archer, side-on to the target (the aim line runs along the left arm):
+		-- bow arm  raised and reaching toward the target at shoulder height, the bow upright and
+		--          tipped ~10° forward (shoulder X + elbow X + wrist X = 80; 90 would be upright).
+		--          Shoulder Y 38 undoes the torso twist so the arm points along the aim line; the
+		--          fist holds the grip with the bow's back (riser) toward the target and the
+		--          string toward the archer (Weapons.grip)
+		-- draw arm the right arm in a drawn-ready pose: the fist drawn back to the shoulder/chin, the
+		--          elbow flared out (`off`, blended in by the stance weight)
+		-- body     waist twisted so the left shoulder leads, the chest a little open, chin up, the
+		--          head turned back along the aim line (neck cancels the twist)
+		-- legs     wide, grounded: left foot far forward with the leg nearly straight, right foot
+		--          braced behind and turned out, the weight on its deeply bent knee; `lift` lowers
+		--          the body so both soles stay on the ground
 		hold = table.freeze({
-			lShoulder = v(18, 40, 0),
-			lElbow = v(20, 0, 0),
-			lWrist = v(52, 0, 0),
+			lShoulder = v(84, 38, 0),
+			lElbow = v(4, 0, 0),
+			lWrist = v(-8, 0, 0),
 		}),
-		pose = table.freeze({ waist = v(0, -6, 0), neck = v(0, 6, 0) }),
+		off = table.freeze({
+			rShoulder = v(-60, 60, 30),
+			rElbow = v(-150, 0, 0),
+			rWrist = v(0, 0, 0),
+		}),
+		pose = table.freeze({ waist = v(4, -38, 0), neck = v(8, 36, 0) }),
 		-- the shot starts from `ref` alone: none of the rest pose's arm turn leaks into the aim
 		acting = 0,
 		legs = table.freeze({
-			lHip = v(18, 0, -14),
-			lKnee = v(-20, 0, 0),
-			lAnkle = v(2, 0, 0),
-			rHip = v(-10, 0, 14),
-			rKnee = v(-14, 0, 0),
-			rAnkle = v(24, 0, 0),
+			lHip = v(44, -10, -10),
+			lKnee = v(-26, 0, 0),
+			lAnkle = v(-16, 0, 0),
+			rHip = v(6, -35, 14),
+			rKnee = v(-48, 0, 0),
+			rAnkle = v(38, 0, 0),
 		}),
-		lift = v(0, -0.12, 0),
+		lift = v(0, -0.33, 0),
 	}),
 	mage_staff = table.freeze({
 		hand = "right",
