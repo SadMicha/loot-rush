@@ -13,6 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Prefs = require(script.Parent.Parent.Prefs)
+local Window = require(script.Parent.Parent.UI.Window)
 local FeelController = require(script.Parent.FeelController)
 
 local CameraController = {}
@@ -116,7 +117,12 @@ end
 
 function CameraController.init()
 	UserInputService.InputChanged:Connect(function(input: InputObject, processed: boolean)
-		if input.UserInputType == Enum.UserInputType.MouseWheel and not processed then
+		-- No world zoom behind a fullscreen window (the Star Web uses the wheel for its own zoom)
+		if
+			input.UserInputType == Enum.UserInputType.MouseWheel
+			and not processed
+			and not Window.anyOpen()
+		then
 			zoom = math.clamp(
 				zoom - input.Position.Z * 4,
 				Config.CAMERA_MIN_DISTANCE,

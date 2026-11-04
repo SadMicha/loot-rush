@@ -85,14 +85,18 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	local texts: { [Instance]: true } = {}
 	local hits: { [GuiButton]: true } = {}
 
-	-- Total scale incl. further UIScales under the root (e.g. window content)
+	-- Total scale incl. further UIScales under the root (e.g. window content). A zoom layer
+	-- (UIScale with the ZoomLayer attribute, e.g. the Star Web) only counts when it enlarges: zoomed
+	-- out it is a true-to-scale overview instead of ballooning every node and caption.
 	local function scaleOf(d: Instance): number
 		local s = scale.Scale
 		local node: Instance? = d
 		while node and node ~= root do
 			local inner = node:FindFirstChildOfClass("UIScale")
 			if inner then
-				s *= inner.Scale
+				s *= if inner:GetAttribute("ZoomLayer")
+					then math.max(1, inner.Scale)
+					else inner.Scale
 			end
 			node = node.Parent
 		end

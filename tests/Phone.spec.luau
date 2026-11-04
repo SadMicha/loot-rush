@@ -164,4 +164,42 @@ describe("Phone layout", function()
 		end
 		expectClean(list)
 	end)
+
+	-- Star Web zoom buttons: + steps up, 100% resets, - stops at the smallest zoom (still fills the web)
+	it("Star Web zoom", function()
+		sim:run(3) -- let toasts from the window tests fly out first
+		local hud = sim.player.PlayerGui.LootRushHUD
+		local open = nil
+		for _, d in hud:GetDescendants() do
+			if d:IsA("GuiButton") and d.Name == "star_net" then
+				open = d
+			end
+		end
+		sim:click(open)
+		sim:run(0.5)
+		local gui = sim.player.PlayerGui:FindFirstChild("LootRushStarNet")
+		expect(gui.Enabled).toBe(true)
+		local scale = gui:FindFirstChild("Zoom", true):FindFirstChildOfClass("UIScale")
+		local function button(name)
+			return gui:FindFirstChild(name, true)
+		end
+		expect(scale.Scale).toBe(1)
+		sim:click(button("ZoomIn"))
+		sim:run(0.2)
+		expect(scale.Scale).toBeCloseTo(1.25, 3)
+		expectClean(problems("StarNet zoomed in"))
+		sim:click(button("ZoomReset"))
+		sim:run(0.2)
+		expect(scale.Scale).toBe(1)
+		for _ = 1, 6 do
+			sim:click(button("ZoomOut"))
+			sim:run(0.1)
+		end
+		expect(scale.Scale < 1).toBe(true)
+		local web = gui:FindFirstChild("Web", true)
+		expect(web.CanvasSize.X.Offset >= web.Size.X.Offset).toBe(true)
+		expect(web.CanvasSize.Y.Offset >= web.Size.Y.Offset).toBe(true)
+		sim:click(open)
+		sim:run(0.3)
+	end)
 end)
