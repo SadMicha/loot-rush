@@ -100,7 +100,8 @@ function Seasons.sync(player: Player, paid: number?)
 	player:SetAttribute("SeasonPhase", Rules.phase(Seasons.clock()))
 end
 
--- Sends the state once after a short delay
+-- After a short delay: reads the hero facts and sends the state only when a challenge finished
+-- (counts alone go out when the window asks, so kills do not cause traffic)
 function Seasons.touch(player: Player)
 	if pending[player] then
 		return
@@ -108,7 +109,11 @@ function Seasons.touch(player: Player)
 	pending[player] = true
 	task.delay(SYNC_DELAY, function()
 		if pending[player] and player.Parent then
-			Seasons.sync(player)
+			pending[player] = nil
+			observe(player)
+			if finished[player] then
+				Seasons.sync(player)
+			end
 		end
 		pending[player] = nil
 	end)

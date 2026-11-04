@@ -29,6 +29,7 @@ local WATCHED = { "Level", "BestDepth", "WorldTierUnlocked", "SetupDone", "Chara
 local allow = RateLimit.new(4, 8)
 local rng = Random.new()
 local pending: { [Player]: boolean } = {}
+local lastReady: { [Player]: number } = {} -- ready milestones in the last state sent (HUD dot)
 
 -- Pays a reward to the active hero (gold, materials, spell stones) and the account (Soulstars,
 -- cosmetics). Gold is scaled to the hero's best depth. Returns false without a loaded save.
@@ -83,22 +84,28 @@ function Journey.sync(player: Player, paid: string?)
 	pending[player] = nil
 	local state = Journey.state(player)
 	if state then
+		lastReady[player] = Rules.readyCount(state.facts, assert(Data.get(player)).journey)
 		state.paid = paid
 		Net.JourneyState:FireClient(player, state)
 	end
 end
 
--- Sends the state once after a short delay (collects bursts of changes)
+-- After a short delay (collects bursts of changes): sends the state only when the number of
+-- milestones ready to claim changed (the window asks for the full state when it opens)
 function Journey.touch(player: Player)
 	if pending[player] then
 		return
 	end
 	pending[player] = true
 	task.delay(SYNC_DELAY, function()
-		if pending[player] and player.Parent then
-			Journey.sync(player)
-		end
 		pending[player] = nil
+		local profile = Data.get(player)
+		if player.Parent and profile then
+			local ready = Rules.readyCount(Rules.facts(profile), profile.journey)
+			if ready ~= lastReady[player] then
+				Journey.sync(player)
+			end
+		end
 	end)
 end
 
@@ -147,6 +154,7 @@ function Journey.init()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		pending[player] = nil
+		lastReady[player] = nil
 	end)
 end
 

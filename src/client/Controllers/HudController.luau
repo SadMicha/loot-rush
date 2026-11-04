@@ -808,6 +808,8 @@ local hubBarScale: UIScale -- shrinks the hub icon bar so it stays clear of the 
 local gearGroup: CanvasGroup
 local gearW = 0
 local GEAR_CELLS = 5 -- trophy, Journey, season, chest, gear
+local GEAR_MIN_SCALE = 0.7 -- smallest share the row may shrink to next to the status block
+local gearScale: UIScale
 local questTitle: TextLabel
 local questCount: TextLabel
 local questReward: TextLabel
@@ -1039,6 +1041,8 @@ local function buildCalmPanels()
 	local cellW = H.GearSize + 12
 	gearGroup = group(Vector2.new(GEAR_CELLS * cellW, H.GearSize))
 	gearW = GEAR_CELLS * cellW
+	gearScale = Instance.new("UIScale")
+	gearScale.Parent = gearGroup
 	gearGroup.Name = "Settings"
 	local gearList = Kit.list(gearGroup, Enum.FillDirection.Horizontal, 0)
 	gearList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -1309,8 +1313,15 @@ local function layoutHud()
 	local gearCell = H.GearSize + 12
 	local gearX = -(M + dashSize / 2 - gearCell / 2)
 	local gearY = -(M + dashSize + H.DashDiamond + 6)
+	-- The row must not reach the centered status block (Rush meter, buffs): on narrow screens it
+	-- shrinks to the room between its right edge and the block
+	local function fitGear(rightEdge: number)
+		local gearRoom = rightEdge - (width / 2 + H.RushBarWidth / 2 + GAP)
+		gearScale.Scale = math.clamp(gearRoom / gearW, GEAR_MIN_SCALE, 1)
+	end
 	if rightTop + questH + GAP > gearTop then
 		local x = -(M + questW + GAP)
+		fitGear(width - M - questW - GAP)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 0),
@@ -1318,6 +1329,7 @@ local function layoutHud()
 			UDim2.new(1, gearW + 10, 0, rightTop) -- fully off the right edge
 		)
 	else
+		fitGear(width + gearX)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 1),

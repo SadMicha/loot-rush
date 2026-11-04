@@ -31,7 +31,7 @@ local GAP = 20
 local STEP_GAP = 16
 local STEP_H = 200
 local CELL_H = 100
-local POLL = 30 -- seconds between countdown refreshes while open
+local POLL = 5 -- seconds between refreshes (counts, countdown) while open
 
 type State = {
 	id: string,
@@ -352,6 +352,7 @@ function SeasonController.init()
 			task.wait(POLL)
 			if win.isOpen() and loaded then
 				clock.Text = clockText()
+				Net.Season:FireServer("sync") -- live counts while the window is open
 			end
 		end
 	end)
