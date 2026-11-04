@@ -36,10 +36,10 @@ replaces the style of one slot and never touches stats.
 | Crystal Plate | armor | 800 Soulstars |
 | Ember Gauntlets | gloves | 300 Soulstars |
 | Cloud Striders Deluxe | boots | 300 Soulstars |
-| Paladin Set (Knight) | helmet, armor, gloves | 1,400 Soulstars or 299 Robux pack |
-| Wildwood Set (Ranger) | helmet, armor, boots | 1,400 Soulstars or 299 Robux pack |
-| Stormlord Set (Mage) | helmet, armor, amulet | 1,400 Soulstars or 299 Robux pack |
-| Elder Spore Set (Shaman) | helmet, armor, belt | 1,400 Soulstars or 299 Robux pack |
+| Paladin Set (Knight) | helmet, armor, gloves | 1,400 Soulstars or 549 Robux pack |
+| Wildwood Set (Ranger) | helmet, armor, boots | 1,400 Soulstars or 549 Robux pack |
+| Stormlord Set (Mage) | helmet, armor, amulet | 1,400 Soulstars or 549 Robux pack |
+| Elder Spore Set (Shaman) | helmet, armor, belt | 1,400 Soulstars or 549 Robux pack |
 
 Split: about half free, half paid. Free skins come from play milestones that already exist
 (quests, depth, Journey, badges, Daily, Great Build, season track); no new grind loop needed.
@@ -73,19 +73,35 @@ Theme ideas:
 
 ## Prices (estimates, tunable)
 
-Anchored to the Soulstar packs in `Shared/Monetization` (49 R$ = 100, 249 R$ = 550,
-499 R$ = 1,200, 999 R$ = 2,600; starter pack 300) and the trail/aura packs (199-399 R$).
-To live in a `Price` table next to the catalog, never inline.
+Soulstar pack rates in `Shared/Monetization` (Robux per Soulstar):
 
-| Tier | Slots | Soulstars |
-|---|---|---|
-| Small | gloves, boots, belt, amulet | 300 |
-| Medium | helmet | 600 |
-| Large | armor | 800 |
-| Set (3 pieces) | bundle | 1,400 (about 20% off the pieces) |
-| Set as Robux pack | bundle | 299 R$ (refund 300 Soulstars per owned piece, like trail packs) |
+| Pack | Robux | Soulstars | R$ per Soulstar |
+|---|---|---|---|
+| S | 49 | 100 | 0.490 |
+| M | 249 | 550 | 0.453 |
+| L | 499 | 1,200 | 0.416 |
+| XL | 999 | 2,600 | 0.384 (best) |
+| average of the four | | | ≈ 0.436 |
 
-A single piece is about one small to medium Soulstar pack; a set is about one large pack.
+(The one-time starter pack, 99 R$ for 300 Soulstars plus gold and a trail, is left out: it is a
+once-only deal, not a rate.)
+
+Rules (constants in a `Price` table next to the catalog, never inline):
+1. A Robux price is never below `Soulstars × 0.384` (best pack rate): buying directly must never be
+   cheaper than the best way to buy the Soulstars.
+2. A Robux set ≈ `Soulstars × 0.436` (average rate) minus a small bundle discount (~10%), rounded
+   to a Roblox-style price (…49 / …99), and still above rule 1.
+3. The Soulstar set price is about 20% below its pieces.
+4. Robux pack refund for a piece already owned = that piece's Soulstar price.
+
+| Item | Soulstars | ≈ Robux value (avg rate) | Robux pack |
+|---|---|---|---|
+| Small (gloves, boots, belt, amulet) | 300 | ≈ 131 | not sold for Robux |
+| Medium (helmet) | 600 | ≈ 262 | not sold for Robux |
+| Large (armor) | 800 | ≈ 349 | not sold for Robux |
+| Set, 3 pieces (e.g. helmet + armor + small) | 1,400 (pieces 1,700) | ≈ 610 | **549 R$** (floor 538) |
+
+Single pieces sell for Soulstars only; Robux buys Soulstars or a whole set.
 
 ## Rotating shop (non-season items)
 
