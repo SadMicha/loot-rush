@@ -3,8 +3,8 @@
 -- reaction, death, level-up cheer, plus a run lean and idle breathing. Moves are keyframes in
 -- Shared/Anim; this controller layers them on top of Roblox's own animations (idle, walk, the
 -- weapon hold pose) by rotating the rig's Motor6D.Transform right after the Animator wrote it
--- (RunService.PreSimulation). Works on R15 and R6, on classic Motor6D joints and on the
--- AnimationConstraint joints of Roblox's Avatar Joint Upgrade (no Motor6D left in the rig). Needs
+-- (RunService.PreSimulation); the weapon arm itself takes the absolute holding pose of Anim.hold.
+-- Works on R15 and R6, on classic Motor6D joints and on the AnimationConstraint joints of Roblox's Avatar Joint Upgrade (no Motor6D left in the rig). Needs
 -- no uploaded animation assets and sends nothing over the network: every client animates the characters near its own camera.
 --
 -- Triggers: Net.Fx "act" (server, every basic attack, skill cast and dash of any player),
@@ -44,6 +44,7 @@ type Rig = {
 	layers: { Layer },
 	combo: number,
 	stance: number, -- current holding-stance weight (Anim.STANCE), eases toward its target
+	grip: number, -- how much the weapon arm follows Anim.hold (1 alive, fades to 0 on death)
 	deadAt: number, -- 0 = alive
 	broken: boolean,
 	active: boolean,
@@ -56,6 +57,7 @@ type Rig = {
 local player = Players.LocalPlayer
 local rigs: { [Model]: Rig } = {}
 local pose: Anim.Pose = {}
+local arm: Anim.Pose = {} -- absolute weapon-arm pose this frame (Anim.hold)
 local DEG = math.pi / 180
 
 local function own(rig: Rig): boolean
@@ -228,6 +230,7 @@ local function addRig(character: Model, owner: Player?)
 		layers = {},
 		combo = 0,
 		stance = 0,
+		grip = 0,
 		deadAt = 0,
 		broken = false,
 		active = false,
@@ -412,7 +415,11 @@ local function animate(rig: Rig, dt: number, now: number)
 	end
 	local step = if own(rig) and FeelController.frozen() then 0 else dt
 	table.clear(pose)
+	table.clear(arm)
 	local lift = Vector3.zero
+	local p = rig.player
+	local weapon = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local weaponId = weapon and weapon.id
 	-- Always-on layers: run lean, idle breathing (not while dead)
 	if rig.deadAt == 0 then
 		local v = root.AssemblyLinearVelocity
@@ -425,14 +432,18 @@ local function animate(rig: Rig, dt: number, now: number)
 		addVec("rShoulder", Vector3.new(0, 0, b * 0.5))
 		addVec("lShoulder", Vector3.new(0, 0, -b * 0.5))
 		-- Holding stance of the class weapon (Anim.STANCE), eased toward its target weight
-		local p = rig.player
-		local w = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
 		local want = Anim.stanceWeight(run, #rig.layers > 0)
 		rig.stance += (want - rig.stance) * math.min(1, dt * Anim.STANCE_BLEND)
-		lift += Anim.stance(w and w.id, rig.stance, now, pose)
+		lift += Anim.stance(weaponId, rig.stance, now, pose)
 	elseif not rig.broken and now - rig.deadAt >= Anim.DEATH_BREAK then
 		breakApart(rig)
 	end
+	-- The weapon arm itself is an absolute pose (replaces the Animator's arm, fades out on death)
+	local gripWant = if rig.deadAt == 0 then 1 else 0
+	rig.grip += (gripWant - rig.grip) * math.min(1, dt * Anim.STANCE_BLEND)
+	local mix = if rig.grip > 0.001
+		then Anim.hold(weaponId, rig.stance, rig.r6, arm) * rig.grip
+		else 0
 	local yaw = 0
 	for i = #rig.layers, 1, -1 do
 		local layer = rig.layers[i]
@@ -468,11 +479,20 @@ local function animate(rig: Rig, dt: number, now: number)
 		j.base = base
 		local off = pose[name]
 		local up = if name == "root" then lift else Vector3.zero
-		if off or up ~= Vector3.zero then
+		local held = if mix > 0 then arm[name] else nil
+		if off or up ~= Vector3.zero or held then
+			local from = base
+			if held then
+				-- absolute: the Transform that turns the limb by `held` from its rest (hanging) pose
+				local abs = j.rotInv
+					* CFrame.fromEulerAnglesYXZ(held.X * DEG, held.Y * DEG, held.Z * DEG)
+					* j.rot
+				from = if mix >= 1 then abs else base:Lerp(abs, mix)
+			end
 			local a = off or Vector3.zero
 			local delta = CFrame.new(up)
 				* CFrame.fromEulerAnglesYXZ(a.X * DEG, a.Y * DEG, a.Z * DEG)
-			local value = j.rotInv * delta * j.rot * base
+			local value = j.rotInv * delta * j.rot * from
 			motor.Transform = value
 			j.written = value
 		elseif j.written then
