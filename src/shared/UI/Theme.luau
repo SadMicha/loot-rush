@@ -347,6 +347,13 @@ Theme.Store = table.freeze({
 	HoverLift = 1.025, -- card scale under the mouse
 	Burst = 28, -- stud confetti pieces on a purchase
 	CelebrateTime = 3.2, -- seconds the purchase celebration stays (tap closes it sooner)
+	-- Cosmetics preview (client/UI/CosmeticPreview): turning hero on a studded pedestal
+	Preview = Vector2.new(440, 470), -- design pixels of the stage
+	PreviewSpin = 0.7, -- radians per second the hero turns
+	PreviewAmbient = hex("#9A94B8"),
+	PreviewLight = hex("#FFF0DC"),
+	PreviewPedestal = hex("#3A3350"),
+	PreviewRim = hex("#C9A14A"),
 })
 
 -- Animation vocabulary: the same motions everywhere

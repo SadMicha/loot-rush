@@ -1,8 +1,9 @@
 --!strict
 -- Cosmetics (pure data): looks a hero wears for show only, never stats. Account-wide, bought with
--- Robux packs (Shared/Monetization products) and worn per slot. The server builds the effect on the
--- character (Systems/Cosmetics), so every player in the server sees it.
---   trail = a ribbon behind the hero while moving · aura = sparkles rising around the hero
+-- Robux packs (Shared/Monetization products) and worn per slot. Every player in the server sees
+-- them: the server builds the trail ribbon (Systems/Cosmetics), every client the 3D aura and the
+-- trail extras (AuraController); how they look by rarity: Shared/CosmeticFx.
+--   trail = a ribbon behind the hero while moving · aura = layered sigil, rings and shards
 -- Ids are persisted (account.cosmetics / account.wear): keep them stable.
 
 local Cosmetics = {}
@@ -24,14 +25,8 @@ export type Cosmetic = {
 Cosmetics.Slots = table.freeze({ "trail", "aura" } :: { Slot })
 Cosmetics.SlotName = table.freeze({ trail = "Trail", aura = "Aura" } :: { [string]: string })
 
--- Effect tuning (Systems/Cosmetics)
-Cosmetics.TRAIL_LIFETIME = 0.45 -- seconds a trail segment stays
-Cosmetics.TRAIL_WIDTH = 1.6 -- studs between the two trail attachments
+-- Effect tuning (Systems/Cosmetics); width, lifetime and the 3D layers by rarity: Shared/CosmeticFx
 Cosmetics.TRAIL_TEXTURE_LENGTH = 6 -- studs one repeat of a painted trail texture covers
-Cosmetics.AURA_RATE = 14 -- particles per second
-Cosmetics.AURA_SIZE = 0.35 -- studs
-Cosmetics.AURA_LIFETIME = 1.4
-Cosmetics.AURA_TEXTURE_SIZE = 0.7 -- studs of a painted aura sprite (it has empty margins)
 
 local LIST: { Cosmetic } = {
 	{

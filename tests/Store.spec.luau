@@ -184,6 +184,32 @@ describe("Store in game", function()
 		expect(found).toBe(true)
 	end)
 
+	it("the worn aura is built in 3D on the client, the shop preview opens", function()
+		local worn = server(function(_, player)
+			return player:GetAttribute("WearAura")
+		end)
+		expect(worn).toBe("ember_aura")
+		sim:run(1)
+		local result = { parts = 0, ok = false, err = "" }
+		sim:runAs("client", function(req)
+			local base = "Players." .. sim.player.Name .. ".PlayerScripts.Client."
+			local folder = workspace:FindFirstChild("CosmeticFx")
+			local rig = folder and folder:FindFirstChild("Aura_ember_aura")
+			result.parts = if rig then #rig:GetChildren() else 0
+			local Preview = req(base .. "UI.CosmeticPreview")
+			local ok, err = pcall(function()
+				local p = Preview.new(Vector2.new(400, 400))
+				p.show("void_aura", "void_trail")
+				p.destroy()
+			end)
+			result.ok = ok
+			result.err = tostring(err)
+		end)
+		expect(result.parts).toBeGreaterThan(10)
+		expect(result.err).toBe("nil")
+		expect(result.ok).toBe(true)
+	end)
+
 	it("wears only owned cosmetics in their own slot", function()
 		wear("trail", "void_trail") -- not owned
 		expect(account().wear.trail).toBe("ember_trail")
