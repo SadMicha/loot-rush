@@ -23,6 +23,7 @@ export type Track = {
 	bank: number, -- burst studs left
 	skip: boolean, -- next sample only re-bases (after a server teleport)
 	suspect: boolean, -- the last sample was too far: one more and it is a strike
+	settle: number, -- samples before this time only re-base (server teleport still arriving)
 }
 
 type Live = Track & {
@@ -46,13 +47,31 @@ function Movement.allowance(walkSpeed: number, dt: number): number
 end
 
 function Movement.newTrack(pos: Vector3, now: number): Track
-	return { last = pos, at = now, bank = Config.MOVE_BURST, skip = false, suspect = false }
+	return {
+		last = pos,
+		at = now,
+		bank = Config.MOVE_BURST,
+		skip = false,
+		suspect = false,
+		settle = 0,
+	}
+end
+
+-- A server teleport (pure, tested): every sample in the next MOVE_TELEPORT_SETTLE seconds only
+-- re-bases. A single skipped sample was not enough: until the teleport reaches the owning client,
+-- its physics updates still put the root back at the old spot, the skip re-based there, and the
+-- next samples (now at the target) became a strike that pulled the player back to the old spot.
+-- That is how "Back to Hub" could end in the just rebuilt, empty slot-1 arena (Green Plains).
+function Movement.settle(t: Track, now: number)
+	t.skip = true
+	t.suspect = false
+	t.settle = now + Config.MOVE_TELEPORT_SETTLE
 end
 
 -- One sample (pure, tested): "ok" (accepted), "suspect" (too far, wait one more sample) or
 -- "strike" (still too far: the caller pulls back to t.last; the track is reset for that)
 function Movement.step(t: Track, pos: Vector3, now: number, walkSpeed: number): string
-	if t.skip or pos ~= pos then
+	if t.skip or pos ~= pos or now < t.settle then
 		t.skip, t.suspect = false, false
 		t.last, t.at = pos, now
 		return "ok"
@@ -84,7 +103,7 @@ end
 function Movement.teleported(player: Player)
 	local t = tracks[player]
 	if t then
-		t.skip = true
+		Movement.settle(t, os.clock())
 	end
 end
 

@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Bosses = require(ReplicatedStorage.Shared.Bosses)
+local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Net = require(ReplicatedStorage.Shared.Net)
 local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
@@ -73,9 +74,21 @@ function RiftController.active(): boolean
 	return p == "wave" or p == "boss" or p == "clear"
 end
 
+-- Standing outside Lumenhaven without a run (a stale teleport): "leave" brings the player home
+local function awayFromHub(): boolean
+	local character = player.Character
+	local body = character and character:FindFirstChild("HumanoidRootPart")
+	if not (body and body:IsA("BasePart")) then
+		return false
+	end
+	local d = body.Position - Config.HUB_ORIGIN
+	return math.max(math.abs(d.X), math.abs(d.Z)) > Config.HUB_HALF + Config.FALL_MARGIN
+end
+
 -- Leave the running Rift (the Atlas is the only way in)
 function RiftController.leave()
-	if RiftController.active() then
+	-- also after a run (phase "" or "failed"): a living body outside the Hub is brought home
+	if RiftController.active() or awayFromHub() then
 		Net.Rift:FireServer("leave")
 	end
 end

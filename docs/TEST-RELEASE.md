@@ -26,6 +26,10 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 17 | Phone (Studio device 844x390 or the app) | HUD, skill arc, Rush meter + buff bar (no overlap with skills/joystick), dodge, all windows | Everything reachable and tappable, nothing under the notch/topbar, Star Web pans by swipe |
 | 18 | Phone | Dbg overlay (F3 / Dbg) during a full rift | Frame time stays playable, no growing memory over a few runs |
 | 19 | Live test place | Join with a second account | No Dbg button visible (only for `DEV_USERS`) |
+| 20 | Hub | Press Q/E/R/F and tap the skill buttons | Nothing is cast, no cooldown veil starts; the dodge roll still works |
+| 21 | Rift in the Altered World (Dbg "Unlock Areas") | "Back to Hub" / HUD Hub / Leave, once per phase (waves, boss, after the boss, dead with a revive left); also on the phone and with a high ping | Always lands in Lumenhaven (spawn), never in an empty Green Plains map; Output has no `[Movement] ... pulled back` line |
+| 22 | Hub edge | Sprint and roll into every hub wall and corner (also with Dbg "Fill Rush" speed and the terrace stairs) | Never past the wall; if a lag spike carries you out, you are back inside within a moment |
+| 23 | Dbg | "Reset Account", tap twice | Kicked with "Account reset - rejoin to start over."; rejoin → hero setup, first quest, hints, fresh stash and heroes |
 
 
 Studio tests Robux purchases for free (`docs/MONETIZATION.md`).

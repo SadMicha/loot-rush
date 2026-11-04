@@ -1108,7 +1108,19 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 	return true
 end
 
+-- Skills only work inside a running Rift. RiftPhase is written by Systems/Rift alone (a client
+-- cannot set server attributes): "" = Hub, "failed" = dead after a run. Dodge stays everywhere.
+local CAST_PHASES: { [string]: boolean } = table.freeze({ wave = true, boss = true, clear = true })
+
+function Combat.inRift(player: Player): boolean
+	local phase = player:GetAttribute("RiftPhase")
+	return typeof(phase) == "string" and CAST_PHASES[phase] == true
+end
+
 local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3): boolean
+	if not Combat.inRift(player) then
+		return false -- the Hub is a safe town: no skills, no cooldowns spent
+	end
 	local profile = Data.get(player)
 	local base = if profile then Progression.barSkill(profile.progress, slot) else nil
 	local st = states[player]

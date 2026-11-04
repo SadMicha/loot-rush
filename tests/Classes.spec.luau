@@ -91,6 +91,9 @@ local function slime(offset: Vector3): Model
 end
 
 local function cast(slot: number, aim: Vector3)
+	server(function(_, player)
+		player:SetAttribute("RiftPhase", "wave") -- skills only work in a Rift (Combat.inRift)
+	end)
 	sim:runAs("client", function(req)
 		local root = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart
 		req("ReplicatedStorage.Shared.Net").CastSkill:FireServer(slot, aim, root.Position)
