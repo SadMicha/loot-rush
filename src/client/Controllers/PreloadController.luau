@@ -1,5 +1,5 @@
 --!strict
--- Preloads the HUD and window art on join (docs/ROADMAP-1.0.md O2), so the first HUD paint on a
+-- Preloads the HUD and window art on join (docs/ROADMAP.md O2), so the first HUD paint on a
 -- phone does not pop in image by image: Assets.Hud, Assets.Slice and Assets.Fixed, plus the class
 -- art (setup screen). Runs in the background; missing or failed ids are ignored (the flat style
 -- covers them). Then the loading screen (ReplicatedFirst/LootRushLoading) fades out.

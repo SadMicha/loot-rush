@@ -1,5 +1,5 @@
 --!strict
--- Stud Rush on the client (docs/STUD-RUSH.md): own kills pop studs that are vacuumed to the
+-- Stud Rush on the client (docs/GAMEPLAY.md "Stud Rush"): own kills pop studs that are vacuumed to the
 -- character (BrickController.stud, purely visual). The server starts the Rush on its own when the
 -- meter is full; the HUD shows the meter bar and the Rush in the buff bar (HudController).
 -- Meter and state come from the attributes RushMeter / RushUntil / Rushing.

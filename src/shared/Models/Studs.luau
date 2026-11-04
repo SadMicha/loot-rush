@@ -8,7 +8,7 @@
 --    BottomSurface = Inlet (the native Roblox surfaces, no extra instances, no upload).
 --  * Balls and cylinders (surfaces do not render there): the MaterialVariant "LootStuds" in
 --    MaterialService (Plastic + stud ColorMap/NormalMap from assets/world, StudsPerTile 1).
---    Scripts cannot set texture maps, so it is created once in Studio (docs/ASSETS-3D.md);
+--    Scripts cannot set texture maps, so it is created once in Studio (docs/TECH.md "World from parts");
 --    without it these shapes stay plain Plastic.
 --  * Glow and see-through parts (Neon, Glass, ForceField) and invisible parts keep their
 --    look: studs on light or water look wrong. A part with the attribute NoStuds = true is

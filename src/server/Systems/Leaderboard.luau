@@ -1,5 +1,5 @@
 --!strict
--- Leaderboards (Shared/Leaderboard, docs/ROADMAP-1.0.md §4.1) on OrderedDataStores, one store per
+-- Leaderboards (Shared/Leaderboard, docs/ROADMAP.md §4.1) on OrderedDataStores, one store per
 -- board, key = UserId.
 --  • Writes: Rift notes every cleared depth (note), the best value of the run is written once at
 --    run end (flush) and only when it beats the account's best on that board (account.boards).

@@ -6,7 +6,7 @@
 --     Crystal Shards instead.
 --   • Slots: 1, 2 with the "Pet Slot" game pass (Shared/Monetization).
 -- Save field: profile.pets = { owned = { [id] = level }, equipped = { id } }.
--- Values are own assumptions, see docs/PETS.md.
+-- Values are own assumptions, see docs/GAMEPLAY.md "Pets".
 
 local Balance = require(script.Parent.Balance)
 

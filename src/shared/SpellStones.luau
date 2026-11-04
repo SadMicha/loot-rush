@@ -1,5 +1,5 @@
 --!strict
--- Spell stones (concept "Zaubersteine", docs/SPELL-STONES.md): support stones socketed into a
+-- Spell stones (concept "Zaubersteine", docs/GAMEPLAY.md "Spell stones"): support stones socketed into a
 -- skill, up to SOCKETS per skill. Every stone adds bloom-style stats (Progression.effectiveSkill).
 -- Some only fit certain skill kinds (`kinds`); in other skills they do nothing and cannot be
 -- socketed. Stones drop from bosses and elites and are kept as counts; a socketed stone is in use.

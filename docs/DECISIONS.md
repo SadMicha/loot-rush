@@ -1,7 +1,7 @@
 # Release 1.0 – pure ARPG: decisions and plan
 
 As of 2026-11-02, base `main` @ `6277a48` (#49). Sources: `Loot Rush – Game Concept & Assets-Plan.docx`,
-`LootRush_Balancing.xlsx`, `docs/ROADMAP.md`, the code in `src/`, project memory, Micha's messages.
+`LootRush_Balancing.xlsx`, the code in `src/`, project memory, Micha's messages.
 
 **Owner decision (Micha, 2026-11-02): Loot Rush is a pure ARPG.** The incremental layer (idle
 production, offline income, village, rebirth/prestige, auto-progress, prestige walls) is dropped.
@@ -32,28 +32,22 @@ can be overturned at any time. Where the concept already answers a question, the
 | World / UI | Map from parts with stud texture (owner). UI look is owned by a separate thread; this plan does not change the look. |
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
-| Own identity | From `docs/IDEAS.md` (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. **Stud Rush** (owner, 2026-11-02: in 1.0): kills and broken props pop studs that fill a Rush meter; full meter = 8 s Rush burst. Other new ideas (Rebuilding Bosses, Colour Match …) in `docs/IDEAS.md`. |
-| Seasons | **Beta Season in 1.0, Season 1 after** (owner, 2026-11-03): the first season is a "Beta Season" that tests the game itself, with leaderboard and daily rewards also in 1.0 (`docs/ROADMAP-1.0.md`). Then (owner, 2026-11-02): PoE-style leagues: fresh season characters, moved into the permanent **Legacy** league at season end; every season trials one new mechanic, well-received ones stay in Legacy (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
+| Own identity | From the idea list in §7 (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. **Stud Rush** (owner, 2026-11-02: in 1.0): kills and broken props pop studs that fill a Rush meter; full meter = 8 s Rush burst. Backlog ideas in §7. |
+| Seasons | **Beta Season in 1.0, Season 1 after** (owner, 2026-11-03): the first season is a "Beta Season" that tests the game itself, with leaderboard and daily rewards also in 1.0 (`docs/ROADMAP.md`). Then (owner, 2026-11-02): PoE-style leagues: fresh season characters, moved into the permanent **Legacy** league at season end; every season trials one new mechanic, well-received ones stay in Legacy (`docs/specs/SEASONS.md`). Season 1 = **Blueprints**, PoE-style repeatable maps (`docs/specs/SEASON-1-BLUEPRINTS.md`). Global **Great Build** monument for the whole player base (SEASONS §7). |
 
-## 2. What changes in the existing code
+## 2. What the pure-ARPG switch removed (done)
 
-| System | Today | Change |
-|---|---|---|
-| Rebirth (`Systems/Rebirth`, `Shared/Rebirth`, docs/REBIRTH.md) | reset for permanent bonus + soulstars, soft wall from depth 20 | **removed**; the soft wall goes, difficulty comes from World Tiers. Save field `rebirths` is dropped by reconcile. |
-| Soulstars | premium currency, also rebirth reward | stays as the premium currency (shop, pets); no longer earned by rebirth, small amounts from bosses. |
-| Village (PR #50) | idle buildings, offline income, pass `offline_2x` | not merged, branch content dropped. |
-| Onboarding quests (#49) | quest chain + unlocks | stays (ARPG tutorial); rebirth quest removed, quests for class choice, dodge and spell stones added. |
-| Auto-cast (unmerged) | per-skill toggle | dropped. |
-| Pets | permanent bonuses | stay as companions; bonuses become combat helpers (post-launch rework possible). |
-| Balance (`Shared/Balance`) | wall math built around rebirth bonuses | re-tuned for gear + Star Web + skill levels + World Tier; numbers in `docs/balancing.md`. |
-| Saves | `LootRush_Profile_v3` | same store; removed fields are ignored by `Profile.reconcile` (test place, no migrations, owner rule). New field `class`. |
+Rebirth (replaced by World Tiers), the village and offline income (PR #50 never merged), auto-cast
+and the rebirth soft wall are gone. Soulstars stay as the premium currency (shop, pets, small boss
+drops). Pets stay as companions. Removed save fields are dropped by `Profile.reconcile` (test place,
+no migrations). Balance was re-tuned for gear + Star Web + skill levels + World Tier (`docs/balancing.md`).
 
 ## 3. World Tiers (replaces rebirth)
 
 - Four tiers: **Normal, Veteran, Elite, Mythic**. A tier is chosen at the portal; the next tier
   unlocks by beating the depth 20 boss in the current tier.
 - Per tier: enemy life ×(1, 2.5, 6, 15), damage ×(1, 1.8, 3, 5), gold/XP ×(1, 1.6, 2.5, 4),
-  item level +10 and rarity shift +0.2 per tier (`docs/WORLD-TIERS.md`). Elites PR: +1 elite and
+  item level +10 and rarity shift +0.2 per tier (`docs/GAMEPLAY.md`). Elites PR: +1 elite and
   +1 elite modifier per tier, uniques from Veteran on.
 - Depth stays endless inside a tier (leaderboard = best depth per tier and class).
 
@@ -69,25 +63,42 @@ can be overturned at any time. Where the concept already answers a question, the
   (quality setting for low-end phones), built on `FxController`; the server only decides
   dead/broken (props with a `Breakable` tag and server HP).
 
-## 5. Build order (PRs, `tools/check.sh` green)
+## 5. Build order (done)
 
-1. **This document** + RiftRun test fix (main is red since #49).
-2. **Weapon pack**: weapons per class in `assets/weapons/`, `Shared/Weapons`, upload entries, held weapon on the avatar (part fallback until ids exist).
-3. **Remove the incremental layer**: rebirth out, World Tiers in, quests/balance/saves adjusted.
-4. **Combat feel**: dodge roll, hitstop, shake, hit flash, knockback, telegraphs, sound hooks.
-4b. **Brick Break + Stud VFX**: shattering kills, breakable props, brick-built skill effects.
-5. **Elites with modifiers, uniques, loot filter** (affixes such as Fast, Shielded, Vampiric, Frozen Aura, Exploding).
-6. **Four classes**: class choice at first join (change in the hub), 8 skills each (icons in `assets/ui/icons/skills/`), 4 equipped, new skill kinds (melee arc, slam, leap, arrow volley, trap, summon, totem, buff).
-7. **Bosses with phases** (one per region; phase changes at 66 % / 33 %, adds, enrage) and **rift variants** (swarm, elite hunt, treasure goblin, timed).
-7b. **The Smoothing**: smooth studless enemy variant (`Shared/Models/Creatures`), save field `restored` per region, hub/minimap tint per region, one boss intro line per region (`Shared/Atlas`).
-8. **Spell stones** (support gems, up to 3 per skill).
-8b. **Stud Rush** (`docs/IDEAS.md` #2): stud pickups from kills/breaks (Brick Break pool), server-owned Rush meter and burst, HUD button, tuning in `Config`/`Balance`.
-9. **Star Web to 100 nodes**, class start points, cross-class paths.
-10. **Release pass**: performance, audio ids, RELEASE.md / TEST-RELEASE.md / ROADMAP.
+Steps 1–10 (weapon pack, incremental layer out, combat feel, Brick Break + Stud VFX, elites and
+uniques, four classes, bosses and variants, The Smoothing, spell stones, Stud Rush, Star Web 100,
+release pass) all merged in #50–#62. How each system works now: `docs/GAMEPLAY.md`. What comes
+next: `docs/ROADMAP.md`.
 
 ## 6. After 1.0
 
-Update 2026-11-03 (owner): leaderboard, daily rewards and a Beta Season move into 1.0; plan in `docs/ROADMAP-1.0.md`.
+Update 2026-11-03 (owner): leaderboard, daily rewards and a Beta Season move into 1.0 (`docs/ROADMAP.md`).
 
 Master classes · Worldboss · party/co-op · **season framework + Season 1 Blueprints** (replaces the
 dream-map atlas; `docs/specs/SEASONS.md`) · time labyrinth · season ladders per class · cosmetics shop, hat slot · Legendary fusing · cross-server ticker.
+
+## 7. Own ideas (identity and backlog)
+
+Goal (2026-11-02): stop feeling like a clone by turning the stud world into the mechanic ("the ARPG
+where the world is a toy box you smash, build and repaint"). Mobile first, short sessions.
+
+**Built:** #1 **Brick Break** (kills and hits shatter into studded bricks, client-side pool with a
+debris budget), **Stud VFX** (skill effects from bricks), #2 **Stud Rush**, #6 **The Smoothing**
+(`docs/GAMEPLAY.md`).
+**Dropped (owner):** Snap Crafting, class floor verbs, Loot Tower (push-your-luck backpack).
+**Planned as seasons:** #5 Rift Cards → Season 1 Blueprint mods; #8 The Great Build → global monument
+(`docs/specs/SEASONS.md` §7); #13 and #14 are Season 2/3 candidates.
+
+| # | Backlog idea | Pitch | Size |
+|---|---|---|---|
+| 3 | Rebuilding Bosses | At each phase change the boss falls apart into brick clusters flying back to its core; every cluster you smash weakens the next phase. | M |
+| 7 | Combo co-op | Class effects combine; a downed player becomes a brick statue teammates rebuild. Needs party play. | L |
+| 9 | Boss Parts | Breakable boss parts disable an attack and drop as a themed trophy item. | M |
+| 10 | Living Loot | Epic+ items awaken after enough kills and get a name and a small quirk. | M |
+| 11 | Echo Builders | Your best run leaves a brick ghost that friends can summon for 30 s. | M |
+| 12 | Colour Match | Gear has a brick colour; 3/5/7 of one colour give a colour bonus. | S–M |
+| 13 | Smoothing Breaches | A growing grey bubble in a rift; kill fast to pop it for a Smoothing boss and season currency (Season 2). | M |
+| 14 | Build Kits | Props drop kit pieces; four pieces auto-build a turret, fountain, piñata or brick knight (Season 3). | M |
+
+Not recommended: rhythm/beat bonus (mobile latency), free building (scope, griefing), fully physical
+destruction (network and phone cost). Full write-ups of every idea are in git history (`docs/IDEAS.md`).

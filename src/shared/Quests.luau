@@ -145,7 +145,7 @@ Quests.Names = table.freeze({
 	auto_salvage = "Auto-Salvage",
 } :: { [string]: string })
 
--- Quest waypoint (docs/ROADMAP-1.0.md O1): the hub station a goal is done at, by the window name
+-- Quest waypoint (docs/ROADMAP.md O1): the hub station a goal is done at, by the window name
 -- of its prompt (Hub builds a part "Station_<window>"). Goals that happen in a Rift or in a
 -- window have none.
 Quests.Waypoints = table.freeze({

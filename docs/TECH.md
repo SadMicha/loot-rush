@@ -1,0 +1,124 @@
+# Tech notes: UI contract, animations, world parts, weapons, debug tools
+
+Sections: [UI contract](#ui-contract) · [Animations](#animations) · [World from parts](#world-from-parts) ·
+[Weapons](#weapons) · [Debug tools](#debug-tools)
+
+## UI contract
+
+The server is the only source of truth: the UI **reads** player attributes and server messages and
+only **sends** requests via RemoteEvents (`src/shared/Net.luau`). Display rules (prices, conditions,
+lock reasons) live as pure modules in `ReplicatedStorage.Shared` and compute the same on both sides.
+UI is built in code through `Kit` with tokens from `Theme` (look: `docs/DECISIONS.md`).
+
+| Attribute | Meaning |
+|---|---|
+| `Level`, `XP`, `XPNext` | level and experience |
+| `Gold`, `Soulstars`; `Candy`, `Shards`, `Dust` | currencies; Forge materials |
+| `BestDepth`, `AtlasBest_<region>` | best depth overall (shop prices) / per region |
+| `WorldTier`, `WorldTierUnlocked` | selected / highest tier |
+| `Bonus*` (`Damage`, `Life`, `Gold`, `XP`, `Items`) | permanent bonuses in % (pets, passes) |
+| `Stat*` | combat values from gear and stars (`Systems/Stats`) |
+| `Rift*` | rift state (`docs/GAMEPLAY.md` "Rift run") |
+| `Pets`, `PetSlots`, `Pass_<key>` | equipped pets, slots, owned passes |
+
+- **Market (gold shop):** `Net.Buy:FireServer(offerId)` → `Net.ShopResult { ok, text, offerId? }`.
+  Always show prices via `Shop.price(offer, best)`, amounts via `Shop.amount`, locks via `Shop.check`.
+- **Pets:** `Net.Pet:FireServer("hatch", eggId)` / `("equip", petId)` / `("unequip", petId)`; state
+  `Net.Pets { owned, equipped, slots, odds }` (`PetController.state`, `.Changed`); reply `Net.PetResult`.
+  Egg prices always via `Pets.eggPrice(egg, BestDepth)`.
+- **Gear:** `Items.Slots` = helmet, armor, gloves, belt, boots, weapon, offhand, amulet, ring;
+  `Net.Inv` → `equipped`; send `Net.Equip(itemId)` / `Net.Unequip(slot)`.
+- **Hub stations:** the prompt attribute `Window` opens a window; stations without one fire
+  `HubController.Requested(name)`.
+- **Robux:** see `docs/MONETIZATION.md`.
+
+## Animations
+
+All character and enemy animation is code (`Shared/Anim`, `AnimController`), so it works without
+asset permissions. Roblox's `Animate` keeps idle/walk/run/jump; our moves layer on top by rotating
+joints after the Animator (PreSimulation). Angles are in character space, so R15 and R6 both work.
+`AnimController` drives `Motor6D` and `AnimationConstraint` joints (Avatar Joint Upgrade) and warns
+once (`[AnimController] no animatable joints`) if it finds none. Tests: `tests/Anim.spec.luau`,
+`tests/AnimRig.spec.luau`.
+
+- **Moves** (`Anim.Moves`): sword `slash`/`chop`, bow `shoot`, staff/scepter `cast`/`castBig`, arc
+  `cleave`, whirls `spin`, novas `slam`, chains `point`, leaps `leap`, zones `plant`, buffs `roar`,
+  dodge `roll`, hit `hurt`, death `death`, level up `cheer`. Attack moves turn the body to the target.
+- **Holding stances** (`Anim.STANCE`): `hold` (weapon arm, absolute pose) + `pose` (waist, neck, off
+  arm, hips). Blend to `STANCE_MOVING`/`STANCE_ACTING` with `STANCE_BLEND`. Rule of thumb: shoulder X +
+  elbow X + wrist X = 90 keeps the weapon upright with the grips in `Shared/Weapons`.
+- **Triggers:** server `Combat` fires `Net.Fx("act", …)` for every attack, cast and dash;
+  `Anim.moveFor` picks the move (`Anim.SKILL_MOVE` overrides). On death the body stays whole, then
+  breaks into bricks after `Anim.DEATH_BREAK`.
+- **Enemies** are anchored part models: lean back on wind-up, snap forward, recoil, waddle (`Anim.ENEMY_*`).
+- **Budget:** only characters within `Anim.RANGE` (140 studs), max `Anim.MAX_CHARACTERS` (16).
+- Tune degrees in `src/shared/Anim.luau` (axes explained at the top).
+
+## World from parts
+
+**Rule (Micha, 2026-11-02): the whole world is Roblox parts built in code, every part carries the
+classic stud texture.** No Blender meshes or `.rbxm` imports. Map layout, horizon and colours:
+`docs/specs/WORLD-MAPS.md`.
+
+`Shared/Models/Studs` decides the look; `Kit.block/wedge/cornerWedge/ball/cylinder/truss` create
+studded parts and `Kit.finish` re-applies it:
+
+| Part | Stud look |
+|---|---|
+| Block, wedges, truss | `Plastic`, `TopSurface = Studs`, `BottomSurface = Inlet` |
+| Ball, Cylinder | MaterialVariant `LootStuds` (Plastic + `assets/world/Stud_Color.png`/`Stud_Normal.png`, StudsPerTile 1); plain Plastic until it exists |
+| Neon, Glass, ForceField, invisible, `NoStuds = true` | unchanged |
+
+- `World.build` and `Hub.init` run `Studs.applyTree` as a safety net; `tests/Studs.spec.luau` fails
+  if any part lacks the look. New builders go into `Props`/`Buildings`/`Creatures` with `Kit.*`.
+  Particles `Kit.emit(part, "smoke"|"sparks"|"motes")`, light `Kit.light`.
+- **`LootStuds` setup (once):** upload `stud_color,stud_normal` with the "Upload UI assets" workflow,
+  then create the MaterialVariant in Studio (MaterialService) or via `default.project.json` (needs Micha's OK).
+- **Regions** (`Shared/Models/Biomes`, `Systems/World`) have their own props; look fields `patches`,
+  `accent`, `ring.terrace`, `ring.marsh`.
+
+| Region | Enemies | Boss |
+|---|---|---|
+| Green Plains | Crystal Slime (swarm), Spike Beetle (charger) | Crystal King |
+| Crystal Caves | Crystal Crab (tank), Lantern Bat (ranged) | Shard Worm |
+| Mushroom Swamp | Spore Frog (charger), Poison Snail (summoner) | Spore Mother |
+| Fire Desert | Toast Golem (tank), Spark Imp (ranged) | Oven Lord Krust |
+| Sky Islands | Wind Spirit (ranged), Guardian Statue (tank) | Cloud Queen |
+| Altered World | mix of all | The Rift |
+
+Enemy AI and values: `Systems/Enemies`; mix, start depth and unlocks: `Shared/Atlas`.
+
+- **Lighting/sound:** Future, Atmosphere, Bloom, SunRays, ColorCorrection (`default.project.json`);
+  Sky, DepthOfField, clouds, water (`Systems/Ambience`); per-place light (`Shared/Looks` →
+  `LightController`); ambience loops (`Looks.ambience` → `Sounds.Ambience`).
+- **Preview:** Studio command bar `require(game.ReplicatedStorage.Shared.Models).showcase()`.
+
+## Weapons
+
+Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Folder>/`
+(`Standard.fbx`, `Color.png` scaled to 1024 px). All ids are uploaded and in `Assets.Weapon`.
+
+| Class | Weapon (`Shared/Weapons`) | Folder | Hand |
+|---|---|---|---|
+| Knight Brix | Knight's Sword (`warrior_sword`) | `Warrior_Sword` | right, blade up, 15° forward |
+| Ranger Fynn | Ranger's Bow (`ranger_bow`) | `Ranger_Bow` | left, hanging, limbs vertical |
+| Spark Mage Zap | Spark Staff (`mage_staff`) | `Mage_Staff` | right, upright, head 10° forward |
+| Mushroom Shaman Mora | Spore Scepter (`druid_scepter`) | `Druid_Scepter` | right, upright |
+
+- Grip point/offset per weapon (`gripAt`, `offset`, `grip`, `length`); tune in Studio if a mesh sits off.
+- Arm pose: `Weapons.HOLD_ANIM` (`toolnone`) for far characters and the inventory figure; near the
+  camera the class stance (`Anim.STANCE`) takes over.
+- The server waits for the avatar appearance and re-equips when the hand part is replaced.
+- New mesh: run "Upload UI assets" with the `weapon_*_model`/`weapon_*_texture` keys, paste the ids
+  into `Assets.Weapon`. Missing id = weapon from studded parts, never an error. The place must be
+  owned by the same account/group as the models.
+
+## Debug tools
+
+- **Dbg button** bottom left (always in Studio; live only for `DEV_USERS` in `Systems/Debug`): test
+  commands such as "+10k Gold", "Level 50", "Unlock Areas", "Kill All Enemies", "Next World Tier",
+  "Spell Stones", "Fill Rush", "Next Day".
+- **Overlay** (F3 or Dbg): client FPS, ping, memory, instances, server frame, send load, enemy count,
+  last rift report. Off: `Config.DEBUG_OVERLAY = false`.
+- **Rift report** (`Systems/Metrics`, Output `[LootRush][Metrics]`) after every depth, abort and death.
+- Characters touched by a Dbg command are marked `debugged` and never reach a leaderboard.

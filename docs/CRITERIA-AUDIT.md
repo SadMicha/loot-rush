@@ -7,7 +7,7 @@ tutorial, dopamine, everything clearly visible, everything makes sense.**
 **How this was made:** read the code and docs, then walked the player journey from first join to
 depth ~10 on a phone, step by step through the code paths. **Nothing here was playtested.** Each
 finding names the file it comes from; findings that need eyes in Studio say "check in Studio".
-Previous review: `docs/ROADMAP-1.0.md` (2026-11-03). Its O1–O4 (waypoint, first drops, hints,
+Previous review: `docs/ROADMAP.md` §3 (2026-11-03). Its O1–O4 (waypoint, first drops, hints,
 loading screen), audio, settings, leaderboard and daily rewards are built; this audit does not
 repeat them.
 
@@ -27,23 +27,12 @@ game would flop.** A new phone player gets every mechanic at once, the teaching 
 catch, and the first big reward moment (a great drop) is barely different from a normal one. All
 six ship blockers below are about the first 15 minutes, and most of them are small.
 
-## 1. The player journey (phone, first join to depth ~10)
+## 1. The player journey
 
-Times are from the balancing sim (`docs/balancing.md`, "Simulation result"); real play is slower.
-
-| Time | What the player sees | Where in code | Problem |
-|---|---|---|---|
-| 0:00 | Loading screen, then the hero setup: name (filled with the display name) and four class cards | `src/first/`, `CharacterController` | Fine. Class cards show role and starting skills. |
-| 0:20 | Hub spawn on the plaza. **The Daily Rewards window pops up** after 2 s | `DailyController.autoOpen` | A brand new player gets a reward calendar before they have played a second. It hides the quest panel and the waypoint beam. |
-| 0:30 | Quest "Enter a Rift from the Atlas", gold beam to the Rift Gate (~120 studs north, up the grand stairs), or the Atlas bar button | `WaypointController`, `Hub.luau` | OK. The Atlas then shows regions, a World Tier switch and a start depth picker: three choices where a new player needs one button ("Play"). |
-| 1:00 | Depth 1, clearing 1: 6 enemies with aggro 75, leaps, leading shots, staggered attacks. Toast "Tap a skill button to attack!" | `Config`, `Balance`, `HintsController` | The hint appears at the top of the screen for 2.4 s while enemies leap at you. The basic attack is automatic anyway, so many players will never read it. |
-| 1:10 | First 3 kills drop an item each, the first a Magic weapon. Name pops as floating text | `Loot.starter`, `Loot.pickup` | Good rule. But the pickup is a 1.3-stud gift box and a text; nothing says "this is better than what you wear". Equipping is quest 4, but nothing points at the Inventory button. |
-| 2:00 | Boss (depth 1): 3 phases, 4 adds at 66 % and 33 %, enrage, **Break meter, Openings, Counter, Pursuit** all active. ~38 s (sim) | `Shared/Bosses`, `Systems/Enemies` | The slowest boss of the early game is the first one, and it has every mechanic at once with no word of explanation. |
-| 2:40 | VICTORY banner, cleared card with "Deeper" / "Back to Hub" | `RiftController` | Strong moment. |
-| ~6:00 | Level 5: Star Net unlocks. Depth 5: Forge unlocks | `Quests.Unlocks` | Two new windows in a short span, each with its own currency. |
-| 6–12 | **Farm wall:** the sim needs 5 extra runs of depth 5 before depth 6 is "ready" | `docs/balancing.md` table | The first wall comes right after the Forge unlock, at the moment a new player decides whether to stay. |
-| ~12 | Depth 8: Pets unlock, quest "Hatch a pet" | `Quests.Chain` | Third new window. |
-| ~17 (real ~25) | Depth 10: Auto-Salvage unlocks, uniques start dropping | `Quests.Unlocks`, `Balance.UNIQUE_FROM` | Until here the bag (40 items) can fill up; there is no "inventory full" message anywhere in `src/`. Items stay on the ground and are lost at the run end. |
+The minute-by-minute walk from first join to depth ~10 that these findings come from is in git
+history (this file before the docs cleanup). Short version: Daily popup before the first fight, a
+first boss with every mechanic on, 2.4 s hint toasts, a silent loot moment, a farm wall at minute
+6–12 and a silent full bag.
 
 ## 2. Criteria in detail
 
@@ -58,7 +47,7 @@ boss; Stud Rush starts by itself.
 |---|---|---|
 | F1 | **Bosses take 25–40 s at every depth**, so about 40 % of each 1–1.5 min run is one target. The depth 1 boss is the slowest of the first 10 (38 s). | `docs/balancing.md` sim table: Boss s 38.3 (d1), 29.5 (d5), 27.5 (d10). `Balance.P.boss_hp = 40`. |
 | F2 | **Farm wall at depth 6** (5 farm runs, minutes 6–12), right after the Forge unlocks. The next farm comes at depth 20. | Sim table: depth 6 "Farm 5". |
-| F3 | After a death or "Back to Hub" the way back into the action is: hub spawn → Atlas (bar or gate) → region → tier → depth → Enter. Fine for veterans, slow for a "one more run" loop. | `RIFT-RUN.md` §4, `AtlasController`. |
+| F3 | After a death or "Back to Hub" the way back into the action is: hub spawn → Atlas (bar or gate) → region → tier → depth → Enter. Fine for veterans, slow for a "one more run" loop. | `docs/GAMEPLAY.md` "Rift run", `AtlasController`. |
 | F4 | Each depth walks 3 clearings plus corridors; the sim books 10 s walk/pause per clearing (~30 s of a 90 s run). | `Config.TRAIL_*`, `tests/Balancing.spec.luau`. Check in Studio whether it feels like travel or like a breather. |
 
 ### 2.2 Easy to pick up (5/10)
@@ -78,7 +67,7 @@ dodge, locked hub windows until they matter, first drops guaranteed.
 
 **Working:** 16-step quest chain with gold, waypoint beam + minimap marker, unlock pacing, first
 drops, one-time hints for skills / dodge / Rush, onboarding funnel analytics
-(`docs/ONBOARDING.md`).
+(`docs/GAMEPLAY.md` "Onboarding").
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -115,10 +104,10 @@ other on large HUD sizes (#98).
 
 | # | Finding | Evidence |
 |---|---|---|
-| V1 | **Nobody has checked it on a phone.** `TEST-HUD` 0/35 and `TEST-UI-WINDOWS` 0/19 were the last count (ROADMAP-1.0); the readability risk of #75 (leaps, mortars, pools) was named then and is still open. | `docs/TEST-*.md`. |
+| V1 | **Nobody has checked it on a phone.** `TEST-HUD` 0/35 and `TEST-UI-WINDOWS` 0/19 were the last count (2026-11-03 review); the readability risk of #75 (leaps, mortars, pools) was named then and is still open. | old milestone checklists (now `docs/TEST-RELEASE.md`). |
 | V2 | Burning ground is orange neon (`#FF9A2A`). The Fire Desert has glowing ember cracks and a lava river, and #92 made every zone more colourful. Danger may blend into decor there. | `Enemies.POOL_COLOR`, `World.luau` desert. Check in Studio. |
 | V3 | Loot is 1.3 studs at a camera distance of 46 studs: on a phone a box is a few pixels. | `Models/Loot`, `Config.CAMERA_DISTANCE`. |
-| V4 | During a boss the phone HUD carries: life orb, 4 skills + dash, joystick, minimap, resources, buff bar, Rush meter, XP bar, boss bar + Break meter + "OPENING", area toasts, damage numbers, phase rings, mortar and pool telegraphs. | `HudController`, `docs/BOSSES.md`. Check a phase 3 boss with 8 adds on a 844×390 screen. |
+| V4 | During a boss the phone HUD carries: life orb, 4 skills + dash, joystick, minimap, resources, buff bar, Rush meter, XP bar, boss bar + Break meter + "OPENING", area toasts, damage numbers, phase rings, mortar and pool telegraphs. | `HudController`, `docs/GAMEPLAY.md` "Bosses". Check a phase 3 boss with 8 adds on a 844×390 screen. |
 
 ### 2.6 Everything makes sense (5/10)
 
@@ -128,41 +117,39 @@ other on large HUD sizes (#98).
 | S2 | **Pursuit vs. ranged classes** (E2): the class sheet says "Ranged, movement", the boss punishes range. | see E2. |
 | S3 | **Switching heroes kicks the player** ("Switched to X. Please rejoin to play."). To a player that looks like a crash. | `Characters.rejoin` (`player:Kick`). |
 | S4 | **Full bag is silent** (see journey). Items are lost without a word. | `Inventory.add`, `Loot.pickup`; no "full" string in `src/`. |
-| S5 | Locked windows are "pacing only": the server accepts requests for them. Fine for honest players; it only matters if a client finds a way in. | `docs/ONBOARDING.md`. |
+| S5 | Locked windows are "pacing only": the server accepts requests for them. Fine for honest players; it only matters if a client finds a way in. | `docs/GAMEPLAY.md` "Onboarding". |
 | S6 | Material names do not say what they are for: "Rune Candy" is a Forge material. | `Shared/Shop`, `Shared/Forge`. |
-| S7 | Docs drift: README still says "ARPG that plays like an incremental" (pure ARPG since 2026-11-02); `RIFT-RUN.md` still says "back to the village". | `README.md`, `docs/RIFT-RUN.md`. |
+| S7 | Docs drift: README still says "ARPG that plays like an incremental" (pure ARPG since 2026-11-02); the rift-run doc still said "back to the village". | `README.md`, `docs/GAMEPLAY.md "Rift run"`. |
 
 ## 3. Prioritized fix list
 
 Impact: how much it moves the first 15 minutes (H/M/L). Effort: XS (< 1 h), S (one small PR),
 M (one thread), L (several threads). **Ship blockers** are marked 🚩.
 
-| Rank | Fix | Criteria | Impact | Effort | |
-|---|---|---|---|---|---|
-| 1 | **Teach the boss by depth.** Depth 1–2 bosses: phase 1 only, no Pursuit, Break meter on with a one-time callout ("Hit it to break it!"). Counter and Openings from depth 3 with their own callout. Adds and enrage from depth 5. Numbers in `Bosses` (e.g. `PURSUIT_FROM`, `PHASES_FROM`). Also cut the depth 1–3 boss life so the first boss takes ~20 s, not 38 s. | 1, 2, 3 | H | S–M | 🚩 |
-| 2 | **Tutorial callouts that cannot be missed.** A dedicated hint card near the thing it explains (pulse ring on the skill / dash / Inventory button), big text, stays until done or 6 s, never in the toast queue. Fix T2 (only mark as seen once shown). Add hints: equip (point at Inventory with a "new" dot), Rush meter at 50 %, boss Break/Counter, level up. | 3, 2 | H | M | 🚩 |
-| 3 | **Make great drops loud.** Light pillar in rarity colour for Rare+ (taller for Epic/Unique), a short ground ring, a bigger box for Rare+, and on pickup a green "▲ UPGRADE" tag when the item beats the equipped one (server already knows both). Red dot on the Inventory button while an upgrade waits. | 4, 5 | H | M | 🚩 |
-| 4 | **Fix Pursuit for ranged classes.** Measure "keeping away" against the player's own range (or `max(boss range, class range) + margin`), so a Ranger at 38 studs who keeps hitting is not punished; only a player who stops attacking is. | 6, 2 | H | XS–S | 🚩 |
-| 5 | **No Daily Rewards pop-up before the first rift**, and only once the quest chain is past step 1. The chest button with its dot stays. | 3 | M | XS | 🚩 |
-| 6 | **One name per thing.** Pick: Star Web, Skills, Forge, Shop (Robux) / Market (gold). Rename window titles, quest texts, hub signs and the Market stall so it opens the gold Market. Ids stay. | 6 | M | S | 🚩 |
-| 7 | **"Inventory full" warning** (toast + red bag icon) and keep overflow loot until the player makes room, or auto-salvage Normal items while the bag is full. Move `MAX_ITEMS` to `Config`. | 6, 4 | M | S | |
-| 8 | **Smooth the depth 6 farm wall** (sim: 5 farm runs at minute 6). Target: no farming before depth 10. | 1 | M | S | |
-| 9 | **Phone readability pass in Studio:** phase 3 boss with adds on 844×390, Fire Desert pools vs lava, loot box size at camera distance. Outcome: colour and size changes, or "fine". | 5 | H | S (Micha's time) | |
-| 10 | **"Play" button in the Atlas** that starts the next depth of the last region on the highest tier, plus "Play again" on the death screen. Region/tier/depth stay one tap away. | 1, 2 | M | S | |
-| 11 | **Level-up moment:** ring + short card ("+12 life, +2 % damage", "New skill: X" at 8/12/16/20, "Star Web unlocked" at 5). | 4, 3 | M | S | |
-| 12 | **Quest progress in combat:** a compact "4/10" line under the minimap while a count quest is active. | 3 | M | XS–S | |
-| 13 | **Quests that hand out the system they teach:** the spell stone quest gives a stone, the Forge quest gives materials, the Pets quest gives the egg. Add the missing quests (spell stones, dodge) at the end of the chain (append only). | 3, 4 | M | S | |
-| 14 | **Hero switch without kick:** respawn as the new hero in place; if a rejoin is unavoidable, use `TeleportService` to the same place with a "Loading Fynn…" screen. | 6 | M | M | |
-| 15 | **Stagger the first skills:** start with 2 skills, unlock skill 3 at level 2 and skill 4 at level 3, with the unlock card from #11. | 2 | M | S | |
-| 16 | Docs drift: README tagline, RIFT-RUN "village". | 6 | L | XS | |
-| 17 | Rename "Rune Candy" to something that says "Forge" (display name only). | 6 | L | XS | |
+| Rank | Fix | Criteria | Impact | Effort | | Status |
+|---|---|---|---|---|---|---|
+| 1 | **Teach the boss by depth.** Depth 1–2 bosses: phase 1 only, no Pursuit, Break meter on with a one-time callout ("Hit it to break it!"). Counter and Openings from depth 3 with their own callout. Adds and enrage from depth 5. Numbers in `Bosses` (e.g. `PURSUIT_FROM`, `PHASES_FROM`). Also cut the depth 1–3 boss life so the first boss takes ~20 s, not 38 s. | 1, 2, 3 | H | S–M | 🚩 | merged #107 |
+| 2 | **Tutorial callouts that cannot be missed.** A dedicated hint card near the thing it explains (pulse ring on the skill / dash / Inventory button), big text, stays until done or 6 s, never in the toast queue. Fix T2 (only mark as seen once shown). Add hints: equip (point at Inventory with a "new" dot), Rush meter at 50 %, boss Break/Counter, level up. | 3, 2 | H | M | 🚩 | merged #110 |
+| 3 | **Make great drops loud.** Light pillar in rarity colour for Rare+ (taller for Epic/Unique), a short ground ring, a bigger box for Rare+, and on pickup a green "▲ UPGRADE" tag when the item beats the equipped one (server already knows both). Red dot on the Inventory button while an upgrade waits. | 4, 5 | H | M | 🚩 | merged #109 |
+| 4 | **Fix Pursuit for ranged classes.** Measure "keeping away" against the player's own range (or `max(boss range, class range) + margin`), so a Ranger at 38 studs who keeps hitting is not punished; only a player who stops attacking is. | 6, 2 | H | XS–S | 🚩 | merged #107 |
+| 5 | **No Daily Rewards pop-up before the first rift**, and only once the quest chain is past step 1. The chest button with its dot stays. | 3 | M | XS | 🚩 | merged #110 |
+| 6 | **One name per thing.** Pick: Star Web, Skills, Forge, Shop (Robux) / Market (gold). Rename window titles, quest texts, hub signs and the Market stall so it opens the gold Market. Ids stay. | 6 | M | S | 🚩 | merged #109 |
+| 7 | **"Inventory full" warning** (toast + red bag icon) and keep overflow loot until the player makes room, or auto-salvage Normal items while the bag is full. Move `MAX_ITEMS` to `Config`. | 6, 4 | M | S | | merged #114 |
+| 8 | **Smooth the depth 6 farm wall** (sim: 5 farm runs at minute 6). Target: no farming before depth 10. | 1 | M | S | | merged #108 |
+| 9 | **Phone readability pass in Studio:** phase 3 boss with adds on 844×390, Fire Desert pools vs lava, loot box size at camera distance. Outcome: colour and size changes, or "fine". | 5 | H | S (Micha's time) | | open (Micha) |
+| 10 | **"Play" button in the Atlas** that starts the next depth of the last region on the highest tier, plus "Play again" on the death screen. Region/tier/depth stay one tap away. | 1, 2 | M | S | | merged #114 |
+| 11 | **Level-up moment:** ring + short card ("+12 life, +2 % damage", "New skill: X" at 8/12/16/20, "Star Web unlocked" at 5). | 4, 3 | M | S | | merged #114 |
+| 12 | **Quest progress in combat:** a compact "4/10" line under the minimap while a count quest is active. | 3 | M | XS–S | | merged #114 |
+| 13 | **Quests that hand out the system they teach:** the spell stone quest gives a stone, the Forge quest gives materials, the Pets quest gives the egg. Add the missing quests (spell stones, dodge) at the end of the chain (append only). | 3, 4 | M | S | | merged #114 |
+| 14 | **Hero switch without kick:** respawn as the new hero in place; if a rejoin is unavoidable, use `TeleportService` to the same place with a "Loading Fynn…" screen. | 6 | M | M | | merged #114 |
+| 15 | **Stagger the first skills:** start with 2 skills, unlock skill 3 at level 2 and skill 4 at level 3, with the unlock card from #11. | 2 | M | S | | open |
+| 16 | Docs drift: README tagline, RIFT-RUN "village". | 6 | L | XS | | done (docs cleanup) |
+| 17 | Rename "Rune Candy" to something that says "Forge" (display name only). | 6 | L | XS | | open |
 
-### Suggested order
+### Status (2026-11-04)
 
-1. **One thread "First boss and hints"**: #1, #2, #4, #5 (they touch the same first two minutes).
-2. **One thread "Loot moment"**: #3, #7, #11.
-3. **One small PR "Names"**: #6, #16, #17.
-4. **Micha in Studio + phone, 20 minutes**: #9, then decide #8, #10, #15 from what you feel.
+All six ship blockers and #7, #8, #10–#14 are merged. Open: #9 (Micha's phone pass), #15 (staggered
+first skills), #17 (rename Rune Candy).
 
-Exit check (same as ROADMAP-1.0 F2): a new player on a phone reaches depth 3 without help, can say
+Exit check (same as ROADMAP F2): a new player on a phone reaches depth 3 without help, can say
 what Break and Rush are, and equips their first upgrade without being told.

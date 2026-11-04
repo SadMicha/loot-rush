@@ -1,5 +1,5 @@
 --!strict
--- Character animations (docs/ANIMATIONS.md): attacks per weapon, skill casts, dodge roll, hit
+-- Character animations (docs/TECH.md "Animations"): attacks per weapon, skill casts, dodge roll, hit
 -- reaction, death, level-up cheer, plus a run lean and idle breathing. Moves are keyframes in
 -- Shared/Anim; this controller layers them on top of Roblox's own animations (idle, walk, the
 -- weapon hold pose) by rotating the rig's Motor6D.Transform right after the Animator wrote it

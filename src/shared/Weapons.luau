@@ -2,11 +2,11 @@
 -- Held weapons per class, from the owner's weapon pack (assets/weapons/<Folder>/Standard.fbx +
 -- Color.png, 2026-11-02). Systems/Weapons puts the weapon into the character's hand.
 --
--- How a weapon is held (docs/WEAPONS.md "Holding"): sword, staff and scepter in the right hand
+-- How a weapon is held (docs/TECH.md "Weapons"): sword, staff and scepter in the right hand
 -- with the arm raised forward (Roblox's own "hold a tool" arm pose, HOLD_ANIM), blade/head up;
 -- the bow in the left hand with the arm down, limbs vertical, string toward the body.
 --
--- The 3D models need two Roblox ids each (see docs/WEAPONS.md): the mesh (Model asset from the
+-- The 3D models need two Roblox ids each (see docs/TECH.md "Weapons"): the mesh (Model asset from the
 -- FBX) and the texture (Image asset from Color.png). Both live in Assets.Weapon. While an id is
 -- empty, the weapon is built from studded parts (same silhouette, class colors), never an error.
 

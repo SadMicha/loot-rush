@@ -1,5 +1,5 @@
 --!strict
--- Characters (docs/CLASSES.md, docs/specs/SEASONS.md §6): an account holds up to 12 characters,
+-- Characters (docs/GAMEPLAY.md "Classes", docs/specs/SEASONS.md §6): an account holds up to 12 characters,
 -- each with its own name, class, level, gear and progress. The class belongs to the character and
 -- is locked once the character is set up; another class means another character.
 --  • First join: the account has one character that still needs its setup (attribute

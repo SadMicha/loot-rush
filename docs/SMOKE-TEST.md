@@ -1,10 +1,10 @@
 # Smoke test (about 5 minutes)
 
-Quick check after any merge. The long checklists (`TEST-*.md`) are for releases and big features.
+Quick check after any merge. The long checklist (`TEST-RELEASE.md`) is for releases and big features.
 Setup: `bash tools/packages.sh`, `rojo serve`, Studio → Connect → Play (Studio API access on).
 
 - [ ] Output shows no red errors during the first 30 seconds
-- [ ] Fresh save: the class picker opens; pick a class, its weapon is held and its 4 skills sit on the arc
+- [ ] Fresh save: the hero setup opens; pick a name and a class, its weapon is held and its 4 skills sit on the arc
 - [ ] Lumenhaven hub loads; minimap shows ground (no holes, round, no square corners)
 - [ ] HUD: hub icon bar visible (Inventory, Star Web, Skills, Pets, Atlas, Forge, Shop), settings gear, dash button
 - [ ] Open and close Inventory, Skills, Star Web, Forge, Atlas, Shop windows; no overlap, close button works

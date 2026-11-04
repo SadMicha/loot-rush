@@ -1,5 +1,5 @@
 --!strict
--- Brick Break + Stud VFX (docs/IDEAS.md #1, docs/COMBAT-FEEL.md): one pool of studded bricks
+-- Brick Break + Stud VFX (docs/DECISIONS.md §7 #1, docs/GAMEPLAY.md "Combat feel"): one pool of studded bricks
 -- with a hard budget. Enemies shatter into their own bricks when they die, hits chip bricks off,
 -- skills throw bricks, the dodge roll leaves a brick trail. Purely visual and client-side:
 -- anchored parts moved with one BulkMoveTo per frame, no physics, no network.

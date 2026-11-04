@@ -219,10 +219,10 @@ Effort **M**. It is not tied to the season mechanic, so it can also ship with 1.
 
 | Season | Mechanic | Spec |
 |---|---|---|
-| Beta (1.0 launch) | **Beta Season** (owner, 2026-11-03): no new mechanic, runs like a real season to test everything: fresh Beta-league characters that move into Legacy at the end, beta challenges with cosmetic rewards, ladder, feedback card; 4 weeks proposed | `docs/ROADMAP-1.0.md` §6 |
+| Beta (1.0 launch) | **Beta Season** (owner, 2026-11-03): no new mechanic, runs like a real season to test everything: fresh Beta-league characters that move into Legacy at the end, beta challenges with cosmetic rewards, ladder, feedback card; 4 weeks proposed | `docs/ROADMAP.md` §6 |
 | 1 | **Blueprints** (repeatable maps, PoE-style, stud world) | `docs/specs/SEASON-1-BLUEPRINTS.md` |
-| 2 | **Smoothing Breaches** (`docs/IDEAS.md` #13) | later |
-| 3 | **Build Kits** (`docs/IDEAS.md` #14) | later |
+| 2 | **Smoothing Breaches** (`docs/DECISIONS.md §7` #13) | later |
+| 3 | **Build Kits** (`docs/DECISIONS.md §7` #14) | later |
 
 Candidates beyond that: Boss Parts (#9), Living Loot (#10), Echo Builders (#11).
 

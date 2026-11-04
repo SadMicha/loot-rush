@@ -139,7 +139,7 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 		bossItems = Balance.P.drops_boss,
 		eliteItems = Balance.P.drops_elite,
 		shift = Balance.rarityShift(d) + t.shift,
-		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (WORLD-TIERS.md)
+		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (docs/GAMEPLAY.md "World Tiers")
 	}
 end
 
