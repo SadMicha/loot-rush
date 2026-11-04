@@ -578,12 +578,13 @@ Anim.STANCE = table.freeze({
 		hand = "left",
 		ref = BOW_READY,
 		-- at rest like a real archer: the left arm hangs slightly forward and out, the fist holds
-		-- the grip, the bow stands upright beside the left leg (lower tip just above the ground),
-		-- turned so its face shows: riser out and forward, string toward the body. Y on the shoulder
-		-- turns the hanging arm (and the bow with it), shoulder X + elbow X + wrist X = 90 keeps it
-		-- upright. The draw hand rests (Animator's arm); the shot move raises the bow from `ref`.
+		-- the grip at the bow's middle, the bow stands upright beside the left leg (lower tip just
+		-- above the ground), its back (outer curve) facing forward and a little out, the string
+		-- toward the body. Y on the shoulder turns the hanging arm (and the bow with it), shoulder
+		-- X + elbow X + wrist X = 90 keeps it upright. The draw hand rests (Animator's arm); the
+		-- shot move raises the bow from `ref`.
 		hold = table.freeze({
-			lShoulder = v(18, 55, 0),
+			lShoulder = v(18, 40, 0),
 			lElbow = v(20, 0, 0),
 			lWrist = v(52, 0, 0),
 		}),

@@ -301,9 +301,7 @@ describe("Great Build server and window", function()
 		expect(face.Initial.Text ~= "").toBe(true)
 		local id = sim.player.UserId
 		if id > 0 then
-			expect(face.Image.Image).toBe(
-				`rbxthumb://type=AvatarHeadShot&id={id}&w=150&h=150`
-			)
+			expect(face.Image.Image).toBe(`rbxthumb://type=AvatarHeadShot&id={id}&w=150&h=150`)
 		end
 		local strict = {
 			offscreen = true,
