@@ -103,6 +103,8 @@ Sounds.Hooks = table.freeze({
 	rift_clear = s(12222253, 0.55, { pitch = 0, speed = 0.9, gap = 1 }), -- victory.wav, lower: boss of a depth down
 	purchase = s(9125594507, 0.45, { pitch = 0, gap = 0.3, ui = true }), -- Graphic Tings Sharp Metallic Hits Tonal Ring
 	forge = s(9116675065, 0.45, { gap = 0.2, ui = true }), -- Metal Impact Railroad Hammer 6
+	cosmetic_equip = s(9126072433, 0.5, { pitch = 0.02, speed = 1.1, gap = 0.3 }), -- Synth Sparkle Bell Tone Burst: own trail/aura put on
+	cosmetic_equip_legend = s(9125601934, 0.6, { pitch = 0, speed = 1.1, gap = 0.5 }), -- Heavenly choir: a legendary cosmetic put on
 	hatch = s(9126072433, 0.5, { pitch = 0, speed = 0.9, gap = 0.3, ui = true }), -- Synth Sparkle Bell Tone Burst
 	-- UI (client/UI/Shape.sound)
 	ui_click = s(9114479860, 0.35, { pitch = 0.05, gap = 0.05, ui = true }), -- Flashlight On Off Clicks 5
