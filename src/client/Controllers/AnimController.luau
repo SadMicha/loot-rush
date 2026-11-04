@@ -61,6 +61,7 @@ local player = Players.LocalPlayer
 local rigs: { [Model]: Rig } = {}
 local pose: Anim.Pose = {}
 local arm: Anim.Pose = {} -- absolute weapon-arm pose this frame (Anim.hold)
+local failedTracks: { [string]: string } = {} -- weapon + rig type → why the track was not built
 local DEG = math.pi / 180
 
 local function own(rig: Rig): boolean
@@ -376,7 +377,7 @@ function AnimController.dump(): string
 					rig.track.Length,
 					rig.track.WeightCurrent
 				)
-				else "none"
+				else "none (" .. (failedTracks[rig.trackKey or ""] or "not built yet") .. ")"
 		)
 	)
 	local map: { [string]: { string } } = if rig.r6 then Anim.R6 else Anim.R15
@@ -514,16 +515,16 @@ end
 -- uses; the procedural Transform write (Anim.hold mix below) is only the fallback while this
 -- track is not playing (registration failed, still loading). Every client builds it locally for
 -- the characters it animates (nothing is replicated that others could not load).
-local failedTracks: { [string]: boolean } = {}
 
 local function buildTrack(rig: Rig, weaponId: string): AnimationTrack?
 	local s = Anim.STANCE[weaponId]
 	local humanoid = rig.humanoid
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	local kind = if rig.r6 then "R6" else "R15"
 	if not s or not animator then
+		failedTracks[weaponId .. kind] = if s then "no Animator on the Humanoid" else "no stance"
 		return nil
 	end
-	local kind = if rig.r6 then "R6" else "R15"
 	local full: Anim.Pose = {}
 	Anim.hold(weaponId, 1, rig.r6, full)
 	local ok, result = pcall(function()
@@ -570,7 +571,7 @@ local function buildTrack(rig: Rig, weaponId: string): AnimationTrack?
 	if ok and result then
 		return result
 	end
-	failedTracks[weaponId .. kind] = true
+	failedTracks[weaponId .. kind] = tostring(result)
 	warn("[AnimController] stance track not built (" .. tostring(result) .. "): using joint writes")
 	return nil
 end
