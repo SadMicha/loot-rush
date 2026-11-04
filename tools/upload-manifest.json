@@ -1235,6 +1235,15 @@
     400
    ],
    "registry": "Assets.Hud"
+  },
+  {
+   "key": "hud_settings",
+   "file": "assets/ui/icons/settings.png",
+   "size": [
+    399,
+    400
+   ],
+   "registry": "Assets.Hud"
   }
  ]
 }
