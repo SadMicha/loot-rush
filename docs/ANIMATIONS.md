@@ -45,7 +45,8 @@ Upgrade → Disabled by hand once; the published place is built from the project
 | Novas (Thunderstorm, Ground Slam, Spore Burst …) | `slam` | arms up, slam into a crouch |
 | Chains (Chain Lightning, Root Snare …) | `point` | point at the target |
 | Leaps (Charge) | `leap` | crouch, launch, land |
-| Zones (Arrow Rain, clouds, totems) | `plant` | weapon high, strike the ground |
+| Zones (clouds, totems) | `plant` | weapon high, strike the ground |
+| Bow zones (Arrow Rain, Trap) | `volley` | lean back, bow raised at the sky, draw, release |
 | Buffs, Taunt | `roar` | gather, burst out |
 | Dodge roll | `roll` | forward somersault (own roll starts on the key press) |
 | Hit taken | `hurt` | short flinch |

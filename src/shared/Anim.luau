@@ -322,6 +322,38 @@ Anim.Moves = table.freeze({
 		},
 		{ t = 1, pose = Z },
 	}),
+	-- Bow zones (Arrow Rain, Trap): lean back, raise the bow from the low carry to aim at the sky
+	-- (limbs stay within 40° of vertical), draw, release
+	volley = move("volley", 0.5, true, {
+		{ t = 0, pose = Z },
+		{
+			t = 0.45,
+			pose = {
+				waist = v(12, -25, 0),
+				neck = v(-6, 20, 0),
+				lShoulder = v(75, 15, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
+				rShoulder = v(110, 20, 0),
+				rElbow = v(40, 0, 0),
+			},
+		},
+		{
+			t = 0.62,
+			snap = true,
+			pose = {
+				waist = v(12, -25, 0),
+				neck = v(-6, 20, 0),
+				lShoulder = v(75, 15, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
+				rShoulder = v(80, 0, 40),
+				rElbow = v(10, 0, 0),
+			},
+			lift = v(0, -0.15, 0),
+		},
+		{ t = 1, pose = Z },
+	}),
 	-- Zones (Arrow Rain, clouds, totems): weapon high, then strike the ground
 	plant = move("plant", 0.5, true, {
 		{ t = 0, pose = Z },
@@ -719,7 +751,7 @@ function Anim.moveFor(
 	elseif kind == "leap" then
 		return "leap"
 	elseif kind == "zone" then
-		return "plant"
+		return if style == "bow" then "volley" else "plant"
 	elseif kind == "buff" then
 		return "roar"
 	end

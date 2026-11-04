@@ -332,6 +332,29 @@ describe("Holding stances", function()
 		expect(f.Position.Y).toBeGreaterThan(0.2) -- arm up at the target
 	end)
 
+	it("keeps the bow's limbs near vertical in every ranger move", function()
+		local w = Weapons.ById.ranger_bow
+		local kit = Skills.forClass("ranger")
+		local ids = { [Anim.moveFor("bow", kit.basic.kind, kit.basic.id, true, 0)] = true }
+		for _, skill in kit.list do
+			ids[Anim.moveFor("bow", skill.kind, skill.id, false, 0)] = true
+		end
+		expect(ids.volley).toBe(true) -- Arrow Rain aims at the sky, not the ground
+		for id in ids do
+			local m = Anim.Moves[id]
+			for i = 0, 10 do
+				local arm = {}
+				Anim.hold(w.id, Anim.STANCE_ACTING, false, arm, {})
+				local moved: Anim.Pose = {}
+				Anim.sample(m, m.time * i / 10, moved)
+				for _, joint in Anim.ARM.left do
+					arm[joint] = (arm[joint] or Vector3.zero) + (moved[joint] or Vector3.zero)
+				end
+				expect(tilt(weaponFrame(w, arm))).toBeLessThan(60)
+			end
+		end
+	end)
+
 	it("folds elbow and wrist into the shoulder on R6", function()
 		for _, w in Weapons.List do
 			local r15, r6 = {}, {}
