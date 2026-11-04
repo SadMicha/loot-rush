@@ -521,7 +521,7 @@ function GreatBuild.donate(player: Player, want: number): (number, string?, { nu
 	end
 	local paid = {}
 	for _, m in Rules.collect(account.greatBuild) do -- marked paid before granting: never twice
-		Journey.grant(player, m.reward)
+		Journey.grant(player, m.reward, "great_build")
 		table.insert(paid, m.amount)
 	end
 	Progress.sync(player)

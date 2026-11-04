@@ -86,7 +86,7 @@ function Daily.claim(player: Player): number?
 	end
 	Progress.sync(player)
 	if reward.soulstars > 0 then
-		Shop.grant(player, "soulstars", reward.soulstars)
+		Shop.grant(player, "soulstars", reward.soulstars, "TimedReward", "daily")
 	end
 	Actions.fire(player, "daily") -- Season Journey counter (Systems/Seasons)
 	return index

@@ -35,14 +35,16 @@ local lastReady: { [Player]: number } = {} -- ready milestones in the last state
 
 -- Pays a reward to the active hero (gold, materials, spell stones) and the account (Soulstars,
 -- cosmetics). Gold is scaled to the hero's best depth. Returns false without a loaded save.
-function Journey.grant(player: Player, reward: Rules.Reward): boolean
+-- sku names the source in economy analytics ("journey", "season", "great_build")
+function Journey.grant(player: Player, reward: Rules.Reward, sku: string?): boolean
+	local source = sku or "journey"
 	local profile = Data.get(player)
 	if not profile or not Data.account(player) then
 		return false
 	end
 	local r = Rules.scaled(reward, Atlas.bestDepth(profile.atlas))
 	if (r.gold or 0) > 0 then
-		Inventory.addGold(player, r.gold :: number, "Gameplay", "journey")
+		Inventory.addGold(player, r.gold :: number, "Gameplay", source)
 	end
 	local candy, shards, dust = r.candy or 0, r.shards or 0, r.dust or 0
 	if candy + shards + dust > 0 then
@@ -50,7 +52,7 @@ function Journey.grant(player: Player, reward: Rules.Reward): boolean
 			player,
 			{ candy = candy, shards = shards, dust = dust },
 			"Gameplay",
-			"journey"
+			source
 		)
 	end
 	for _ = 1, r.stones or 0 do
@@ -59,7 +61,7 @@ function Journey.grant(player: Player, reward: Rules.Reward): boolean
 	end
 	Progress.sync(player)
 	if (r.soulstars or 0) > 0 then
-		Shop.grant(player, "soulstars", r.soulstars :: number)
+		Shop.grant(player, "soulstars", r.soulstars :: number, "Gameplay", source)
 	end
 	if r.cosmetic then
 		Cosmetics.give(player, r.cosmetic)

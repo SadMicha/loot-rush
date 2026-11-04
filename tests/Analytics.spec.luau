@@ -104,7 +104,9 @@ describe("Analytics", function()
 			A.riftStart(player, 5, "green_plains")
 			A.riftEnd(player, true, "green_plains")
 			local level = player:GetAttribute("Level") or 1
-			player:SetAttribute("Level", level + 1)
+			player:SetAttribute("Level", level + 3) -- a join restore: no LevelUp
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			Combat.addXP(player, Combat.xpFor(level + 3)) -- a real level-up
 		end)
 		sim:run(0.2)
 		local fails = 0
@@ -118,9 +120,12 @@ describe("Analytics", function()
 		expect(find("rift_clear", function(e)
 			return e.value == 4
 		end)).toBeTruthy()
-		local up = find("custom", function(e)
-			return e.name == "LevelUp"
-		end)
-		expect(up).toBeTruthy()
+		local ups = {}
+		for _, e in recent() do
+			if e.kind == "custom" and e.name == "LevelUp" then
+				table.insert(ups, e.value)
+			end
+		end
+		expect(#ups).toBe(1)
 	end)
 end)

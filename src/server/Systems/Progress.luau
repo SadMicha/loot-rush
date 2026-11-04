@@ -84,11 +84,13 @@ function Progress.salvage(player: Player, item: Items.Item)
 	local find = (Progression.starMods(profile.progress).shardFind or 0) / 100
 	local candy = math.floor(s.candy) + (if rng:NextNumber() < s.candy % 1 then 1 else 0)
 	local dust = if rng:NextNumber() < s.dust then 1 else 0
+	local shards = math.floor(s.shards * (1 + find) + 0.5)
 	Progress.addMaterials(player, {
-		shards = math.floor(s.shards * (1 + find) + 0.5),
+		shards = shards,
 		candy = candy,
 		dust = dust,
 	})
+	Analytics.pool(player, "Shards", shards, profile.materials.shards, "Gameplay", "salvage")
 	send(player)
 end
 

@@ -6,10 +6,11 @@
 --     done), then one step per finished guide quest (Systems/Quests: step = chain index + 2).
 --   • Progression "Rift": start / complete / fail per depth, level = depth, levelName = region id.
 --     Leaving mid-depth is not a fail (only a death without revives is).
---   • Custom event "LevelUp" (value = new hero level).
+--   • Custom event "LevelUp" (value = new hero level), logged by Combat when XP crosses a level
+--     (not on the Level attribute: the join restore writes it too).
 --   • Economy: Gold, Shards, Soulstars with transaction type (Enum.AnalyticsEconomyTransactionType
---     name: Onboarding, TimedReward, Gameplay, Shop, IAP) and a short sku. Rift gold and shards are
---     logged once per run (Systems/Rift), never per pickup. Callers pass the txn to
+--     name: Onboarding, TimedReward, Gameplay, Shop, IAP) and a short sku. Rift gold is logged once
+--     per run (Systems/Rift), never per pickup; salvage shards are pooled (Analytics.pool). Callers pass the txn to
 --     Inventory.addGold / Progress.addMaterials / Shop.grant; no txn = not logged.
 -- Analytics.recent keeps the last events (tests, debug); nothing else reads it.
 
@@ -30,6 +31,8 @@ local RECENT = 50
 export type Entry = { kind: string, userId: number, step: number?, name: string?, value: number? }
 
 Analytics.recent = {} :: { Entry }
+
+local POOL_FLUSH = 60 -- seconds between flushes of pooled economy flows (salvage)
 
 -- Depth of the player's Rift depth that started and has not ended yet
 local open: { [Player]: number } = {}
@@ -114,6 +117,45 @@ function Analytics.economy(
 	end)
 end
 
+-- Frequent small flows (salvage shards): summed per player and logged every POOL_FLUSH seconds
+-- and when the player leaves, so auto-salvage does not send one event per item
+type Pool = { currency: string, amount: number, balance: number, txn: string, sku: string? }
+local pools: { [Player]: { [string]: Pool } } = {}
+
+function Analytics.pool(
+	player: Player,
+	currency: string,
+	amount: number,
+	balance: number,
+	txn: string,
+	sku: string?
+)
+	if amount == 0 or amount ~= amount then
+		return
+	end
+	local mine = pools[player] or {}
+	pools[player] = mine
+	local key = currency .. ":" .. txn .. ":" .. (sku or "")
+	local p = mine[key]
+	if p then
+		p.amount += amount
+		p.balance = balance
+	else
+		mine[key] =
+			{ currency = currency, amount = amount, balance = balance, txn = txn, sku = sku }
+	end
+end
+
+function Analytics.flush(player: Player)
+	local mine = pools[player]
+	pools[player] = nil
+	if mine then
+		for _, p in mine do
+			Analytics.economy(player, p.currency, p.amount, p.balance, p.txn, p.sku)
+		end
+	end
+end
+
 function Analytics.custom(player: Player, name: string, value: number)
 	remember({ kind = "custom", userId = player.UserId, name = name, value = value })
 	call("LogCustomEvent", player, name, value)
@@ -127,14 +169,6 @@ local function onPlayer(player: Player)
 	if not profile.setupDone then
 		Analytics.funnel(player, Analytics.FUNNEL_JOINED, "joined")
 	end
-	local last = player:GetAttribute("Level")
-	player:GetAttributeChangedSignal("Level"):Connect(function()
-		local level = player:GetAttribute("Level")
-		if typeof(level) == "number" and typeof(last) == "number" and level > last then
-			Analytics.custom(player, "LevelUp", level)
-		end
-		last = level
-	end)
 end
 
 function Analytics.init() end
@@ -148,7 +182,14 @@ function Analytics.start()
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		open[player] = nil
+		Analytics.flush(player)
 	end)
+	while true do
+		task.wait(POOL_FLUSH)
+		for player in pools do
+			Analytics.flush(player)
+		end
+	end
 end
 
 return Analytics

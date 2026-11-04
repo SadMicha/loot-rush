@@ -19,6 +19,7 @@ local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Movement = require(script.Parent.Movement)
 local Status = require(script.Parent.Status)
@@ -251,6 +252,7 @@ local function addXP(player: Player, amount: number)
 		profile.level, profile.xp = level, xp
 	end
 	if leveled then
+		Analytics.custom(player, "LevelUp", level) -- here, not on the attribute: a join restore is no level-up
 		applyLevelStats(player, true)
 		local root = body(player)
 		if root then
@@ -261,6 +263,8 @@ local function addXP(player: Player, amount: number)
 		end
 	end
 end
+
+Combat.addXP = addXP
 
 -- Set level and XP directly (test commands); refills life
 function Combat.setLevel(player: Player, level: number, xp: number)
