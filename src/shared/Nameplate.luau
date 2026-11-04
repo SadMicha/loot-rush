@@ -28,6 +28,10 @@ Nameplate.LABEL_NEAR_FADE = 4 -- fade band after LABEL_NEAR
 Nameplate.LABEL_FAR = 95 -- the hub is ~160 studs across: from the plaza every station is labelled
 Nameplate.LABEL_FADE = 20
 Nameplate.LABEL_OFFSET = 7 -- studs above the trigger part (above the stall roofs)
+Nameplate.SUB_FAR = 45 -- the "Locked - ..." line only shows closer than this (less clutter)
+Nameplate.SUB_FADE = 10
+Nameplate.LABEL_GAP = 6 -- screen pixels kept between two labels and between a label and the HUD
+Nameplate.DECLUTTER_STEP = 0.35 -- share of a full fade per tick when a label gives way / returns
 
 local function finite(x: any): boolean
 	return typeof(x) == "number" and x == x and x ~= math.huge and x ~= -math.huge
@@ -71,6 +75,74 @@ function Nameplate.labelAlpha(dist: number): number
 		Nameplate.LABEL_FAR,
 		Nameplate.LABEL_FADE
 	)
+end
+
+-- Visibility 0..1 of the "Locked - ..." line under a station label at `dist`
+function Nameplate.subAlpha(dist: number): number
+	return Nameplate.alpha(dist, 0, 0, Nameplate.SUB_FAR, Nameplate.SUB_FADE)
+end
+
+-- Screen rectangle { x0, y0, x1, y1 } (pixels)
+export type Rect = { number }
+
+local function overlaps(a: Rect, b: Rect, gap: number): boolean
+	return a[1] < b[3] + gap and b[1] < a[3] + gap and a[2] < b[4] + gap and b[2] < a[4] + gap
+end
+
+-- Screen-space declutter for station labels: the labels are taken by priority (higher first, e.g.
+-- the quest station, then the nearest); one that would overlap an already shown label or a HUD
+-- block (`blocks`) gives way. A label without a rectangle (false: behind the camera) is never
+-- shown.
+-- Returns one boolean per entry of `rects`, in the same order.
+function Nameplate.declutter(
+	rects: { Rect | false },
+	priority: { number },
+	blocks: { Rect },
+	gap: number
+): { boolean }
+	local order = {}
+	for i = 1, #rects do
+		if rects[i] then
+			table.insert(order, i)
+		end
+	end
+	table.sort(order, function(a: number, b: number): boolean
+		local pa, pb = priority[a] or 0, priority[b] or 0
+		if pa ~= pb then
+			return pa > pb
+		end
+		return a < b
+	end)
+	local shown: { boolean } = table.create(#rects, false)
+	local taken: { Rect } = {}
+	for _, i in order do
+		local r = rects[i] :: any
+		local free = true
+		for _, b in blocks do
+			if overlaps(r, b, gap) then
+				free = false
+				break
+			end
+		end
+		if free then
+			for _, t in taken do
+				if overlaps(r, t, gap) then
+					free = false
+					break
+				end
+			end
+		end
+		if free then
+			shown[i] = true
+			table.insert(taken, r)
+		end
+	end
+	return shown
+end
+
+-- Text under a locked station's name: the hint without a doubled "Locked"
+function Nameplate.lockText(hint: string): string
+	return "Locked · " .. hint
 end
 
 -- Bar fill 0..1 (life or shield over max life); bad numbers = empty

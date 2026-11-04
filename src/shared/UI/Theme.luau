@@ -393,12 +393,31 @@ Theme.Nameplate = table.freeze({
 	BarBack = 0.25, -- background transparency of the bar track
 	LowLife = 0.3, -- below this fill the bar flashes brighter
 	LabelWidth = 220,
-	LabelSize = 18,
-	LabelSizeQuest = 22, -- the station the quest waypoint points to
-	SubSize = 12, -- "Locked - Clear depth 5" under a locked station
+	LabelSize = 17,
+	LabelSizeQuest = 21, -- the station the quest waypoint points to
+	SubSize = 11, -- "Locked · Clear depth 5" under a locked station
 	Stroke = 0.15, -- text outline transparency
 	Rule = 2, -- gold rule under a station label (px)
-	TouchScale = 1.15, -- phones: a little larger
+	TouchScale = 0.95, -- phones: the hub is seen from far away, full size crowded the screen
+})
+
+-- Interaction prompt (client/Controllers/PromptController): the hub stations' ProximityPrompts
+-- drawn as a Gilded Ink card at the bottom center, above the hub icon bar (design pixels)
+Theme.Prompt = table.freeze({
+	Height = 60,
+	MinWidth = 240,
+	Key = 42, -- key cap edge (E / gamepad button / TAP on touch)
+	Pad = 10, -- inner padding left/right
+	Gap = 12, -- key cap -> text
+	ObjectSize = 11, -- "RIFT GATE"
+	ActionSize = 20, -- "OPEN ATLAS"
+	KeySize = 20,
+	TapSize = 11,
+	Above = 10, -- gap above the hub icon bar
+	Rise = 12, -- slides up this far while fading in
+	Bar = 3, -- hold progress line along the bottom edge
+	FadeIn = 0.16, -- seconds
+	FadeOut = 0.12,
 })
 
 return table.freeze(Theme)
