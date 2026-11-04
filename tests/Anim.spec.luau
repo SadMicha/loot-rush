@@ -324,7 +324,7 @@ describe("Holding stances", function()
 
 	it("raises the bow straight for the shot", function()
 		local arm = {}
-		Anim.hold("ranger_bow", Anim.STANCE_ACTING, false, arm, {})
+		Anim.hold("ranger_bow", Anim.stanceWeight(0, true, "ranger_bow"), false, arm, {})
 		local shot: Anim.Pose = {}
 		local m = Anim.Moves.shoot
 		Anim.sample(m, m.time * 0.5, shot)
@@ -348,7 +348,7 @@ describe("Holding stances", function()
 			local m = Anim.Moves[id]
 			for i = 0, 10 do
 				local arm = {}
-				Anim.hold(w.id, Anim.STANCE_ACTING, false, arm, {})
+				Anim.hold(w.id, Anim.stanceWeight(0, true, w.id), false, arm, {})
 				local moved: Anim.Pose = {}
 				Anim.sample(m, m.time * i / 10, moved)
 				for _, joint in Anim.ARM.left do
@@ -383,6 +383,13 @@ describe("Holding stances", function()
 		expect(Anim.stanceWeight(0, false)).toBe(1)
 		expect(math.abs(Anim.stanceWeight(1, false) - Anim.STANCE_MOVING)).toBeLessThan(1e-9)
 		expect(Anim.stanceWeight(0, true)).toBe(Anim.STANCE_ACTING)
+		expect(Anim.stanceWeight(0, true, "warrior_sword")).toBe(Anim.STANCE_ACTING)
+		-- the bow shoots from its ready carry: no rest-pose arm turn in the aim
+		expect(Anim.stanceWeight(0, true, "ranger_bow")).toBe(0)
+		local aim = {}
+		Anim.hold("ranger_bow", Anim.stanceWeight(0, true, "ranger_bow"), false, aim, {})
+		expect(aim.lShoulder.Y).toBe(0)
+		expect(Anim.STANCE_DROP).toBeGreaterThan(Anim.STANCE_BLEND)
 		expect(Anim.stanceLegs(0)).toBe(1)
 		expect(Anim.stanceLegs(Anim.STANCE_STILL)).toBe(0)
 		local pose = {}

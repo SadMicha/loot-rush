@@ -527,6 +527,7 @@ Anim.STYLE = table.freeze({
 Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
 Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
 Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
+Anim.STANCE_DROP = 30 -- per second: how fast it gives way when a move starts (the move keeps its shape)
 Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
 Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
 Anim.STANCE_BOB = 0.05 -- studs the body sinks and rises with each breath while standing
@@ -552,6 +553,8 @@ export type Stance = {
 	pose: Pose,
 	legs: Pose?,
 	lift: Vector3?,
+	-- stance share while a move plays (default STANCE_ACTING); 0 = the arm is fully at `ref`
+	acting: number?,
 }
 
 Anim.STANCE = table.freeze({
@@ -585,6 +588,8 @@ Anim.STANCE = table.freeze({
 			lWrist = v(52, 0, 0),
 		}),
 		pose = table.freeze({ waist = v(0, -6, 0), neck = v(0, 6, 0) }),
+		-- the shot starts from `ref` alone: none of the rest pose's arm turn leaks into the aim
+		acting = 0,
 		legs = table.freeze({
 			lHip = v(18, 0, -14),
 			lKnee = v(-20, 0, 0),
@@ -634,9 +639,11 @@ Anim.STANCE = table.freeze({
 } :: { [string]: Stance })
 
 -- Target stance weight 0..1: `run` = 0..1 of full run speed, `acting` = a move plays
-function Anim.stanceWeight(run: number, acting: boolean): number
+function Anim.stanceWeight(run: number, acting: boolean, weaponId: string?): number
 	local w = 1 + (Anim.STANCE_MOVING - 1) * math.clamp(run, 0, 1)
-	return if acting then math.min(w, Anim.STANCE_ACTING) else w
+	local s = weaponId and Anim.STANCE[weaponId]
+	local share = if s and s.acting then s.acting else Anim.STANCE_ACTING
+	return if acting then math.min(w, share) else w
 end
 
 -- Share of the leg stance at ground `speed` (studs/s): full while standing, gone while walking

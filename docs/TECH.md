@@ -52,7 +52,7 @@ Avatar Joint Upgrade → Disabled by hand once; the published place is built fro
   dodge `roll`, hit `hurt`, death `death`, level up `cheer`. Attack moves turn the body to the target.
 - **Holding stances** (`Anim.STANCE`): one grounded combat stance per weapon, exaggerated for the high
   camera, all data: `hold` (weapon arm, absolute pose), `ref` (the raised arm the attack moves were made
-  for; blended in while running/acting via `STANCE_MOVING`/`STANCE_ACTING`/`STANCE_BLEND`), `off` (other
+  for; blended in while running/acting via `STANCE_MOVING`/`STANCE_ACTING` (per stance `acting`, the bow uses 0)/`STANCE_BLEND`, dropping fast with `STANCE_DROP` when a move starts), `off` (other
   arm), `pose` (waist, neck), `legs` + `lift` (only while standing, faded by `STANCE_STILL`; ankles keep
   the feet flat), `STANCE_BOB`, `STANCE_SWAY`, `Anim.R6_FOLD`. `tests/Anim.spec.luau` checks every pose
   and that the weapon never cuts through the body. The inventory figure uses the same stance
