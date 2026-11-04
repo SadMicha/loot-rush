@@ -214,7 +214,7 @@ function QuestController.init()
 	Window.setGate(function(id: string): boolean
 		local hint = QuestController.lockHint(id)
 		if hint then
-			QuestController.toast("Locked · " .. hint, C.Muted)
+			QuestController.toast("Locked - " .. hint, C.Muted)
 		end
 		return hint ~= nil
 	end)

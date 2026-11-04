@@ -63,7 +63,7 @@ end
 local function result(e: Rules.Entry, overall: boolean): string
 	local depth = `Depth {Format.int(e.depth)}`
 	if overall then
-		return `{tierName(e.tier)} · {depth}`
+		return `{tierName(e.tier)} - {depth}`
 	end
 	return depth
 end

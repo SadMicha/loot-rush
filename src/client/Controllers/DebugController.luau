@@ -81,7 +81,7 @@ local function render(fps: number)
 	end
 	local report = workspace:GetAttribute("LastReport")
 	text.Text = string.format(
-		"Client  %d FPS · Ping %d ms · %d MB · %s Instances\nServer  Frame avg %s / max %s ms · %s kbps · %s Enemies\nLast run: %s",
+		"Client  %d FPS - Ping %d ms - %d MB - %s Instances\nServer  Frame avg %s / max %s ms - %s kbps - %s Enemies\nLast run: %s",
 		fps,
 		math.floor(player:GetNetworkPing() * 1000 + 0.5),
 		math.floor(Stats:GetTotalMemoryUsageMb() + 0.5),

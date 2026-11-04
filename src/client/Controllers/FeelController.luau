@@ -275,7 +275,7 @@ function handlers.areaclear(d)
 	if wave and waves then
 		QuestController.toast(
 			if wave >= waves
-				then "Area cleared · the boss awaits"
+				then "Area cleared - the boss awaits"
 				else string.format("Area %d/%d cleared", wave, waves),
 			color
 		)

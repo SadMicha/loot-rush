@@ -23,7 +23,7 @@ local OPEN: { [string]: () -> () } = {
 	Forge = function()
 		local hint = QuestController.lockHint("forge")
 		if hint then
-			QuestController.toast("Locked · " .. hint)
+			QuestController.toast("Locked - " .. hint)
 		else
 			ForgeController.toggle()
 		end

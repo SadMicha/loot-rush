@@ -72,7 +72,7 @@ function Metrics.report(player: Player, label: string)
 	windows[player] = nil
 	local level = (player:GetAttribute("Level") or w.level) :: number
 	local line = string.format(
-		"%s · %d s · %d kills · %d damage (%d hits) · level %d→%d · enemies max %d",
+		"%s - %d s - %d kills - %d damage (%d hits) - level %d→%d - enemies max %d",
 		label,
 		math.floor(os.clock() - w.startedAt + 0.5),
 		w.kills,

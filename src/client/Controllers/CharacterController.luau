@@ -112,7 +112,7 @@ local function renderHeroes()
 		name.Position = UDim2.new(0, 16, 0.5, -2)
 		name.Parent = card
 		local info = Kit.label(
-			string.format("%s · Lv %d", if class then class.hero else entry.class, entry.level),
+			string.format("%s - Lv %d", if class then class.hero else entry.class, entry.level),
 			16,
 			accent,
 			Theme.Font.Body
