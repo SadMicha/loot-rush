@@ -461,10 +461,16 @@ function StarNetController.init()
 
 	-- Mouse: the wheel zooms instead of scrolling, so native scrolling is only on for touch/gamepad
 	-- (and off while two fingers pinch)
+	local function isGamepad(t: Enum.UserInputType): boolean
+		return string.sub(t.Name, 1, 7) == "Gamepad"
+	end
 	local lastInput = UserInputService:GetLastInputType()
-	local touchPan = UserInputService.TouchEnabled
-		and lastInput ~= Enum.UserInputType.MouseMovement
-		and lastInput ~= Enum.UserInputType.MouseButton1
+	local touchPan = isGamepad(lastInput)
+		or (
+			UserInputService.TouchEnabled
+			and lastInput ~= Enum.UserInputType.MouseMovement
+			and lastInput ~= Enum.UserInputType.MouseButton1
+		)
 	local touches: { [InputObject]: true } = {}
 	local pinchDist = 0 -- finger distance when the pinch started (0 = no pinch)
 	local pinchZoom = 1
@@ -508,7 +514,10 @@ function StarNetController.init()
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local t = input.UserInputType
-		if t == Enum.UserInputType.Touch then
+		if isGamepad(t) and not touchPan then
+			touchPan = true -- thumbstick pans the ScrollingFrame natively
+			updateScrolling()
+		elseif t == Enum.UserInputType.Touch then
 			if not touchPan then
 				touchPan = true
 				updateScrolling()
