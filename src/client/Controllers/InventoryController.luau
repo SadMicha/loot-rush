@@ -301,32 +301,51 @@ local function buttonH(): number
 		then math.max(40, math.ceil(Kit.MIN_TOUCH_PX / unit))
 		else 40
 end
+-- Equipment cells per slot, rebuilt only when another item (or none) is worn there; the
+-- selection changes in place so a click does not restart their glow and light sweep
+type DollEntry = { cell: TextButton, key: string }
+local dollCells: { [string]: DollEntry } = {}
+
 local function renderDoll()
-	for _, child in dollCard:GetChildren() do
-		if child.Name == "Slot" then
-			child:Destroy()
-		end
-	end
 	local function place(slot: string, x: number, row: number, side: "left" | "right")
 		local item = equipped[slot]
 		local isSel = item ~= nil and selected ~= nil and selected.id == item.id
-		local b = Flat.cell(DOLL_CELL, slotArt(slot), {
-			rarity = if item then item.rarity else nil,
-			selected = isSel,
-			dim = item == nil,
-			caption = Items.SlotName[slot] or slot,
-			captionSide = side,
-		})
-		b.Name = "Slot"
-		b.Position = UDim2.fromOffset(x, dollTop + (row - 1) * dollStep)
-		b.ZIndex = 3
-		if item then
-			b.Activated:Connect(function()
-				selectItem(item, true)
-			end)
-			popIfSelected(b, item)
+		local key = if item then item.id .. "|" .. item.rarity else ""
+		local entry: DollEntry? = dollCells[slot]
+		if entry and (entry.key ~= key or not entry.cell.Parent) then
+			entry.cell:Destroy()
+			entry = nil
 		end
-		b.Parent = dollCard
+		if not entry then
+			local b = Flat.cell(DOLL_CELL, slotArt(slot), {
+				rarity = if item then item.rarity else nil,
+				selected = isSel,
+				dim = item == nil,
+				caption = Items.SlotName[slot] or slot,
+				captionSide = side,
+			})
+			b.Name = "Slot"
+			b.ZIndex = 3
+			if item then
+				local id = item.id
+				b.Activated:Connect(function()
+					local worn = equipped[slot]
+					if worn and worn.id == id then
+						selectItem(worn, true)
+					end
+				end)
+			end
+			b.Parent = dollCard
+			entry = { cell = b, key = key }
+			dollCells[slot] = entry
+		elseif item then
+			Flat.setCell(entry.cell, DOLL_CELL, { rarity = item.rarity, selected = isSel })
+		end
+		local e = entry :: DollEntry
+		e.cell.Position = UDim2.fromOffset(x, dollTop + (row - 1) * dollStep)
+		if item then
+			popIfSelected(e.cell, item)
+		end
 	end
 	for i, slot in DOLL_LEFT do
 		place(slot, PAD + 2, i, "right")
@@ -673,6 +692,10 @@ local function visibleItems(): { Items.Item }
 			table.insert(list, item)
 		end
 	end
+	local order: { [string]: number } = {} -- bag position: ties keep it, so cells never shuffle
+	for i, item in items do
+		order[item.id] = i
+	end
 	if sortMode == "newest" then
 		-- The server appends new loot: newest first = reverse bag order
 		local rev: { Items.Item } = {}
@@ -681,18 +704,27 @@ local function visibleItems(): { Items.Item }
 		end
 		return rev
 	end
-	-- "Upgrades": upgrades first, the biggest gain on top (empty slots count as the biggest)
+	-- "Upgrades": the marked best upgrade of each slot first, then the other items that still beat
+	-- the worn piece, each group with the biggest gain on top (empty slots count as the biggest)
+	local group: { [string]: number } = {}
 	local gains: { [string]: number } = {}
 	if sortMode == "upgrades" then
 		for _, item in list do
-			gains[item.id] = if marks[item.id] == "up"
+			local gain = if Items.SlotName[item.slot]
 				then Items.upgradeGain(item, equipped[item.slot])
 				else -math.huge
+			gains[item.id] = gain
+			group[item.id] = if marks[item.id] == "up" then 2 elseif gain > 1e-6 then 1 else 0
 		end
 	end
 	table.sort(list, function(a, b)
-		if sortMode == "upgrades" and gains[a.id] ~= gains[b.id] then
-			return gains[a.id] > gains[b.id]
+		if sortMode == "upgrades" then
+			if group[a.id] ~= group[b.id] then
+				return group[a.id] > group[b.id]
+			end
+			if group[a.id] > 0 and gains[a.id] ~= gains[b.id] then
+				return gains[a.id] > gains[b.id]
+			end
 		end
 		if sortMode == "level" and a.ilvl ~= b.ilvl then
 			return a.ilvl > b.ilvl
@@ -701,7 +733,10 @@ local function visibleItems(): { Items.Item }
 		if ra ~= rb then
 			return ra > rb
 		end
-		return a.ilvl > b.ilvl
+		if a.ilvl ~= b.ilvl then
+			return a.ilvl > b.ilvl
+		end
+		return (order[a.id] or 0) < (order[b.id] or 0)
 	end)
 	return list
 end
@@ -836,23 +871,24 @@ local function renderItems(): number
 			and selected.id == item.id
 			and not salvageMode
 		local isMarked = salvageMode and marked[item.id] == true
-		local mark: Items.UpgradeMark? = marks[item.id]
-		local key = item.rarity
-			.. (if isSel then "|sel" else "")
-			.. (if isMarked then "|mark" else "")
-			.. (if mark then "|" .. mark else "")
+		local state: Flat.CellOptions = {
+			rarity = item.rarity,
+			selected = isSel,
+			marked = isMarked,
+			upgrade = marks[item.id],
+		}
+		-- Only a new look (rarity, slot icon, cell size) builds a new cell; selection, salvage
+		-- mark and upgrade icon change in place, so its light sweep and glow keep running
+		local key = string.format("%s|%s|%d", item.rarity, item.slot, cellSize)
 		local entry: CellEntry? = itemCells[item.id]
 		if entry and entry.key ~= key then
 			entry.cell:Destroy()
 			entry = nil
 		end
-		if not entry then
-			local b = Flat.cell(cellSize, slotArt(item.slot), {
-				rarity = item.rarity,
-				selected = isSel,
-				marked = isMarked,
-				upgrade = mark,
-			})
+		if entry then
+			Flat.setCell(entry.cell, cellSize, state)
+		else
+			local b = Flat.cell(cellSize, slotArt(item.slot), state)
 			b.Name = "Item"
 			local id = item.id
 			b.Activated:Connect(function()
@@ -1412,6 +1448,19 @@ function InventoryController.render()
 	end
 	if selected and not present[selected.id] then
 		selected = nil
+	end
+	-- A new server snapshot brings new item tables: keep the selection on the current one
+	if selected then
+		local id = (selected :: Items.Item).id
+		local fresh: Items.Item? = findItem(id)
+		for _, it in equipped do
+			if it.id == id then
+				fresh = it
+			end
+		end
+		if fresh then
+			selected = fresh
+		end
 	end
 	for id in marked do
 		if not present[id] then
