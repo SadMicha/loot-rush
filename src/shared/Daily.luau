@@ -1,5 +1,5 @@
 --!strict
--- Daily rewards (docs/ROADMAP-1.0.md §4.2): pure rules shared by the server (Systems/Daily claims)
+-- Daily rewards (docs/ROADMAP.md §4.2): pure rules shared by the server (Systems/Daily claims)
 -- and the client (calendar window). One claim per UTC day, account-wide; a 7-day cycle where a
 -- missed day never resets progress ("days claimed", not "days in a row"). The server decides the
 -- day from os.time(); the client never sends it.

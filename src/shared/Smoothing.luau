@@ -1,5 +1,5 @@
 --!strict
--- The Smoothing (docs/IDEAS.md #6, docs/SMOOTHING.md): a grey, glossy force that erases studs.
+-- The Smoothing (docs/DECISIONS.md §7 #6, docs/GAMEPLAY.md "The Smoothing"): a grey, glossy force that erases studs.
 -- Its creatures are smooth, studless plastic; untouched regions are partly smoothed too.
 -- Clearing depths restores studs and colour: the more depths of a region a player has cleared
 -- (profile.atlas, the best depth per region), the fewer smoothed enemies and arena parts.

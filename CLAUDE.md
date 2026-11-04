@@ -1,7 +1,8 @@
 # Loot Rush – working rules for Claude
 
-Roblox ARPG that plays like an incremental (Luau, Rojo). Read `README.md` and `docs/ROADMAP.md` first.
-Longer specs: `docs/specs/`. Playtest checklists: `docs/TEST-*.md`.
+Roblox ARPG (pure ARPG, Luau, Rojo). Read `README.md`, `docs/README.md` (docs index) and `docs/ROADMAP.md` first.
+How systems work: `docs/GAMEPLAY.md`, `docs/TECH.md`. Decisions: `docs/DECISIONS.md`. Longer specs: `docs/specs/`.
+Playtests: `docs/SMOKE-TEST.md` (quick), `docs/TEST-RELEASE.md` (release). Release steps: `docs/RELEASE.md`.
 
 ## Language
 Everything is English: code, identifiers, comments, UI text, docs. Do not hardcode translations
@@ -31,7 +32,7 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
   PR; the main session runs the full suite once before a commit/merge and reads the last
   "N passed, M failed" line.
 - After a `.gitattributes` change, checkouts must be LF (StyLua line_endings = Unix).
-- Smoke test for a quick playtest: `docs/SMOKE-TEST.md` (10 steps); long checklists are for releases.
+- Smoke test for a quick playtest: `docs/SMOKE-TEST.md` (10 steps); `docs/TEST-RELEASE.md` is for releases.
 
 ## Agents (`.claude/agents`)
 - `project-planner` (docs/ only) → briefs for the others; owns ROADMAP and specs.

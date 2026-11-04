@@ -1,5 +1,5 @@
 --!strict
--- Character animations (docs/ANIMATIONS.md): attacks per weapon, skill casts, dodge roll, hit
+-- Character animations (docs/TECH.md "Animations"): attacks per weapon, skill casts, dodge roll, hit
 -- reaction, death, level-up cheer, plus a run lean and idle breathing. Moves are keyframes in
 -- Shared/Anim; this controller layers them on top of Roblox's own animations (idle, walk, the
 -- weapon hold pose) by rotating the rig's Motor6D.Transform right after the Animator wrote it
@@ -45,9 +45,7 @@ type Rig = {
 	combo: number,
 	stance: number, -- current holding-stance weight (Anim.STANCE), eases toward its target
 	grip: number, -- how much the weapon arm follows Anim.hold (1 alive, fades to 0 on death)
-	track: AnimationTrack?, -- the stance arm as a real AnimationTrack (see stanceTrack)
-	trackKey: string?, -- weapon + rig type the track was built for
-	trackWeight: number,
+	legs: number, -- leg-stance share (Anim.stanceLegs), eased like the stance
 	deadAt: number, -- 0 = alive
 	broken: boolean,
 	active: boolean,
@@ -60,8 +58,19 @@ type Rig = {
 local player = Players.LocalPlayer
 local rigs: { [Model]: Rig } = {}
 local pose: Anim.Pose = {}
-local arm: Anim.Pose = {} -- absolute weapon-arm pose this frame (Anim.hold)
-local failedTracks: { [string]: string } = {} -- weapon + rig type → why the track was not built
+local arm: Anim.Pose = {} -- absolute arm poses this frame (Anim.hold)
+local armMix: { [string]: number } = {} -- how much of each `arm` joint replaces the Animator's
+
+-- The weapon a character holds: its class weapon, or the one "Next Stance" (Dbg panel,
+-- Systems/Debug "stance") put into its hand for a preview
+local function weaponOf(p: Player?): Weapons.Weapon?
+	if not p then
+		return nil
+	end
+	local preview = p:GetAttribute("StanceWeapon")
+	return (if typeof(preview) == "string" then Weapons.ById[preview] else nil)
+		or Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+end
 local DEG = math.pi / 180
 
 local function own(rig: Rig): boolean
@@ -123,22 +132,8 @@ local function jointOf(character: Model, part: Instance, name: string): Instance
 	return nil
 end
 
-local function stopTrack(rig: Rig)
-	local track = rig.track
-	rig.track = nil
-	rig.trackKey = nil
-	rig.trackWeight = -1
-	if track then
-		pcall(function()
-			track:Stop(0.2)
-			track:Destroy()
-		end)
-	end
-end
-
 local function findJoints(rig: Rig)
 	rig.dirty = false
-	stopTrack(rig) -- built from the old joints: build again
 	table.clear(rig.joints)
 	local character = rig.character
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -190,7 +185,6 @@ local function removeRig(character: Model)
 		return
 	end
 	rigs[character] = nil
-	stopTrack(rig)
 	for _, c in rig.conns do
 		c:Disconnect()
 	end
@@ -250,9 +244,7 @@ local function addRig(character: Model, owner: Player?)
 		combo = 0,
 		stance = 0,
 		grip = 0,
-		track = nil,
-		trackKey = nil,
-		trackWeight = -1,
+		legs = 0,
 		deadAt = 0,
 		broken = false,
 		active = false,
@@ -328,7 +320,7 @@ function AnimController.attack(
 	if not rig then
 		return
 	end
-	local w = Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local w = weaponOf(p)
 	local style = w and Anim.STYLE[w.id]
 	local id = Anim.moveFor(style, kind, skillId, basic, rig.combo)
 	if basic then
@@ -340,6 +332,18 @@ end
 local function angles(cf: CFrame): string
 	local x, y, z = cf:ToEulerAnglesYXZ()
 	return string.format("(%.0f, %.0f, %.0f)", math.deg(x), math.deg(y), math.deg(z))
+end
+
+-- The turn the joint really shows right now, measured from its two parts (what physics placed,
+-- not what Transform says): Part1 = Part0 * C0 * applied * C1:Inverse()
+local function applied(motor: any): string
+	local ok, text = pcall(function()
+		local p0: BasePart = motor.Part0
+		local p1: BasePart = motor.Part1
+		local rel = (p0.CFrame * motor.C0):Inverse() * p1.CFrame * motor.C1
+		return angles(rel)
+	end)
+	return if ok then text else "?"
 end
 
 -- Debug (Dbg panel "Dump Joints"): prints what the animation layer sees on the own character to
@@ -358,26 +362,18 @@ function AnimController.dump(): string
 	end
 	local humanoid = rig.humanoid
 	local p = rig.player
-	local w = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local w = weaponOf(p)
 	table.insert(
 		lines,
 		string.format(
-			"  RigType %s, r6=%s, active=%s, weapon=%s, stance=%.2f, grip=%.2f, layers=%d, stanceTrack=%s",
+			"  RigType %s, r6=%s, active=%s, weapon=%s, stance=%.2f, grip=%.2f, layers=%d",
 			if humanoid then tostring(humanoid.RigType) else "no Humanoid",
 			tostring(rig.r6),
 			tostring(rig.active),
 			if w then w.id else "none",
 			rig.stance,
 			rig.grip,
-			#rig.layers,
-			if rig.track
-				then string.format(
-					"playing=%s length=%.2f weight=%.2f",
-					tostring(rig.track.IsPlaying),
-					rig.track.Length,
-					rig.track.WeightCurrent
-				)
-				else "none (" .. (failedTracks[rig.trackKey or ""] or "not built yet") .. ")"
+			#rig.layers
 		)
 	)
 	local map: { [string]: { string } } = if rig.r6 then Anim.R6 else Anim.R15
@@ -395,20 +391,46 @@ function AnimController.dump(): string
 		table.insert(
 			lines,
 			string.format(
-				"  %-9s %s %s  C0 %s  T %s  base %s  ours=%s",
+				"  %-9s %s %s  C0 %s  T %s  base %s  ours=%s  seen %s",
 				name,
 				motor.ClassName,
 				motor:GetFullName(),
 				angles(j.rot),
 				angles(motor.Transform),
 				angles(j.base),
-				tostring(j.written ~= nil)
+				tostring(j.written ~= nil),
+				applied(motor)
 			)
 		)
 	end
 	local held = character:FindFirstChild("HeldWeapon")
 	local weld = held and held:FindFirstChild("Grip")
 	local part0 = weld and (weld :: any).Part0
+	-- Where the weapon really points, in UpperTorso space (+X right, +Y up, -Z forward)
+	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+	local hand = weld and (weld :: any).Part0
+	if w and torso and torso:IsA("BasePart") and hand and hand:IsA("BasePart") then
+		local att = hand:FindFirstChild(
+			if w.hand == "left" then "LeftGripAttachment" else "RightGripAttachment"
+		)
+		local at = if att and att:IsA("Attachment") then CFrame.new(att.Position) else CFrame.new()
+		local frame = hand.CFrame * at * w.grip
+		local tip = torso.CFrame:VectorToObjectSpace(frame.UpVector)
+		local pos = torso.CFrame:PointToObjectSpace(frame.Position)
+		table.insert(
+			lines,
+			string.format(
+				"  weapon tip dir (%.2f, %.2f, %.2f) = %.0f deg from up, grip at (%.1f, %.1f, %.1f)",
+				tip.X,
+				tip.Y,
+				tip.Z,
+				math.deg(math.acos(math.clamp(tip.Y, -1, 1))),
+				pos.X,
+				pos.Y,
+				pos.Z
+			)
+		)
+	end
 	table.insert(
 		lines,
 		"  HeldWeapon "
@@ -509,95 +531,6 @@ local function warnNoJoints(rig: Rig)
 	)
 end
 
--- The weapon arm of the stance as a real AnimationTrack: a KeyframeSequence built here from
--- Anim.hold (full stance) and registered locally, played by the character's own Animator above
--- the server's tool-hold track. The Animator then poses the arm itself, whatever joints the rig
--- uses; the procedural Transform write (Anim.hold mix below) is only the fallback while this
--- track is not playing (registration failed, still loading). Every client builds it locally for
--- the characters it animates (nothing is replicated that others could not load).
-
-local function buildTrack(rig: Rig, weaponId: string): AnimationTrack?
-	local s = Anim.STANCE[weaponId]
-	local humanoid = rig.humanoid
-	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-	local kind = if rig.r6 then "R6" else "R15"
-	if not s or not animator then
-		failedTracks[weaponId .. kind] = if s then "no Animator on the Humanoid" else "no stance"
-		return nil
-	end
-	local full: Anim.Pose = {}
-	Anim.hold(weaponId, 1, rig.r6, full)
-	local ok, result = pcall(function()
-		local kfs = Instance.new("KeyframeSequence")
-		kfs.Loop = true
-		kfs.Priority = Enum.AnimationPriority.Action2
-		for _, t in { 0, 1 } do
-			local kf = Instance.new("Keyframe")
-			kf.Time = t
-			local parent: Instance = kf
-			for _, name in Anim.CHAIN[kind] do
-				local node = Instance.new("Pose")
-				node.Name = name
-				node.Weight = 0 -- path only: leaves these joints to the other tracks
-				node.Parent = parent
-				parent = node
-			end
-			for _, joint in Anim.ARM[s.hand] do
-				local part = Anim.PART[kind][joint]
-				local a = full[joint]
-				local j = rig.joints[joint]
-				if part and a and j then
-					local node = Instance.new("Pose")
-					node.Name = part
-					node.Weight = 1
-					node.CFrame = j.rotInv
-						* CFrame.fromEulerAnglesYXZ(a.X * DEG, a.Y * DEG, a.Z * DEG)
-						* j.rot
-					node.Parent = parent
-					parent = node
-				end
-			end
-			kf.Parent = kfs
-		end
-		local id = game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(kfs)
-		local anim = Instance.new("Animation")
-		anim.AnimationId = id
-		local track = (animator :: Animator):LoadAnimation(anim)
-		track.Priority = Enum.AnimationPriority.Action2
-		track.Looped = true
-		track:Play(0.2, 0.01)
-		return track
-	end)
-	if ok and result then
-		return result
-	end
-	failedTracks[weaponId .. kind] = tostring(result)
-	warn("[AnimController] stance track not built (" .. tostring(result) .. "): using joint writes")
-	return nil
-end
-
--- Keeps the rig's stance track in step with its weapon; true while it poses the arm
-local function stanceTrack(rig: Rig, weaponId: string?, weight: number): boolean
-	local key = if weaponId then weaponId .. (if rig.r6 then "R6" else "R15") else nil
-	if rig.trackKey ~= key then
-		stopTrack(rig)
-		rig.trackKey = key
-		if weaponId and key and not failedTracks[key] and next(rig.joints) ~= nil then
-			rig.track = buildTrack(rig, weaponId)
-		end
-	end
-	local track = rig.track
-	if not track or not track.IsPlaying or track.Length <= 0 then
-		return false
-	end
-	local w = math.clamp(weight, 0.001, 1)
-	if math.abs(w - rig.trackWeight) > 0.02 then
-		rig.trackWeight = w
-		track:AdjustWeight(w, 0.1)
-	end
-	return true
-end
-
 local function animate(rig: Rig, dt: number, now: number)
 	if rig.emptyAt > 0 and now - rig.searchedAt >= Anim.JOINT_RETRY then
 		rig.dirty = true -- nothing found yet (still loading?): look again now and then
@@ -629,9 +562,9 @@ local function animate(rig: Rig, dt: number, now: number)
 	local step = if own(rig) and FeelController.frozen() then 0 else dt
 	table.clear(pose)
 	table.clear(arm)
+	table.clear(armMix)
 	local lift = Vector3.zero
-	local p = rig.player
-	local weapon = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local weapon = weaponOf(rig.player)
 	local weaponId = weapon and weapon.id
 	-- Always-on layers: run lean, idle breathing (not while dead)
 	if rig.deadAt == 0 then
@@ -646,18 +579,19 @@ local function animate(rig: Rig, dt: number, now: number)
 		addVec("lShoulder", Vector3.new(0, 0, -b * 0.5))
 		-- Holding stance of the class weapon (Anim.STANCE), eased toward its target weight
 		local want = Anim.stanceWeight(run, #rig.layers > 0)
-		rig.stance += (want - rig.stance) * math.min(1, dt * Anim.STANCE_BLEND)
-		lift += Anim.stance(weaponId, rig.stance, now, pose)
+		local ease = math.min(1, dt * Anim.STANCE_BLEND)
+		rig.stance += (want - rig.stance) * ease
+		rig.legs += (Anim.stanceLegs(speed) - rig.legs) * ease
+		lift += Anim.stance(weaponId, rig.stance, rig.legs, now, pose)
 	elseif not rig.broken and now - rig.deadAt >= Anim.DEATH_BREAK then
 		breakApart(rig)
 	end
 	-- The weapon arm itself is an absolute pose (replaces the Animator's arm, fades out on death)
 	local gripWant = if rig.deadAt == 0 then 1 else 0
 	rig.grip += (gripWant - rig.grip) * math.min(1, dt * Anim.STANCE_BLEND)
-	local tracked = stanceTrack(rig, weaponId, rig.stance * rig.grip)
-	local mix = if rig.grip > 0.001 and not tracked
-		then Anim.hold(weaponId, rig.stance, rig.r6, arm) * rig.grip
-		else 0
+	if rig.grip > 0.001 then
+		Anim.hold(weaponId, rig.stance, rig.r6, arm, armMix)
+	end
 	local yaw = 0
 	for i = #rig.layers, 1, -1 do
 		local layer = rig.layers[i]
@@ -693,10 +627,11 @@ local function animate(rig: Rig, dt: number, now: number)
 		j.base = base
 		local off = pose[name]
 		local up = if name == "root" then lift else Vector3.zero
-		local held = if mix > 0 then arm[name] else nil
+		local held = arm[name]
+		local mix = (armMix[name] or 0) * rig.grip
 		if off or up ~= Vector3.zero or held then
 			local from = base
-			if held then
+			if held and mix > 0 then
 				-- absolute: the Transform that turns the limb by `held` from its rest (hanging) pose
 				local abs = j.rotInv
 					* CFrame.fromEulerAnglesYXZ(held.X * DEG, held.Y * DEG, held.Z * DEG)
@@ -714,6 +649,55 @@ local function animate(rig: Rig, dt: number, now: number)
 			j.written = nil
 		end
 	end
+end
+
+local previewPose: Anim.Pose = {}
+local previewArm: Anim.Pose = {}
+local previewMix: { [string]: number } = {}
+
+-- Inventory figure (a clone that plays no tracks): the full holding stance of `weaponId` straight
+-- onto its Motor6D joints, breathing at time `now`. False when the model has none of the joints.
+function AnimController.posePreview(model: Model, weaponId: string, now: number): boolean
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local r6 = humanoid ~= nil and humanoid.RigType == Enum.HumanoidRigType.R6
+	table.clear(previewPose)
+	table.clear(previewArm)
+	table.clear(previewMix)
+	local lift = Anim.stance(weaponId, 1, 1, now, previewPose)
+	Anim.hold(weaponId, 1, r6, previewArm, previewMix)
+	if r6 then
+		for from, into in Anim.R6_FOLD do
+			local x = previewPose[from]
+			if x then
+				previewPose[into] = (previewPose[into] or Vector3.zero) + x
+				previewPose[from] = nil
+			end
+		end
+	end
+	local map: { [string]: { string } } = if r6 then Anim.R6 else Anim.R15
+	local any = false
+	for name, at in map do
+		local part = model:FindFirstChild(at[1])
+		local motor = part and part:FindFirstChild(at[2])
+		if not motor or not motor:IsA("Motor6D") then
+			continue
+		end
+		any = true
+		local rot = motor.C0.Rotation
+		local rotInv = rot:Inverse()
+		local held = previewArm[name]
+		local from = if held
+			then rotInv * CFrame.fromEulerAnglesYXZ(held.X * DEG, held.Y * DEG, held.Z * DEG) * rot
+			else CFrame.identity
+		local a = previewPose[name] or Vector3.zero
+		local up = if name == "root" then lift else Vector3.zero
+		motor.Transform = rotInv
+			* CFrame.new(up)
+			* CFrame.fromEulerAnglesYXZ(a.X * DEG, a.Y * DEG, a.Z * DEG)
+			* rot
+			* from
+	end
+	return any
 end
 
 local candidates: { { rig: Rig, d: number } } = {}

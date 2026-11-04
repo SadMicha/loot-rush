@@ -1,5 +1,5 @@
 --!strict
--- Quest waypoint (docs/ROADMAP-1.0.md O1): in the hub a gold beam runs from the player's feet to
+-- Quest waypoint (docs/ROADMAP.md O1): in the hub a gold beam runs from the player's feet to
 -- the station of the active quest (Shared/Quests.Waypoints: Rift Gate, Forge, Stash, Pet Stable),
 -- and the minimap shows a marker there (HudController reads WaypointController.target()).
 -- Both hide in a Rift, near the station (Config.WAYPOINT_HIDE) and for quests without a station.

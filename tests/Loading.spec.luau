@@ -1,4 +1,4 @@
--- Loading screen (ReplicatedFirst/LootRushLoading, docs/ROADMAP-1.0.md O2)
+-- Loading screen (ReplicatedFirst/LootRushLoading, docs/ROADMAP.md O2)
 describe("Loading screen", function()
 	it("covers the join and fades out once the client preloaded", function()
 		sim:boot({ seconds = 0.2 })

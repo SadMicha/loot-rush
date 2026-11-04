@@ -1,5 +1,5 @@
 --!strict
--- Skill definitions of the four classes (docs/CLASSES.md): Knight Brix (warrior), Ranger Fynn
+-- Skill definitions of the four classes (docs/GAMEPLAY.md "Classes"): Knight Brix (warrior), Ranger Fynn
 -- (ranger), Spark Mage Zap (mage), Mushroom Shaman Mora (mushroom). Each class has one automatic
 -- basic attack and 8 skills, 4 of them on the bar.
 -- The client uses them for display and cooldown preview, the server for the real effect.
@@ -692,7 +692,7 @@ Skills.SLOTS = 4 -- skills on the bar
 -- New heroes learn their starting skills gradually (audit #15): the player level each of the
 -- class's 4 starting skills (kit.bar order) unlocks at - two at once, then one per level. Heroes
 -- from before this rule (progress.gradual = false) keep all four from the start
--- (docs/CLASSES.md, Progression.unlockLevel).
+-- (docs/GAMEPLAY.md "Skills", Progression.unlockLevel).
 Skills.StartUnlock = table.freeze({ 1, 1, 2, 3 })
 
 local function bloom(b: Bloom): Bloom

@@ -27,7 +27,7 @@ If a tool isn't installed, say so (note `rokit install`) and continue with manua
 3. **Correctness**: nil/`Instance?` handling, race conditions with player join/leave/respawn and StreamingEnabled, yields in the wrong place, off-by-one, state that can desync between server and client, unhandled errors (`pcall`) at boundaries.
 4. **Memory / performance**: undisconnected connections, undestroyed instances, per-frame allocations, unbounded tables/effect counts, expensive loops on the server, remote spam / bandwidth, mobile impact.
 5. **Structure / conventions**: `--!strict` in every file, annotations, no globals, `task.*` not `wait`/`spawn`, constants in Config/Theme not inline, module `init()`/`start()` lifecycle, correct layer (server/shared/client), the lane rules below, deprecated APIs.
-6. **Tests / docs**: behavior needing playtest has a `docs/TEST-M*.md` checklist; ROADMAP status still accurate.
+6. **Tests / docs**: behavior needing playtest has rows in `docs/TEST-RELEASE.md`; ROADMAP status and `docs/GAMEPLAY.md`/`TECH.md` still accurate.
 7. **Lane rules**: `backend-developer` must not touch UI; `frontend-developer` must not edit server/Config/Types or UI styling; `ui-designer` must use only Theme/Kit/Assets. Flag crossings.
 
 Use the skills `roblox-skills:roblox-code-review`, `roblox-security`, `roblox-performance` for the severity checklist and the current deprecation map. Verify an API claim against docs before calling something deprecated or wrong.

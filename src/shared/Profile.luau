@@ -2,7 +2,7 @@
 -- Save schema: defaults, migration of old saves, sanitizing. Pure logic without DataStore
 -- (testable); loading, saving and sessions are Systems/Data on ProfileStore.
 --
--- Since v4 the save is an ACCOUNT holding CHARACTERS (docs/specs/SEASONS.md §6, docs/CLASSES.md):
+-- Since v4 the save is an ACCOUNT holding CHARACTERS (docs/specs/SEASONS.md §6, docs/GAMEPLAY.md "Classes"):
 --   Account   = account-wide values (Soulstars, Robux receipts, game passes, pets, cosmetics) +
 --               characters
 --   Character = everything a hero owns (gold, level, gear, skills, atlas, class …); the class is
@@ -18,13 +18,17 @@
 local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
+local GreatBuild = require(script.Parent.GreatBuild)
 local Items = require(script.Parent.Items)
+local Journey = require(script.Parent.Journey)
 local Leaderboard = require(script.Parent.Leaderboard)
 local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Seasons = require(script.Parent.Seasons)
 local Settings = require(script.Parent.Settings)
+local Stash = require(script.Parent.Stash)
 local WorldTiers = require(script.Parent.WorldTiers)
 
 local Profile = {}
@@ -52,6 +56,7 @@ export type Data = {
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
 	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
 	starters: number, -- guaranteed first drops already given (Balance.FirstDrops, Systems/Loot)
+	journey: Journey.Data, -- Journey milestones claimed (Shared/Journey)
 }
 
 -- The whole save of one Roblox account
@@ -67,6 +72,9 @@ export type Account = {
 	daily: Daily.Data, -- daily reward calendar (Shared/Daily)
 	boards: { [string]: number }, -- best value per leaderboard (Shared/Leaderboard ids)
 	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
+	season: Seasons.Data, -- Season Journey challenges and track claims (Shared/Seasons)
+	stash: Stash.Data, -- hub stash tabs shared by all characters (Shared/Stash)
+	greatBuild: GreatBuild.Data, -- Great Build donations of the account (Shared/GreatBuild)
 	characters: { Data },
 	active: string, -- id of the character played this session
 }
@@ -108,6 +116,7 @@ local DEFAULTS: Data = {
 	autoSalvage = "",
 	debugged = false,
 	starters = 0,
+	journey = {},
 }
 
 local ACCOUNT_DEFAULTS = {
@@ -122,6 +131,9 @@ local ACCOUNT_DEFAULTS = {
 	daily = Daily.fresh(), -- contents checked by Daily.reconcile
 	boards = {},
 	unsent = {},
+	season = Seasons.fresh(), -- contents checked by Seasons.reconcile
+	stash = Stash.fresh(), -- contents checked by Stash.reconcile
+	greatBuild = GreatBuild.fresh(), -- contents checked by GreatBuild.reconcile
 	characters = {},
 	active = "",
 }
@@ -263,6 +275,7 @@ function Profile.reconcile(raw: any): Data
 	data.rebirths = nil -- Rebirth was removed (pure ARPG, 2026-11-02)
 	data.tier = WorldTiers.reconcile(data.tier)
 	data.quests = Quests.reconcile(data.quests)
+	data.journey = Journey.reconcile(data.journey)
 	data.class = Classes.valid(data.class)
 	if
 		data.autoSalvage ~= ""
@@ -368,6 +381,8 @@ function Profile.reconcileAccount(raw: any): Account
 	end
 	data.boards = boardValues(data.boards)
 	data.unsent = boardValues(data.unsent)
+	data.season = Seasons.reconcile(data.season)
+	data.greatBuild = GreatBuild.reconcile(data.greatBuild)
 	-- Characters: drop junk, give every one a unique id (nothing is deleted for being over the cap)
 	local list: { Data } = {}
 	local seen: { [string]: boolean } = {}
@@ -387,6 +402,8 @@ function Profile.reconcileAccount(raw: any): Account
 		table.insert(list, char)
 	end
 	data.characters = list
+	-- Stash after the characters: an item a hero owns is never also kept in the stash
+	data.stash = Stash.reconcile(data.stash, Stash.owned(list))
 	if not seen[data.active] then
 		data.active = list[1].id
 	end

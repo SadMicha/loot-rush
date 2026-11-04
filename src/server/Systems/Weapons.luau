@@ -1,5 +1,5 @@
 --!strict
--- Held weapon on the avatar (rules and ids: Shared/Weapons, Assets.Weapon; docs/WEAPONS.md).
+-- Held weapon on the avatar (rules and ids: Shared/Weapons, Assets.Weapon; docs/TECH.md "Weapons").
 -- Sets the player attribute "Class" from the save and welds the class weapon into its hand
 -- (Shared/Weapons: hand, grip, arm pose) after every spawn. With uploaded ids the FBX mesh is loaded once per weapon
 -- (InsertService) and cloned; without ids, or if loading fails, a part-built weapon is used.
@@ -157,7 +157,13 @@ local ALL_HANDS =
 	{ "RightHand", "Right Arm", "LeftHand", "Left Arm", "UpperTorso", "HumanoidRootPart" }
 local APPEARANCE_WAIT = 5 -- seconds to wait for the avatar's body parts before equipping anyway
 
+-- The class weapon, or the one a "Next Stance" preview put into the hand (Systems/Debug sets the
+-- player attribute "StanceWeapon"; AnimController reads it too)
 local function classWeapon(player: Player): Weapons.Weapon?
+	local preview = player:GetAttribute("StanceWeapon")
+	if typeof(preview) == "string" and Weapons.ById[preview] then
+		return Weapons.ById[preview]
+	end
 	return Weapons.ByClass[Classes.valid(player:GetAttribute("Class"))]
 end
 

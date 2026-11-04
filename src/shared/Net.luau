@@ -39,6 +39,18 @@
 --                    paid? } - calendar state; paid = calendar index just claimed
 --   Board     (C→S): boardId: string - ask for one leaderboard page (Shared/Leaderboard ids)
 --   BoardData (S→C): Leaderboard.Page - top entries + the asking player's own best
+--   Journey   (C→S): "claim", milestoneId: string | "sync" - claim a finished milestone (Systems/Journey)
+--   JourneyState (S→C): { facts = Journey.Facts, claimed = { milestoneId }, paid? } - hero milestones
+--   Season    (C→S): "claim", step: number | "sync" - claim a reward of the season track (Systems/Seasons)
+--   SeasonState (S→C): { id, phase, secondsLeft, counts = { [challengeId] = n }, claimed = { step },
+--                    paid?, finished? = { challengeId } } - Season Journey state
+--   Stash     (C→S): "open" | "put", itemId: string, tab: number | "take", itemId: string |
+--                    "all", tab: number - hub stash (Systems/Stash, only near the stash station)
+--   StashData (S→C): { tabs = { { Item } }, slots, text? } - stash contents; text = why a move failed
+--   GreatBuild (C→S): "donate", amount: number | "sync" - Great Build donation (Systems/GreatBuild,
+--                    only at the donation chute in the hub)
+--   GreatBuildState (S→C): { total, stages, buffLeft, mine = { total, today, left, paid }, shards,
+--                    top = { { name, amount, me } }, shared, donated?, text?, paid? = { amount } }
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -80,6 +92,14 @@ local NAMES = {
 	"DailyState",
 	"Board",
 	"BoardData",
+	"Journey",
+	"JourneyState",
+	"Season",
+	"SeasonState",
+	"Stash",
+	"StashData",
+	"GreatBuild",
+	"GreatBuildState",
 	"Debug",
 }
 
@@ -139,5 +159,13 @@ return table.freeze({
 	DailyState = get("DailyState"),
 	Board = get("Board"),
 	BoardData = get("BoardData"),
+	Journey = get("Journey"),
+	JourneyState = get("JourneyState"),
+	Season = get("Season"),
+	SeasonState = get("SeasonState"),
+	Stash = get("Stash"),
+	StashData = get("StashData"),
+	GreatBuild = get("GreatBuild"),
+	GreatBuildState = get("GreatBuildState"),
 	Debug = get("Debug"),
 })

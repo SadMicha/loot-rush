@@ -98,4 +98,9 @@ return table.freeze({
 	-- Loot: level, gold, drop chance and rarity per depth from Shared/Balance
 	LOOT_BOSS_ILVL = 1, -- boss items are this many levels (10 IP each) higher (own assumption)
 	LOOT_BOSS_GOLD_DROPS = 5, -- boss gold split across this many coins
+
+	-- Stash in the hub (Shared/Stash, Systems/Stash): account-wide storage shared by all heroes
+	STASH_TABS = 4, -- tabs of the stash
+	STASH_TAB_SLOTS = 42, -- items per tab (7 × 6 grid, the most that stays tappable on phones)
+	STASH_RANGE = 24, -- studs from the stash station a move is allowed (the prompt reaches 12)
 })

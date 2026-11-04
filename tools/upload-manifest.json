@@ -23,8 +23,8 @@
    "key": "menu_hub",
    "file": "assets/ui/icons/city.png",
    "size": [
-    441,
-    417
+    367,
+    400
    ],
    "registry": "Assets.Hud"
   },
@@ -1172,6 +1172,78 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "downgrade",
+   "file": "assets/ui/icons/store/downgrade.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "menu_inventory",
+   "file": "assets/ui/icons/backpack.png",
+   "size": [
+    383,
+    400
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_star_net",
+   "file": "assets/ui/icons/starsheet.png",
+   "size": [
+    389,
+    400
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_atlas",
+   "file": "assets/ui/icons/map.png",
+   "size": [
+    400,
+    395
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_forge",
+   "file": "assets/ui/icons/glitter-forge.png",
+   "size": [
+    392,
+    400
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_skills",
+   "file": "assets/ui/icons/skills.png",
+   "size": [
+    394,
+    400
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "menu_shop",
+   "file": "assets/ui/icons/shop.png",
+   "size": [
+    360,
+    400
+   ],
+   "registry": "Assets.Hud"
+  },
+  {
+   "key": "hud_settings",
+   "file": "assets/ui/icons/settings.png",
+   "size": [
+    399,
+    400
+   ],
+   "registry": "Assets.Hud"
   }
  ]
 }

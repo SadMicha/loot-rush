@@ -139,7 +139,7 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 		bossItems = Balance.P.drops_boss,
 		eliteItems = Balance.P.drops_elite,
 		shift = Balance.rarityShift(d) + t.shift,
-		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (WORLD-TIERS.md)
+		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (docs/GAMEPLAY.md "World Tiers")
 	}
 end
 
@@ -286,14 +286,15 @@ local function pickup(d: Drop, at: Vector3?): boolean
 			return false
 		end
 		text = if full
-			then "Bag full · Salvaged " .. item.name
+			then "Bag full - Salvaged " .. item.name
 			elseif salvaged then "Salvaged " .. item.name
 			else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
-		-- Beats the worn piece of its slot (or the slot is empty): the client adds "▲ UPGRADE"
+		-- Beats the worn piece of its slot (or the slot is empty): the client adds the "UPGRADE" tag
 		local profile = Data.get(d.owner)
 		upgrade = not salvaged
 			and profile ~= nil
+			and Items.canWear(item, profile.level)
 			and Items.isUpgrade(item, profile.equipped[item.slot])
 	else
 		Inventory.addGold(d.owner, d.gold)

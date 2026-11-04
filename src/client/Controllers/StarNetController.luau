@@ -25,6 +25,9 @@ local PAD = 28
 local SIDE_W = 420
 local WEB_ORDER = { "wisdom", "finesse", "might", "nature" } -- sector rows in the side panel
 local WEB_ROW = 30
+-- Empty border around the web inside the pan area: names of the outer stars stand wider than their
+-- node and would be cut at the canvas edge ("Overgrowth", "Berserker", "Double Strike")
+local WEB_MARGIN = 120
 local SIZE: { [string]: number } = { core = 100, small = 46, big = 72, start = 64 }
 local BRANCH_COLOR: { [string]: Color3 } = {
 	might = Theme.Rarity.unique,
@@ -180,14 +183,17 @@ local function renderSide()
 		elseif s.kind == "big" then "Major Star"
 		else "Star"
 	local branchText = if s.branch
-		then " · " .. StarNet.BranchName[s.branch]
-		elseif s.kind ~= "core" then " · Bridge"
+		then " - " .. StarNet.BranchName[s.branch]
+		elseif s.kind ~= "core" then " - Bridge"
 		else ""
+	-- Full panel width: on phones the text grows to its minimum size and a shared row with the
+	-- state cut it to "Start Point -..."; the state moved to the cost line below
 	local kind =
 		Kit.label(kindText .. branchText, 16, if s.kind == "core" then C.Gold else colorOf(s))
-	kind.AutomaticSize = Enum.AutomaticSize.Y
-	kind.Size = UDim2.fromOffset(w - 130, 0) -- ends before the state on the right
+	kind.AutomaticSize = Enum.AutomaticSize.None
+	kind.Size = UDim2.fromOffset(w, 24)
 	kind.TextXAlignment = Enum.TextXAlignment.Left
+	kind.TextScaled = false
 	kind.TextTruncate = Enum.TextTruncate.AtEnd
 	kind.Position = UDim2.fromOffset(PAD, PAD + 100)
 	kind.Parent = side
@@ -195,10 +201,6 @@ local function renderSide()
 		then "Allocated"
 		elseif canAllocate(s) then "Available"
 		else "Locked"
-	local st = Kit.label(state, 14, if allocated[s.id] then C.Gold else C.Muted)
-	st.AnchorPoint = Vector2.new(1, 0)
-	st.Position = UDim2.new(1, -PAD, 0, PAD + 102)
-	st.Parent = side
 
 	local big = Kit.itemSlot(104, s.icon, {
 		rarity = if s.branch then StarNet.BranchRarity[s.branch] else "rare",
@@ -238,21 +240,36 @@ local function renderSide()
 		y += 70
 	end
 
-	-- Cost
+	-- Cost and state in one wrapping line under the star card ("Free for your class · Allocated").
+	-- Two labels side by side ran into each other once phones grow the text to its minimum size.
 	local cost = StarNet.Cost[s.kind]
-	if s.id == StarNet.startOf(classId()) then
-		local c = Kit.label("Free for your class", 16, C.GoldHi)
-		c.Position = UDim2.fromOffset(PAD, y)
-		c.Parent = side
-	elseif cost > 0 then
-		local c = Kit.label(
-			string.format("Cost: %d Point%s", cost, if cost == 1 then "" else "s"),
-			16,
-			C.Text
+	local costText = if s.id == StarNet.startOf(classId())
+		then "Free for your class"
+		elseif cost > 0 then string.format(
+			"Cost: %d Point%s",
+			cost,
+			if cost == 1 then "" else "s"
 		)
-		c.Position = UDim2.fromOffset(PAD, y)
-		c.Parent = side
-	end
+		else nil
+	local stateColor = if allocated[s.id] then C.Gold else C.Muted
+	local line = Kit.label(
+		"",
+		16,
+		if costText and s.id == StarNet.startOf(classId()) then C.GoldHi else C.Text
+	)
+	line.RichText = true
+	line.Text = string.format(
+		'%s<font color="#%s">%s</font>',
+		if costText then costText .. "  ·  " else "",
+		stateColor:ToHex(),
+		string.upper(state)
+	)
+	line.AutomaticSize = Enum.AutomaticSize.Y
+	line.Size = UDim2.fromOffset(w, 0)
+	line.TextWrapped = true
+	line.TextXAlignment = Enum.TextXAlignment.Left
+	line.Position = UDim2.fromOffset(PAD, y)
+	line.Parent = side
 
 	-- Your web: allocated stars per sector (fills the panel with the build at a glance)
 	local webY = PAD + 400
@@ -295,16 +312,20 @@ local function renderSide()
 	end
 
 	-- Actions
+	-- One row: the main action and Reset side by side. Stacked, the touch growth on phones pushed
+	-- Reset up into the main button.
 	local remove = allocated[s.id] == true
+	local resetW = math.floor(w * 0.36)
+	local mainW = w - resetW - Theme.Space.S
 	local main = Kit.button(
 		if remove then "Remove" else "Allocate",
 		C.Gold,
-		Vector2.new(w, 60),
+		Vector2.new(mainW, 60),
 		if remove then "reroll" else "upgrade"
 	)
-	Kit.buttonLabel(main).TextSize = Kit.fontSize(22)
+	Kit.buttonLabel(main).TextSize = Kit.fontSize(20)
 	main.AnchorPoint = Vector2.new(0, 1)
-	main.Position = UDim2.new(0, PAD, 1, -PAD - 62)
+	main.Position = UDim2.new(0, PAD, 1, -PAD)
 	Kit.setEnabled(main, if remove then canRemove(s) else canAllocate(s))
 	main.Activated:Connect(function()
 		if not main.Active then
@@ -314,9 +335,9 @@ local function renderSide()
 	end)
 	main.Parent = side
 
-	local reset = Kit.button("Reset", C.Danger, Vector2.new(w, 50), "reroll")
-	reset.AnchorPoint = Vector2.new(0, 1)
-	reset.Position = UDim2.new(0, PAD, 1, -PAD)
+	local reset = Kit.button("Reset", C.Danger, Vector2.new(resetW, 60), nil)
+	reset.AnchorPoint = Vector2.new(1, 1)
+	reset.Position = UDim2.new(1, -PAD, 1, -PAD)
 	Kit.setEnabled(reset, Progression.starSpent(ProgressController.data()) > 0)
 	reset.Activated:Connect(function()
 		if reset.Active then
@@ -354,7 +375,8 @@ function StarNetController.init()
 	view.BackgroundTransparency = 1
 	view.BorderSizePixel = 0
 	view.Size = UDim2.fromOffset(area.X, area.Y)
-	view.CanvasSize = UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y)
+	local canvas = StarNet.Size + Vector2.new(2 * WEB_MARGIN, 2 * WEB_MARGIN)
+	view.CanvasSize = UDim2.fromOffset(canvas.X, canvas.Y)
 	view.ScrollingDirection = Enum.ScrollingDirection.XY
 	-- Pan by dragging only: no scroll bars over the web on any device (thickness 0 alone still left
 	-- a bar on some touch devices, so the bar images are cleared and made transparent as well)
@@ -367,7 +389,10 @@ function StarNetController.init()
 	view.HorizontalScrollBarInset = Enum.ScrollBarInset.None
 	view.ElasticBehavior = Enum.ElasticBehavior.Never
 	view.Parent = win.body
-	net = Window.frame(UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y))
+	net = Window.frame(
+		UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y),
+		UDim2.fromOffset(WEB_MARGIN, WEB_MARGIN)
+	)
 	net.Parent = view
 	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively)
 	local dragging = false
@@ -399,10 +424,10 @@ function StarNetController.init()
 		local focus = StarNet.ById[StarNet.startOf(classId()) or "heart"]
 		selected = focus.id
 		StarNetController.render()
-		local p = (focus.pos + StarNet.Center) / 2 - area / 2
+		local p = (focus.pos + StarNet.Center) / 2 + Vector2.new(WEB_MARGIN, WEB_MARGIN) - area / 2
 		view.CanvasPosition = Vector2.new(
-			math.clamp(p.X, 0, StarNet.Size.X - area.X),
-			math.clamp(p.Y, 0, StarNet.Size.Y - area.Y)
+			math.clamp(p.X, 0, math.max(0, canvas.X - area.X)),
+			math.clamp(p.Y, 0, math.max(0, canvas.Y - area.Y))
 		)
 	end)
 	local function refresh()

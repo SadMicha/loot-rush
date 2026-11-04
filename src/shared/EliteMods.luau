@@ -1,5 +1,5 @@
 --!strict
--- Elite modifiers (docs/LOOT.md, docs/DECISIONS.md §5): every elite rolls one or more affixes
+-- Elite modifiers (docs/GAMEPLAY.md "Loot", docs/DECISIONS.md §5): every elite rolls one or more affixes
 -- that change how it fights. World Tiers add one modifier per tier above Normal.
 -- Server rules live in Systems/Enemies (movement, aura, death blast) and Systems/Combat (shield).
 

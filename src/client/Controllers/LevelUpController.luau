@@ -81,7 +81,7 @@ function LevelUpController.statsLine(from: number, to: number): string
 			string.format("+%d Star Web point%s", stars, if stars == 1 then "" else "s")
 		)
 	end
-	return table.concat(parts, "  ·  ")
+	return table.concat(parts, " - ")
 end
 
 local function show(level: number)

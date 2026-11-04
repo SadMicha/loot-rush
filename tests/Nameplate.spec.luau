@@ -23,6 +23,31 @@ describe("Nameplate rules", function()
 		expect(Nameplate.LABEL_NEAR <= 12).toBe(true)
 	end)
 
+	it("declutters station labels on the screen", function()
+		local a = { 0, 0, 100, 20 }
+		local b = { 50, 10, 150, 30 } -- overlaps a
+		local c = { 300, 0, 400, 20 } -- free
+		local d = { 600, 0, 700, 20 } -- under a HUD block
+		local shown = Nameplate.declutter({ a, b, c, d, false }, { 1, 5, 0, 9, 99 }, {
+			{ 650, 0, 800, 100 },
+		}, 4)
+		expect(shown[2]).toBe(true) -- higher priority wins the overlap
+		expect(shown[1]).toBe(false)
+		expect(shown[3]).toBe(true)
+		expect(shown[4]).toBe(false)
+		expect(shown[5]).toBe(false) -- behind the camera
+		-- the gap counts: rectangles 3 px apart collide with a 4 px gap
+		local near = Nameplate.declutter({ { 0, 0, 10, 10 }, { 13, 0, 20, 10 } }, { 2, 1 }, {}, 4)
+		expect(near[1]).toBe(true)
+		expect(near[2]).toBe(false)
+	end)
+
+	it("shows the locked line only up close", function()
+		expect(Nameplate.subAlpha(10)).toBe(1)
+		expect(Nameplate.subAlpha(Nameplate.SUB_FAR)).toBe(0)
+		expect(Nameplate.lockText("Clear depth 5")).toBe("Locked · Clear depth 5")
+	end)
+
 	it("fills bars safely", function()
 		expect(Nameplate.fill(50, 100)).toBe(0.5)
 		expect(Nameplate.fill(150, 100)).toBe(1)
@@ -54,8 +79,8 @@ describe("Nameplate rules", function()
 
 	it("reads the station window", function()
 		local p = Instance.new("Part")
-		p.Name = "Station_Inventory"
-		expect(Nameplate.windowOf(p)).toBe("Inventory")
+		p.Name = "Station_Stash"
+		expect(Nameplate.windowOf(p)).toBe("Stash")
 		p:SetAttribute(Nameplate.WINDOW_ATTR, "Atlas")
 		expect(Nameplate.windowOf(p)).toBe("Atlas")
 		p:Destroy()
@@ -98,12 +123,20 @@ describe("Nameplates in game", function()
 
 		-- the first quest points at the Rift Gate: its label is the gold one
 		local gate = workspace.Lumenhaven:FindFirstChild("Station_Atlas", true)
-		local stash = workspace.Lumenhaven:FindFirstChild("Station_Inventory", true)
+		local stash = workspace.Lumenhaven:FindFirstChild("Station_Stash", true)
 		expect(gate.StationLabel.Title.TextSize > stash.StationLabel.Title.TextSize).toBe(true)
 
 		-- the Forge is locked for a new hero
 		local forge = workspace.Lumenhaven:FindFirstChild("Station_Forge", true)
 		expect(forge.StationLabel.Sub.Visible).toBe(true)
+		expect(string.find(forge.StationLabel.Sub.Text, "^Locked · ")).toBeTruthy()
+
+		-- the stations' prompts are drawn by the game (Gilded Ink card), not Roblox's grey box
+		local prompt = gate:FindFirstChildOfClass("ProximityPrompt")
+		expect(prompt.Style).toBe(Enum.ProximityPromptStyle.Custom)
+		local promptGui = sim.player.PlayerGui:FindFirstChild("LootRushPrompt")
+		expect(promptGui).toBeTruthy()
+		expect(promptGui:FindFirstChild("Card", true)).toBeTruthy()
 
 		-- own plate: bar only, shown once hurt
 		local plate = character:FindFirstChild("Nameplate", true)

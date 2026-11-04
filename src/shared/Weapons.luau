@@ -2,11 +2,12 @@
 -- Held weapons per class, from the owner's weapon pack (assets/weapons/<Folder>/Standard.fbx +
 -- Color.png, 2026-11-02). Systems/Weapons puts the weapon into the character's hand.
 --
--- How a weapon is held (docs/WEAPONS.md "Holding"): sword, staff and scepter in the right hand
+-- How a weapon is held (docs/TECH.md "Weapons"): sword, staff and scepter in the right hand
 -- with the arm raised forward (Roblox's own "hold a tool" arm pose, HOLD_ANIM), blade/head up;
--- the bow in the left hand with the arm down, limbs vertical, string toward the body.
+-- the bow in the left fist the same way: limbs along the hand's -Z (vertical once the arm is up),
+-- riser toward the fingers (forward), string toward the archer. The arm poses: Shared/Anim STANCE.
 --
--- The 3D models need two Roblox ids each (see docs/WEAPONS.md): the mesh (Model asset from the
+-- The 3D models need two Roblox ids each (see docs/TECH.md "Weapons"): the mesh (Model asset from the
 -- FBX) and the texture (Image asset from Color.png). Both live in Assets.Weapon. While an id is
 -- empty, the weapon is built from studded parts (same silhouette, class colors), never an error.
 
@@ -65,8 +66,8 @@ Weapons.List = table.freeze({
 		offset = Vector2.new(-0.034, 0),
 		hand = "left",
 		ready = false,
-		-- limbs vertical, tipped slightly forward; riser (+X) outward, string toward the body
-		grip = CFrame.Angles(math.rad(-8), 0, 0) * CFrame.Angles(0, math.rad(180), 0),
+		-- limbs (+Y) along the hand's -Z, riser (+X) toward the fingers, string toward the archer
+		grip = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, -1)),
 		color = Color3.fromHex("#8A5A34"),
 		accent = Color3.fromHex("#7FD27A"),
 	}),
@@ -75,8 +76,8 @@ Weapons.List = table.freeze({
 		name = "Spark Staff",
 		class = "mage",
 		folder = "Mage_Staff",
-		length = 5.2,
-		gripAt = 0.29,
+		length = 6.4, -- taller than the mage: planted, its foot touches the ground (Anim.STANCE)
+		gripAt = 0.42,
 		offset = Vector2.new(0.013, 0.013),
 		hand = "right",
 		ready = true,

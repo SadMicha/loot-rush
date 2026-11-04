@@ -1,5 +1,5 @@
 --!strict
--- Boss fights (docs/BOSSES.md): three phases, a Break meter and pressure against kiting.
+-- Boss fights (docs/GAMEPLAY.md "Bosses"): three phases, a Break meter and pressure against kiting.
 --   Phase 1: as built. Phase 2 (life ≤ 66 %): calls adds, moves and attacks faster.
 --   Phase 3 (life ≤ 33 %): enrage, more adds, hits harder, shorter wind-ups (still telegraphed).
 -- Break meter ("Poise"): every direct hit chips it, basic attacks included. Empty = the boss is
@@ -50,7 +50,7 @@ local Bosses = {
 	PURSUIT_TIME = 2.2, -- seconds of keeping away before the boss reacts
 	PURSUIT_LEAP = 44, -- slam bosses jump this far at a kiting player
 
-	-- Teaching by depth (docs/BOSSES.md "Teaching by depth")
+	-- Teaching by depth (docs/GAMEPLAY.md "Bosses" "Teaching by depth")
 	PHASE2_FROM = 3, -- phase 2 (faster tempo) from this depth; before it the boss stays in phase 1
 	OPENINGS_FROM = 3, -- Openings after a boss attack
 	COUNTER_FROM = 3, -- Counter (dodge through an enemy attack, Shared/Momentum) on enemies of this depth

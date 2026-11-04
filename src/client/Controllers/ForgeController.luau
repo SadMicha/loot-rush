@@ -149,7 +149,7 @@ local function renderLeft(list: { Items.Item }, item: Items.Item?)
 	local open = Forge.openCount(item)
 	local sub = Kit.label(
 		string.format(
-			"%s · %s · %d/%d Affixes",
+			"%s - %s - %d/%d Affixes",
 			Items.RarityName[item.rarity] or item.rarity,
 			Items.SlotName[item.slot] or item.slot,
 			open,
@@ -298,7 +298,7 @@ local function renderCenter(item: Items.Item?)
 	head.Parent = plaque
 	local subText = if lastResult
 		then lastResult.text
-		elseif item then string.format("Forge charges: %d · each action costs 0-2", charges)
+		elseif item then string.format("Forge charges: %d - each action costs 0-2", charges)
 		else "Pick an item"
 	local sub = Kit.label(
 		subText,

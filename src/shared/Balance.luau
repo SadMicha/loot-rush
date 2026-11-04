@@ -43,6 +43,9 @@ Balance.P = table.freeze({
 	drops_boss = 3,
 	loot_depth = 50,
 	ip_per_depth = 10,
+	-- Gear can be worn from hero level (item level − this); the sim's hero is at least as high
+	-- as the depth it farms, so own drops always fit, while a stash twink needs the level first
+	equip_level_grace = 3,
 })
 
 -- Rarity weights at depth 1 and exponent of the shift (sheet "Loot").
@@ -155,7 +158,7 @@ function Balance.rarityOdds(shift: number, uniques: boolean?): { [string]: numbe
 	return out
 end
 
--- Daily rewards (docs/ROADMAP-1.0.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
+-- Daily rewards (docs/ROADMAP.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
 -- with Balance.shopFactor(best depth) like shop prices, so it stays worth claiming. Missing a day
 -- never resets the cycle (no loss mechanics). Day 7 is the big one, then the cycle repeats.
 --   gold      base gold before the depth factor
@@ -172,7 +175,7 @@ Balance.Daily = table.freeze({
 	table.freeze({ gold = 1000, candy = 8, shards = 40, dust = 3, stones = 1, soulstars = 15 }),
 })
 
--- Guaranteed first drops (docs/ROADMAP-1.0.md O3): the first `kills` normal kills of a new
+-- Guaranteed first drops (docs/ROADMAP.md O3): the first `kills` normal kills of a new
 -- character each drop an item, so the first loot moment never depends on Balance.P.drop_normal.
 -- The very first one is at least Magic and a weapon. (The first boss already drops a Rare:
 -- the first of Balance.P.drops_boss items is always at least Rare.)
@@ -180,6 +183,22 @@ Balance.FirstDrops = table.freeze({
 	kills = 3,
 	firstMin = "magic",
 	firstSlot = "weapon",
+})
+
+-- The Great Build (docs/specs/SEASONS.md §7, Shared/GreatBuild): one monument the whole player
+-- base raises together by donating Crystal Shards. Stage n needs first × growth^(n-1) shards on
+-- top of the stages before it (Beta numbers: few players, retune after week 1).
+--   dailyCap     shards one account may donate per UTC day (nobody finishes a stage alone)
+--   buffSeconds  every finished stage: global buff for everyone for this long
+--   buffGold / buffItems   that buff in percent (gold found, item drop chance)
+Balance.GreatBuild = table.freeze({
+	stages = 10,
+	first = 1000,
+	growth = 1.5,
+	dailyCap = 1000,
+	buffSeconds = 2 * 3600,
+	buffGold = 20,
+	buffItems = 10,
 })
 
 return table.freeze(Balance)

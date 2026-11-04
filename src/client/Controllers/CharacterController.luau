@@ -1,5 +1,5 @@
 --!strict
--- Heroes screen (docs/CLASSES.md): the account's characters and creating new ones.
+-- Heroes screen (docs/GAMEPLAY.md "Classes"): the account's characters and creating new ones.
 --  • Setup: opens by itself while the active character is not set up (attribute SetupDone =
 --    false, first join): name + class; it reopens until the hero is created.
 --  • From the Skills window ("Heroes"): list of characters with "Play" (switch = rejoin) and
@@ -112,7 +112,7 @@ local function renderHeroes()
 		name.Position = UDim2.new(0, 16, 0.5, -2)
 		name.Parent = card
 		local info = Kit.label(
-			string.format("%s · Lv %d", if class then class.hero else entry.class, entry.level),
+			string.format("%s - Lv %d", if class then class.hero else entry.class, entry.level),
 			16,
 			accent,
 			Theme.Font.Body
@@ -207,7 +207,12 @@ local function renderCards()
 		for k, id in kit.bar do
 			local sk = Skills.ById[id]
 			if sk then
-				table.insert(rows, { skill = sk, tag = KEYS[k] or "" })
+				-- new heroes unlock starting skills 3 and 4 at level 2 and 3 (Skills.StartUnlock)
+				local at = Skills.StartUnlock[k] or 1
+				table.insert(
+					rows,
+					{ skill = sk, tag = if at > 1 then "Lv " .. at else KEYS[k] or "" }
+				)
 			end
 		end
 		for k, r in rows do

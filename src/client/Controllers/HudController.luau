@@ -45,10 +45,12 @@ local AtlasController = require(script.Parent.AtlasController)
 local MarketController = require(script.Parent.MarketController)
 local StoreController = require(script.Parent.StoreController)
 local PetWindowController = require(script.Parent.PetWindowController)
+local SeasonController = require(script.Parent.SeasonController)
 local QuestController = require(script.Parent.QuestController)
 local ProgressController = require(script.Parent.ProgressController)
 local SettingsController = require(script.Parent.SettingsController)
 local DailyController = require(script.Parent.DailyController)
+local JourneyController = require(script.Parent.JourneyController)
 local LeaderboardController = require(script.Parent.LeaderboardController)
 local Prefs = require(script.Parent.Parent.Prefs)
 
@@ -421,7 +423,7 @@ local function refreshPlace()
 	local info = if typeof(region) == "string" then Atlas.ById[region] else nil
 	if info and RiftController.active() then
 		local depth = player:GetAttribute("RiftDepth")
-		mapPlace.Text = info.name .. (if typeof(depth) == "number" then " · D" .. depth else "")
+		mapPlace.Text = info.name .. (if typeof(depth) == "number" then " - D" .. depth else "")
 	else
 		mapPlace.Text = "Lumenhaven"
 	end
@@ -678,7 +680,7 @@ local function buffCell(def: StatusRules.Def): BuffCell
 
 	-- Tap / click: what it does
 	onTap(box, function()
-		QuestController.toast(def.name .. " · " .. def.text, color)
+		QuestController.toast(def.name .. " - " .. def.text, color)
 	end)
 	cell.Parent = buffRow
 	scale.Scale = 0.4
@@ -748,6 +750,11 @@ local function buildStatus()
 end
 
 local function seconds(left: number): string
+	if left >= 3600 then
+		return string.format("%dh", math.ceil(left / 3600)) -- long global buffs (Great Build)
+	elseif left >= 600 then
+		return string.format("%dm", math.ceil(left / 60))
+	end
 	return if left >= 10
 		then string.format("%ds", math.ceil(left))
 		else string.format("%.1fs", left)
@@ -819,6 +826,10 @@ local hubBarH = 0
 local hubBarScale: UIScale -- shrinks the hub icon bar so it stays clear of the dash button
 local gearGroup: CanvasGroup
 local gearW = 0
+local GEAR_CELLS = 5 -- trophy, Journey, season, chest, gear
+local GEAR_MIN_SCALE = 0.7 -- smallest share the row may shrink to next to the status block
+local gearScale: UIScale
+local gearTopMarked = false -- the row stands at the top (phones): toasts drop in below it
 local questTitle: TextLabel
 local questCount: TextLabel
 local questReward: TextLabel
@@ -872,7 +883,7 @@ local function buildBar(): (CanvasGroup, number)
 			b.Activated:Connect(function()
 				local hint = QuestController.lockHint(id)
 				if hint then
-					QuestController.toast("Locked · " .. hint, C.Muted)
+					QuestController.toast("Locked - " .. hint, C.Muted)
 					return
 				end
 				open()
@@ -1045,11 +1056,13 @@ local function buildCalmPanels()
 	-- Settings gear above the dash button at rest (the skill arc is away then; beside the dash it
 	-- would run into the icon bar on tablets with the bigger touch dash). Opens the settings window
 	-- (SettingsController; the Roblox menu is one button in there).
-	-- Left of it: the leaderboard (trophy) and the daily rewards (chest, gold dot while a reward
-	-- waits), both at rest only.
+	-- Left of it: the leaderboard (trophy), the Journey, the season badge and the daily rewards
+	-- (chest); a gold dot while something waits to be claimed. All at rest only.
 	local cellW = H.GearSize + 12
-	gearGroup = group(Vector2.new(3 * cellW, H.GearSize))
-	gearW = 3 * cellW
+	gearGroup = group(Vector2.new(GEAR_CELLS * cellW, H.GearSize))
+	gearW = GEAR_CELLS * cellW
+	gearScale = Instance.new("UIScale")
+	gearScale.Parent = gearGroup
 	gearGroup.Name = "Settings"
 	local gearList = Kit.list(gearGroup, Enum.FillDirection.Horizontal, 0)
 	gearList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -1058,15 +1071,37 @@ local function buildCalmPanels()
 	board.LayoutOrder = 1
 	board.Activated:Connect(LeaderboardController.toggle)
 	board.Parent = gearGroup
+	local journey = Kit.hudIconButton(H.GearSize, "hud_journey", "journey", nil)
+	journey.Name = "Journey"
+	journey.LayoutOrder = 2
+	journey.Activated:Connect(JourneyController.toggle)
+	journey.Parent = gearGroup
+	local journeyDot = noticeDot(journey, "Ready", C.GoldHi)
+	JourneyController.changed.Event:Connect(function()
+		journeyDot.Visible = JourneyController.readyCount() > 0
+	end)
+	local season = Kit.hudIconButton(H.GearSize, "hud_season", "season_beta", nil)
+	season.Name = "Season"
+	season.LayoutOrder = 3
+	season.Activated:Connect(SeasonController.toggle)
+	season.Parent = gearGroup
+	local seasonDot = noticeDot(season, "Ready", C.GoldHi)
+	SeasonController.changed.Event:Connect(function()
+		seasonDot.Visible = SeasonController.readyCount() > 0
+	end)
 	local chest = Kit.hudIconButton(H.GearSize, "hud_daily", "chest", nil)
 	chest.Name = "Daily"
-	chest.LayoutOrder = 2
+	chest.LayoutOrder = 4
 	chest.Activated:Connect(DailyController.toggle)
 	chest.Parent = gearGroup
 	local ready = noticeDot(chest, "Ready", C.GoldHi)
 	local function refreshDot()
 		ready.Visible = DailyController.claimable()
+		-- also catches a Journey/Season state that arrived before these dots existed
+		journeyDot.Visible = JourneyController.readyCount() > 0
+		seasonDot.Visible = SeasonController.readyCount() > 0
 	end
+	refreshDot()
 	DailyController.changed.Event:Connect(refreshDot)
 	task.spawn(function()
 		while ready.Parent do
@@ -1076,7 +1111,7 @@ local function buildCalmPanels()
 	end)
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
-	gear.LayoutOrder = 3
+	gear.LayoutOrder = 5
 	gear.Activated:Connect(SettingsController.toggle)
 	gear.Parent = gearGroup
 	local gearX = -(H.Margin + dashSize / 2 - cellW / 2)
@@ -1085,7 +1120,7 @@ local function buildCalmPanels()
 		gearGroup,
 		Vector2.new(1, 1),
 		UDim2.new(1, gearX, 1, gearY),
-		UDim2.new(1, 3 * cellW + 10, 1, gearY), -- fully off the right edge
+		UDim2.new(1, gearW + 10, 1, gearY), -- fully off the right edge
 		3,
 		false
 	)
@@ -1292,7 +1327,6 @@ local function layoutHud()
 	-- Quest card under the minimap; when it would run into the gear row, the gear row moves to
 	-- the left of the quest card instead (phones / large HUD size)
 	local questH = questGroup.AbsoluteSize.Y / s
-	local questW = questGroup.AbsoluteSize.X / s
 	setHome(
 		questGroup,
 		Vector2.new(1, 0),
@@ -1302,15 +1336,35 @@ local function layoutHud()
 	local gearCell = H.GearSize + 12
 	local gearX = -(M + dashSize / 2 - gearCell / 2)
 	local gearY = -(M + dashSize + H.DashDiamond + 6)
+	-- The row must not reach the centered status block (Rush meter, buffs): on narrow screens it
+	-- shrinks to the room between its right edge and the block
+	local function fitGear(rightEdge: number)
+		local gearRoom = rightEdge - (width / 2 + H.RushBarWidth / 2 + GAP)
+		gearScale.Scale = math.clamp(gearRoom / gearW, GEAR_MIN_SCALE, 1)
+	end
 	if rightTop + questH + GAP > gearTop then
-		local x = -(M + questW + GAP)
+		-- Short screens (phones): no room above the dash. The row moves up under the capsule row,
+		-- right-aligned against the minimap, where it stays clear of the quest card, the world
+		-- prompts (bottom center) and the player in the middle. Toasts drop in below it.
+		local top = if stacked then 18 else 18 + 40 * rs + GAP
+		local rightEdge = mapLeft - GAP
+		gearScale.Scale = math.clamp((rightEdge - resLeftMin) / gearW, GEAR_MIN_SCALE, 1)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 0),
-			UDim2.new(1, x, 0, rightTop),
-			UDim2.new(1, gearW + 10, 0, rightTop) -- fully off the right edge
+			UDim2.fromOffset(rightEdge, top),
+			UDim2.new(1, gearW + 10, 0, top) -- fully off the right edge
 		)
+		if not gearTopMarked then
+			gearTopMarked = true
+			Kit.markTopCenter(gearGroup)
+		end
 	else
+		if gearTopMarked then
+			gearTopMarked = false
+			Kit.unmarkTopCenter(gearGroup)
+		end
+		fitGear(width + gearX)
 		setHome(
 			gearGroup,
 			Vector2.new(1, 1),
@@ -1334,17 +1388,37 @@ local function layoutHud()
 	-- Windows keep clear of the menu dock (screen pixels): bottom row, or left column on phones
 	if camera then
 		local vertical = camera.ViewportSize.Y < PHONE_HEIGHT
-		local cellW = H.BarIcon + 12
-		local colW = cellW + 2 * H.DockPad
-		local btnH = H.BarIcon + H.BarCaption
-		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
 		-- Phone column: from below the Roblox buttons down to the bottom margin; shrinks further on
 		-- short screens / large HUD sizes instead of running under the Roblox buttons
 		local barBottom = if inset.Height > 0
 			then (inset.Max.Y - hudGui.AbsolutePosition.Y) / s + GAP
 			else M
 		local colRoom = height - math.max(barBottom, M) - M
-		local dockScale = if vertical then math.min(PHONE_DOCK, colRoom / colH) else 1
+		-- The buttons grow to the touch minimum (Kit.touchTarget) at the column's small scale: the
+		-- column is sized for the grown buttons, else the list overflows and the group clips the
+		-- first and last icon. Solved a few rounds, since the scale depends on the height.
+		local dockScale = 1
+		local cellW = H.BarIcon + 12
+		local btnH = H.BarIcon + H.BarCaption
+		local colW = cellW + 2 * H.DockPad
+		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+		if vertical then
+			local touch = UserInputService.TouchEnabled
+			dockScale = PHONE_DOCK
+			for _ = 1, 4 do
+				local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
+				btnH = math.max(H.BarIcon + H.BarCaption, min)
+				colW = math.max(cellW, min) + 2 * H.DockPad
+				colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+				dockScale = math.min(PHONE_DOCK, colRoom / colH)
+			end
+			-- the last round may have shrunk the scale once more: size for that scale's buttons
+			local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
+			btnH = math.max(H.BarIcon + H.BarCaption, min)
+			colW = math.max(cellW, min) + 2 * H.DockPad
+			colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+			menuBar.Size = UDim2.fromOffset(colW, colH)
+		end
 		menuScale.Scale = dockScale
 		if menuVertical ~= vertical then
 			menuVertical = vertical
@@ -1435,6 +1509,14 @@ function HudController.init()
 	buildCalmPanels()
 	buildMenuDock()
 
+	-- World labels keep clear of these (NameplateController); prompts stand above the hub bar
+	local blocks: { GuiObject } =
+		{ mapBox, questGroup, gearGroup, resGroup, hubBar, dashButton, xpChip }
+	for _, block in blocks do
+		Kit.markHudBlock(block)
+	end
+	Kit.markBottomCenter(hubBar)
+
 	hudGui.Parent = player:WaitForChild("PlayerGui")
 
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(layoutHud)
@@ -1494,7 +1576,7 @@ function HudController.start()
 		xpTip.Visible = ratio > 0.01
 		xpText.Text = "Lv. "
 			.. tostring(player:GetAttribute("Level") or 1)
-			.. "  ·  "
+			.. " - "
 			.. Format.big(xp)
 			.. " / "
 			.. Format.big(need)

@@ -238,6 +238,66 @@ function Kit.topCenterBottom(): number
 	return y
 end
 
+function Kit.unmarkTopCenter(g: GuiObject)
+	local i = table.find(topCenter, g)
+	if i then
+		table.remove(topCenter, i)
+	end
+end
+
+-- Bottom-center column: the hub icon bar and anything else at the bottom middle. Screen-space
+-- prompts (PromptController) stand just above the highest visible one.
+local bottomCenter: { GuiObject } = {}
+
+function Kit.markBottomCenter(g: GuiObject)
+	table.insert(bottomCenter, g)
+end
+
+-- Highest screen y (pixels) of the visible bottom-center elements in the middle band of the screen,
+-- nil when none is shown
+function Kit.bottomCenterTop(): number?
+	local camera = workspace.CurrentCamera
+	local vw = if camera then camera.ViewportSize.X else 1600
+	local band0, band1 = vw * 0.3, vw * 0.7
+	local y: number? = nil
+	for i = #bottomCenter, 1, -1 do
+		local g = bottomCenter[i]
+		local x0 = g.AbsolutePosition.X
+		local x1 = x0 + g.AbsoluteSize.X
+		if not g.Parent then
+			table.remove(bottomCenter, i)
+		elseif shown(g) and x1 > band0 and x0 < band1 then
+			y = math.min(y or math.huge, g.AbsolutePosition.Y)
+		end
+	end
+	return y
+end
+
+-- HUD blocks (minimap, quest card, icon rows, buttons): world labels that would land on one of
+-- them are hidden (NameplateController). Returns the screen rectangles of the visible ones as
+-- { x0, y0, x1, y1 } in pixels.
+local hudBlocks: { GuiObject } = {}
+
+function Kit.markHudBlock(g: GuiObject)
+	table.insert(hudBlocks, g)
+end
+
+function Kit.hudBlockRects(): { { number } }
+	local out = {}
+	for i = #hudBlocks, 1, -1 do
+		local g = hudBlocks[i]
+		if not g.Parent then
+			table.remove(hudBlocks, i)
+		elseif shown(g) then
+			local p, s = g.AbsolutePosition, g.AbsoluteSize
+			if s.X > 0 and s.Y > 0 then
+				table.insert(out, { p.X, p.Y, p.X + s.X, p.Y + s.Y })
+			end
+		end
+	end
+	return out
+end
+
 -- Re-apply minimum sizes after an inner UIScale has changed
 function Kit.refit(root: Frame)
 	local fn = refitters[root]

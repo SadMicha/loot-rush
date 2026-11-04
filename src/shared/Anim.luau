@@ -1,5 +1,5 @@
 --!strict
--- Character animations without uploaded assets (docs/ANIMATIONS.md). Every move is a short list
+-- Character animations without uploaded assets (docs/TECH.md "Animations"). Every move is a short list
 -- of keyframes per joint; AnimController layers them on top of Roblox's own idle/walk/run and the
 -- weapon hold pose by rotating the rig's joints (Motor6D or AnimationConstraint) every frame (client only, nothing is
 -- replicated). Pure data and math here, so the specs can sample every move headless.
@@ -43,6 +43,8 @@ Anim.JOINTS = table.freeze({
 	"lKnee",
 	"rWrist",
 	"lWrist",
+	"rAnkle",
+	"lAnkle",
 })
 
 -- Motor6D per joint: { part that holds the motor, motor name }
@@ -60,6 +62,8 @@ Anim.R15 = table.freeze({
 	lKnee = { "LeftLowerLeg", "LeftKnee" },
 	rWrist = { "RightHand", "RightWrist" },
 	lWrist = { "LeftHand", "LeftWrist" },
+	rAnkle = { "RightFoot", "RightAnkle" },
+	lAnkle = { "LeftFoot", "LeftAnkle" },
 })
 Anim.R6 = table.freeze({
 	root = { "HumanoidRootPart", "RootJoint" },
@@ -69,8 +73,15 @@ Anim.R6 = table.freeze({
 	rHip = { "Torso", "Right Hip" },
 	lHip = { "Torso", "Left Hip" },
 })
--- R6 joints that do not exist are added to another one (or dropped when missing here)
-Anim.R6_FOLD = table.freeze({ waist = "root" } :: { [string]: string })
+-- R6 joints that do not exist are added to another one (or dropped when missing here): the arm
+-- is one part there, so elbow and wrist turn the whole arm (the hand keeps its direction)
+Anim.R6_FOLD = table.freeze({
+	waist = "root",
+	rElbow = "rShoulder",
+	rWrist = "rShoulder",
+	lElbow = "lShoulder",
+	lWrist = "lShoulder",
+} :: { [string]: string })
 
 -- Tuning (AnimController)
 Anim.RANGE = 140 -- studs from the camera: characters further away get no extra animation
@@ -238,7 +249,8 @@ Anim.Moves = table.freeze({
 		},
 		{ t = 1, pose = Z },
 	}),
-	-- Bow: turn side-on, bow arm up, draw to the chin, release
+	-- Bow: turn side-on, bow arm up from the low carry (BOW_READY) and straight, draw to the chin,
+	-- release
 	shoot = move("shoot", 0.38, true, {
 		{ t = 0, pose = Z },
 		{
@@ -246,7 +258,9 @@ Anim.Moves = table.freeze({
 			pose = {
 				waist = v(0, -35, 0),
 				neck = v(0, 30, 0),
-				lShoulder = v(88, 25, 0),
+				lShoulder = v(45, 25, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
 				rShoulder = v(82, 20, 0),
 				rElbow = v(40, 0, 0),
 			},
@@ -257,7 +271,9 @@ Anim.Moves = table.freeze({
 			pose = {
 				waist = v(0, -35, 0),
 				neck = v(0, 30, 0),
-				lShoulder = v(88, 25, 0),
+				lShoulder = v(45, 25, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
 				rShoulder = v(60, 0, 35),
 				rElbow = v(10, 0, 0),
 			},
@@ -303,6 +319,38 @@ Anim.Moves = table.freeze({
 				rKnee = v(-60, 0, 0),
 			},
 			lift = v(0, 1.2, 0),
+		},
+		{ t = 1, pose = Z },
+	}),
+	-- Bow zones (Arrow Rain, Trap): lean back, raise the bow from the low carry to aim at the sky
+	-- (limbs stay within 40° of vertical), draw, release
+	volley = move("volley", 0.5, true, {
+		{ t = 0, pose = Z },
+		{
+			t = 0.45,
+			pose = {
+				waist = v(12, -25, 0),
+				neck = v(-6, 20, 0),
+				lShoulder = v(75, 15, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
+				rShoulder = v(110, 20, 0),
+				rElbow = v(40, 0, 0),
+			},
+		},
+		{
+			t = 0.62,
+			snap = true,
+			pose = {
+				waist = v(12, -25, 0),
+				neck = v(-6, 20, 0),
+				lShoulder = v(75, 15, 0),
+				lElbow = v(-22, 0, 0),
+				lWrist = v(-22, 0, 0),
+				rShoulder = v(80, 0, 40),
+				rElbow = v(10, 0, 0),
+			},
+			lift = v(0, -0.15, 0),
 		},
 		{ t = 1, pose = Z },
 	}),
@@ -450,43 +498,58 @@ Anim.STYLE = table.freeze({
 	druid_scepter = "staff",
 } :: { [string]: string })
 
--- Holding stance per held weapon (Shared/Weapons ids). Two parts:
+-- Holding stance per held weapon (Shared/Weapons ids): a grounded combat stance, exaggerated so
+-- it reads from the high camera. Every part is plain data, tweak the numbers here:
 --   hold  the weapon arm (shoulder, elbow, wrist) as an ABSOLUTE pose in the same angles as moves
---         (parent space, 0 = arm hanging straight). It replaces whatever the Animator put on that
---         arm (Weapons.HOLD_ANIM, walk swing), so the weapon's angle in the world is known and the
---         specs can check it (tests/Anim.spec.luau "Holding stances" computes the weapon axis).
---   pose  the rest of the body (waist, neck, off arm, hips), ADDED on top of idle/walk.
--- `ref` is the arm pose the attack moves were made for (Roblox's tool-hold arm: raised straight
--- forward); nil = the Animator's own arm (the bow arm hangs and swings while walking). Standing,
--- the arm takes `hold`; it eases toward `ref` while running (STANCE_MOVING) and while a move plays
--- (STANCE_ACTING), so attacks keep their shape. The weapon arm sways slowly (STANCE_SWAY degrees).
+--         (parent space, 0 = arm hanging straight). It replaces the Animator's arm (HOLD_ANIM, walk
+--         swing), so the weapon's angle in the world is known and the specs check it
+--         (tests/Anim.spec.luau "Holding stances" computes the weapon axis).
+--   ref   the weapon-arm pose the attack moves were made for. Standing, the arm takes `hold`; it
+--         eases toward `ref` while running (STANCE_MOVING) and while a move plays (STANCE_ACTING),
+--         so attacks keep their shape.
+--   off   the other arm, also absolute, blended with the Animator's arm by the stance weight.
+--   pose  waist and neck, ADDED on top of idle/walk (weight shift, torso twist, chest open).
+--   legs  hips, knees, ankles, ADDED and only while standing still (fade out as soon as the
+--         character walks, so the walk cycle stays clean); `lift` lowers the body with them so
+--         bent knees keep the feet on the ground. Ankles undo hip + knee so the feet stay flat.
 -- Weapon angles in the hand: Weapons.grip (hand +Y up the arm, -Z forward while the arm hangs).
 -- Shoulder X + elbow X + wrist X = how far the hand frame is turned forward/up: 90 = the hand's -Z
--- points up, which holds sword, staff and scepter upright with their grips.
---   sword    guard: hand low in front, blade up and leaning toward the enemy, weight back
---   bow      relaxed: bow arm a little forward and out, wrist keeps the bow upright, draw hand
---            resting near the string
---   staff    planted: elbow bent, the staff stands upright beside the body
---   scepter  close: scepter upright in front of the chest, off hand near it
+-- points up, which holds every weapon upright with its grip.
+--   sword    Vanguard: left foot forward, torso turned so the left shoulder leads, blade low at
+--            the right hip and angled forward at the enemy, left fist raised as a guard
+--   bow      Nocked: bow arm extended straight ahead, the bow vertical in front of the chest at
+--            arm's length (riser toward the enemy), draw hand at the string
+--   staff    Planted: wide square stance, chest open, the staff's foot on the ground beside the
+--            right foot, the left hand raised in front with the spell ready
+--   scepter  Ritual: deep wide crouch, scepter raised upright before the face, the left hand
+--            spread low over the ground, head bowed
 Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
 Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
 Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
 Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
 Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
+Anim.STANCE_BOB = 0.05 -- studs the body sinks and rises with each breath while standing
+Anim.STANCE_STILL = 4 -- studs/s: from this speed on the leg stance is gone (walk cycle only)
 
 -- Arm joints per hand, shoulder to wrist
 Anim.ARM = table.freeze({
 	right = table.freeze({ "rShoulder", "rElbow", "rWrist" }),
 	left = table.freeze({ "lShoulder", "lElbow", "lWrist" }),
 } :: { [string]: { string } })
+Anim.LEGS = table.freeze({ "rHip", "lHip", "rKnee", "lKnee", "rAnkle", "lAnkle" })
 
 local READY: Pose = table.freeze({ rShoulder = v(90, 0, 0) }) -- Roblox's tool-hold arm
+-- the bow carried low in front, limbs vertical (the shot move raises it from here)
+local BOW_READY: Pose =
+	table.freeze({ lShoulder = v(40, 0, -10), lElbow = v(25, 0, 0), lWrist = v(25, 0, 0) })
 
 export type Stance = {
 	hand: string, -- "right" | "left" (Anim.ARM)
-	ref: Pose?,
+	ref: Pose,
 	hold: Pose,
+	off: Pose?,
 	pose: Pose,
+	legs: Pose?,
 	lift: Vector3?,
 }
 
@@ -494,52 +557,70 @@ Anim.STANCE = table.freeze({
 	warrior_sword = table.freeze({
 		hand = "right",
 		ref = READY,
-		hold = table.freeze({ rShoulder = v(45, 15, 0), rElbow = v(30, 0, 0) }),
-		lift = v(0, -0.15, 0),
-		pose = table.freeze({
-			waist = v(0, -12, 0),
-			neck = v(0, 10, 0),
-			lShoulder = v(20, 0, -10),
-			lElbow = v(30, 0, 0),
-			rHip = v(8, 0, 0),
-			lHip = v(-8, 0, 0),
+		hold = table.freeze({ rShoulder = v(20, 25, 5), rElbow = v(30, 0, 0) }),
+		off = table.freeze({ lShoulder = v(60, -25, -5), lElbow = v(80, 0, 0) }),
+		pose = table.freeze({ waist = v(-6, -18, 0), neck = v(6, 16, 0) }),
+		legs = table.freeze({
+			lHip = v(28, 0, -12),
+			lKnee = v(-32, 0, 0),
+			lAnkle = v(4, 0, 0),
+			rHip = v(-14, 0, 12),
+			rKnee = v(-6, 0, 0),
+			rAnkle = v(20, 0, 0),
 		}),
+		lift = v(0, -0.16, 0),
 	}),
 	ranger_bow = table.freeze({
 		hand = "left",
-		hold = table.freeze({
-			lShoulder = v(12, 0, -10),
-			lElbow = v(20, 0, 0),
-			lWrist = v(-32, 0, 0),
+		ref = BOW_READY,
+		hold = table.freeze({ lShoulder = v(75, -20, 0), lWrist = v(15, 0, 0) }),
+		off = table.freeze({ rShoulder = v(45, 75, 0), rElbow = v(60, 0, 0) }),
+		pose = table.freeze({ waist = v(2, -15, 0), neck = v(0, 12, 0) }),
+		legs = table.freeze({
+			lHip = v(18, 0, -14),
+			lKnee = v(-20, 0, 0),
+			lAnkle = v(2, 0, 0),
+			rHip = v(-10, 0, 14),
+			rKnee = v(-14, 0, 0),
+			rAnkle = v(24, 0, 0),
 		}),
-		pose = table.freeze({
-			waist = v(0, 8, 0),
-			neck = v(0, -6, 0),
-			rShoulder = v(15, 0, 0),
-			rElbow = v(50, 0, 0),
-		}),
+		lift = v(0, -0.12, 0),
 	}),
 	mage_staff = table.freeze({
 		hand = "right",
 		ref = READY,
-		hold = table.freeze({ rShoulder = v(10, 0, 5), rElbow = v(90, 0, 0) }),
-		pose = table.freeze({
-			waist = v(-3, 0, 0),
-			neck = v(3, 0, 0),
-			lShoulder = v(0, 0, -6),
-			lElbow = v(15, 0, 0),
+		hold = table.freeze({
+			rShoulder = v(30, -30, 10),
+			rElbow = v(30, 0, 0),
+			rWrist = v(40, 0, 30),
 		}),
+		off = table.freeze({ lShoulder = v(55, -10, -25), lElbow = v(50, 0, 0) }),
+		pose = table.freeze({ waist = v(6, 8, 0), neck = v(-4, -8, 0) }),
+		legs = table.freeze({
+			lHip = v(4, 0, -14),
+			lKnee = v(-8, 0, 0),
+			lAnkle = v(4, 0, 0),
+			rHip = v(4, 0, 14),
+			rKnee = v(-8, 0, 0),
+			rAnkle = v(4, 0, 0),
+		}),
+		lift = v(0, -0.07, 0),
 	}),
 	druid_scepter = table.freeze({
 		hand = "right",
 		ref = READY,
-		hold = table.freeze({ rShoulder = v(20, 30, 0), rElbow = v(80, 0, 0) }),
-		pose = table.freeze({
-			waist = v(-5, 0, 0),
-			neck = v(-4, 0, 0),
-			lShoulder = v(20, 0, -6),
-			lElbow = v(40, 0, 0),
+		hold = table.freeze({ rShoulder = v(55, 25, 0), rElbow = v(35, 0, 0) }),
+		off = table.freeze({ lShoulder = v(30, 0, -35), lElbow = v(20, 0, 0) }),
+		pose = table.freeze({ waist = v(-10, -8, 0), neck = v(-8, 8, 0) }),
+		legs = table.freeze({
+			lHip = v(22, 0, -16),
+			lKnee = v(-40, 0, 0),
+			lAnkle = v(18, 0, 0),
+			rHip = v(22, 0, 16),
+			rKnee = v(-40, 0, 0),
+			rAnkle = v(18, 0, 0),
 		}),
+		lift = v(0, -0.19, 0),
 	}),
 } :: { [string]: Stance })
 
@@ -549,9 +630,21 @@ function Anim.stanceWeight(run: number, acting: boolean): number
 	return if acting then math.min(w, Anim.STANCE_ACTING) else w
 end
 
--- Adds the body part of the stance of `weaponId` at `weight` into `out` (plus the weapon arm's
--- sway at time `now`); returns the body lift in studs. Unknown weapons add nothing.
-function Anim.stance(weaponId: string?, weight: number, now: number, out: Pose): Vector3
+-- Share of the leg stance at ground `speed` (studs/s): full while standing, gone while walking
+function Anim.stanceLegs(speed: number): number
+	return 1 - math.clamp(speed / Anim.STANCE_STILL, 0, 1)
+end
+
+-- Adds the body part of the stance of `weaponId` into `out`: waist/neck at `weight`, legs at
+-- `legs` (Anim.stanceLegs), the weapon arm's sway and the breathing bob at time `now`. Returns
+-- the body lift in studs. Unknown weapons add nothing.
+function Anim.stance(
+	weaponId: string?,
+	weight: number,
+	legs: number,
+	now: number,
+	out: Pose
+): Vector3
 	local s = weaponId and Anim.STANCE[weaponId]
 	if not s or weight <= 0 then
 		return Vector3.zero
@@ -559,53 +652,60 @@ function Anim.stance(weaponId: string?, weight: number, now: number, out: Pose):
 	for joint, a in s.pose do
 		out[joint] = (out[joint] or Vector3.zero) + a * weight
 	end
+	local l = math.clamp(legs, 0, 1) * weight
+	if s.legs and l > 0 then
+		for joint, a in s.legs do
+			out[joint] = (out[joint] or Vector3.zero) + a * l
+		end
+	end
 	local sway = math.sin(now * Anim.STANCE_SWAY_RATE) * Anim.STANCE_SWAY * weight
 	local arm = Anim.ARM[s.hand][1]
 	out[arm] = (out[arm] or Vector3.zero) + Vector3.new(sway, 0, sway * 0.4)
-	return (s.lift or Vector3.zero) * weight
+	local bob = (math.sin(now * Anim.BREATH_RATE) - 1) * 0.5 * Anim.STANCE_BOB * l
+	return (s.lift or Vector3.zero) * l + Vector3.new(0, bob, 0)
 end
 
--- Absolute weapon-arm pose of `weaponId` at stance `weight` into `out` (every arm joint, zero =
--- straight); returns how much of it replaces the Animator's arm (0..1). With a `ref` the arm is
--- always ours (ref..hold); without one the Animator's arm blends toward `hold` by `weight`.
--- R6 has no elbow or wrist: their angles fold into the shoulder (the weapon keeps its angle).
-function Anim.hold(weaponId: string?, weight: number, r6: boolean, out: Pose): number
+-- Absolute arm poses of the stance of `weaponId` at stance `weight`: every joint of both arms that
+-- the stance holds goes into `out` (zero = straight), and into `mix` how much of it replaces the
+-- Animator's arm (0..1). The weapon arm is always ours (ref..hold); the off arm blends toward
+-- `off` by `weight`. R6 has no elbow or wrist: their angles fold into the shoulder (the weapon
+-- keeps its angle). Unknown weapons write nothing.
+function Anim.hold(
+	weaponId: string?,
+	weight: number,
+	r6: boolean,
+	out: Pose,
+	mix: { [string]: number }
+)
 	local s = weaponId and Anim.STANCE[weaponId]
 	if not s then
-		return 0
+		return
 	end
 	local w = math.clamp(weight, 0, 1)
-	local ref = s.ref
 	local names = Anim.ARM[s.hand]
 	for _, joint in names do
-		local hold = s.hold[joint] or Vector3.zero
-		out[joint] = if ref then (ref[joint] or Vector3.zero):Lerp(hold, w) else hold
+		out[joint] = (s.ref[joint] or Vector3.zero):Lerp(s.hold[joint] or Vector3.zero, w)
+		mix[joint] = 1
+	end
+	local other = Anim.ARM[if s.hand == "left" then "right" else "left"]
+	if s.off and w > 0 then
+		for _, joint in other do
+			out[joint] = s.off[joint] or Vector3.zero
+			mix[joint] = w
+		end
 	end
 	if r6 then
-		out[names[1]] = out[names[1]] + out[names[2]] + out[names[3]]
-		out[names[2]] = nil
-		out[names[3]] = nil
+		for _, arm in { names, other } do
+			if out[arm[1]] then
+				out[arm[1]] = out[arm[1]] + out[arm[2]] + out[arm[3]]
+				out[arm[2]] = nil
+				out[arm[3]] = nil
+				mix[arm[2]] = nil
+				mix[arm[3]] = nil
+			end
+		end
 	end
-	return if ref then 1 else w
 end
-
--- Body parts each arm joint moves, and the part chain from the root down to them: an
--- AnimationTrack (KeyframeSequence) needs every Pose nested under its parent part's Pose.
-Anim.PART = table.freeze({
-	R15 = table.freeze({
-		rShoulder = "RightUpperArm",
-		rElbow = "RightLowerArm",
-		rWrist = "RightHand",
-		lShoulder = "LeftUpperArm",
-		lElbow = "LeftLowerArm",
-		lWrist = "LeftHand",
-	}),
-	R6 = table.freeze({ rShoulder = "Right Arm", lShoulder = "Left Arm" }),
-} :: { [string]: { [string]: string } })
-Anim.CHAIN = table.freeze({
-	R15 = table.freeze({ "HumanoidRootPart", "LowerTorso", "UpperTorso" }),
-	R6 = table.freeze({ "HumanoidRootPart", "Torso" }),
-} :: { [string]: { string } })
 
 -- Skills with their own move (otherwise the skill kind decides)
 Anim.SKILL_MOVE = table.freeze({
@@ -647,7 +747,7 @@ function Anim.moveFor(
 	elseif kind == "leap" then
 		return "leap"
 	elseif kind == "zone" then
-		return "plant"
+		return if style == "bow" then "volley" else "plant"
 	elseif kind == "buff" then
 		return "roar"
 	end
