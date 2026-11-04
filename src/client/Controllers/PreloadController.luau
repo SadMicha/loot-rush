@@ -45,23 +45,8 @@ local function loadBatch(
 	failed: { string },
 	onAsset: () -> ()
 )
-	local objects: { any } = {}
-	local temp: { Instance } = {}
-	for _, entry in batch do
-		if entry.kind == "image" then
-			table.insert(objects, entry.id)
-		elseif entry.kind == "sound" then
-			local snd = Instance.new("Sound")
-			snd.SoundId = entry.id
-			table.insert(objects, snd)
-			table.insert(temp, snd)
-		else
-			local anim = Instance.new("Animation")
-			anim.AnimationId = entry.id
-			table.insert(objects, anim)
-			table.insert(temp, anim)
-		end
-	end
+	-- Instances, not id strings: PreloadAsync reports a plain string as Failure even when it loads
+	local objects = Preload.instances(batch)
 	local finished = false
 	task.spawn(function()
 		pcall(function()
@@ -69,8 +54,8 @@ local function loadBatch(
 				objects,
 				function(id: string, status: Enum.AssetFetchStatus)
 					if
-						status ~= Enum.AssetFetchStatus.Success
-						and status ~= Enum.AssetFetchStatus.None
+						status == Enum.AssetFetchStatus.Failure
+						or status == Enum.AssetFetchStatus.TimedOut
 					then
 						table.insert(failed, id)
 					end
@@ -87,7 +72,7 @@ local function loadBatch(
 	if not finished then
 		table.insert(failed, `(batch of {#batch} timed out)`)
 	end
-	for _, inst in temp do
+	for _, inst in objects do
 		inst:Destroy()
 	end
 end

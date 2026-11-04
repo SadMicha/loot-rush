@@ -82,4 +82,19 @@ describe("Preload", function()
 		expect(count).toBe(#entries)
 		expect(#Preload.batches({}, 5)).toBe(0)
 	end)
+
+	it("turns entries into content instances, never strings", function()
+		local batch = {
+			{ id = "rbxassetid://1", kind = "image" },
+			{ id = "rbxassetid://2", kind = "sound" },
+			{ id = "rbxassetid://3", kind = "animation" },
+		}
+		local objects = Preload.instances(batch)
+		expect(#objects).toBe(3)
+		expect(typeof(objects[1])).toBe("Instance")
+		expect(objects[1].ClassName).toBe("ImageLabel")
+		expect(objects[1].Image).toBe("rbxassetid://1")
+		expect(objects[2].ClassName).toBe("Sound")
+		expect(objects[3].ClassName).toBe("Animation")
+	end)
 end)

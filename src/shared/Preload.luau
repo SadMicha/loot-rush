@@ -104,4 +104,27 @@ function Preload.batches(entries: { Entry }, size: number?): { { Entry } }
 	return out
 end
 
+-- Temporary content instances for one batch, the form PreloadAsync really loads: an ImageLabel per
+-- image, a Sound per sound, an Animation per animation (plain id strings report Failure even for
+-- good ids). Not parented; the caller destroys them.
+function Preload.instances(batch: { Entry }): { Instance }
+	local out: { Instance } = {}
+	for _, entry in batch do
+		if entry.kind == "image" then
+			local image = Instance.new("ImageLabel")
+			image.Image = entry.id
+			table.insert(out, image)
+		elseif entry.kind == "sound" then
+			local snd = Instance.new("Sound")
+			snd.SoundId = entry.id
+			table.insert(out, snd)
+		else
+			local anim = Instance.new("Animation")
+			anim.AnimationId = entry.id
+			table.insert(out, anim)
+		end
+	end
+	return out
+end
+
 return table.freeze(Preload)
