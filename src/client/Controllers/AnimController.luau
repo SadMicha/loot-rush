@@ -45,6 +45,7 @@ type Rig = {
 	combo: number,
 	stance: number, -- current holding-stance weight (Anim.STANCE), eases toward its target
 	grip: number, -- how much the weapon arm follows Anim.hold (1 alive, fades to 0 on death)
+	legs: number, -- leg-stance share (Anim.stanceLegs), eased like the stance
 	deadAt: number, -- 0 = alive
 	broken: boolean,
 	active: boolean,
@@ -57,7 +58,19 @@ type Rig = {
 local player = Players.LocalPlayer
 local rigs: { [Model]: Rig } = {}
 local pose: Anim.Pose = {}
-local arm: Anim.Pose = {} -- absolute weapon-arm pose this frame (Anim.hold)
+local arm: Anim.Pose = {} -- absolute arm poses this frame (Anim.hold)
+local armMix: { [string]: number } = {} -- how much of each `arm` joint replaces the Animator's
+
+-- The weapon a character holds: its class weapon, or the one "Next Stance" (Dbg panel,
+-- Systems/Debug "stance") put into its hand for a preview
+local function weaponOf(p: Player?): Weapons.Weapon?
+	if not p then
+		return nil
+	end
+	local preview = p:GetAttribute("StanceWeapon")
+	return (if typeof(preview) == "string" then Weapons.ById[preview] else nil)
+		or Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+end
 local DEG = math.pi / 180
 
 local function own(rig: Rig): boolean
@@ -231,6 +244,7 @@ local function addRig(character: Model, owner: Player?)
 		combo = 0,
 		stance = 0,
 		grip = 0,
+		legs = 0,
 		deadAt = 0,
 		broken = false,
 		active = false,
@@ -306,7 +320,7 @@ function AnimController.attack(
 	if not rig then
 		return
 	end
-	local w = Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local w = weaponOf(p)
 	local style = w and Anim.STYLE[w.id]
 	local id = Anim.moveFor(style, kind, skillId, basic, rig.combo)
 	if basic then
@@ -348,7 +362,7 @@ function AnimController.dump(): string
 	end
 	local humanoid = rig.humanoid
 	local p = rig.player
-	local w = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local w = weaponOf(p)
 	table.insert(
 		lines,
 		string.format(
@@ -548,9 +562,9 @@ local function animate(rig: Rig, dt: number, now: number)
 	local step = if own(rig) and FeelController.frozen() then 0 else dt
 	table.clear(pose)
 	table.clear(arm)
+	table.clear(armMix)
 	local lift = Vector3.zero
-	local p = rig.player
-	local weapon = p and Weapons.ByClass[tostring(p:GetAttribute("Class") or "")]
+	local weapon = weaponOf(rig.player)
 	local weaponId = weapon and weapon.id
 	-- Always-on layers: run lean, idle breathing (not while dead)
 	if rig.deadAt == 0 then
@@ -565,17 +579,19 @@ local function animate(rig: Rig, dt: number, now: number)
 		addVec("lShoulder", Vector3.new(0, 0, -b * 0.5))
 		-- Holding stance of the class weapon (Anim.STANCE), eased toward its target weight
 		local want = Anim.stanceWeight(run, #rig.layers > 0)
-		rig.stance += (want - rig.stance) * math.min(1, dt * Anim.STANCE_BLEND)
-		lift += Anim.stance(weaponId, rig.stance, now, pose)
+		local ease = math.min(1, dt * Anim.STANCE_BLEND)
+		rig.stance += (want - rig.stance) * ease
+		rig.legs += (Anim.stanceLegs(speed) - rig.legs) * ease
+		lift += Anim.stance(weaponId, rig.stance, rig.legs, now, pose)
 	elseif not rig.broken and now - rig.deadAt >= Anim.DEATH_BREAK then
 		breakApart(rig)
 	end
 	-- The weapon arm itself is an absolute pose (replaces the Animator's arm, fades out on death)
 	local gripWant = if rig.deadAt == 0 then 1 else 0
 	rig.grip += (gripWant - rig.grip) * math.min(1, dt * Anim.STANCE_BLEND)
-	local mix = if rig.grip > 0.001
-		then Anim.hold(weaponId, rig.stance, rig.r6, arm) * rig.grip
-		else 0
+	if rig.grip > 0.001 then
+		Anim.hold(weaponId, rig.stance, rig.r6, arm, armMix)
+	end
 	local yaw = 0
 	for i = #rig.layers, 1, -1 do
 		local layer = rig.layers[i]
@@ -611,10 +627,11 @@ local function animate(rig: Rig, dt: number, now: number)
 		j.base = base
 		local off = pose[name]
 		local up = if name == "root" then lift else Vector3.zero
-		local held = if mix > 0 then arm[name] else nil
+		local held = arm[name]
+		local mix = (armMix[name] or 0) * rig.grip
 		if off or up ~= Vector3.zero or held then
 			local from = base
-			if held then
+			if held and mix > 0 then
 				-- absolute: the Transform that turns the limb by `held` from its rest (hanging) pose
 				local abs = j.rotInv
 					* CFrame.fromEulerAnglesYXZ(held.X * DEG, held.Y * DEG, held.Z * DEG)
@@ -632,6 +649,55 @@ local function animate(rig: Rig, dt: number, now: number)
 			j.written = nil
 		end
 	end
+end
+
+local previewPose: Anim.Pose = {}
+local previewArm: Anim.Pose = {}
+local previewMix: { [string]: number } = {}
+
+-- Inventory figure (a clone that plays no tracks): the full holding stance of `weaponId` straight
+-- onto its Motor6D joints, breathing at time `now`. False when the model has none of the joints.
+function AnimController.posePreview(model: Model, weaponId: string, now: number): boolean
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local r6 = humanoid ~= nil and humanoid.RigType == Enum.HumanoidRigType.R6
+	table.clear(previewPose)
+	table.clear(previewArm)
+	table.clear(previewMix)
+	local lift = Anim.stance(weaponId, 1, 1, now, previewPose)
+	Anim.hold(weaponId, 1, r6, previewArm, previewMix)
+	if r6 then
+		for from, into in Anim.R6_FOLD do
+			local x = previewPose[from]
+			if x then
+				previewPose[into] = (previewPose[into] or Vector3.zero) + x
+				previewPose[from] = nil
+			end
+		end
+	end
+	local map: { [string]: { string } } = if r6 then Anim.R6 else Anim.R15
+	local any = false
+	for name, at in map do
+		local part = model:FindFirstChild(at[1])
+		local motor = part and part:FindFirstChild(at[2])
+		if not motor or not motor:IsA("Motor6D") then
+			continue
+		end
+		any = true
+		local rot = motor.C0.Rotation
+		local rotInv = rot:Inverse()
+		local held = previewArm[name]
+		local from = if held
+			then rotInv * CFrame.fromEulerAnglesYXZ(held.X * DEG, held.Y * DEG, held.Z * DEG) * rot
+			else CFrame.identity
+		local a = previewPose[name] or Vector3.zero
+		local up = if name == "root" then lift else Vector3.zero
+		motor.Transform = rotInv
+			* CFrame.new(up)
+			* CFrame.fromEulerAnglesYXZ(a.X * DEG, a.Y * DEG, a.Z * DEG)
+			* rot
+			* from
+	end
+	return any
 end
 
 local candidates: { { rig: Rig, d: number } } = {}

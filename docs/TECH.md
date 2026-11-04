@@ -48,12 +48,25 @@ needs classic `Motor6D` rigs. If Rojo cannot set the property in Studio, set Sta
 Avatar Joint Upgrade → Disabled by hand once; the published place is built from the project file.
 
 - **Moves** (`Anim.Moves`): sword `slash`/`chop`, bow `shoot`, staff/scepter `cast`/`castBig`, arc
-  `cleave`, whirls `spin`, novas `slam`, chains `point`, leaps `leap`, zones `plant`, buffs `roar`,
+  `cleave`, whirls `spin`, novas `slam`, chains `point`, leaps `leap`, zones `plant`, bow zones (Arrow Rain, Trap) `volley`, buffs `roar`,
   dodge `roll`, hit `hurt`, death `death`, level up `cheer`. Attack moves turn the body to the target.
-- **Holding stances** (`Anim.STANCE`): `hold` (weapon arm, absolute pose) + `pose` (waist, neck, off
-  arm, hips). Blend to `STANCE_MOVING`/`STANCE_ACTING` with `STANCE_BLEND`. Rule of thumb: shoulder X +
-  elbow X + wrist X = 90 keeps the weapon upright with the grips in `Shared/Weapons`. Sword = shoulder rest
-  (blade back over the right shoulder), bow = relaxed, staff = planted, scepter = upright in front.
+- **Holding stances** (`Anim.STANCE`): one grounded combat stance per weapon, exaggerated for the high
+  camera, all data: `hold` (weapon arm, absolute pose), `ref` (the raised arm the attack moves were made
+  for; blended in while running/acting via `STANCE_MOVING`/`STANCE_ACTING`/`STANCE_BLEND`), `off` (other
+  arm), `pose` (waist, neck), `legs` + `lift` (only while standing, faded by `STANCE_STILL`; ankles keep
+  the feet flat), `STANCE_BOB`, `STANCE_SWAY`, `Anim.R6_FOLD`. `tests/Anim.spec.luau` checks every pose
+  and that the weapon never cuts through the body. The inventory figure uses the same stance
+  (`AnimController.posePreview`). Rule of thumb: shoulder X + elbow X + wrist X = 90 keeps the weapon
+  upright with the grips in `Shared/Weapons`.
+
+  | Weapon | Stance |
+  |---|---|
+  | Sword | Vanguard: left foot forward, left shoulder leads, blade low at the right hip angled at the enemy, left fist as guard |
+  | Bow | Nocked: bow arm straight ahead, bow vertical in front of the chest, draw hand at the string |
+  | Staff | Planted: wide square stance, staff foot on the ground beside the right foot, left hand raised |
+  | Scepter | Ritual: deep wide crouch, scepter upright before the face, left hand spread low, head bowed |
+
+  Preview: Dbg "Next Stance" cycles `Weapons.List` in the own hand (attribute `StanceWeapon`).
 - **Triggers:** server `Combat` fires `Net.Fx("act", …)` for every attack, cast and dash;
   `Anim.moveFor` picks the move (`Anim.SKILL_MOVE` overrides). On death the body stays whole, then
   breaks into bricks after `Anim.DEATH_BREAK`.
@@ -108,13 +121,13 @@ Owner weapon pack: one FBX + one colour texture per class in `assets/weapons/<Fo
 | Class | Weapon (`Shared/Weapons`) | Folder | Hand |
 |---|---|---|---|
 | Knight Brix | Knight's Sword (`warrior_sword`) | `Warrior_Sword` | right, blade up, 15° forward |
-| Ranger Fynn | Ranger's Bow (`ranger_bow`) | `Ranger_Bow` | left, hanging, limbs vertical |
+| Ranger Fynn | Ranger's Bow (`ranger_bow`) | `Ranger_Bow` | left, raised (`Anim.STANCE`), riser forward, string toward the archer |
 | Spark Mage Zap | Spark Staff (`mage_staff`) | `Mage_Staff` | right, upright, head 10° forward |
 | Mushroom Shaman Mora | Spore Scepter (`druid_scepter`) | `Druid_Scepter` | right, upright |
 
 - Grip point/offset per weapon (`gripAt`, `offset`, `grip`, `length`); tune in Studio if a mesh sits off.
-- Arm pose: `Weapons.HOLD_ANIM` (`toolnone`) for far characters and the inventory figure; near the
-  camera the class stance (`Anim.STANCE`) takes over.
+- Arm pose: `Weapons.HOLD_ANIM` (`toolnone`) for far characters; near the camera and on the inventory
+  figure the class stance (`Anim.STANCE`) takes over.
 - The server waits for the avatar appearance and re-equips when the hand part is replaced.
 - New mesh: run "Upload UI assets" with the `weapon_*_model`/`weapon_*_texture` keys, paste the ids
   into `Assets.Weapon`. Missing id = weapon from studded parts, never an error. The place must be

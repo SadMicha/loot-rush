@@ -255,6 +255,37 @@ Matrix.SCREENS = {
 			end
 		end,
 	},
+	{
+		name = "stash", -- at the hub stash station: a few items stored in tab 1, the bag beside it
+		open = function(sb)
+			sb:runAs("server", function(req)
+				local player = sb.player
+				local station =
+					sb.game:GetService("Workspace").Lumenhaven:FindFirstChild("Station_Stash", true)
+				req("ServerScriptService.Server.Systems.Movement").teleported(player)
+				player.Character:PivotTo(station.CFrame + station.CFrame.LookVector * 4)
+				local Data = req("ServerScriptService.Server.Systems.Data")
+				local Stash = req("ReplicatedStorage.Shared.Stash")
+				local profile, account = Data.get(player), Data.account(player)
+				for _ = 1, 9 do
+					local item = profile.inventory[1]
+					if item then
+						Stash.deposit(account.stash, profile.inventory, item.id, 1)
+					end
+				end
+				req("ServerScriptService.Server.Systems.Inventory").sync(player)
+			end)
+			sb:run(0.6)
+			sb:runAs("client", function(req)
+				req(
+					"Players."
+						.. sb.player.Name
+						.. ".PlayerScripts.Client.Controllers.StashController"
+				).open()
+			end)
+			sb:run(0.6)
+		end,
+	},
 	{ name = "skills", open = window("skills") },
 	{
 		name = "skills-stones",
@@ -285,6 +316,8 @@ Matrix.SCREENS = {
 	},
 	{ name = "daily", open = window("Daily") },
 	{ name = "leaderboard", open = window("Leaderboard") },
+	{ name = "journey", open = window("Journey") },
+	{ name = "season", open = window("Season") },
 }
 
 function Matrix.prepare(sb, screen)

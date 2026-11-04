@@ -172,4 +172,45 @@ describe("Debug menu", function()
 		expect(n).toBe(total)
 		expect(trail).never.toBeNil() -- an empty slot is worn right away
 	end)
+
+	it("cycles the stance preview through every weapon, then back to the own one", function()
+		sim:run(8) -- refill the debug rate limit
+		local list = server(function(req)
+			local ids = {}
+			for _, w in req("ReplicatedStorage.Shared.Weapons").List do
+				table.insert(ids, w.id)
+			end
+			return ids
+		end)
+		server(function(req, player)
+			req("ServerScriptService.Server.Systems.Data").get(player).debugged = nil
+		end)
+		local seen = {}
+		for _ = 1, #list + 1 do
+			client(function(_, Net)
+				Net.Debug:FireServer("stance")
+			end)
+			sim:run(2)
+			table.insert(
+				seen,
+				server(function(_, player)
+					local held = player.Character and player.Character:FindFirstChild("HeldWeapon")
+					return {
+						preview = player:GetAttribute("StanceWeapon"),
+						held = held and held:GetAttribute("Weapon"),
+					}
+				end)
+			)
+		end
+		for i, id in list do
+			expect(seen[i].preview).toBe(id)
+			expect(seen[i].held).toBe(id)
+		end
+		expect(seen[#list + 1].preview).toBeNil()
+		-- a look-only command: the hero stays on the leaderboards
+		local debugged = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").get(player).debugged
+		end)
+		expect(debugged).never.toBe(true)
+	end)
 end)

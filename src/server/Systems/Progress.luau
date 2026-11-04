@@ -200,6 +200,7 @@ local function onLoadout(player: Player, action: any, a: any, b: any)
 		if not Progression.socket(progress, a, index, stoneId) then
 			return
 		end
+		Actions.fire(player, "socket") -- Season challenge "Socket 3 spell stones" (Systems/Seasons)
 	else
 		return
 	end

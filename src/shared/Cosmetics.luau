@@ -18,6 +18,7 @@ export type Cosmetic = {
 	colors: { Color3 }, -- start → end of the effect (world VFX, not UI)
 	light: number, -- LightEmission of the effect (0..1)
 	texture: string?, -- Assets.Vfx key: trail ribbon or aura sprite sheet (empty id = flat look)
+	season: string?, -- earned on that season's reward track (Shared/Seasons), never sold
 }
 
 Cosmetics.Slots = table.freeze({ "trail", "aura" } :: { Slot })
@@ -102,6 +103,27 @@ local LIST: { Cosmetic } = {
 		colors = { Color3.fromHex("#F0D8FF"), Color3.fromHex("#7A3CFF") },
 		light = 1,
 		texture = "aura_void",
+	},
+	-- Season rewards (Shared/Seasons track): never sold, flat look until a texture is painted
+	{
+		id = "beta_trail",
+		slot = "trail",
+		name = "Beta Trail",
+		rarity = "legend",
+		icon = "season_beta",
+		colors = { Color3.fromHex("#FFF1B8"), Color3.fromHex("#2EC4B6") },
+		light = 0.8,
+		season = "beta",
+	},
+	{
+		id = "beta_aura",
+		slot = "aura",
+		name = "Beta Aura",
+		rarity = "legend",
+		icon = "season_beta",
+		colors = { Color3.fromHex("#FFE08A"), Color3.fromHex("#2EC4B6") },
+		light = 0.9,
+		season = "beta",
 	},
 }
 

@@ -13,6 +13,7 @@ local SCREENS = {
 	"rift-clear",
 	"inventory",
 	"inventory-compare",
+	"stash",
 	"skills",
 	"skills-stones",
 	"star-net",
@@ -25,6 +26,8 @@ local SCREENS = {
 	"switch-hero",
 	"daily",
 	"leaderboard",
+	"journey",
+	"season",
 }
 
 -- one run for all screens while the spec loads (they share a stocked sandbox of their own), then

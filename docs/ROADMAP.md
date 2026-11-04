@@ -17,6 +17,8 @@ Nothing counts as ✅ until it has been played (`docs/SMOKE-TEST.md`, `docs/TEST
 | Rifts | Rift Trail maps, packs, waypoints + revive, bosses with phases and fight loop, variants, resume per tier, The Smoothing | 🔧 |
 | Stud Rush | Meter, auto Rush, buff bar | 🔧 |
 | World | Parts-with-studs world, Lumenhaven hub, horizon, colours per zone, never-fall-off, StreamingEnabled | 🔧 |
+| Hub stash | Account-wide stash at the Stash station: 4 tabs × 42 items for all heroes, one-tap move, "Store All" (`Shared/Stash`, `Systems/Stash`, `StashController`) | 🔧 |
+| Journey and Beta Season | Hero Journey (20 milestones), Beta Season window with 15 challenges and a 5-step cosmetic track (§6) | 🔧 |
 | Saving | ProfileStore 1.0.3, store `LootRush_Profile_v3`, account → heroes (v4) | 🔧 (`TEST-RELEASE` saving part open) |
 | Onboarding | Quest chain, waypoint beam, first drops, callout hints, loading screen, quest ticker, level-up card | 🔧 |
 | Retention | Leaderboard (§4.1), Daily rewards (§4.2), movement check | 🔧 |
@@ -57,14 +59,15 @@ retention, P2 polish.
 | U2 | Compare against equipped gear | P1 | built (upgrade markers #118) |
 | U3 | Too many bar windows on phones → group after the Studio pass | P2 | open |
 | U4 | Consoles stay off for 1.0 | P2 | decided |
+| U5 | New 1.0 UI (leaderboard, daily, season, Journey) in one look, one shared reward card | P0 | built (`client/UI/Reward`) |
 | P1 | StreamingEnabled with Rift Trails | P0 | built |
 | P2 | Part counts per container in the Dbg overlay + budget | P1 | open |
 | P3 | Low-quality flat minimap on weak phones | P1 | open |
 | P4–P5 | Phone frame-time pass, server heartbeat with 4+ busy rifts | P1 | open (needs a playtest) |
 | R1–R2 | Leaderboard, daily rewards | P0 | built (§4) |
-| R3 | Season / weekly reason to return → Beta Season (§6) | P0 | open |
+| R3 | Season / weekly reason to return → Beta Season (§6) | P0 | partly built (§6) |
 | R4 | Analytics beyond the onboarding funnel (economy, rift progression, custom events; N10 in §10) | P0 | open |
-| R5 | "Next goals" panel after the quest chain | P1 | open |
+| R5 | "Next goals" panel after the quest chain | P1 | built (Journey, §6) |
 | R6 | Unique codex | P2 | open |
 | M1 | Robux ids | P0 | done (2026-11-03) |
 | M2 | Security review (remotes, receipts, saves) | P0 | done, see `RELEASE.md` §4 |
@@ -113,7 +116,7 @@ The first season on the season framework, without a new mechanic (`docs/specs/SE
 
 | Part | Beta Season |
 |---|---|
-| Length | 4 weeks (recommended), then a 1-week break while Season 1 is finished |
+| Length | **(owner, 2026-11-04) no end date:** runs until the owner switches to Season 1 (`BETA_ENDS` in `Shared/Seasons`: nil = open, a unix time turns on the countdown) |
 | Characters | **(owner)** fresh characters in the Beta league; at the end every Beta character moves into Legacy with everything it owns |
 | Challenges | **(owner)** ~15 Beta challenges with cosmetic rewards (depth 10/20, every region boss, a Veteran boss, 3 spell stones, a 50-kill Rush, 50 salvages, 3 uniques, 5 daily claims); each is an analytics checkpoint |
 | Rewards | Account-wide forever: "Beta Tester" title, gold stud trail, hub banner |
@@ -126,6 +129,13 @@ Code steps (one PR each): 1. `league` field + character select with league badge
 + `Systems/Seasons` (clock, HUD badge, idempotent Beta → Legacy migration, fake 1-hour season on the
 test place); 3. Season Journey window + challenge tracking + cosmetics; 4. season ladder + feedback card.
 
+**Built (2026-11-04, #124):** step 3 and the clock/badge part of step 2: `Shared/Seasons` (Beta clock,
+15 challenges, 5-step track with `beta_trail` / `beta_aura`), `Systems/Seasons` (counts server events,
+`account.season`), `SeasonController` (Season button). Also the hero **Journey** (R5): `Shared/Journey`
+(20 milestones read from the save), `Systems/Journey`, `JourneyController`, `character.journey`. Both
+additive save fields. Dbg "Season: Next Challenge". Still open: leagues (step 1), season-end migration
+(step 2), ladder + feedback card (step 4).
+
 ## 7. Season 1 (after the Beta)
 
 **Blueprints** (`docs/specs/SEASON-1-BLUEPRINTS.md`): build Blueprints on the Rift Trail assembler
@@ -134,8 +144,7 @@ Beta report, Great Build ships with it.
 
 ## 8. Open decisions for Micha
 
-1. Beta length: 4 weeks (recommended) or until Season 1 is ready.
-2. Great Build: with Season 1 (recommended) or already in the Beta.
+1. Great Build: with Season 1 (recommended) or already in the Beta.
 
 ## 9. Test plan
 

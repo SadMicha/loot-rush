@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local AnimController = require(script.Parent.AnimController)
 local Window = require(script.Parent.Parent.UI.Window)
@@ -45,8 +46,10 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "Spell Stones", command = "stones" },
 	{ label = "Fill Rush", command = "rush" },
 	{ label = "Next Day (Daily)", command = "day" },
+	{ label = "Season: Next Challenge", command = "season" },
 	{ label = "All Cosmetics", command = "cosmetics" },
 	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
+	{ label = "Next Stance", command = "stance" }, -- weapon + stance preview, then back to own
 }
 local LOCAL_COMMANDS: { [string]: () -> () } = {
 	joints = function()
@@ -132,6 +135,15 @@ function DebugController.init()
 		b.Name = entry.command
 		b.LayoutOrder = i
 		Kit.buttonLabel(b).TextSize = Kit.fontSize(13)
+		if entry.command == "stance" then
+			-- the button names the previewed weapon (Systems/Debug "stance")
+			local label = Kit.buttonLabel(b)
+			player:GetAttributeChangedSignal("StanceWeapon"):Connect(function()
+				local id = player:GetAttribute("StanceWeapon")
+				local w = if typeof(id) == "string" then Weapons.ById[id] else nil
+				label.Text = if w then "Stance: " .. w.name else entry.label
+			end)
+		end
 		b.Activated:Connect(function()
 			local run = LOCAL_COMMANDS[entry.command]
 			if run then
