@@ -315,6 +315,15 @@ describe("Balancing depth 1–30", function()
 		expect(early).toBeGreaterThan(5)
 	end)
 
+	-- Audit #8: no farm wall in the first 15 minutes (the old depth 6 wall needed 5 runs)
+	it("never asks for more than 2 farm runs per depth before depth 10", function()
+		for _, r in rows do
+			if r.depth < 10 then
+				expect(r.farm).toBeLessThan(3)
+			end
+		end
+	end)
+
 	it("gets harder per depth: fewer hits survived at depth 30 than at depth 10", function()
 		expect(rows[30].firstHits).toBeLessThan(rows[10].firstHits)
 		expect(rows[1].firstHits).toBeLessThan(14) -- even depth 1 hurts a bit
