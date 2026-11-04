@@ -44,6 +44,9 @@
 --   Season    (C→S): "claim", step: number | "sync" - claim a reward of the season track (Systems/Seasons)
 --   SeasonState (S→C): { id, phase, secondsLeft, counts = { [challengeId] = n }, claimed = { step },
 --                    paid?, finished? = { challengeId } } - Season Journey state
+--   Stash     (C→S): "open" | "put", itemId: string, tab: number | "take", itemId: string |
+--                    "all", tab: number - hub stash (Systems/Stash, only near the stash station)
+--   StashData (S→C): { tabs = { { Item } }, slots, text? } - stash contents; text = why a move failed
 --   Debug     (C→S): command: string, value: number? - test commands, Studio/DEV_USERS only (Systems/Debug)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -89,6 +92,8 @@ local NAMES = {
 	"JourneyState",
 	"Season",
 	"SeasonState",
+	"Stash",
+	"StashData",
 	"Debug",
 }
 
@@ -152,5 +157,7 @@ return table.freeze({
 	JourneyState = get("JourneyState"),
 	Season = get("Season"),
 	SeasonState = get("SeasonState"),
+	Stash = get("Stash"),
+	StashData = get("StashData"),
 	Debug = get("Debug"),
 })
