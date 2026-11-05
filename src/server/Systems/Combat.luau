@@ -1340,6 +1340,8 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	if flat(origin - root.Position).Magnitude > 12 then
 		origin = root.Position
 	end
+	-- the bank empties as the cast starts, so crits of this cast refill it for the next skill
+	st.geodeShards = 0
 	local ok = false
 	if skill.kind == "projectile" then
 		ok = castFan(player, root, skill, aim, origin)
@@ -1357,6 +1359,7 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		ok = castBuff(player, root, skill)
 	end
 	if not ok then
+		st.geodeShards += banked -- nothing was cast: the shards stay banked
 		return false
 	end
 	-- Moonlit Tome: every n-th skill cast does not start its cooldown
@@ -1401,7 +1404,8 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 				end
 				n += 1
 				for _, e in enemiesNear(at, radius) do
-					burningUntil[e] = os.clock() + FIRE_TICK * 2
+					-- never shortens a longer burn from a skill (Ember Band reads this window)
+					burningUntil[e] = math.max(burningUntil[e] or 0, os.clock() + FIRE_TICK * 2)
 					damageEnemy(e, tick, player, nil, true)
 				end
 				task.wait(FIRE_TICK)
@@ -1412,7 +1416,6 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	local geode = uniqueRank(player, "geode_heart")
 	if geode and banked > 0 then
 		local count = banked
-		st.geodeShards = math.max(0, st.geodeShards - banked)
 		local hit = procBase(player) * UniqueEffects.value("geode_heart", "hit", geode) / 100
 		local targets = nearestEnemies(root.Position, UNIQUE_RANGE, nil)
 		for i = 1, if #targets > 0 then count else 0 do

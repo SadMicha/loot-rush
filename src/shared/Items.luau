@@ -495,9 +495,13 @@ function Items.fuse(target: Item, dup: Item): Item?
 	out.id = target.id
 	out.class = target.class
 	out.name = target.name
+	-- Rolls are compared only between copies of the same package: an older package weighted its
+	-- stats differently (Stormkeeper swapped its headline), so its rolls are on another scale and
+	-- the newer package's rolls stand
+	local samePackage = #other.affixes == #layout.affixes
 	for i, a in out.affixes do
 		local o = other.affixes[i]
-		if o and o.stat == a.stat and o.implicit == a.implicit then
+		if samePackage and o and o.stat == a.stat and o.implicit == a.implicit then
 			local mine = normal(layout.affixes[i], layout.ilvl, Items.rankOf(layout))
 			local theirs = normal(o, other.ilvl, Items.rankOf(other))
 			if theirs > mine then
