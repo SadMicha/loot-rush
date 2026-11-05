@@ -503,6 +503,23 @@ function GearSkins.refund(id: string): number
 	return if s and s.price then s.price else 0
 end
 
+-- Set sold as this Robux product (Shared/Monetization key), nil if none
+function GearSkins.setForProduct(key: string): Set?
+	for _, set in SETS do
+		if set.product == key then
+			return set
+		end
+	end
+	return nil
+end
+
+-- Soulstars back for the owned pieces of a Robux set: what the set is worth minus what the
+-- missing pieces would cost as a set, so the refund never exceeds the bundle's Soulstar value
+-- (a fully owned set gives 1,400, never the 1,700 of its single prices)
+function GearSkins.setRefund(set: Set, owns: (id: string) -> boolean): number
+	return GearSkins.setPrice(set) - GearSkins.setPrice(set, owns)
+end
+
 -- Skins a hero of this class can wear in a slot (wardrobe order: catalog order)
 function GearSkins.forSlot(slot: string, class: string?): { Skin }
 	local out = {}

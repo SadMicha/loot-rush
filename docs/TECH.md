@@ -192,8 +192,10 @@ rarity, class, season, set, free source), rotation in `Shared/ShopRotation`.
   claimed season track steps, playing in a live season). Runs on join, after every
   `Journey.grant` (Journey, Season track, Great Build) and in `Journey.touch` (fact changes, daily
   claims via Actions). Season skins are never granted outside their season.
-- Robux sets: products `skinset_*` with `skins` (Systems/Monetization); an owned piece is
-  refunded at its Soulstar price. Prices: `GearSkins.robuxFor(set Soulstars)`.
+- Robux sets: products `skinset_*` with `skins` (Systems/Monetization); owned pieces are refunded
+  in Soulstars, capped at the set's Soulstar value (`GearSkins.setRefund`). A receipt cannot be
+  refused after payment, so Robux sets are not tied to the rotation on the server (the Shop shows
+  the button only while the set is in rotation). Prices: `GearSkins.robuxFor(set Soulstars)`.
 - Rotation: 4 daily offers (00:00 UTC) from 4 fixed groups of the pool (day % 4), so a piece is
   never shown again within 3 days; 2 weekly sets (Monday 00:00 UTC). Deterministic per date,
   same on every server and client; no DataStore.

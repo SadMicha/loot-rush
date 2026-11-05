@@ -148,12 +148,20 @@ local function grant(player: Player, account: Profile.Account, product: Rules.Pr
 			refund += product.refund or 0
 		end
 	end
-	-- Gear skin sets: an owned piece is refunded at its Soulstar price (the player paid)
+	-- Gear skin sets: owned pieces are refunded in Soulstars (the player paid), capped at the
+	-- set's Soulstar value (GearSkins.setRefund). Robux sets are not tied to the rotation:
+	-- a receipt cannot be refused after payment, the Shop only shows the button in rotation.
 	local skins: { string } = product.skins or {}
+	local set = SkinRules.setForProduct(product.key)
+	if set then
+		refund += SkinRules.setRefund(set, function(id)
+			return account.gearSkins[id] == true
+		end)
+	end
 	for _, id in skins do
 		if GearSkins.give(player, id) then
 			table.insert(parts, SkinRules.ById[id].name)
-		else
+		elseif not set then
 			refund += SkinRules.refund(id)
 		end
 	end

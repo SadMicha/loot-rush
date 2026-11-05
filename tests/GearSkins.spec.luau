@@ -451,29 +451,38 @@ describe("Gear skins in game", function()
 		end
 	)
 
-	it(
-		"a Robux set grants its pieces; owned pieces are refunded at their Soulstar price",
-		function()
-			soulstars(0)
-			server(function(req, player)
-				local a = req("ServerScriptService.Server.Systems.Data").account(player)
-				a.gearSkins.paladin_plate = true
-			end)
-			local decision = server(function(req, player)
-				return req("ServerScriptService.Server.Systems.Monetization").processReceipt({
-					ProductId = SET_ID,
-					PlayerId = player.UserId,
-					PurchaseId = "set-1",
-				})
-			end)
-			sim:run(1)
-			expect(decision).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
-			local a = account()
-			expect(a.gearSkins.paladin_helm).toBe(true)
-			expect(a.gearSkins.paladin_gauntlets).toBe(true)
-			expect(a.soulstars).toBe(GearSkins.refund("paladin_plate"))
-		end
-	)
+	it("a Robux set grants its pieces; owned pieces are refunded up to the set value", function()
+		soulstars(0)
+		server(function(req, player)
+			local a = req("ServerScriptService.Server.Systems.Data").account(player)
+			a.gearSkins.paladin_plate = true
+		end)
+		local decision = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Monetization").processReceipt({
+				ProductId = SET_ID,
+				PlayerId = player.UserId,
+				PurchaseId = "set-1",
+			})
+		end)
+		sim:run(1)
+		expect(decision).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
+		local a = account()
+		expect(a.gearSkins.paladin_helm).toBe(true)
+		expect(a.gearSkins.paladin_gauntlets).toBe(true)
+		-- 1,400 set value minus 700 for the two missing pieces as a set
+		expect(a.soulstars).toBe(700)
+		-- everything owned: never more than the set's Soulstar value back
+		local again = server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Monetization").processReceipt({
+				ProductId = SET_ID,
+				PlayerId = player.UserId,
+				PurchaseId = "set-2",
+			})
+		end)
+		sim:run(1)
+		expect(again).toBe(Enum.ProductPurchaseDecision.PurchaseGranted)
+		expect(account().soulstars).toBe(700 + 1400)
+	end)
 
 	it("the Shop shows the Daily Shop, the season shop and the gear wardrobe", function()
 		local result = { ok = false, err = "", daily = 0, season = false, rows = 0, timer = "" }
