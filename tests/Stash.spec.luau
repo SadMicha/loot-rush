@@ -218,7 +218,8 @@ describe("Stash server and window", function()
 			"Click an item to move it. Hover to see its stats."
 		)
 		local scroll = gui:FindFirstChild("BagScroll", true)
-		expect(scroll:FindFirstChildOfClass("UIPadding").PaddingLeft.Offset >= 10).toBe(true)
+		local holder = scroll:FindFirstChild("BagHolder")
+		expect(holder:FindFirstChildOfClass("UIPadding").PaddingBottom.Offset >= 10).toBe(true)
 
 		-- the same item twice in a row (double tap, lag, exploit): stored once
 		client(function(Net)

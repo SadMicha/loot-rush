@@ -58,10 +58,11 @@ local BAG_ROWS = math.ceil(Bag.BASE / COLS)
 local INFO_Y = BAG_Y + BAG_ROWS * (CELL + GAP) + 8
 local RESEND = 1.5 -- seconds a tapped item ignores more taps (waiting for the server)
 local CLOSE_CHECK = 0.5 -- seconds between "still at the stash?" checks while open
+local VERDICT_W = 230 -- design px kept free for the verdict right of the item name
 local HOLD = 0.35 -- seconds a finger rests on an item to show its stats instead of moving it
 local VERDICT: { [string]: { text: string, color: Color3 } } = {
 	up = { text = "Upgrade", color = C.Good },
-	side = { text = "Upgrade, a better one waits", color = C.Good },
+	side = { text = "Upgrade (not the best)", color = C.Good },
 	down = { text = "Not an upgrade", color = C.Danger },
 }
 
@@ -342,14 +343,20 @@ local function build()
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
+	scroll.Parent = right
+	-- Padded holder: AutomaticCanvasSize measures the holder (padding included), so the glow of
+	-- the last row stays inside the canvas once an upgraded bag scrolls
+	local holder = Flat.frame(UDim2.fromOffset(GRID_W + 2 * GRID_PAD, 0))
+	holder.Name = "BagHolder"
+	holder.AutomaticSize = Enum.AutomaticSize.Y
 	local sp = Instance.new("UIPadding")
 	sp.PaddingTop = UDim.new(0, GRID_PAD)
 	sp.PaddingBottom = UDim.new(0, GRID_PAD)
 	sp.PaddingLeft = UDim.new(0, GRID_PAD)
 	sp.PaddingRight = UDim.new(0, GRID_PAD)
-	sp.Parent = scroll
-	scroll.Parent = right
-	bagGrid = grid(scroll, BAG_ROWS, Vector2.zero)
+	sp.Parent = holder
+	holder.Parent = scroll
+	bagGrid = grid(holder, BAG_ROWS, Vector2.zero)
 	bagGrid.Name = "BagGrid"
 	bagGrid.AutomaticSize = Enum.AutomaticSize.Y
 
@@ -360,6 +367,10 @@ local function build()
 	infoName = Flat.text("", 22, C.Text, Theme.Font.UI)
 	infoName.Name = "Name"
 	infoName.Position = UDim2.fromOffset(18, 10)
+	-- Long names stop short of the verdict on the right of the same row
+	infoName.AutomaticSize = Enum.AutomaticSize.Y
+	infoName.Size = UDim2.fromOffset(PANEL_W - 2 * PAD - 36 - VERDICT_W, 0)
+	infoName.TextTruncate = Enum.TextTruncate.AtEnd
 	infoName.Parent = info
 	infoVerdict = Flat.text("", 18, C.Muted, Theme.Font.UI, Enum.TextXAlignment.Right)
 	infoVerdict.Name = "Verdict"
