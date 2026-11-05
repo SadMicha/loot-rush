@@ -69,14 +69,12 @@ describe("Path Card rules", function()
 		expect(PathCards.describe({ affixes = {}, reward = "gold", amount = 0.1, weight = 0 })).toBe(
 			"+10% gold"
 		)
-		expect(
-			PathCards.describe({
-				affixes = { "swarm" },
-				reward = "items",
-				amount = 0.15,
-				weight = 1,
-			})
-		).toBe("+15% items")
+		expect(PathCards.describe({
+			affixes = { "swarm" },
+			reward = "items",
+			amount = 0.15,
+			weight = 1,
+		})).toBe("+15% items")
 		expect(PathCards.describe({ affixes = {}, reward = "cache", amount = 3, weight = 4 })).toBe(
 			"Rare+ cache x3"
 		)

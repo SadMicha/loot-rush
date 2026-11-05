@@ -5,6 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Forge)
@@ -25,6 +26,8 @@ local DONE: { [string]: string } = {
 	tier = "Tier upgraded",
 	reroll = "Rerolled",
 	seal = "Sealed",
+	fuse = "Fused",
+	attune = "Attuned",
 }
 
 local function reply(player: Player, ok: boolean, text: string, itemId: string?, used: number?)
@@ -70,16 +73,39 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 		return
 	end
 
-	local result = Rules.apply(actionId, item, affix :: number?, profile.materials, rng)
+	-- Fuse looks for a duplicate in the bag, Attune raises to the best loot level (Shared/Forge)
+	local ctx: Rules.Context = {
+		bag = profile.inventory,
+		attune = Rules.attuneLevel(
+			Atlas.bestDepth(profile.atlas),
+			profile.tier.unlocked,
+			Stats.level(player)
+		),
+	}
+	local result = Rules.apply(actionId, item, affix :: number?, profile.materials, rng, ctx)
 	if not result.ok or not result.item or not result.material or not result.cost then
 		reply(player, false, result.reason or "Not possible", itemId)
 		return
 	end
-	Progress.addMaterials(player, { [result.material] = -result.cost }, "Gameplay", "forge")
+	if result.cost > 0 then
+		Progress.addMaterials(player, { [result.material] = -result.cost }, "Gameplay", "forge")
+	end
 	if bagIndex then
 		profile.inventory[bagIndex] = result.item
 	elseif slot then
 		profile.equipped[slot] = result.item
+	end
+	-- Fuse used up the duplicate: take it out of the bag (never the forged item itself)
+	local consumed = result.consumed
+	if consumed and consumed ~= item.id then
+		for i, it in profile.inventory do
+			if it.id == consumed then
+				table.remove(profile.inventory, i)
+				break
+			end
+		end
+	end
+	if slot then
 		Stats.refresh(player, false)
 	end
 	Inventory.sync(player)
@@ -90,6 +116,9 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 		text ..= if used == 0
 			then " - no charge used!"
 			else string.format(" - %d charge%s used", used, if used == 1 then "" else "s")
+	end
+	if actionId == "fuse" then
+		text = string.format("Fused - Rank %s", Rules.rankName(Items.rankOf(result.item)))
 	end
 	reply(player, true, text, itemId, used)
 	Actions.fire(player, "forge")

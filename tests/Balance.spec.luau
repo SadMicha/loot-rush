@@ -31,6 +31,7 @@ describe("Balance", function()
 		-- the table also has Unique/Legendary; the ratio of the four tiers stays the same
 		local odds = Balance.rarityOdds(Balance.rarityShift(30))
 		near(odds.magic / odds.normal, 0.305378292015439 / 0.517334437896856)
-		near(odds.epic / odds.rare, 0.0349003762303359 / 0.131058057600537)
+		-- Rare/Epic grow faster than the table since the loot rebalance (docs/specs/LOOT.md P5)
+		near(odds.epic / odds.rare, (2 * 1.6 ^ 2) / (9.5 * 1.6 ^ 1.3))
 	end)
 end)

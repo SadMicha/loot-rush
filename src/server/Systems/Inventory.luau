@@ -115,7 +115,11 @@ function Inventory.add(
 		Inventory.salvageLoot(player, item)
 		return true, true, false
 	end
-	if #profile.inventory >= Inventory.capacity(player) then
+	-- A unique from loot always fits, even over capacity (a full bag shows red, as after a season
+	-- reset): boss uniques are rare and booked as found (pity, Veteran firsts, Systems/Loot), so
+	-- they must never become salvage or vanish with the arena
+	local keepUnique = fromLoot == true and item.rarity == "unique"
+	if #profile.inventory >= Inventory.capacity(player) and not keepUnique then
 		local hero = if fromLoot then Stats.hero(player) else nil
 		if hero and not Upgrade.isUpgrade(hero, item) then
 			Inventory.salvageLoot(player, item)

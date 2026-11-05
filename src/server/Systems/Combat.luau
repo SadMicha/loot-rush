@@ -18,6 +18,7 @@ local Momentum = require(ReplicatedStorage.Shared.Momentum)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
@@ -42,6 +43,15 @@ type PState = {
 	buffUntil: number,
 	focusUntil: number, -- Counter (Shared/Momentum): more damage until then
 	counterAt: number, -- last Counter (one per COUNTER_GAP)
+	-- Signature uniques (Shared/UniqueEffects)
+	basicCount: number, -- Stormcaller: basic hits so far
+	castCount: number, -- Moonlit Tome: skill casts so far
+	geodeShards: number, -- Geode Heart: shards waiting for the next skill
+	crownAt: number, -- Crown of King Glibber: next splash allowed from then
+	wardenAt: number, -- Warden's Girdle: next rescue allowed from then
+	wardenArmor: number, -- Warden's Girdle: % armor until wardenUntil (own field, not Ice Armor's)
+	wardenUntil: number,
+	sporeAt: number, -- Spore Mantle: next cloud allowed from then
 }
 
 local Combat = {
@@ -54,9 +64,13 @@ local Combat = {
 	EnemyHit = Instance.new("BindableEvent"),
 	-- (player, source: Model) a dodge roll went through an enemy attack (Systems/Enemies: boss poise)
 	Countered = Instance.new("BindableEvent"),
+	-- (player) every direct crit, killing blows included (Systems/Rush: Thread of Fate)
+	Crit = Instance.new("BindableEvent"),
 }
 
 local states: { [Player]: PState } = {}
+-- Worn signature uniques per player: effect id → rank (Systems/Stats → Combat.setUniques)
+local worn: { [Player]: { [string]: number } } = {}
 -- Remote throttle (cast checks cooldowns itself; this only slows down spam)
 local allowCast = RateLimit.new(20, 30)
 local allowAction = RateLimit.new(8, 12)
@@ -87,6 +101,7 @@ local PULL_MIN = 2.5 -- Pull does not pull any closer
 local HASTE_TIME, ARMOR_TIME = 3, 3 -- Storm Rider, Ice Armor
 local TWIN_DELAY = 0.15 -- Twin Ball
 local CRYSTAL = Color3.fromHex("#C9A6FF")
+local MINE_GOLD = Color3.fromHex("#FFC74A") -- Cloud Steps mines
 local ICE = Color3.fromHex("#9CE5FF")
 
 local function flat(v: Vector3): Vector3
@@ -314,7 +329,65 @@ local damageEnemy: (
 	proc: boolean?
 ) -> ()
 
+-- ------------------------------------------------------------------ Signature uniques
+-- Effect numbers in Shared/UniqueEffects (docs/specs/LOOT.md P2). Every proc is follow-up damage
+-- (never crits, triggers nothing further).
+local UNIQUE_RANGE = 16 -- Stormcaller chain and Geode shards look this far
+local MINE_TIME, MINE_ARM, MINE_TRIGGER, MINE_RADIUS = 6, 0.4, 4, 6 -- Cloud Steps
+local SPLASH_RADIUS = 10 -- Crown of King Glibber
+local WARDEN_TIME = 4
+local POISON_TICKS = 3 -- Spore Mantle: over 3 s
+local SPORE_GAP = 0.5 -- Spore Mantle: at most one cloud per this many seconds
+local FIRE_TICK = 0.5 -- Ovenlord Mitts
+local SLIME = Color3.fromHex("#7BE36B")
+local SPORE = Color3.fromHex("#A6E05A")
+local FIRE = Color3.fromHex("#FF7A2E")
+local STORM = Color3.fromHex("#8FD3FF")
+
+-- Burning enemies (burn, Ovenlord Mitts) until this time: Ember Band
+local burningUntil: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Rank of a worn signature unique, nil when the player does not wear it
+local function uniqueRank(player: Player, id: string): number?
+	local map = worn[player]
+	return if map then map[id] else nil
+end
+
+function Combat.setUniques(player: Player, map: { [string]: number })
+	worn[player] = map
+end
+
+-- Rank of a worn unique effect for other systems (Rush: Thread of Fate, Enemies: Lumen Lantern)
+Combat.uniqueRank = uniqueRank
+
+-- Base of a unique proc: the player's basic attack damage (level, blooms and stars applied)
+local function procBase(player: Player): number
+	local profile = Data.get(player)
+	local class = Classes.valid(profile and profile.class)
+	return effective(player, Skills.forClass(class).basic).damage
+end
+
+-- Living enemies around `center`, nearest first
+local function nearestEnemies(center: Vector3, radius: number, skip: Model?): { Model }
+	local list: { { e: Model, d: number } } = {}
+	for _, e in aliveEnemies() do
+		local d = flat(enemyPos(e) - center).Magnitude
+		if e ~= skip and d <= radius then
+			table.insert(list, { e = e, d = d })
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.d < b.d
+	end)
+	local out = {}
+	for _, x in list do
+		table.insert(out, x.e)
+	end
+	return out
+end
+
 local function burn(enemy: Model, total: number, player: Player, skill: Skills.Skill)
+	burningUntil[enemy] = os.clock() + BURN_TICKS * BURN_TICK
 	task.spawn(function()
 		for _ = 1, BURN_TICKS do
 			task.wait(BURN_TICK)
@@ -400,6 +473,23 @@ local function applyDamage(
 	if humanoid and humanoid.Health < humanoid.MaxHealth * 0.3 then
 		bonus += num(player, "StatLowLife") / 100
 	end
+	local now = os.clock()
+	local shard = uniqueRank(player, "storm_shard")
+	if shard then -- Shard of the Stormkeeper: move speed counts as damage
+		bonus += math.max(0, num(player, "StatSpeed")) * UniqueEffects.value(
+			"storm_shard",
+			"share",
+			shard
+		) / 100
+	end
+	local ember = uniqueRank(player, "ember_band")
+	if ember and (burningUntil[enemy] or 0) > now then
+		bonus += UniqueEffects.value("ember_band", "bonus", ember) / 100
+	end
+	local lantern = uniqueRank(player, "lumen_lantern")
+	if lantern and enemy:GetAttribute("Broken") == true then
+		bonus += UniqueEffects.value("lumen_lantern", "bonus", lantern) / 100
+	end
 	local tier = if proc then 0 else Crit.rollTier(critChance, roll) -- overcrit: Shared/Crit
 	local crit = tier >= 1
 	local critMult = Config.CRIT_MULT + num(player, "StatCritDamage") / 100
@@ -462,6 +552,37 @@ local function applyDamage(
 	if crit and shardPct > 0 then
 		splinter(pos, enemy, base * critMult * shardPct / 100, player, skill)
 	end
+	if not proc and pst then
+		-- Stormcaller: every n-th basic hit chains lightning
+		local storm = uniqueRank(player, "stormcaller")
+		if storm and skill ~= nil and basicIds[skill.id] == true then
+			pst.basicCount += 1
+			if pst.basicCount % UniqueEffects.count("stormcaller", "every", storm) == 0 then
+				local share = UniqueEffects.value("stormcaller", "hit", storm) / 100
+				local targets = nearestEnemies(pos, UNIQUE_RANGE, enemy)
+				local from = pos
+				for i = 1, math.min(#targets, UniqueEffects.count("stormcaller", "targets", storm)) do
+					local target = targets[i]
+					local delay = sparkFx(from, enemyPos(target), 120, STORM)
+					from = enemyPos(target)
+					task.delay(delay, function()
+						if player.Parent then
+							damageEnemy(target, base * share, player, skill, true)
+						end
+					end)
+				end
+			end
+		end
+		if crit then
+			Combat.Crit:Fire(player)
+		end
+		-- Geode Heart: crits grow shards for the next skill
+		local geode = uniqueRank(player, "geode_heart")
+		if geode and crit then
+			pst.geodeShards =
+				math.min(UniqueEffects.count("geode_heart", "max", geode), pst.geodeShards + 1)
+		end
+	end
 
 	if hp <= 0 then
 		local color = enemy:GetAttribute("Color")
@@ -486,6 +607,30 @@ local function applyDamage(
 		enemy:Destroy()
 		if burst and os.clock() < burst.untilT and player.Parent then
 			shatter(pos, burst.amount, player, skill)
+		end
+		-- Spore Mantle: a kill bursts into a poison cloud (only direct kills, no chain reactions)
+		local spore = uniqueRank(player, "spore_mantle")
+		local sst = states[player]
+		-- one cloud per SPORE_GAP: an AoE killing a whole pack does not stack N clouds on the rest
+		if spore and not proc and player.Parent and sst and os.clock() >= sst.sporeAt then
+			sst.sporeAt = os.clock() + SPORE_GAP
+			local radius = UniqueEffects.value("spore_mantle", "radius", spore)
+			local tick = procBase(player)
+				* UniqueEffects.value("spore_mantle", "hit", spore)
+				/ 100
+				/ POISON_TICKS
+			Net.Fx:FireAllClients("nova", { pos = ground(pos), radius = radius, color = SPORE })
+			task.spawn(function()
+				for _ = 1, POISON_TICKS do
+					task.wait(1)
+					if not player.Parent then
+						return
+					end
+					for _, e in enemiesNear(pos, radius) do
+						damageEnemy(e, tick, player, nil, true)
+					end
+				end
+			end)
 		end
 		if player.Parent then
 			addXP(player, xp)
@@ -580,7 +725,9 @@ function Combat.hurtPlayer(player: Player, amount: number, source: Model?): bool
 	end
 	-- Armor % = less damage (star "Iron Skin" + bloom "Ice Armor")
 	local now = os.clock()
-	local armor = num(player, "StatArmor") + (if now < st.armorUntil then st.armorBuff else 0)
+	local armor = num(player, "StatArmor")
+		+ (if now < st.armorUntil then st.armorBuff else 0)
+		+ (if now < st.wardenUntil then st.wardenArmor else 0)
 	if armor > 0 then
 		amount = math.max(1, math.floor(amount * (1 - math.min(MAX_ARMOR, armor / 100)) + 0.5))
 	end
@@ -605,6 +752,52 @@ function Combat.hurtPlayer(player: Player, amount: number, source: Model?): bool
 	end
 	humanoid.Health -= amount
 	Combat.PlayerHurt:Fire(player, amount)
+	-- Crown of King Glibber: a big hit bursts a slime splash
+	local crown = uniqueRank(player, "glibber_crown")
+	if
+		crown
+		and amount >= humanoid.MaxHealth * UniqueEffects.value("glibber_crown", "threshold", crown) / 100
+		and now >= st.crownAt
+	then
+		st.crownAt = now + UniqueEffects.value("glibber_crown", "cooldown", crown)
+		local hit = procBase(player) * UniqueEffects.value("glibber_crown", "hit", crown) / 100
+		Net.Fx:FireAllClients(
+			"nova",
+			{ pos = ground(root.Position), radius = SPLASH_RADIUS, color = SLIME }
+		)
+		for _, e in enemiesNear(root.Position, SPLASH_RADIUS) do
+			damageEnemy(e, hit, player, nil, true)
+		end
+	end
+	-- Warden's Girdle: rescue below a life share (heal + armor for a few seconds)
+	local warden = uniqueRank(player, "warden_girdle")
+	if
+		warden
+		and humanoid.Health > 0
+		and humanoid.Health < humanoid.MaxHealth * UniqueEffects.value(
+			"warden_girdle",
+			"threshold",
+			warden
+		) / 100
+		and now >= st.wardenAt
+	then
+		st.wardenAt = now + UniqueEffects.value("warden_girdle", "cooldown", warden)
+		humanoid.Health = math.min(
+			humanoid.MaxHealth,
+			humanoid.Health
+				+ humanoid.MaxHealth
+					* UniqueEffects.value("warden_girdle", "heal", warden)
+					/ 100
+		)
+		st.wardenArmor = UniqueEffects.value("warden_girdle", "armor", warden)
+		st.wardenUntil = now + WARDEN_TIME
+		Net.Fx:FireAllClients("dmg", {
+			pos = root.Position + Vector3.new(0, 4, 0),
+			text = "Warden!",
+			color = ICE,
+			who = player.UserId,
+		})
+	end
 	Net.Fx:FireAllClients("dmg", {
 		pos = root.Position + Vector3.new(0, 3, 0),
 		amount = amount,
@@ -1137,6 +1330,8 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		return false -- a starting skill this new hero has not learned yet (Skills.StartUnlock)
 	end
 	local skill = effective(player, base)
+	-- Geode Heart fires only the shards banked before this cast (its own crits wait for the next)
+	local banked = st.geodeShards
 	local now = os.clock()
 	if now < (st.cdUntil[base.id] or 0) then
 		return false
@@ -1145,6 +1340,8 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	if flat(origin - root.Position).Magnitude > 12 then
 		origin = root.Position
 	end
+	-- the bank empties as the cast starts, so crits of this cast refill it for the next skill
+	st.geodeShards = 0
 	local ok = false
 	if skill.kind == "projectile" then
 		ok = castFan(player, root, skill, aim, origin)
@@ -1162,11 +1359,74 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		ok = castBuff(player, root, skill)
 	end
 	if not ok then
+		st.geodeShards += banked -- nothing was cast: the shards stay banked
 		return false
 	end
-	st.cdUntil[base.id] = now + skill.cooldown
-	Net.SkillCast:FireClient(player, base.id, skill.cooldown)
+	-- Moonlit Tome: every n-th skill cast does not start its cooldown
+	local cooldown = skill.cooldown
+	local tome = uniqueRank(player, "moonlit_tome")
+	if tome then
+		st.castCount += 1
+		if st.castCount % UniqueEffects.count("moonlit_tome", "every", tome) == 0 then
+			cooldown = 0
+			Net.Fx:FireAllClients("dmg", {
+				pos = root.Position + Vector3.new(0, 4, 0),
+				text = "Free cast!",
+				color = CRYSTAL,
+				who = player.UserId,
+			})
+		end
+	end
+	st.cdUntil[base.id] = now + cooldown
+	Net.SkillCast:FireClient(player, base.id, cooldown)
 	act(player, skill.kind, base.id, false, aim)
+	-- Ovenlord Mitts: the skill leaves burning ground (at the aim, or around you for self skills)
+	local mitts = uniqueRank(player, "oven_mitts")
+	if mitts then
+		local centered = skill.kind == "nova" or skill.kind == "buff" or skill.range <= 0
+		local rel = if centered then Vector3.zero else flat(aim - root.Position)
+		if rel.Magnitude > skill.range then -- never further than the skill reaches (like castZone)
+			rel = rel.Unit * skill.range
+		end
+		local at = ground(root.Position + rel)
+		local radius = UniqueEffects.value("oven_mitts", "radius", mitts)
+		local time = UniqueEffects.value("oven_mitts", "time", mitts)
+		local tick = procBase(player)
+			* UniqueEffects.value("oven_mitts", "hit", mitts)
+			/ 100
+			* FIRE_TICK
+		task.spawn(function()
+			local ends = os.clock() + time
+			local n = 0
+			while os.clock() < ends and player.Parent do
+				if n % 2 == 0 then
+					Net.Fx:FireAllClients("nova", { pos = at, radius = radius, color = FIRE })
+				end
+				n += 1
+				for _, e in enemiesNear(at, radius) do
+					-- never shortens a longer burn from a skill (Ember Band reads this window)
+					burningUntil[e] = math.max(burningUntil[e] or 0, os.clock() + FIRE_TICK * 2)
+					damageEnemy(e, tick, player, nil, true)
+				end
+				task.wait(FIRE_TICK)
+			end
+		end)
+	end
+	-- Geode Heart: the skill fires the stored shards at the nearest enemies
+	local geode = uniqueRank(player, "geode_heart")
+	if geode and banked > 0 then
+		local count = banked
+		local hit = procBase(player) * UniqueEffects.value("geode_heart", "hit", geode) / 100
+		local targets = nearestEnemies(root.Position, UNIQUE_RANGE, nil)
+		for i = 1, if #targets > 0 then count else 0 do
+			local target = targets[(i - 1) % #targets + 1]
+			task.delay(sparkFx(root.Position, enemyPos(target), 90, CRYSTAL), function()
+				if player.Parent then
+					damageEnemy(target, hit, player, nil, true)
+				end
+			end)
+		end
+	end
 	-- Bloom "Twin Ball": second ball shortly after
 	local twin = skill.twin
 	if skill.kind == "projectile" and twin then
@@ -1225,6 +1485,35 @@ local function dash(player: Player)
 	st.dashCharges -= 1
 	st.iframesUntil = now + Config.DASH_IFRAMES
 	act(player, "dash", nil, false, nil)
+	-- Cloud Steps: the roll drops brick mines that blow up when an enemy comes close
+	local steps = uniqueRank(player, "cloud_steps")
+	local root = body(player)
+	if steps and root and Combat.inRift(player) then
+		local hit = procBase(player) * UniqueEffects.value("cloud_steps", "hit", steps) / 100
+		local count = UniqueEffects.count("cloud_steps", "mines", steps)
+		local center = root.Position
+		for i = 1, count do
+			local angle = (i / count) * math.pi * 2
+			local at = ground(center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * 2.5)
+			task.spawn(function()
+				task.wait(MINE_ARM)
+				local ends = os.clock() + MINE_TIME
+				while os.clock() < ends and player.Parent do
+					if #enemiesNear(at, MINE_TRIGGER) > 0 then
+						Net.Fx:FireAllClients(
+							"nova",
+							{ pos = at, radius = MINE_RADIUS, color = MINE_GOLD }
+						)
+						for _, e in enemiesNear(at, MINE_RADIUS) do
+							damageEnemy(e, hit, player, nil, true)
+						end
+						return
+					end
+					task.wait(0.2)
+				end
+			end)
+		end
+	end
 end
 
 -- Dodge roll as if the client asked (specs, debug)
@@ -1250,6 +1539,14 @@ local function onPlayer(player: Player)
 		armorUntil = 0,
 		shield = 0,
 		shieldUntil = 0,
+		basicCount = 0,
+		castCount = 0,
+		geodeShards = 0,
+		crownAt = 0,
+		wardenAt = 0,
+		wardenArmor = 0,
+		wardenUntil = 0,
+		sporeAt = 0,
 	}
 	player:SetAttribute("Level", 1)
 	player:SetAttribute("XP", 0)
@@ -1316,6 +1613,7 @@ function Combat.init()
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		states[player] = nil
+		worn[player] = nil
 	end)
 end
 

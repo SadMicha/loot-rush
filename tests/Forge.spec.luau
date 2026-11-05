@@ -39,6 +39,7 @@ describe("Forge", function()
 	it("upgrades tiers with rising costs and carries the value along", function()
 		local a = { stat = "life", value = 10, tier = 5 }
 		local it = item("rare", { { stat = "damage", value = 5, implicit = true }, a })
+		it.ilvl = 30 -- tier cap T3: Upgrade Tier may reach T2
 		expect(Forge.cost(Forge.ById.tier, it, 2)).toBe(20)
 		local r = Forge.apply("tier", it, 2, RICH, Random.new(1))
 		expect(r.ok).toBe(true)
@@ -47,6 +48,23 @@ describe("Forge", function()
 		expect(up.value).toBe(math.floor(10 * Items.TierMult[4] / Items.TierMult[5] + 0.5))
 		expect(Forge.tierCost(4)).toBe(40)
 		expect(Forge.tierCost(2)).toBe(80)
+	end)
+
+	it("stops Upgrade Tier one tier above the item level's drop cap (LOOT.md P1)", function()
+		expect(Forge.maxTier(item("rare", {}))).toBe(5) -- ilvl 10: drops up to T6
+		local deep = item("rare", {})
+		deep.ilvl = 55
+		expect(Forge.maxTier(deep)).toBe(1)
+		local a = { stat = "life", value = 10, tier = 5 }
+		local it = item("rare", { { stat = "damage", value = 5, implicit = true }, a })
+		local ok, why = Forge.check("tier", it, 2, RICH)
+		expect(ok).toBe(false)
+		expect(why).toBe("Max T5 at this item level")
+		a.tier = 6
+		expect((Forge.check("tier", it, 2, RICH))).toBe(true)
+		expect(Forge.suggestAffix("tier", it, RICH)).toBe(2)
+		a.tier = 5
+		expect(Forge.suggestAffix("tier", it, RICH)).toBeNil()
 	end)
 
 	it("rejects invalid actions", function()

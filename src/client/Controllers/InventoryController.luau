@@ -19,6 +19,7 @@ local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
@@ -499,9 +500,12 @@ local function itemHeader(parent: Frame, item: Items.Item)
 	name.Parent = parent
 	local sub = Flat.text(
 		string.format(
-			"%s %s",
+			"%s %s%s",
 			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot
+			Items.SlotName[item.slot] or item.slot,
+			if item.rarity == "unique"
+				then " · Rank " .. Forge.rankName(Items.rankOf(item))
+				else ""
 		),
 		11,
 		C.Muted,
@@ -525,6 +529,28 @@ end
 local function statsTop(): number
 	local t, line = rhythm()
 	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
+end
+
+-- Signature effect of a unique under its stat rows (Shared/UniqueEffects): two lines at the
+-- normal pitch, one line when the rows are tightened (`pitch`)
+local function effectLine(parent: Frame, item: Items.Item, pitch: number?)
+	local text = if item.rarity == "unique" and item.unique
+		then UniqueEffects.text(item.unique, Items.rankOf(item))
+		else ""
+	if text == "" then
+		return
+	end
+	local _, line = rhythm()
+	local step = pitch or math.max(22, line)
+	local fx = Flat.text(text, 11, Theme.Rarity.unique, Theme.Font.Body)
+	fx.Name = "UniqueEffect"
+	fx.AutomaticSize = Enum.AutomaticSize.None
+	fx.Size = UDim2.fromOffset(COL_W, if pitch then line else 2 * line)
+	fx.TextWrapped = true
+	fx.TextScaled = true
+	fx.TextYAlignment = Enum.TextYAlignment.Top
+	fx.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * step + 2)
+	fx.Parent = parent
 end
 
 -- Stat rows with bars; `other` = values to compare against (deltas shown when given); `pitch`
@@ -646,6 +672,7 @@ local function renderCompare()
 		caption(left, "Equipped")
 		itemHeader(left, worn)
 		statRows(left, statTotals({ worn }), nil, C.Cyan, pitch)
+		effectLine(left, worn, pitch)
 		if selectedEquipped then
 			local w = if compact then COL_W - 118 else COL_W
 			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
@@ -715,6 +742,9 @@ local function renderCompare()
 			effect.TextTruncate = Enum.TextTruncate.AtEnd
 			effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * (pitch or line))
 			effect.Parent = right
+		else
+			-- the upgrade line owns the space when shown; otherwise the unique's effect
+			effectLine(right, bagItem, pitch)
 		end
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))

@@ -5,6 +5,7 @@
 --   StatArmor, StatBlock, StatCritShard, StatArcaneShield: stars only
 --   StatWeapon: weapon base damage of the worn weapon as a factor (1 = IP 10 or no weapon)
 -- Skill-related stars (skill damage, cooldown …) are applied directly by Progression.effectiveSkill.
+-- Worn signature uniques go to Combat.setUniques (effect id → rank, docs/specs/LOOT.md P2).
 -- No stat is capped; StatCrit above 100% overcrits (Shared/Crit).
 -- Call Stats.refresh after every change to gear or stars (it also updates the visible gear,
 -- Systems/Gear).
@@ -50,9 +51,18 @@ function Stats.refresh(player: Player, fill: boolean)
 	end
 	local sum: { [string]: number } = { damage = 0, life = 0, crit = 0, speed = 0 }
 	local level = Stats.level(player)
+	local uniques: { [string]: number } = {} -- signature effects worn (Shared/UniqueEffects)
 	for _, item in profile.equipped do
 		if not Items.canWear(item, level, profile.class) then
 			continue
+		end
+		if
+			item.rarity == "unique"
+			and typeof(item.unique) == "string"
+			and Items.UniqueById[item.unique]
+		then
+			-- two copies of a ring: the higher rank counts, effects do not stack
+			uniques[item.unique] = math.max(uniques[item.unique] or 0, Items.rankOf(item))
 		end
 		for _, a in item.affixes do
 			if sum[a.stat] then
@@ -73,6 +83,7 @@ function Stats.refresh(player: Player, fill: boolean)
 		"StatWeapon",
 		Balance.weaponFactor(if weapon then Items.itemPower(weapon) else Balance.P.ip_per_depth)
 	)
+	Combat.setUniques(player, uniques)
 	Combat.refreshStats(player, fill)
 	Gear.apply(player) -- worn look on the body (rebuilds only when it changed)
 end
