@@ -134,7 +134,11 @@ end
 -- on a ring around it, the best item last. The server only sends one Net.Fx "lootburst" with the
 -- flight paths (the client draws the glowing arcs, FxController) and creates each real drop
 -- when its arc arrives, so nothing tweens over the network.
-type Planned = { gold: number, item: Items.Item? }
+type Planned = { gold: number, item: Items.Item?, owner: Player?, landed: boolean? }
+
+-- Burst drops still in the air: Loot.collect (run end, death, leave) takes them too, so nothing
+-- in flight is lost; `landed` stops the drop from also appearing afterwards
+local flying: { Planned } = {}
 
 -- Landing spots and start delays for `n` drops (pure, for tests): evenly spread angles with a
 -- little jitter, coins on the outer ring, items closer in; the delays fit in Config.LOOT_BURST_SPAN
@@ -197,8 +201,15 @@ local function burst(pos: Vector3, owner: Player, list: { Planned })
 		arcs = arcs,
 	})
 	for i, d in list do
+		d.owner = owner
+		table.insert(flying, d)
 		task.delay(plan[i].delay + Config.LOOT_BURST_FLIGHT, function()
-			if owner.Parent then
+			local at = table.find(flying, d)
+			if at then
+				table.remove(flying, at)
+			end
+			if not d.landed and owner.Parent then
+				d.landed = true
 				makeDrop(pos, owner, d.gold, d.item, plan[i].at)
 			end
 		end)
@@ -434,6 +445,31 @@ function Loot.collect(player: Player): (number, { Items.Item })
 			end
 			d.model:Destroy()
 			table.remove(drops, i)
+		end
+	end
+	-- Still flying out of a boss: handed over the same way, and they will not land any more
+	for i = #flying, 1, -1 do
+		local f = flying[i]
+		if f.owner == player then
+			table.remove(flying, i)
+			f.landed = true
+			local d: Drop = {
+				model = nil :: any, -- not used by a silent pickup
+				part = nil :: any,
+				owner = player,
+				gold = f.gold,
+				item = f.item,
+				expires = 0,
+			}
+			if pickup(d, nil) then
+				if f.item then
+					table.insert(items, f.item)
+				else
+					gold += f.gold
+				end
+			elseif f.item then
+				Inventory.salvageLoot(player, f.item)
+			end
 		end
 	end
 	return gold, items

@@ -83,4 +83,21 @@ describe("Loot burst in game", function()
 		local lastArc = burst.arcs[#burst.arcs]
 		expect(lastArc.big).toBe(true)
 	end)
+
+	it("hands over drops still in the air when the run ends mid-burst", function()
+		local count, got = server(function(req, player)
+			local Combat = req("ServerScriptService.Server.Systems.Combat")
+			local Loot = req("ServerScriptService.Server.Systems.Loot")
+			Loot.collect(player) -- start clean
+			local pos = player.Character.HumanoidRootPart.Position + Vector3.new(0, 0, 200)
+			Combat.EnemyKilled:Fire(player, pos, 1, true, nil, 1, 1, nil, 100, false)
+			local gold, items = Loot.collect(player) -- e.g. died right after the kill
+			return #items + (if gold > 0 then 1 else 0), #items
+		end)
+		expect(got).toBeGreaterThan(0)
+		expect(count).toBeGreaterThan(1)
+		local before = lootCount()
+		sim:run(Config.LOOT_BURST_SPAN + 0.3)
+		expect(lootCount()).toBe(before) -- nothing lands afterwards
+	end)
 end)
