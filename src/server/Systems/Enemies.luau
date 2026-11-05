@@ -1335,6 +1335,11 @@ local function phaseCheck(e: Enemy, pos: Vector3)
 		e.damage = math.floor(e.damage * Bosses.ENRAGE_DAMAGE + 0.5)
 		e.windup *= Bosses.ENRAGE_WINDUP
 		model:SetAttribute("Enraged", true)
+		-- one Highlight per model shows: an Altered boss turns its violet glow red instead
+		local old = model:FindFirstChild("AlteredGlow")
+		if old then
+			old:Destroy()
+		end
 		local glow = Instance.new("Highlight")
 		glow.Name = "Enrage"
 		glow.FillColor = DANGER_CORE

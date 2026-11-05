@@ -235,6 +235,22 @@ local function onKilled(
 	if total > 0 then
 		makeDrop(pos, owner, coin(total), nil)
 	end
+	-- Big Builds: extra item rolls per kill, elites included (never a starter drop)
+	for _ = 1, if rb then rb.rolls else 0 do
+		if rng:NextNumber() < itemChance then
+			makeDrop(
+				pos,
+				owner,
+				0,
+				Items.roll(
+					t.ilvl,
+					rng,
+					nil,
+					forHero(owner, { shift = t.shift, uniques = t.uniques })
+				)
+			)
+		end
+	end
 	if elite == true then
 		-- Table: elites drop a fixed number of items (at least Magic)
 		for _ = 1, t.eliteItems do
@@ -255,22 +271,6 @@ local function onKilled(
 	-- A new character's first kills always drop (Balance.FirstDrops); a random drop counts too
 	local profile = Data.get(owner)
 	local starter = if profile then Loot.starter(profile.starters, t.shift) else nil
-	-- Big Builds: extra item rolls per kill (never a starter drop)
-	for _ = 1, if rb then rb.rolls else 0 do
-		if rng:NextNumber() < itemChance then
-			makeDrop(
-				pos,
-				owner,
-				0,
-				Items.roll(
-					t.ilvl,
-					rng,
-					nil,
-					forHero(owner, { shift = t.shift, uniques = t.uniques })
-				)
-			)
-		end
-	end
 	if starter or rng:NextNumber() < itemChance then
 		makeDrop(
 			pos,
