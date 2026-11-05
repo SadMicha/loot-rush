@@ -1,0 +1,85 @@
+{
+  "query": {
+    "breakdown": [
+      "Platform"
+    ],
+    "endTime": "2026-11-05T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-10-08T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-05T08:22:19.1155606+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/a49854e4895587fb58d3cc8a59e9087316d0c416485ea62d8f0c4c9cc296733b",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Tablet"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Phone"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Computer"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

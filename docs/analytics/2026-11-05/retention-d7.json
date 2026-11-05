@@ -1,0 +1,45 @@
+{
+  "query": {
+    "endTime": "2026-11-05T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "D7Retention",
+    "startTime": "2026-10-08T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-05T08:29:46.1682634+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/f536baaef105c29fe985421b2cd10c1a4f88b68fd872ee459c5739c75bd48265",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}
