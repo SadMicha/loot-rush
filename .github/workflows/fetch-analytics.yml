@@ -80,7 +80,7 @@ jobs:
           # main is protected (required check "CI ok"), so snapshots live on the branch `analytics`.
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          cp -r docs/analytics "$RUNNER_TEMP/snapshot"
+          mv docs/analytics "$RUNNER_TEMP/snapshot" # untracked files here would block the checkout
           if git fetch -q origin analytics; then git checkout -q -B analytics FETCH_HEAD; else git checkout -q --orphan analytics && git rm -rq --cached . && git clean -fdq -e fetch.log; fi
           mkdir -p docs/analytics && cp -r "$RUNNER_TEMP/snapshot/." docs/analytics/
           git add docs/analytics
