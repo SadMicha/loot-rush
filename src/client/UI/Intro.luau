@@ -16,7 +16,9 @@ local Window = require(script.Parent.Window)
 local Intro = {}
 
 local C = Theme.Color
-local CARD_W = 640
+local CARD_W = 680
+local LINE_H = 60 -- room for three wrapped rows (phones raise small text to a minimum size)
+local CARD_H = 380
 local PAD = Theme.Space.XL
 local Z = 40 -- above the window content
 
@@ -38,15 +40,20 @@ function Intro.show(
 	overlay.Active = true
 	overlay.ZIndex = Z
 
-	local card = Flat.card(UDim2.fromOffset(CARD_W, 0))
+	-- Fixed size (no AutomaticSize: the card's Sheen fills it by scale); the rows sit in Body
+	local card = Flat.card(UDim2.fromOffset(CARD_W, CARD_H))
 	card.Name = "Card"
-	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.Position = UDim2.fromScale(0.5, 0.5)
 	card.ZIndex = Z
-	Kit.padding(card, PAD)
-	local list = Kit.list(card, Enum.FillDirection.Vertical, Theme.Space.M)
+	local body = Flat.frame(UDim2.new(1, -2 * PAD, 1, -2 * PAD))
+	body.Name = "Body"
+	body.AnchorPoint = Vector2.new(0.5, 0.5)
+	body.Position = UDim2.fromScale(0.5, 0.5)
+	body.ZIndex = Z
+	local list = Kit.list(body, Enum.FillDirection.Vertical, Theme.Space.M)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	body.Parent = card
 
 	local head = Flat.frame(UDim2.fromOffset(0, 40))
 	head.Name = "Head"
@@ -61,22 +68,23 @@ function Intro.show(
 	local t = Window.gilded(title, 28)
 	t.LayoutOrder = 2
 	t.Parent = head
-	head.Parent = card
+	head.Parent = body
 
 	for i, line in lines do
-		local l = Flat.text(line, 17, C.Text, Theme.Font.Body, Enum.TextXAlignment.Center)
+		local l = Flat.text(line, 16, C.Text, Theme.Font.Body, Enum.TextXAlignment.Center)
 		l.Name = "Line" .. i
-		l.AutomaticSize = Enum.AutomaticSize.Y
-		l.Size = UDim2.fromOffset(CARD_W - 2 * PAD, 0)
+		l.AutomaticSize = Enum.AutomaticSize.None
+		l.Size = UDim2.new(1, 0, 0, LINE_H)
 		l.TextWrapped = true
+		l.TextYAlignment = Enum.TextYAlignment.Center
 		l.LayoutOrder = 1 + i
-		l.Parent = card
+		l.Parent = body
 	end
 
 	local ok = Flat.button("Got it", "primary", Vector2.new(200, 48))
 	ok.Name = "GotIt"
 	ok.LayoutOrder = 10 + #lines
-	ok.Parent = card
+	ok.Parent = body
 	ok.Activated:Connect(function()
 		Prefs.set(key, true)
 		overlay:Destroy()
