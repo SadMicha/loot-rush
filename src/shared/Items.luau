@@ -563,12 +563,20 @@ function Items.fuse(target: Item, dup: Item): Item?
 	end
 	local rank = math.min(Items.UNIQUE_RANK_MAX, Items.rankOf(target) + Items.rankOf(dup))
 	local ilvl = math.max(target.ilvl, dup.ilvl)
-	local out = Items.rescaleUnique(target, ilvl, rank)
+	-- An older unique (two-stat package) fused with a new copy takes the newer, longer package
+	local layout, other = target, dup
+	if #dup.affixes > #target.affixes then
+		layout, other = dup, target
+	end
+	local out = Items.rescaleUnique(layout, ilvl, rank)
+	out.id = target.id
+	out.class = target.class
+	out.name = target.name
 	for i, a in out.affixes do
-		local other = dup.affixes[i]
-		if other and other.stat == a.stat and other.implicit == a.implicit then
-			local mine = normal(target.affixes[i], target.ilvl, Items.rankOf(target))
-			local theirs = normal(other, dup.ilvl, Items.rankOf(dup))
+		local o = other.affixes[i]
+		if o and o.stat == a.stat and o.implicit == a.implicit then
+			local mine = normal(layout.affixes[i], layout.ilvl, Items.rankOf(layout))
+			local theirs = normal(o, other.ilvl, Items.rankOf(other))
 			if theirs > mine then
 				local f = if a.implicit then 1 else rankMult(rank)
 				a.value = round(a.stat, theirs * levelScale(a.stat, ilvl) * f)

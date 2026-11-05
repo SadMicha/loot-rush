@@ -64,6 +64,8 @@ local Combat = {
 	EnemyHit = Instance.new("BindableEvent"),
 	-- (player, source: Model) a dodge roll went through an enemy attack (Systems/Enemies: boss poise)
 	Countered = Instance.new("BindableEvent"),
+	-- (player) every direct crit, killing blows included (Systems/Rush: Thread of Fate)
+	Crit = Instance.new("BindableEvent"),
 }
 
 local states: { [Player]: PState } = {}
@@ -570,6 +572,9 @@ local function applyDamage(
 					end)
 				end
 			end
+		end
+		if crit then
+			Combat.Crit:Fire(player)
 		end
 		-- Geode Heart: crits grow shards for the next skill
 		local geode = uniqueRank(player, "geode_heart")
@@ -1325,6 +1330,8 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 		return false -- a starting skill this new hero has not learned yet (Skills.StartUnlock)
 	end
 	local skill = effective(player, base)
+	-- Geode Heart fires only the shards banked before this cast (its own crits wait for the next)
+	local banked = st.geodeShards
 	local now = os.clock()
 	if now < (st.cdUntil[base.id] or 0) then
 		return false
@@ -1403,9 +1410,9 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	end
 	-- Geode Heart: the skill fires the stored shards at the nearest enemies
 	local geode = uniqueRank(player, "geode_heart")
-	if geode and st.geodeShards > 0 then
-		local count = st.geodeShards
-		st.geodeShards = 0
+	if geode and banked > 0 then
+		local count = banked
+		st.geodeShards = math.max(0, st.geodeShards - banked)
 		local hit = procBase(player) * UniqueEffects.value("geode_heart", "hit", geode) / 100
 		local targets = nearestEnemies(root.Position, UNIQUE_RANGE, nil)
 		for i = 1, if #targets > 0 then count else 0 do

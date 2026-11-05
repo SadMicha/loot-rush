@@ -1698,11 +1698,15 @@ function Enemies.start()
 			end
 		end
 	)
-	Combat.Countered.Event:Connect(function(_player: Player, source: Model)
+	Combat.Countered.Event:Connect(function(player: Player, source: Model)
 		local e = byModel[source]
 		if e and e.kind.boss then
 			e.counters += 1
-			chipPoise(e, Bosses.POISE_COUNTER, os.clock())
+			local lantern = Combat.uniqueRank(player, "lumen_lantern") -- faster Break meter
+			local fast = if lantern
+				then 1 + UniqueEffects.value("lumen_lantern", "poise", lantern) / 100
+				else 1
+			chipPoise(e, Bosses.POISE_COUNTER * fast, os.clock())
 		end
 	end)
 	Combat.EnemyDied.Event:Connect(function(model: Model, pos: Vector3, killer: Player?)

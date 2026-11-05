@@ -119,6 +119,15 @@ describe("Signature uniques", function()
 		end
 		local max = Items.makeUnique(u, 12, Random.new(3), nil, 4)
 		expect(Items.rankOf(Items.fuse(max, b) :: any)).toBe(5)
+		-- an old two-stat unique takes the new three-stat package of its copy
+		local old = Items.makeUnique(u, 12, Random.new(5))
+		old.id = "old"
+		table.remove(old.affixes)
+		local new = Items.makeUnique(u, 12, Random.new(6))
+		new.id = "new"
+		local up = Items.fuse(old, new) :: any
+		expect(#up.affixes).toBe(#new.affixes)
+		expect(up.id).toBe("old")
 		expect(Items.fuse(a, a)).toBeNil()
 		expect(Items.fuse(a, Items.makeUnique(Items.UniqueById.stormcaller, 12, Random.new(1)))).toBeNil()
 	end)

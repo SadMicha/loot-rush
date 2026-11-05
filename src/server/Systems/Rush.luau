@@ -166,13 +166,7 @@ local function onPlayer(player: Player)
 end
 
 function Rush.init()
-	Combat.EnemyHit.Event:Connect(
-		function(_enemy: Model, _from: Vector3, crit: boolean, _basic: boolean?, player: Player?)
-			if crit and player then
-				onCrit(player)
-			end
-		end
-	)
+	Combat.Crit.Event:Connect(onCrit)
 	Combat.EnemyDied.Event:Connect(function(enemy: Model, _pos: Vector3, killer: Player?)
 		if typeof(killer) ~= "Instance" or not killer:IsA("Player") or not killer.Parent then
 			return
