@@ -29,8 +29,16 @@ local TREE_W, TREE_H = 620, 700
 -- Node icons per branch
 local BRANCH_ICON: { [string]: string } = { trunk = "upgrade", left = "crystal", right = "timer" }
 
+-- Small viewports (phones, shorter side under Theme.TabletMinSide): the content area is scaled down
+-- a lot, so texts and touch targets grow to their minimum screen size (Kit.MIN_TEXT_PX/MIN_TOUCH_PX)
+-- relative to the layout. The compact layout therefore has fewer labels and flows downward.
+local COMPACT_SIDE_W, COMPACT_TREE_W = 520, 520
+local small = false
+local sideW, treeW = SIDE_W, TREE_W
+
 local win: Window.Window
 local listPanel: Frame
+local center: Frame
 local tree: Frame
 local detail: Frame
 local hint: TextLabel
@@ -130,11 +138,22 @@ local function renderList()
 			Kit.label(skill.name, 17, if on then C.GoldHi elseif locked then C.Muted else C.Text)
 		name.Position = UDim2.fromOffset(84, 14)
 		name.ZIndex = 2
+		if small then
+			name.AutomaticSize = Enum.AutomaticSize.None
+			name.Size = UDim2.fromOffset(LEFT_W - 2 * PAD - 84 - 54, 32)
+			name.TextXAlignment = Enum.TextXAlignment.Left
+			name.TextTruncate = Enum.TextTruncate.AtEnd
+		end
 		name.Parent = row
 		local eff = effectiveOf(skill)
 		local sub = Kit.label(
 			if locked
 				then string.format("Unlocks at level %d", need)
+				elseif small then string.format(
+					"Lv %d - %s dmg",
+					progressOf(skill).level,
+					fmt(math.floor(eff.damage + 0.5))
+				)
 				else string.format(
 					"Lv %d - %s dmg - %s s",
 					progressOf(skill).level,
@@ -194,11 +213,12 @@ local function renderTree()
 	local skill = Skills.ById[selected]
 	local bloom = Skills.Blooms[skill.id]
 
-	local cx = TREE_W / 2
+	local cx = treeW / 2
 	local root = Vector2.new(cx, 600)
 	local trunk = { Vector2.new(cx, 470), Vector2.new(cx, 345), Vector2.new(cx, 220) }
-	local left = { Vector2.new(cx - 120, 540), Vector2.new(cx - 240, 500) }
-	local right = { Vector2.new(cx + 120, 540), Vector2.new(cx + 240, 500) }
+	local reach1, reach2 = if small then 110 else 120, if small then 195 else 240
+	local left = { Vector2.new(cx - reach1, 540), Vector2.new(cx - reach2, 500) }
+	local right = { Vector2.new(cx + reach1, 540), Vector2.new(cx + reach2, 500) }
 	local lineColor = C.Gold
 
 	-- Connections first so the nodes sit on top
@@ -215,7 +235,7 @@ local function renderTree()
 		rarity = "rare",
 	})
 	rootNode.Parent = tree
-	Window.caption(tree, skill.name, root + Vector2.new(0, 66), 18, C.GoldHi)
+	Window.caption(tree, skill.name, root + Vector2.new(0, 66), if small then 14 else 18, C.GoldHi)
 
 	if not bloom then
 		hint.Text = "This skill has no bloom yet."
@@ -252,16 +272,22 @@ local function renderTree()
 				15,
 				if pts > 0 then C.GoldHi else C.Muted
 			)
-			local title = Window.caption(
-				tree,
-				n.name,
-				p + (if side then Vector2.new(52, 0) else Vector2.new(0, 70)),
-				14,
-				C.Text
-			)
 			if side then
 				ptsLabel.AnchorPoint = Vector2.zero
-				title.AnchorPoint = Vector2.zero
+			end
+			-- Compact: no node titles (they would run into each other); the selected node's
+			-- name and text are shown in the hint below the bloom
+			if not small then
+				local title = Window.caption(
+					tree,
+					n.name,
+					p + (if side then Vector2.new(52, 0) else Vector2.new(0, 70)),
+					14,
+					C.Text
+				)
+				if side then
+					title.AnchorPoint = Vector2.zero
+				end
 			end
 		end
 	end
@@ -282,6 +308,18 @@ local function renderTree()
 	rightName.AnchorPoint = Vector2.new(0.5, 0)
 	rightName.Position = UDim2.fromOffset(right[2].X - 20, 400)
 	rightName.Parent = tree
+	if small then
+		-- Wrapped into a column of their own on each side so the long names stay inside the tree
+		local colW = 230
+		for _, label in { trunkName, leftName, rightName } do
+			label.AutomaticSize = Enum.AutomaticSize.Y
+			label.TextWrapped = true
+			label.TextXAlignment = Enum.TextXAlignment.Center
+			label.Size = UDim2.fromOffset(if label == trunkName then treeW - 40 else colW, 0)
+		end
+		leftName.Position = UDim2.fromOffset(colW / 2, 392)
+		rightName.Position = UDim2.fromOffset(treeW - colW / 2, 392)
+	end
 
 	local node = if selectedNode then Skills.bloomNode(skill.id, selectedNode) else nil
 	if node and selectedNode then
@@ -294,7 +332,9 @@ local function renderTree()
 			if why and not maxed then " - " .. why else ""
 		)
 	else
-		hint.Text = "Tap a node. Each skill level grants a bloom point."
+		hint.Text = if small
+			then skill.desc
+			else "Tap a node. Each skill level grants a bloom point."
 	end
 end
 
@@ -475,8 +515,223 @@ local function openPicker(skill: Skills.Skill, socket: number, current: string?)
 	picker = layer
 end
 
+-- Compact detail panel: one top-down flow instead of fixed y positions, so growing texts and
+-- touch targets push the next block down instead of running into it. No description (it is shown
+-- below the bloom), icon-only stat tiles, reset only when there is something to reset.
+local function renderDetailCompact()
+	local skill = Skills.ById[selected]
+	local eff = effectiveOf(skill)
+	local sp = progressOf(skill)
+	local w = sideW - 2 * PAD
+	local slot = slotOf(skill.id)
+	local data = ProgressController.data()
+
+	local flow = Window.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(PAD, PAD))
+	flow.Name = "Flow"
+	flow.AutomaticSize = Enum.AutomaticSize.Y
+	local flowList = Kit.list(flow, Enum.FillDirection.Vertical, 8, Enum.VerticalAlignment.Top)
+	flowList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local order = 0
+	local function add(child: GuiObject)
+		order += 1
+		child.LayoutOrder = order
+		child.Parent = flow
+	end
+	local function rowFrame(height: number): Frame
+		local f = Window.frame(UDim2.fromOffset(w, height))
+		if height == 0 then
+			f.AutomaticSize = Enum.AutomaticSize.Y
+		end
+		return f
+	end
+
+	-- Header: icon, name, key and level
+	local head = rowFrame(96)
+	local big = Kit.itemSlot(96, Kit.skillIcon(skill.id, skill.icon), { rarity = "rare" })
+	big.Active = false
+	big.Parent = head
+	local name = Window.heading(skill.name, 20, C.Cyan)
+	name.AutomaticSize = Enum.AutomaticSize.None
+	name.Size = UDim2.fromOffset(w - 110, 36)
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextTruncate = Enum.TextTruncate.AtEnd
+	name.Position = UDim2.fromOffset(110, 8)
+	name.Parent = head
+	local key = Kit.label(
+		if slot
+			then string.format("Key %s - Level %d", KEYS[slot], sp.level)
+			else string.format("Off bar - Level %d", sp.level),
+		16,
+		C.Muted,
+		Theme.Font.Body
+	)
+	key.AutomaticSize = Enum.AutomaticSize.None
+	key.Size = UDim2.fromOffset(w - 110, 36)
+	key.TextXAlignment = Enum.TextXAlignment.Left
+	key.TextTruncate = Enum.TextTruncate.AtEnd
+	key.Position = UDim2.fromOffset(110, 52)
+	key.Parent = head
+	add(head)
+
+	-- Stat tiles: icon over value, no caption text
+	local tiles = rowFrame(84)
+	Kit.list(tiles, Enum.FillDirection.Horizontal, 8)
+	local tileW = math.floor((w - 16) / 3)
+	local reach = if skill.range > 0 then skill.range else eff.radius
+	local stats = {
+		{ "sword", fmt(math.floor(eff.damage + 0.5)) },
+		{ "timer", fmt(eff.cooldown) .. " s" },
+		{ "target", fmt(reach) },
+	}
+	for i, stat in stats do
+		local f = Window.frame(UDim2.fromOffset(tileW, 84))
+		f.LayoutOrder = i
+		Kit.skin(f, "stat_tile", 84, 0.4)
+		local ic = Kit.icon(stat[1], 28)
+		ic.AnchorPoint = Vector2.new(0.5, 0)
+		ic.Position = UDim2.new(0.5, 0, 0, 6)
+		ic.ZIndex = 2
+		ic.Parent = f
+		local v = Kit.label(stat[2], 18, C.Text)
+		v.AnchorPoint = Vector2.new(0.5, 0)
+		v.Position = UDim2.new(0.5, 0, 0, 40)
+		v.ZIndex = 2
+		v.Parent = f
+		f.Parent = tiles
+	end
+	add(tiles)
+
+	-- Bloom points and skill XP
+	local free = Progression.bloomPoints(sp)
+	local pointsRow = rowFrame(40)
+	local ptsIcon = Kit.icon("star_net", 30)
+	ptsIcon.Position = UDim2.fromOffset(0, 5)
+	ptsIcon.Parent = pointsRow
+	local pts = Kit.label(
+		string.format("%d Bloom Point%s", free, if free == 1 then "" else "s"),
+		22,
+		if free > 0 then C.GoldHi else C.Muted
+	)
+	pts.Position = UDim2.fromOffset(40, 2)
+	pts.Parent = pointsRow
+	add(pointsRow)
+
+	local maxed = sp.level >= Skills.MaxLevel
+	local need = Progression.skillXpFor(sp.level)
+	local xpRow = rowFrame(52)
+	local back, fill = Kit.bar(Vector2.new(w, 8), C.Cyan)
+	fill.Size = UDim2.fromScale(if maxed then 1 else math.clamp(sp.xp / need, 0, 1), 1)
+	back.Parent = xpRow
+	local xp = Kit.label(
+		if maxed then "Max level" else string.format("%d / %d XP", sp.xp, need),
+		14,
+		C.Muted,
+		Theme.Font.Body
+	)
+	xp.AutomaticSize = Enum.AutomaticSize.None
+	xp.Size = UDim2.fromOffset(w, 36)
+	xp.TextXAlignment = Enum.TextXAlignment.Left
+	xp.Position = UDim2.fromOffset(0, 14)
+	xp.Parent = xpRow
+	add(xpRow)
+
+	-- Spell stone sockets
+	local socketed: { string } = (data.sockets or {})[skill.id] or {}
+	local sockets = rowFrame(0)
+	Kit.list(sockets, Enum.FillDirection.Horizontal, 8)
+	local sw = math.floor((w - 2 * 8) / SpellStones.SOCKETS)
+	for i = 1, SpellStones.SOCKETS do
+		local id = socketed[i]
+		local stone = if id then SpellStones.ById[id] else nil
+		local b = Kit.button(
+			if stone then stone.name else "Empty",
+			if stone then stone.color else C.Muted,
+			Vector2.new(sw, 40),
+			if stone then stone.icon else nil
+		)
+		b.Name = "Socket" .. i
+		b.LayoutOrder = i
+		Kit.setEnabled(b, i <= #socketed + 1)
+		b.Activated:Connect(function()
+			if b.Active then
+				openPicker(skill, i, id)
+			end
+		end)
+		b.Parent = sockets
+	end
+	add(sockets)
+
+	-- Reset bloom (free), only when something is spent
+	if Progression.bloomSpent(sp) > 0 then
+		local reset = Kit.button("Reset Bloom", C.Danger, Vector2.new(w, 50), "reroll")
+		reset.Activated:Connect(function()
+			if reset.Active then
+				Net.Bloom:FireServer("reset", skill.id)
+			end
+		end)
+		add(reset)
+	end
+
+	-- Selected node: spend a point. Otherwise: keys to put the skill on Q/E/R/F.
+	local nodeKey = selectedNode
+	if nodeKey then
+		local b = Kit.button("Spend Point", C.Gold, Vector2.new(w, 60), "upgrade")
+		Kit.setEnabled(b, (Progression.canBloom(sp, skill.id, nodeKey)))
+		b.Activated:Connect(function()
+			if b.Active then
+				Net.Bloom:FireServer("spend", skill.id, nodeKey)
+			end
+		end)
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
+		add(b)
+	else
+		local okEquip, why = Progression.canEquip(skill.id, playerLevel(), Kit.playerClass(), data)
+		if not okEquip then
+			local b = Kit.button(why or "Locked", C.Muted, Vector2.new(w, 60), "lock")
+			Kit.setEnabled(b, false)
+			add(b)
+		else
+			local caption = Kit.label(
+				if slot then "Move to another key" else "Put on key",
+				14,
+				C.Muted,
+				Theme.Font.Body
+			)
+			add(caption)
+			-- Wraps onto a second line when the grown touch targets no longer fit side by side
+			local gap = 8
+			local bw = math.floor((w - gap * (Skills.SLOTS - 1)) / Skills.SLOTS)
+			local keys = rowFrame(0)
+			keys.Name = "Slots"
+			Kit.list(keys, Enum.FillDirection.Horizontal, gap).Wraps = true
+			for i = 1, Skills.SLOTS do
+				local here = slot == i
+				local held = Progression.barSkill(data, i)
+				local shut = held ~= nil and not Progression.isUnlocked(held, playerLevel(), data)
+				local b = Kit.button(KEYS[i], if here then C.Gold else C.Cyan, Vector2.new(bw, 60))
+				b.Name = "Slot" .. i
+				b.LayoutOrder = i
+				Kit.buttonLabel(b).TextSize = Kit.fontSize(22)
+				Kit.setEnabled(b, not here and not shut)
+				b.Activated:Connect(function()
+					if b.Active then
+						Net.Loadout:FireServer("equip", i, skill.id)
+					end
+				end)
+				b.Parent = keys
+			end
+			add(keys)
+		end
+	end
+	flow.Parent = detail
+end
+
 local function renderDetail()
 	clear(detail)
+	if small then
+		renderDetailCompact()
+		return
+	end
 	local skill = Skills.ById[selected]
 	local eff = effectiveOf(skill)
 	local sp = progressOf(skill)
@@ -652,8 +907,24 @@ local function renderDetail()
 end
 
 -- ------------------------------------------------------------------ Flow
+-- Sizes the tree and detail panels for the current viewport (compact on phones)
+local function applyLayout()
+	local camera = workspace.CurrentCamera
+	small = camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.TabletMinSide
+	sideW = if small then COMPACT_SIDE_W else SIDE_W
+	treeW = if small then COMPACT_TREE_W else TREE_W
+	local body = Window.BODY
+	center.Size = UDim2.fromOffset(treeW, body.Y)
+	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - sideW) / 2, 0)
+	tree.Size = UDim2.fromOffset(treeW, TREE_H)
+	hint.Size = UDim2.fromOffset(treeW - 40, 0)
+	detail.Size = UDim2.fromOffset(sideW, body.Y)
+end
+
 function AbilitiesController.render()
 	closePicker()
+	applyLayout()
 	renderList()
 	renderTree()
 	renderDetail()
@@ -677,7 +948,7 @@ function AbilitiesController.init()
 	listPanel.Parent = win.body
 
 	-- Tree centered between the two panels
-	local center = Window.frame(UDim2.fromOffset(TREE_W, body.Y))
+	center = Window.frame(UDim2.fromOffset(TREE_W, body.Y))
 	center.AnchorPoint = Vector2.new(0.5, 0)
 	center.Position = UDim2.fromOffset(LEFT_W + (body.X - LEFT_W - SIDE_W) / 2, 0)
 	center.Parent = win.body
