@@ -30,7 +30,7 @@ local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Classes = require(ReplicatedStorage.Shared.Classes)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
-local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
+local RiftAffixes = require(ReplicatedStorage.Shared.RiftAffixes)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Studs = require(ReplicatedStorage.Shared.Models.Studs)
 local Feel = require(ReplicatedStorage.Shared.Feel)
@@ -95,7 +95,8 @@ type Enemy = {
 	nextAura: number, -- Frozen aura: next slow pulse
 	goblinUntil: number, -- Treasure Goblin: escapes at this time (0 = no goblin)
 	tempo: number, -- windup/cooldown factor of the depth (Balance.tempo)
-	moveMult: number, -- move speed factor of the depth (Balance.enemySpeed)
+	moveMult: number, -- move speed factor of the depth (Balance.enemySpeed) and rift affixes
+	burning: boolean, -- leaves burning ground where it dies (rift affix Burning Trail)
 	leaping: boolean, -- the current windup is a jump from dashFrom to dashTo
 	nextMortar: number, -- Mortar elites / bosses from phase 2: next shell volley
 	lungeAt: number, -- when the last attack landed (body language, Shared/Anim)
@@ -598,10 +599,22 @@ export type SpawnOpts = {
 	run: number?, -- run number (Systems/Rift counts its enemies with it)
 	elite: boolean?, -- elite: more life/damage/loot (Balance elite_*), golden outline
 	mods: { string }?, -- elite modifiers; default: rolled, one per World Tier (Shared/EliteMods)
-	healthMult: number?, -- life factor (rift variant Swarm)
-	goblin: boolean?, -- Treasure Goblin (rift variant): flees, never attacks, escapes after a while
+	healthMult: number?, -- life factor (rift affixes Swarm, Big Builds, Champion)
+	goblin: boolean?, -- Treasure Goblin (rift affix): flees, never attacks, escapes after a while
 	smoothed: boolean?, -- creature of the Smoothing: studless grey plastic, tougher, pays more
+	damageMult: number?, -- hit damage factor (rift affix Glass Cannon)
+	speedMult: number?, -- move speed factor (rift affix Rush Hour)
+	size: number?, -- body scale factor (rift affix Big Builds)
+	shield: number?, -- brick shield as a share of its life (rift affix Shielded Packs)
+	champion: boolean?, -- named champion (rift affix Champion): "Champion …" + attribute
+	burning: boolean?, -- leaves burning ground where it dies (rift affix Burning Trail)
+	altered: boolean?, -- Altered World boss: violet twist, one elite mod, The Rift's toughness
 }
+
+-- Elite mods an Altered boss may carry (shield and death blast would only drag the fight out)
+local ALTERED_MODS = { "fast", "vampiric", "frozen_aura", "mortar" }
+local ALTERED_COLOR = Color3.fromRGB(185, 90, 255)
+local ALTERED_REF = "the_rift" -- Altered bosses get this boss's life and damage factors
 
 -- Creates an enemy. depth scales life, damage, XP and gold (Shared/Balance).
 function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: SpawnOpts?): Model?
@@ -622,8 +635,8 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		st.gold *= P.elite_loot
 	end
 	if o.goblin then
-		st.health = math.floor(st.health * RiftVariants.GOBLIN_HEALTH)
-		st.gold *= RiftVariants.GOBLIN_GOLD
+		st.health = math.floor(st.health * RiftAffixes.GOBLIN_HEALTH)
+		st.gold *= RiftAffixes.GOBLIN_GOLD
 	end
 	if o.smoothed then
 		st.health = math.floor(st.health * Smoothing.HEALTH)
@@ -633,10 +646,23 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	if o.healthMult then
 		st.health = math.max(1, math.floor(st.health * math.clamp(o.healthMult, 0.05, 10)))
 	end
+	local altered = o.altered == true and kind.boss
+	if altered then
+		-- every Altered boss is as tough as The Rift (the earlier bosses are built softer)
+		local ref = KINDS[ALTERED_REF]
+		if ref and ref ~= kind then
+			st.health = math.max(1, math.floor(st.health * ref.health / kind.health))
+			st.damage = math.max(1, math.floor(st.damage * ref.damage / kind.damage + 0.5))
+		end
+	end
+	if o.damageMult then
+		st.damage = math.max(1, math.floor(st.damage * math.clamp(o.damageMult, 0.1, 10) + 0.5))
+	end
 	local health = st.health
 	local model = kind.build(kind.scale)
 	local modIds: { string } = if elite
 		then (o.mods or EliteMods.roll(rng, EliteMods.count(tier)))
+		elseif altered then { ALTERED_MODS[rng:NextInteger(1, #ALTERED_MODS)] }
 		else {}
 	local mods: { [string]: boolean } = {}
 	for _, id in modIds do
@@ -666,6 +692,30 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 	if o.goblin then
 		model:SetAttribute("Goblin", true)
 		model:ScaleTo(0.8)
+	elseif o.size and o.size ~= 1 then
+		model:ScaleTo(math.clamp(o.size, 0.5, 2))
+	end
+	if o.champion and elite then
+		model.Name = "Champion " .. kind.name
+		model:SetAttribute("Champion", true)
+	end
+	if o.shield and o.shield > 0 and not kind.boss then
+		local shield = math.floor(health * math.clamp(o.shield, 0, 2))
+		model:SetAttribute("Shield", shield)
+		model:SetAttribute("MaxShield", shield)
+	end
+	if altered then
+		model.Name = "Altered " .. kind.name
+		model:SetAttribute("Altered", true)
+		model:SetAttribute("Mods", table.concat(modIds, ","))
+		local glow = Instance.new("Highlight")
+		glow.Name = "AlteredGlow"
+		glow.FillColor = ALTERED_COLOR
+		glow.FillTransparency = 0.75
+		glow.OutlineColor = ALTERED_COLOR
+		glow.OutlineTransparency = 0
+		glow.DepthMode = Enum.HighlightDepthMode.Occluded
+		glow.Parent = model
 	end
 	if elite then
 		model:SetAttribute("Elite", true)
@@ -725,6 +775,7 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		summoned = false,
 		stage = 1,
 		speedMult = 1,
+		burning = o.burning == true,
 		cdMult = 1,
 		phase = rng:NextNumber(0, 6),
 		nextAttack = now + rng:NextNumber(0.8, 1.8), -- staggered: a pack does not hit in one beat
@@ -738,11 +789,11 @@ function Enemies.spawn(kindName: string, pos: Vector3, depth: number, opts: Spaw
 		dashTo = pos,
 		dashEnd = 0,
 		mods = mods,
-		goblinUntil = if o.goblin then now + RiftVariants.GOBLIN_TIME else 0,
+		goblinUntil = if o.goblin then now + RiftAffixes.GOBLIN_TIME else 0,
 		windup = kind.windup * tempo * (if mods.fast then EliteMods.FAST_WINDUP else 1),
 		nextAura = now,
 		tempo = tempo,
-		moveMult = Balance.enemySpeed(depth),
+		moveMult = Balance.enemySpeed(depth) * math.clamp(o.speedMult or 1, 0.5, 2),
 		leaping = false,
 		nextMortar = now + EliteMods.MORTAR_EVERY * rng:NextNumber(0.5, 1),
 		lungeAt = -1,
@@ -987,8 +1038,44 @@ local function blast(at: Vector3, damage: number, radius: number?, delay: number
 	end)
 end
 
+-- Rift affix Brick Rain: a volley of telegraphed bricks around `at` (a player), kept inside
+-- `bounds` when given. Damage follows a normal enemy hit at this depth and World Tier.
+function Enemies.brickRain(
+	at: Vector3,
+	depth: number,
+	tier: number?,
+	bounds: { min: Vector3, max: Vector3 }?
+)
+	local hit = Enemies.stats("slime", depth, tier).damage * RiftAffixes.RAIN_DAMAGE
+	for i = 1, RiftAffixes.RAIN_BRICKS do
+		local p = Vector3.new(at.X, 0, at.Z)
+		if i > 1 then
+			local a = rng:NextNumber(0, math.pi * 2)
+			p += Vector3.new(math.cos(a), 0, math.sin(a)) * rng:NextNumber(
+				3,
+				RiftAffixes.RAIN_SPREAD
+			)
+		end
+		if bounds then
+			p = Vector3.new(
+				math.clamp(p.X, bounds.min.X + 2, bounds.max.X - 2),
+				0,
+				math.clamp(p.Z, bounds.min.Z + 2, bounds.max.Z - 2)
+			)
+		end
+		Net.Fx:FireAllClients("proj", {
+			from = p + Vector3.new(0, 40, 0),
+			to = p + Vector3.new(0, 0.5, 0),
+			time = RiftAffixes.RAIN_DELAY,
+			color = DANGER,
+			size = 1.2,
+		})
+		blast(p, hit, RiftAffixes.RAIN_RADIUS, RiftAffixes.RAIN_DELAY)
+	end
+end
+
 -- Burning ground where a `pool` attack landed: hurts whoever stands in it every POOL_TICK
-local function pool(e: Enemy, at: Vector3, radius: number, now: number)
+local function pool(e: Enemy, at: Vector3, radius: number, now: number, duration: number?)
 	local d = radius * 2
 	local part =
 		flat(CFrame.new(at.X, 0.15, at.Z) * ROT, Vector3.new(0.15, d, d), POOL_COLOR, 0.55, folder)
@@ -1009,7 +1096,7 @@ local function pool(e: Enemy, at: Vector3, radius: number, now: number)
 		at = Vector3.new(at.X, 0, at.Z),
 		radius = radius,
 		damage = math.max(1, math.floor(e.damage * POOL_DAMAGE + 0.5)),
-		untilT = now + (e.kind.pool or 0),
+		untilT = now + (duration or e.kind.pool or 0),
 		nextTick = now + POOL_TICK,
 		run = e.run,
 	})
@@ -1410,7 +1497,7 @@ local function step(dt: number)
 				-- run away, sliding along the arena edge instead of sticking to it
 				local swirl = Vector3.new(-away.Z, 0, away.X).Unit * 0.6
 				dir = (away.Unit + swirl).Unit
-				local step3 = dir * kind.speed * RiftVariants.GOBLIN_SPEED * dt
+				local step3 = dir * kind.speed * RiftAffixes.GOBLIN_SPEED * dt
 				pos = clampArena(e, Vector3.new(pos.X + step3.X, pos.Y, pos.Z + step3.Z))
 				y = baseY + math.abs(math.sin(now * 9 + e.phase)) * 0.8 * kind.scale
 				walking = true
@@ -1614,6 +1701,9 @@ function Enemies.start()
 		end
 		if e.mods.exploding then
 			blast(pos, e.damage * EliteMods.BLAST_DAMAGE)
+		end
+		if e.burning then
+			pool(e, pos, RiftAffixes.BURN_RADIUS, os.clock(), RiftAffixes.BURN_TIME)
 		end
 		-- Victory moment (client: finisher, banner with the fight stats)
 		if e.kind.boss and killer then

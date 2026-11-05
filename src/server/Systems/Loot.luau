@@ -169,6 +169,19 @@ function Loot.starter(given: number, shift: number): Items.RollOpts?
 	return { shift = shift }
 end
 
+-- Bonus of the depth a player's rift is in (Path Card reward and affixes, Systems/Rift):
+-- items/gold = extra shares (0.3 = +30 %), rolls = extra item rolls per normal kill (Big Builds)
+export type RunBonus = { items: number, gold: number, rolls: number }
+local runBonus: { [Player]: RunBonus } = {}
+
+function Loot.setRunBonus(player: Player, bonus: RunBonus?)
+	runBonus[player] = bonus :: any -- nil clears
+end
+
+function Loot.runBonus(player: Player): RunBonus?
+	return runBonus[player]
+end
+
 local function onKilled(
 	player: any,
 	pos: any,
@@ -199,10 +212,13 @@ local function onKilled(
 		local v = owner:GetAttribute(attr)
 		return 1 + (if typeof(v) == "number" then v else 0) / 100
 	end
+	local rb = runBonus[owner]
 	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0)
 		* t.goldMult
 		* bonus("BonusGold") -- pet, passes … (Systems/Boosts)
-	local itemChance = math.min(1, t.itemChance * bonus("BonusItems"))
+		* (1 + (if rb then rb.gold else 0))
+	local itemChance =
+		math.min(1, t.itemChance * bonus("BonusItems") * (1 + (if rb then rb.items else 0)))
 	if boss == true then
 		local coins = Config.LOOT_BOSS_GOLD_DROPS
 		for _ = 1, coins do
@@ -239,6 +255,22 @@ local function onKilled(
 	-- A new character's first kills always drop (Balance.FirstDrops); a random drop counts too
 	local profile = Data.get(owner)
 	local starter = if profile then Loot.starter(profile.starters, t.shift) else nil
+	-- Big Builds: extra item rolls per kill (never a starter drop)
+	for _ = 1, if rb then rb.rolls else 0 do
+		if rng:NextNumber() < itemChance then
+			makeDrop(
+				pos,
+				owner,
+				0,
+				Items.roll(
+					t.ilvl,
+					rng,
+					nil,
+					forHero(owner, { shift = t.shift, uniques = t.uniques })
+				)
+			)
+		end
+	end
 	if starter or rng:NextNumber() < itemChance then
 		makeDrop(
 			pos,
@@ -257,7 +289,8 @@ local function onKilled(
 	end
 end
 
--- Bonus items (rift variant "Against the Clock"): `count` items of Rare or better at `pos`
+-- Bonus items (rift affix "Against the Clock", Path Card caches, champions): `count` items of
+-- Rare or better at `pos`
 function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string?, count: number)
 	local t = Loot.forDepth(depth, regionId, true, owner:GetAttribute("WorldTier") :: number?)
 	for _ = 1, count do
@@ -412,6 +445,7 @@ function Loot.init()
 	Combat.EnemyKilled.Event:Connect(onKilled)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		warned[player] = nil
+		runBonus[player] = nil
 	end)
 end
 

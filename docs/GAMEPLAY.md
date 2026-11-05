@@ -6,7 +6,7 @@ section (tune there, not here).
 
 Sections: [Classes](#classes) · [Skills](#skills) · [Spell stones](#spell-stones) ·
 [Star Web](#star-web) · [Combat feel](#combat-feel) · [Bosses](#bosses) ·
-[Rift variants](#rift-variants) · [Loot](#loot) · [Stud Rush](#stud-rush) ·
+[Path Cards](#path-cards) · [Altered World bosses](#altered-world-bosses) · [Loot](#loot) · [Stud Rush](#stud-rush) ·
 [World Tiers](#world-tiers) · [The Smoothing](#the-smoothing) · [Pets](#pets) ·
 [Onboarding](#onboarding) · [Rift run](#rift-run)
 
@@ -156,17 +156,52 @@ Before depth 3 a dodge through an attack shows "Dodged" (no Counter reward).
 banner "Crystal King defeated · Boss 0:42 · 2 Breaks · 3 Counters"). `Net.Fx` kinds `break`,
 `victory`, `areaclear`; `Net.SkillCooldown` after every cooldown cut.
 
-## Rift variants
+## Path Cards
 
-From depth 3 every depth may roll a variant (`Shared/RiftVariants`; weights normal 55, others 10–12).
-Attribute `RiftVariant` ("" = normal). `Rift.forceVariant` for tests.
+Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. From depth 3
+(`PathCards.FROM_DEPTH`) the "Deeper" button after a boss becomes **three Path Cards** for the next
+depth (`Shared/PathCards`, rolled by `Systems/Rift` with the run's own `Random` when the boss dies):
 
-| Id | Effect |
-|---|---|
-| `swarm` | twice the enemies, half life each |
-| `elite_hunt` | every pack opens with elites (one per World Tier) |
-| `goblin` | a goblin flees for 18 s; caught: gold ×25 |
-| `timed` | clear within 75 s: 3 bonus items (Rare+) at the boss |
+| Card | Affixes | Reward |
+|---|---|---|
+| 1 "Safe Path" | none | +10 % gold |
+| 2 | one | by weight (below) |
+| 3 | one, two from depth 10 (`TWO_FROM`) | by weight |
+
+Reward per weight point (sum of the affix weights): `+15 % items` or `+20 % gold` (items = item drop
+chance, gold = gold per drop, both for the whole depth, `Loot.setRunBonus`); from weight 3 a card
+may offer a **Rare+ cache** of `weight − 1` items at the boss instead. The pick:
+`Net.Rift:FireServer("deeper", n)` (n = 1-3, nil = safe card, anything else is refused). The first
+depth of a run is always plain. `RiftResult` `kind = "clear"` carries `cards`; attributes
+`RiftAffixes` (comma list) and `RiftReward` (reward line) describe the running depth (run card).
+`Rift.forceAffixes` for tests. Analytics custom event `PathCardPicked` (value = weight).
+
+Affixes (`Shared/RiftAffixes`, numbers there):
+
+| Id | Effect | Weight |
+|---|---|---|
+| `swarm` | twice the enemies, half life each | 1 |
+| `elite_hunt` | every pack opens with elites (one per World Tier) | 2 |
+| `goblin` | a goblin flees for 18 s; caught: gold ×25 | 1 |
+| `timed` | clear within 75 s: 3 bonus items (Rare+) at the boss | 2 |
+| `brick_rain` | every 3.5 s a volley of 3 telegraphed bricks around the player (only inside a clearing) | 1 |
+| `shielded_packs` | every pack leader has a brick shield (60 % of its life) | 1 |
+| `burning_trail` | fallen enemies leave burning ground for 3 s | 2 |
+| `glass_cannon` | player (`RiftDamageBonus`) and enemies deal +50 % damage | 2 |
+| `big_builds` | enemies ×1.2 size, ×1.4 life, one extra item roll per kill | 1 |
+| `champion` | a "Champion" elite with 3 mods and ×2.5 life in clearing 2; drops 2 Rare+ | 2 |
+| `rush_hour` | Rush meter fills ×2 (`RiftRushFill`), enemies move ×1.2 | 1 |
+
+Planned next (ENDGAME E1): `smooth_zones` (grey zones that speed enemies up).
+
+## Altered World bosses
+
+`Atlas.altered_world.bossPool` = all six bosses. `Atlas.bossFor(region, depth)` picks the boss:
+every block of six depths meets each boss once (order seeded by the block, the same for every
+player), and two depths in a row never share a boss. A boss other than The Rift is **Altered**
+(`Enemies.spawn` `altered`): name "Altered …", violet glow, one elite mod (fast, vampiric,
+frozen aura or mortar), and The Rift's life and damage factors so no depth is a soft one. Intro
+line `Smoothing.ALTERED_INTRO`.
 
 ## Loot
 
@@ -304,15 +339,18 @@ The server owns the whole run (`Systems/Rift`); the UI reads attributes and send
    `reach["<tier>:<region>"]`); the depth picker can start lower. Resumed runs skip leaderboards.
 2. **Rift Trail → boss:** start pad, 3 clearings with one pack each (`RiftWave` = current area),
    then the boss arena (`docs/specs/WORLD-MAPS.md` §4). One revive per depth at the last waypoint.
-3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"`. Then `"deeper"` or `"leave"`.
+3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"` (with `cards` from
+   depth 3). Then `"deeper"` (Path Card index) or `"leave"`.
 4. **End** (`RiftResult` `kind = "end"`): `reason` = `left` (after a boss), `abandoned` (mid-depth),
    `failed` (died; phase stays `failed` 4 s, respawn in the hub). Loot on the ground is collected
    automatically at the end. `ReplayController` offers "Play again".
 
 Attributes: `RiftPhase` (`""`, `wave`, `boss`, `clear`, `failed`), `RiftRegion`, `RiftDepth`,
-`RiftWave`, `RiftWaves`, `RiftLeft`, `RiftRevives`, `RiftDowned`, `AtlasBest_<region>`, `AtlasStart_<region>`.
+`RiftWave`, `RiftWaves`, `RiftLeft`, `RiftRevives`, `RiftDowned`, `RiftAffixes`, `RiftReward`,
+`AtlasBest_<region>`, `AtlasStart_<region>`.
 
 `RiftResult` = `RiftRun.Summary` (`src/shared/RiftRun.luau`), counted from rift start: `kind`,
 `reason`, `region`, `startDepth`, `depth`, `cleared`, `bestBefore`/`best`/`newBest`, `unlocked`,
-`seconds`, `kills`, `bosses`, `xp`, `levelBefore`/`level`, `gold`, `items`, `materials` (`candy`, `shards`, `dust`).
+`seconds`, `kills`, `bosses`, `xp`, `levelBefore`/`level`, `gold`, `items`, `materials` (`candy`, `shards`, `dust`),
+`cards` (Path Cards, only `clear`).
 Test: Dbg "Kill All Enemies"; automated `tests/RiftRun.spec.luau`.

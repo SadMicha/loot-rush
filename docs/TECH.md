@@ -111,7 +111,7 @@ studded parts and `Kit.finish` re-applies it:
 | Mushroom Swamp | Spore Frog (charger), Poison Snail (summoner) | Spore Mother |
 | Fire Desert | Toast Golem (tank), Spark Imp (ranged) | Oven Lord Krust |
 | Sky Islands | Wind Spirit (ranged), Guardian Statue (tank) | Cloud Queen |
-| Altered World | mix of all | The Rift |
+| Altered World | mix of all | rotating: all six, Altered (`Atlas.bossFor`) |
 
 Enemy AI and values: `Systems/Enemies`; mix, start depth and unlocks: `Shared/Atlas`.
 

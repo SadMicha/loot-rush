@@ -11,6 +11,7 @@ local SCREENS = {
 	"hud-combat",
 	"boss",
 	"rift-clear",
+	"rift-cards",
 	"inventory",
 	"inventory-compare",
 	"stash",

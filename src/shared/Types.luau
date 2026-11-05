@@ -18,6 +18,7 @@ export type PlayerAttributes = {
 -- Rift state as player attributes of the Rift owner (Systems/Rift)
 --   RiftPhase: "" (no Rift) | "wave" | "boss" | "clear" (boss dead, choice: deeper/back) | "failed"
 --   RiftDepth, RiftWave, RiftWaves: number · RiftLeft: enemies still alive
+--   RiftAffixes: comma list of the depth's affixes (Shared/RiftAffixes) · RiftReward: card reward line
 
 -- Enemy attributes (on the model, tag "Enemy")
 export type EnemyAttributes = {
