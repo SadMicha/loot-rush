@@ -12,9 +12,9 @@
 | [ART-STYLE.md](ART-STYLE.md) | One art style for all icons and images, asset inventory, regeneration list with prompts |
 | [ANALYTICS.md](ANALYTICS.md) | Fetching Roblox analytics (DAU, retention, revenue) via Open Cloud into `docs/analytics/` |
 | [PUBLISH.md](PUBLISH.md) | Auto-upload to Roblox (GitHub Actions, Open Cloud) |
-| [RELEASE.md](RELEASE.md) | Release checklist, PR template, security review |
+| [RELEASE.md](RELEASE.md) | Go / no-go before Publish LIVE, release checklist, missing store assets and IDs, unbuilt endgame, PR template, security review |
 | [SMOKE-TEST.md](SMOKE-TEST.md) | 5-minute check after any merge |
-| [TEST-RELEASE.md](TEST-RELEASE.md) | 30–40 minute Studio + phone test before a release, saving checks |
+| [TEST-RELEASE.md](TEST-RELEASE.md) | 30–40 minute Studio + phone test before a release, saving checks, release candidate playtest (PRs #168, #170-#181) |
 | [specs/WORLD-MAPS.md](specs/WORLD-MAPS.md) | Hub, horizon, Rift Trail, never-fall-off, colours |
 | [specs/SEASONS.md](specs/SEASONS.md) | Season framework, leagues, Great Build (built for the Beta) |
 | [specs/SEASON-1-BLUEPRINTS.md](specs/SEASON-1-BLUEPRINTS.md) | Season 1 Blueprints (plan) |
