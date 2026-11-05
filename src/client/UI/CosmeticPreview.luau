@@ -4,7 +4,8 @@
 -- not render in a ViewportFrame) and a comet that shows the trail colors.
 --   local p = CosmeticPreview.new(size)   p.frame → parent it anywhere
 --   p.show(auraId, trailId)               "" = nothing in that slot; rebuilds only what changed
---   p.showGear(skins)                     slot → gear skin id on the copy ("" / missing = class look)
+--   p.showGear(skins, trying?)            slot → gear skin id on the copy ("" / missing = class look);
+--                                         slots in `trying` show even without an item there (try on)
 --   p.refresh()                           new copy of the hero (after respawn / gear change)
 --   p.destroy()
 -- Animates only while the frame is on screen; one BulkMoveTo per frame.
@@ -31,7 +32,7 @@ local PEDESTAL = 6 -- studs across
 export type Preview = {
 	frame: Frame,
 	show: (aura: string, trail: string) -> (),
-	showGear: (skins: { [string]: string }) -> (),
+	showGear: (skins: { [string]: string }, trying: { [string]: string }?) -> (),
 	refresh: () -> (),
 	destroy: () -> (),
 }
@@ -84,6 +85,7 @@ function CosmeticPreview.new(size: Vector2): Preview
 	local gearItems: GearBuild.Worn = {}
 	local gearShown = "" -- signature of the gear built on the copy
 	local wantGear: { [string]: string } = {}
+	local tryGear: { [string]: string } = {}
 
 	local function buildGear()
 		local h = hero
@@ -97,7 +99,14 @@ function CosmeticPreview.new(size: Vector2): Preview
 				fitting[slot] = id
 			end
 		end
-		local sig = Gear.signature(class, gearItems, fitting)
+		-- a skin being tried on shows even on an empty or hidden slot (Hide helmet)
+		local items = table.clone(gearItems)
+		for slot, id in tryGear do
+			if items[slot] == nil and fitting[slot] == id then
+				items[slot] = { rarity = "normal" }
+			end
+		end
+		local sig = Gear.signature(class, items, fitting)
 		if sig == gearShown then
 			return
 		end
@@ -107,7 +116,7 @@ function CosmeticPreview.new(size: Vector2): Preview
 		if root then
 			h:PivotTo(CFrame.new(0, heroDrop, 0)) -- build in rest pose, then turn back
 		end
-		GearBuild.build(h, class, gearItems, fitting, true)
+		GearBuild.build(h, class, items, fitting, true)
 		if root then
 			h:PivotTo(pivot)
 		end
@@ -236,8 +245,9 @@ function CosmeticPreview.new(size: Vector2): Preview
 				)
 			end
 		end,
-		showGear = function(skins: { [string]: string })
+		showGear = function(skins: { [string]: string }, trying: { [string]: string }?)
 			wantGear = table.clone(skins)
+			tryGear = if trying then table.clone(trying) else {}
 			buildGear()
 		end,
 		refresh = function()

@@ -25,6 +25,9 @@ ShopRotation.DAY = 86400
 ShopRotation.WEEK = 7 * 86400
 ShopRotation.MONDAY = 4 -- unix day 4 (1970-01-05) was a Monday
 ShopRotation.WEEK_SALT = 7919 -- keeps the weekly shuffle apart from the daily one
+-- Seconds an offer stays buyable after it rotated out: the client's clock
+-- (workspace:GetServerTimeNow) and the server's os.time() can differ a little at 00:00 UTC
+ShopRotation.GRACE = 120
 
 local function key(e: Entry): string
 	return e.kind .. ":" .. e.id
@@ -107,11 +110,15 @@ function ShopRotation.leavesIn(now: number): (number, number)
 end
 
 -- Is this offer for sale right now (today's daily or this week's featured)?
+-- (also during the first GRACE seconds after it rotated out)
 function ShopRotation.offered(kind: string, id: string, now: number): boolean
+	local before = now - ShopRotation.GRACE
 	for _, list in
 		{
 			ShopRotation.daily(ShopRotation.dayOf(now)),
 			ShopRotation.weekly(ShopRotation.weekOf(now)),
+			ShopRotation.daily(ShopRotation.dayOf(before)),
+			ShopRotation.weekly(ShopRotation.weekOf(before)),
 		}
 	do
 		for _, e in list do

@@ -249,6 +249,17 @@ describe("Rotating shop", function()
 		local week = Rotation.weekly(Rotation.weekOf(LIVE))[1]
 		expect(Rotation.offered(week.kind, week.id, LIVE)).toBe(true)
 		expect(Rotation.offered("skin", "beacon_dawn_sash", LIVE)).toBe(false)
+		-- a short grace after the refresh (client and server clocks differ a little)
+		local start = (Rotation.dayOf(LIVE) + 1) * 86400
+		expect(Rotation.offered(today.kind, today.id, start + Rotation.GRACE - 1)).toBe(true)
+		local later = Rotation.daily(Rotation.dayOf(start))
+		local stillToday = false
+		for _, e in later do
+			if Rotation.key(e) == Rotation.key(today) then
+				stillToday = true
+			end
+		end
+		expect(Rotation.offered(today.kind, today.id, start + Rotation.GRACE + 1)).toBe(stillToday)
 	end)
 end)
 

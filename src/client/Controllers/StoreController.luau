@@ -598,7 +598,7 @@ local function stage(): Frame
 	local p: CosmeticPreview.Preview = preview or CosmeticPreview.new(S.Preview)
 	preview = p
 	p.show(shown("aura"), shown("trail"))
-	p.showGear(shownGear())
+	p.showGear(shownGear(), tryingGear)
 	local names = {}
 	for _, slot in CosmeticRules.Slots do
 		local c = CosmeticRules.ById[shown(slot)]
@@ -1152,7 +1152,11 @@ local function gearWardrobe(order: number): Frame
 		cellGrid.CellPadding = UDim2.fromOffset(18, 10)
 		cellGrid.SortOrder = Enum.SortOrder.LayoutOrder
 		cellGrid.Parent = cells
+		-- a class skin worn by another hero of the account shows the class look here
 		local worn = gearWear[slot] or ""
+		if worn ~= "" and not SkinRules.fits(slot, worn, class) then
+			worn = ""
+		end
 		local base = Flat.cell(GEAR_CELL, "slot_" .. slot, {
 			selected = worn == "",
 			dim = true,
