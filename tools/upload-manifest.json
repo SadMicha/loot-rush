@@ -32,8 +32,8 @@
    "key": "equip_mage_amulet",
    "file": "assets/ui/icons/equipment/Mage/Mage_Amulet.png",
    "size": [
-    350,
-    398
+    349,
+    420
    ],
    "registry": "Assets.Class"
   },
@@ -41,8 +41,8 @@
    "key": "equip_mage_armor",
    "file": "assets/ui/icons/equipment/Mage/Mage_Armor.png",
    "size": [
-    435,
-    442
+    415,
+    411
    ],
    "registry": "Assets.Class"
   },
@@ -50,8 +50,8 @@
    "key": "equip_mage_belt",
    "file": "assets/ui/icons/equipment/Mage/Mage_Belt.png",
    "size": [
-    463,
-    299
+    383,
+    346
    ],
    "registry": "Assets.Class"
   },
@@ -59,8 +59,8 @@
    "key": "equip_mage_boots",
    "file": "assets/ui/icons/equipment/Mage/Mage_Boots.png",
    "size": [
-    421,
-    392
+    386,
+    369
    ],
    "registry": "Assets.Class"
   },
@@ -68,8 +68,8 @@
    "key": "equip_mage_gloves",
    "file": "assets/ui/icons/equipment/Mage/Mage_Gloves.png",
    "size": [
-    415,
-    361
+    410,
+    355
    ],
    "registry": "Assets.Class"
   },
@@ -77,8 +77,8 @@
    "key": "equip_mage_head",
    "file": "assets/ui/icons/equipment/Mage/Mage_Head.png",
    "size": [
-    422,
-    404
+    388,
+    405
    ],
    "registry": "Assets.Class"
   },
@@ -86,8 +86,8 @@
    "key": "equip_mage_offhand",
    "file": "assets/ui/icons/equipment/Mage/Mage_Offhand.png",
    "size": [
-    535,
-    493
+    436,
+    421
    ],
    "registry": "Assets.Class"
   },
@@ -95,8 +95,8 @@
    "key": "equip_mage_ring",
    "file": "assets/ui/icons/equipment/Mage/Mage_Ring.png",
    "size": [
-    468,
-    465
+    345,
+    347
    ],
    "registry": "Assets.Class"
   },
@@ -104,8 +104,8 @@
    "key": "equip_mage_weapon",
    "file": "assets/ui/icons/equipment/Mage/Mage_Weapon.png",
    "size": [
-    434,
-    537
+    378,
+    431
    ],
    "registry": "Assets.Class"
   },
@@ -113,8 +113,8 @@
    "key": "equip_mushroom_amulet",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Amulet.png",
    "size": [
-    363,
-    432
+    339,
+    413
    ],
    "registry": "Assets.Class"
   },
@@ -122,8 +122,8 @@
    "key": "equip_mushroom_armor",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Armor.png",
    "size": [
-    431,
-    441
+    389,
+    402
    ],
    "registry": "Assets.Class"
   },
@@ -131,8 +131,8 @@
    "key": "equip_mushroom_belt",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Belt.png",
    "size": [
-    453,
-    309
+    390,
+    325
    ],
    "registry": "Assets.Class"
   },
@@ -140,8 +140,8 @@
    "key": "equip_mushroom_boots",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Boots.png",
    "size": [
-    409,
-    357
+    382,
+    366
    ],
    "registry": "Assets.Class"
   },
@@ -149,8 +149,8 @@
    "key": "equip_mushroom_gloves",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Gloves.png",
    "size": [
-    397,
-    373
+    405,
+    359
    ],
    "registry": "Assets.Class"
   },
@@ -158,8 +158,8 @@
    "key": "equip_mushroom_head",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Head.png",
    "size": [
-    435,
-    400
+    378,
+    401
    ],
    "registry": "Assets.Class"
   },
@@ -167,8 +167,8 @@
    "key": "equip_mushroom_offhand",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Offhand.png",
    "size": [
-    431,
-    450
+    334,
+    418
    ],
    "registry": "Assets.Class"
   },
@@ -176,8 +176,8 @@
    "key": "equip_mushroom_ring",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Ring.png",
    "size": [
-    462,
-    453
+    326,
+    341
    ],
    "registry": "Assets.Class"
   },
@@ -185,8 +185,8 @@
    "key": "equip_mushroom_weapon",
    "file": "assets/ui/icons/equipment/Mushroom/Mushroom_Weapon.png",
    "size": [
-    560,
-    515
+    352,
+    428
    ],
    "registry": "Assets.Class"
   },
@@ -194,8 +194,8 @@
    "key": "equip_ranger_amulet",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Amulet.png",
    "size": [
-    341,
-    424
+    340,
+    432
    ],
    "registry": "Assets.Class"
   },
@@ -203,8 +203,8 @@
    "key": "equip_ranger_armor",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Armor.png",
    "size": [
-    477,
-    425
+    397,
+    408
    ],
    "registry": "Assets.Class"
   },
@@ -212,8 +212,8 @@
    "key": "equip_ranger_belt",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Belt.png",
    "size": [
-    470,
-    361
+    392,
+    328
    ],
    "registry": "Assets.Class"
   },
@@ -221,8 +221,8 @@
    "key": "equip_ranger_boots",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Boots.png",
    "size": [
-    424,
-    391
+    393,
+    371
    ],
    "registry": "Assets.Class"
   },
@@ -230,8 +230,8 @@
    "key": "equip_ranger_gloves",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Gloves.png",
    "size": [
-    394,
-    357
+    399,
+    335
    ],
    "registry": "Assets.Class"
   },
@@ -239,8 +239,8 @@
    "key": "equip_ranger_head",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Head.png",
    "size": [
-    395,
-    392
+    383,
+    415
    ],
    "registry": "Assets.Class"
   },
@@ -248,8 +248,8 @@
    "key": "equip_ranger_offhand",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Offhand.png",
    "size": [
-    491,
-    480
+    353,
+    435
    ],
    "registry": "Assets.Class"
   },
@@ -257,8 +257,8 @@
    "key": "equip_ranger_ring",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Ring.png",
    "size": [
-    450,
-    443
+    383,
+    337
    ],
    "registry": "Assets.Class"
   },
@@ -266,8 +266,8 @@
    "key": "equip_ranger_weapon",
    "file": "assets/ui/icons/equipment/Ranger/Ranger_Weapon.png",
    "size": [
-    614,
-    524
+    361,
+    431
    ],
    "registry": "Assets.Class"
   },
@@ -275,8 +275,8 @@
    "key": "equip_warrior_amulet",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Amulet.png",
    "size": [
-    379,
-    382
+    327,
+    403
    ],
    "registry": "Assets.Class"
   },
@@ -284,8 +284,8 @@
    "key": "equip_warrior_armor",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Armor.png",
    "size": [
-    524,
-    454
+    398,
+    387
    ],
    "registry": "Assets.Class"
   },
@@ -293,8 +293,8 @@
    "key": "equip_warrior_belt",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Belt.png",
    "size": [
-    471,
-    382
+    378,
+    331
    ],
    "registry": "Assets.Class"
   },
@@ -302,8 +302,8 @@
    "key": "equip_warrior_boots",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Boots.png",
    "size": [
-    412,
-    400
+    378,
+    368
    ],
    "registry": "Assets.Class"
   },
@@ -311,8 +311,8 @@
    "key": "equip_warrior_gloves",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Gloves.png",
    "size": [
-    393,
-    395
+    407,
+    335
    ],
    "registry": "Assets.Class"
   },
@@ -320,8 +320,8 @@
    "key": "equip_warrior_head",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Head.png",
    "size": [
-    402,
-    437
+    357,
+    401
    ],
    "registry": "Assets.Class"
   },
@@ -329,8 +329,8 @@
    "key": "equip_warrior_offhand",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Offhand.png",
    "size": [
-    469,
-    483
+    379,
+    400
    ],
    "registry": "Assets.Class"
   },
@@ -338,8 +338,8 @@
    "key": "equip_warrior_ring",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Ring.png",
    "size": [
-    391,
-    428
+    340,
+    352
    ],
    "registry": "Assets.Class"
   },
@@ -347,8 +347,8 @@
    "key": "equip_warrior_weapon",
    "file": "assets/ui/icons/equipment/Warrior/Warrior_Weapon.png",
    "size": [
-    578,
-    523
+    352,
+    405
    ],
    "registry": "Assets.Class"
   },
@@ -1244,6 +1244,87 @@
     400
    ],
    "registry": "Assets.Hud"
+  },
+  {
+   "key": "gold_sack",
+   "file": "assets/ui/icons/store/gold_sack.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "gold_chest",
+   "file": "assets/ui/icons/store/gold_chest.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "gold_hoard",
+   "file": "assets/ui/icons/store/gold_hoard.png",
+   "size": [
+    256,
+    256
+   ],
+   "registry": "Assets.IconImage"
+  },
+  {
+   "key": "island_green_plains",
+   "file": "assets/ui/art/island_green_plains.png",
+   "size": [
+    494,
+    489
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_crystal_caves",
+   "file": "assets/ui/art/island_crystal_caves.png",
+   "size": [
+    484,
+    489
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_mushroom_swamp",
+   "file": "assets/ui/art/island_mushroom_swamp.png",
+   "size": [
+    510,
+    496
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_fire_desert",
+   "file": "assets/ui/art/island_fire_desert.png",
+   "size": [
+    500,
+    502
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_sky_islands",
+   "file": "assets/ui/art/island_sky_islands.png",
+   "size": [
+    484,
+    512
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_altered_world",
+   "file": "assets/ui/art/island_altered_world.png",
+   "size": [
+    509,
+    505
+   ],
+   "registry": "Assets.Art"
   }
  ]
 }
