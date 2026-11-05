@@ -104,6 +104,13 @@ return table.freeze({
 	-- Loot: level, gold, drop chance and rarity per depth from Shared/Balance
 	LOOT_BOSS_ILVL = 1, -- boss items are this many levels (10 IP each) higher (own assumption)
 	LOOT_BOSS_GOLD_DROPS = 5, -- boss gold split across this many coins
+	-- Boss loot burst (Systems/Loot, FeelController): drops arc out of the boss onto a ring
+	LOOT_BURST_FLIGHT = 0.55, -- seconds one drop flies before it lands
+	LOOT_BURST_STAGGER = 0.09, -- seconds between two drops leaving the boss
+	LOOT_BURST_SPAN = 1.3, -- the whole burst (stagger + last flight) fits in this many seconds
+	LOOT_BURST_RADIUS_MIN = 5, -- studs from the boss: items land in the inner half of the ring
+	LOOT_BURST_RADIUS_MAX = 11, -- coins land in the outer half
+	LOOT_BURST_ARC = 9, -- studs: peak height of an arc above the start
 
 	-- Stash in the hub (Shared/Stash, Systems/Stash): account-wide storage shared by all heroes
 	STASH_TABS = 4, -- tabs of the stash

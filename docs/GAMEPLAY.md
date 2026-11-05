@@ -196,6 +196,11 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   | `exploding` | 8-stud blast on death, 1.2 s telegraph, 1.5× hit damage |
   | `mortar` | every 5 s 3 shells where you are heading, 1.3 s telegraph; bosses from phase 2 |
 
+- **Boss loot burst:** a boss's coins and items (and the "Against the Clock" bonus items) fountain
+  out one after another as glowing orbs on arcs and land on a ring 5-11 studs around it: coins on the
+  outer half, items inside, the best item last (`Loot.burstPlan`, `Config.LOOT_BURST_*`). The server
+  sends one `Net.Fx` "lootburst" with the paths and creates each real drop when its arc lands
+  (`FxController` draws the orbs; trails only on medium/high effects). `Loot.VACUUM_DELAY` waits for it.
 - **Uniques:** from depth 10 (`UNIQUE_FROM`) or Veteran; 12 fixed items in `Items.Uniques`, scale
   with item level, no Forge charges, never auto-salvaged, sell ×25, beam in `Theme.Glow.unique`.
 - **First drops:** a new character's first kills each drop an item (`Balance.FirstDrops`,
@@ -291,6 +296,8 @@ Rules `Shared/Quests`, server `Systems/Quests`, client `QuestController` + HUD q
   only: the server does not refuse requests for locked windows.
 - Hints are account settings (`hintSkills`, `hintDodge`, `hintRush`, `hintBreak`, `hintCounter`,
   `hintEquip`), saved only after they were on screen; Settings → Defaults brings them back.
+- First-open explainers (`client/UI/Intro`): Star Web, Forge and Pet Stable show a short card the
+  first time they open; "Got it" saves `introStarWeb` / `introForge` / `introPets` (same reset rule).
 - The Daily popup waits until the first quest is done (`Daily.popupAllowed`).
 - Each finished quest logs `AnalyticsService:LogOnboardingFunnelStepEvent`.
 - **New quest: append to `Quests.Chain`, never reorder** (the save stores the step index).

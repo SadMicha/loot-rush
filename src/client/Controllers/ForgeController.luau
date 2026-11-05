@@ -17,6 +17,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Intro = require(script.Parent.Parent.UI.Intro)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 local InventoryController = require(script.Parent.InventoryController)
@@ -752,6 +753,11 @@ function ForgeController.init()
 		key = Enum.KeyCode.B,
 		unlock = "forge",
 		background = "bg_forge",
+	})
+	Intro.attach(win, "introForge", "FORGE", "forge", {
+		"Pick an item, then an action and an affix. Materials come from salvaging.",
+		"Each action uses 0-2 Forge charges. An item without charges is finished.",
+		"Seal locks one affix for good and frees its slot for a new one.",
 	})
 
 	local body = Window.BODY
