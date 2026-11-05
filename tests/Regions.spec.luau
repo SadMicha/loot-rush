@@ -186,6 +186,28 @@ describe("Regions in game", function()
 		sim:run(1.5)
 	end)
 
+	it("builds the same map every time (seeded room dressing)", function()
+		local out = server(function(req)
+			local World = req("ServerScriptService.Server.Systems.World")
+			local counts = {}
+			for _, r in Atlas.Regions do
+				local function count(): number
+					World.build(r)
+					local folder = workspace.Arena:FindFirstChild("Region_" .. r.id)
+					return if folder then #folder:GetDescendants() else 0
+				end
+				local first = count()
+				World.build(nil)
+				counts[r.id] = { first, count() }
+			end
+			World.build(nil)
+			return counts
+		end)
+		for _, r in Atlas.Regions do
+			expect(out[r.id][1]).toBe(out[r.id][2]) -- seeded: same trail, same props
+		end
+	end)
+
 	it("builds every region as its own arena without errors", function()
 		local built = server(function(req)
 			local World = req("ServerScriptService.Server.Systems.World")
@@ -200,7 +222,7 @@ describe("Regions in game", function()
 		end)
 		for _, r in Atlas.Regions do
 			expect(built[r.id]).toBeGreaterThan(1000) -- floor 17×15 tiles, surroundings + deco
-			expect(built[r.id]).toBeLessThan(4500) -- part budget for phones
+			expect(built[r.id]).toBeLessThan(5000) -- instance budget for phones (room dressing +8..22% parts)
 		end
 		for _, issue in sim.issues do
 			expect(issue.level).never.toBe("error")

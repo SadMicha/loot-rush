@@ -86,12 +86,15 @@ describe("Fall guard", function()
 				ok = ok and World.walkableAt(1, r.center)
 			end
 			local hubBounds = workspace.Lumenhaven.Bounds
+			local trail = req("ReplicatedStorage.Shared.Trail")
+			-- one Area per rectangle of the layout (arena, start, corridors, clearings, alcoves)
+			ok = ok and #rects == #trail.rects(World.layoutOf(1))
 			return cs:HasTag(hubBounds, Bounds.TAG) and Bounds.read(hubBounds), #rects, ok
 		end)
 		expect(hub).never.toBeNil()
 		expect(hub.halfX).toBe(Config.HUB_HALF)
 		expect((hub.center - Config.HUB_ORIGIN).Magnitude < 0.01).toBe(true)
-		expect(areas).toBe(3 + Config.TRAIL_CLEARINGS * 2) -- arena, start, corridors + tail, clearings
+		expect(areas >= 3 + Config.TRAIL_CLEARINGS * 2).toBe(true) -- arena, start, links + tail, clearings
 		expect(covered).toBe(true)
 	end)
 

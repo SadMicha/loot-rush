@@ -30,6 +30,7 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 21 | Rift in the Altered World (Dbg "Unlock Areas") | "Back to Hub" / HUD Hub / Leave, once per phase (waves, boss, after the boss, dead with a revive left); also on the phone and with a high ping | Always lands in Lumenhaven (spawn), never in an empty Green Plains map; Output has no `[Movement] ... pulled back` line |
 | 22 | Hub edge | Sprint and roll into every hub wall and corner (also with Dbg "Fill Rush" speed and the terrace stairs) | Never past the wall; if a lag spike carries you out, you are back inside within a moment |
 | 23 | Dbg | "Reset Account", tap twice | Kicked with "Account reset - rejoin to start over."; rejoin → hero setup, first quest, hints, fresh stash and heroes |
+| 24 | Rift, each region (Dbg "Unlock Areas"), a few depths | Walk the trail start → boss; enter every side alcove; roll into the walls of the jogs, necks and alcoves | Path bends sideways at least once (Fire Desert may stay straight), the last clearing before the boss is wider, alcoves are dead ends with walls all round; packs stay in their clearing, the waypoint shrine never blocks a neck, the minimap shows the shape; never out of bounds, no FallGuard rescue |
 
 
 Studio tests Robux purchases for free (`docs/MONETIZATION.md`).
