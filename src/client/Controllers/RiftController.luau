@@ -226,7 +226,7 @@ local function refresh()
 	if showChoice then
 		local cards = currentCards()
 		choiceTitle.Text = if #cards > 0
-			then string.format("Depth %d cleared - choose your path to D%d", depth, depth + 1)
+			then string.format("Choose your path to D%d", depth + 1)
 			else string.format("%s - Depth %d cleared", regionName, depth)
 		deeperLabel.Text = string.format("Deeper - D%d", depth + 1)
 		deeperButton.Visible = #cards == 0
