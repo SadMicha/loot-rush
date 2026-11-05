@@ -66,7 +66,11 @@ type Look = {
 		capMaterial: Enum.Material?,
 		height: number?,
 		shrink: number?,
-		kind: ("mountains" | "clouds")?,
+		kind: ("mountains" | "clouds" | "hills" | "caves" | "swamp" | "islands" | "shards")?,
+		hills: { Color3 }?,
+		palette: { Color3 }?,
+		groundFar: Color3?,
+		skirt: number?,
 	},
 }
 
@@ -998,6 +1002,16 @@ local LOOKS: { [string]: Look } = {
 			},
 			cap = Color3.fromHex("#F2F4F8"),
 			height = 40,
+			kind = "hills",
+			-- rolling hills, lighter near the map and bluer far out; snowy stone peaks behind
+			hills = {
+				Color3.fromHex("#4FBF35"),
+				Color3.fromHex("#3FA52E"),
+				Color3.fromHex("#6FCB45"),
+				Color3.fromHex("#2E8A2A"),
+			},
+			groundFar = Color3.fromHex("#2F7F3A"),
+			skirt = 640,
 		},
 	},
 	crystal_caves = {
@@ -1034,6 +1048,14 @@ local LOOKS: { [string]: Look } = {
 			capMaterial = Enum.Material.Neon,
 			height = 50,
 			shrink = 0.62,
+			kind = "caves",
+			-- crystal colours differ per piece so the clusters do not read as one repeated shape
+			palette = {
+				Color3.fromHex("#4FD8F5"),
+				Color3.fromHex("#B07CFF"),
+				Color3.fromHex("#FF7AD9"),
+				Color3.fromHex("#6BF0B0"),
+			},
 		},
 	},
 	mushroom_swamp = {
@@ -1069,6 +1091,20 @@ local LOOKS: { [string]: Look } = {
 			cap = Color3.fromHex("#8FD83A"),
 			height = 30,
 			shrink = 0.75,
+			kind = "swamp",
+			hills = {
+				Color3.fromHex("#3A5A2A"),
+				Color3.fromHex("#32502A"),
+				Color3.fromHex("#4A5A30"),
+			},
+			palette = {
+				Color3.fromHex("#8A5AC0"),
+				Color3.fromHex("#2FB8A0"),
+				Color3.fromHex("#C05A8A"),
+				Color3.fromHex("#6A8A3A"),
+			},
+			groundFar = Color3.fromHex("#1F5A58"), -- swamp water towards the edge
+			skirt = 700,
 		},
 	},
 	fire_desert = {
@@ -1119,7 +1155,19 @@ local LOOKS: { [string]: Look } = {
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
-		horizon = { ground = Color3.fromHex("#D8E6FA"), rock = {}, kind = "clouds", height = 30 },
+		horizon = {
+			ground = Color3.fromHex("#D8E6FA"),
+			rock = {},
+			kind = "islands",
+			height = 30,
+			-- grass top, soil, rock underside, waterfall
+			palette = {
+				Color3.fromHex("#7ACB5A"),
+				Color3.fromHex("#B58A5A"),
+				Color3.fromHex("#8C93A8"),
+				Color3.fromHex("#8FDCFF"),
+			},
+		},
 	},
 	altered_world = {
 		top = { Color3.fromHex("#40266A"), Color3.fromHex("#36205C") },
@@ -1154,6 +1202,12 @@ local LOOKS: { [string]: Look } = {
 			capMaterial = Enum.Material.Neon,
 			height = 46,
 			shrink = 0.62,
+			kind = "shards",
+			palette = {
+				Color3.fromHex("#FF5AD0"),
+				Color3.fromHex("#9A6AFF"),
+				Color3.fromHex("#FF8A5A"),
+			},
 		},
 	},
 }
@@ -1267,8 +1321,12 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 		height = hz.height,
 		shrink = hz.shrink,
 		kind = hz.kind,
+		hills = hz.hills,
+		palette = hz.palette,
+		groundFar = hz.groundFar,
+		skirt = hz.skirt,
 		seed = #id * 97,
-		fill = if hz.kind == "clouds" then nil else look.fill,
+		fill = if hz.kind == "clouds" or hz.kind == "islands" then nil else look.fill,
 	})
 	-- built at the origin, then moved to the slot
 	local center = World.center(n)
