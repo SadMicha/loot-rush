@@ -468,8 +468,10 @@ describe("Gear skins in game", function()
 			local a = req("ServerScriptService.Server.Systems.Data").account(player)
 			a.gearSkins.paladin_plate = true
 		end)
-		local decision = server(function(req, player)
-			return req("ServerScriptService.Server.Systems.Monetization").processReceipt({
+		local decision
+		server(function(req, player)
+			-- processReceipt waits for the save, so the answer arrives after sim:run
+			decision = req("ServerScriptService.Server.Systems.Monetization").processReceipt({
 				ProductId = SET_ID,
 				PlayerId = player.UserId,
 				PurchaseId = "set-1",
@@ -483,8 +485,10 @@ describe("Gear skins in game", function()
 		-- 1,400 set value minus 700 for the two missing pieces as a set
 		expect(a.soulstars).toBe(700)
 		-- everything owned: never more than the set's Soulstar value back
-		local again = server(function(req, player)
-			return req("ServerScriptService.Server.Systems.Monetization").processReceipt({
+		local again
+		server(function(req, player)
+			-- processReceipt waits for the save, so the answer arrives after sim:run
+			again = req("ServerScriptService.Server.Systems.Monetization").processReceipt({
 				ProductId = SET_ID,
 				PlayerId = player.UserId,
 				PurchaseId = "set-2",
