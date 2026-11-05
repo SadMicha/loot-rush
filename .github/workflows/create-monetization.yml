@@ -8,8 +8,16 @@ name: Create Robux products
 # Ran once on 2026-11-03 and created all 14. Run it again (manually) only after adding a new
 # product/pass to tools/create-monetization.py with ID 0 in Monetization.luau.
 
+# Input "icons": instead of creating, uploads assets/monetization/<key>.png as the Creator Hub icon
+# of every product and pass (tools/set-monetization-icons.py).
+
 on:
   workflow_dispatch:
+    inputs:
+      icons:
+        description: "Only upload the product/pass icons (assets/monetization)"
+        type: boolean
+        default: false
 
 concurrency:
   group: create-monetization
@@ -30,8 +38,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create
+        if: ${{ !inputs.icons }}
         shell: bash -eo pipefail {0}
         run: python3 -u tools/create-monetization.py | tee create.log
+
+      - name: Icons
+        if: ${{ inputs.icons }}
+        shell: bash -eo pipefail {0}
+        run: python3 -u tools/set-monetization-icons.py | tee create.log
 
       - name: Summary
         if: always()
