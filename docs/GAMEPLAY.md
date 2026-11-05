@@ -170,7 +170,8 @@ Attribute `RiftVariant` ("" = normal). `Rift.forceVariant` for tests.
 
 ## Loot
 
-Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity.unique`, `UNIQUE_FROM`).
+Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity`, `MAGIC_FROM`,
+`UNIQUE_FROM`, `UniqueDrops`). Design and numbers: `docs/specs/LOOT.md`.
 - 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. A full bag salvages
   non-upgrades from loot; upgrades stay on the ground ("Bag full" popup).
 - **Bag size** (`Shared/Bag`, numbers in `Balance.Bag`): 40 slots + 5 per upgrade level, level 0-12
@@ -196,8 +197,38 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   | `exploding` | 8-stud blast on death, 1.2 s telegraph, 1.5× hit damage |
   | `mortar` | every 5 s 3 shells where you are heading, 1.3 s telegraph; bosses from phase 2 |
 
-- **Uniques:** from depth 10 (`UNIQUE_FROM`) or Veteran; 12 fixed items in `Items.Uniques`, scale
-  with item level, no Forge charges, never auto-salvaged, sell ×25, beam in `Theme.Glow.unique`.
+- **Drop table:** no Normal items from depth `MAGIC_FROM` 10 (`Loot.forDepth().min`); Rare and Epic
+  grow faster with depth (`Rarity` exp 1.3 / 2). Every 5th boss kill of a hero adds a guaranteed
+  Epic (`UniqueDrops.epicEvery`, counted in `profile.luck.bosses`).
+- **Uniques** (`Items.Uniques`, effects `Shared/UniqueEffects`): 12 items, each with a three-stat
+  package (headline ×3.4, ×2.4, ×1.8 of the roll range; T1 is ×2.4) and one signature effect.
+  **Only bosses drop them**, each boss kind its own two (`Items.Uniques[i].source`,
+  `Items.uniquesFrom`), from depth 10 (`UNIQUE_FROM`) or on Veteran+. Chance per boss kill 8 %
+  +2 % per World Tier +1 % per kill of that boss without one (pity, `profile.luck.pity`); the first
+  kill of each boss kind on Veteran+ always drops one (`profile.luck.firsts`). `Loot.uniqueChance`,
+  `Loot.rollBossUnique`. Never auto-salvaged, sell ×25, beam in `Theme.Glow.unique`.
+- **Unique ranks I-V** (`item.rank`, `Items.rankOf`): +5 % on the package per rank and stronger
+  effect numbers. Gained by **Fuse** in the Forge (a duplicate from the bag, ranks add up). The
+  tooltip (Inventory, Stash, Forge) shows the rank and the effect text at that rank.
+
+  | Unique | Boss | Effect (rank I) | Hook |
+  |---|---|---|---|
+  | Stormcaller | Cloud Queen | every 4th basic hit chains lightning to 3 enemies (60 %) | `Combat.applyDamage` |
+  | Cloud Steps | Cloud Queen | dodge roll drops 3 brick mines (80 %) | `Combat.dash` |
+  | Crown of King Glibber | Crystal King | hit over 15 % life: slime splash (100 %, 6 s) | `Combat.hurtPlayer` |
+  | Warden's Girdle | Crystal King | below 40 % life: heal 20 %, 30 % armor 4 s (20 s) | `Combat.hurtPlayer` |
+  | Geode Heart | Shard Worm | crits store shards (max 5), next skill fires them (40 % each) | hit + cast |
+  | Thread of Fate | Shard Worm | Rush +4 s, crits in a Rush +0.2 s | `Systems/Rush` |
+  | Spore Mantle | Spore Mother | direct kills burst a poison cloud (120 % over 3 s) | kill |
+  | Moonlit Tome | Spore Mother | every 3rd skill cast starts no cooldown | `Combat.cast` |
+  | Ovenlord Mitts | Furnace Lord | skills leave burning ground 3 s (40 %/s) | `Combat.cast` |
+  | Ember Band | Furnace Lord | burning enemies take +15 % from you | `Combat.applyDamage` |
+  | Shard of the Stormkeeper | The Rift | +1 % damage per 1 % move speed | `Combat.applyDamage` |
+  | Lumen Lantern | The Rift | Break meter +25 % faster, Broken bosses +30 % | `Systems/Enemies` |
+
+  Percentages are of the hero's basic attack damage (`procBase`); procs never crit and trigger
+  nothing further. Worn uniques reach Combat through `Stats.refresh` → `Combat.setUniques`
+  (effect id → rank; two copies do not stack).
 - **First drops:** a new character's first kills each drop an item (`Balance.FirstDrops`,
   `Loot.starter`, counted in `profile.starters`); the first boss drops a Rare.
 - **Auto-salvage:** unlocks at depth 10; inventory footer cycles Off → Normal → Magic → Rare.
@@ -207,6 +238,16 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
 ## Forge
 - Rules in `Shared/Forge` (Add Affix, Upgrade Tier, Reroll, Seal; 0-2 charges per action except
   Seal). Only `Systems/Forge` rolls and deducts (`Net.ForgeAct` = action + item id + affix index).
+- **Upgrade Tier cap:** an affix can reach at most one tier above the item level's drop cap
+  (`Forge.maxTier` = `Items.tierCap(ilvl) − 1`, T1 only from item level 55). Older affixes above
+  the cap keep their tier.
+- **Uniques** take only their own actions (`Forge.UniqueActions`, `Forge.actionsFor`), no charges:
+  **Fuse** (50 shards) fuses the best duplicate from the bag (`Forge.duplicateOf`, `Items.fuse`:
+  ranks add up to V, higher item level and better rolls win, the duplicate is removed);
+  **Attune** raises the item level to the boss loot level of the hero's best depth on its highest
+  unlocked tier (`Forge.attuneLevel`, from `BestDepth` / `WorldTierUnlocked`), price
+  `Forge.attuneCost` (3 shards per level × (1 + level / 30)). The context (bag, attune level) is
+  built the same way on client and server (`Forge.Context`).
 - Window (`ForgeController`), one flow: item grid (All / Worn / Bag, sort Best/Rarity/Slot/Level,
   rarity filter; only the hero's class) → action tile → affix → preview bar with cost and one
   Forge button. Cells show charges left, a gold diamond on worn gear, and fade when nothing works.

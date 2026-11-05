@@ -41,7 +41,9 @@ Balance.P = table.freeze({
 	weapon_base = 12,
 	weapon_growth = 1.155,
 	-- Loot
-	drop_normal = 0.08, -- spreadsheet 0.12; upgrades stay a find, not a given
+	-- spreadsheet 0.12; upgrades stay a find, not a given. 0.08 → 0.07 (2026-11-05, LOOT.md P5):
+	-- fewer drops, but no Normal items from Balance.MAGIC_FROM and more Rare/Epic
+	drop_normal = 0.07,
 	-- depth 1 to Balance.EARLY_DROP_DEPTH: a bit more loot while the player decides to stay
 	-- (CRITERIA-AUDIT R6: minutes 3–10 were mostly boss loot)
 	drop_early = 0.11,
@@ -54,16 +56,34 @@ Balance.P = table.freeze({
 })
 
 -- Rarity weights at depth 1 and exponent of the shift (sheet "Loot").
--- Unique 0.45 drops from depth Balance.UNIQUE_FROM (Items.Uniques); Legendary (0.05) comes after 1.0.
+-- Rare exp 1 → 1.3 and Epic 1.5 → 2 (2026-11-05, docs/specs/LOOT.md P5): deeper runs bring clearly
+-- more Rare/Epic (depth 30: ~4 Rare and ~1.2 Epic per run instead of 2.8 / 0.75).
+-- Unique 0.45 only counts for rolls with `uniques = true` (debug); real uniques come from bosses
+-- (Balance.UniqueDrops). Legendary (0.05) comes after 1.0.
 Balance.Rarity = table.freeze({
 	{ id = "normal", weight = 60, exp = 0 },
 	{ id = "magic", weight = 28, exp = 0.5 },
-	{ id = "rare", weight = 9.5, exp = 1 },
-	{ id = "epic", weight = 2, exp = 1.5 },
+	{ id = "rare", weight = 9.5, exp = 1.3 },
+	{ id = "epic", weight = 2, exp = 2 },
 	{ id = "unique", weight = 0.45, exp = 2 },
 })
+-- From this depth on no Normal items drop (they roll as Magic at least, LOOT.md P5)
+Balance.MAGIC_FROM = 10
+
+-- Targeted unique drops (docs/specs/LOOT.md P4): only bosses drop uniques, each its own two
+-- (Items.Uniques[i].source). Chance per boss kill = base + perTier × (World Tier − 1) + pity ×
+-- kills of that boss kind without a unique (Systems/Loot, saved per hero in profile.luck).
+--   veteranFirst  the first kill of a boss kind on Veteran or higher always drops one of its uniques
+--   epicEvery     every n-th boss kill of a hero drops one guaranteed Epic (on top of the Rare)
+Balance.UniqueDrops = table.freeze({
+	base = 0.08,
+	perTier = 0.02,
+	pity = 0.01,
+	veteranFirst = true,
+	epicEvery = 5,
+})
 Balance.EARLY_DROP_DEPTH = 10 -- drop_early applies up to this depth, drop_normal after it
-Balance.UNIQUE_FROM = 10 -- uniques only drop from this depth on (own assumption)
+Balance.UNIQUE_FROM = 10 -- uniques only drop from this depth on, or from Veteran (own assumption)
 
 -- IP bonus per rarity (sheet "Loot · Affixes & Salvage")
 Balance.IpBonus = table.freeze(

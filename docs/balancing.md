@@ -38,6 +38,12 @@ run per depth, 24 minutes for depth 1-30). Mobile first, so pressure without che
 is ~25-35 % of a run instead of 36-44 %; `drop_early` 0.11 (instead of `drop_normal` 0.08) up to
 `Balance.EARLY_DROP_DEPTH` 10. Sim: depth 1-30 in 170 min (was 204).
 
+2026-11-05 (loot rebalance, `docs/specs/LOOT.md`): `drop_normal` 0.08 → 0.07, no Normal items from
+depth 10 (`Balance.MAGIC_FROM`), Rarity exponents Rare 1 → 1.3 and Epic 1.5 → 2 (depth 30: ~4 Rare
+and ~1.2 Epic per run instead of 2.8 / 0.75), uniques only from bosses (`Balance.UniqueDrops`),
+Upgrade Tier capped by item level (`Forge.maxTier`). Sim: depth 1-30 in 181 min (the sim counts
+neither Forge nor uniques, so only the drop table moves it).
+
 Hits are a ceiling: the real danger is that several enemies now attack at once and from range.
 
 **Numbers changed**

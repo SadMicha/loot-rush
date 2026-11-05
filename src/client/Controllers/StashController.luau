@@ -15,6 +15,7 @@ local Bag = require(ReplicatedStorage.Shared.Bag)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Items = require(ReplicatedStorage.Shared.Items)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Stash)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
@@ -127,6 +128,12 @@ local function showInfo(item: Items.Item?, note: string?)
 	local lines = {}
 	for _, a in item.affixes do
 		table.insert(lines, Items.affixText(a))
+	end
+	if item.rarity == "unique" and item.unique then -- signature effect (Shared/UniqueEffects)
+		local effect = UniqueEffects.text(item.unique, Items.rankOf(item))
+		if effect ~= "" then
+			table.insert(lines, effect)
+		end
 	end
 	infoAffixes.Text = table.concat(lines, "   ")
 end

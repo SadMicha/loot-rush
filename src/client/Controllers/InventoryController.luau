@@ -18,6 +18,7 @@ local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -472,9 +473,12 @@ local function itemHeader(parent: Frame, item: Items.Item)
 	name.Parent = parent
 	local sub = Flat.text(
 		string.format(
-			"%s %s",
+			"%s %s%s",
 			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot
+			Items.SlotName[item.slot] or item.slot,
+			if item.rarity == "unique"
+				then " · Rank " .. Forge.rankName(Items.rankOf(item))
+				else ""
 		),
 		11,
 		C.Muted,
@@ -498,6 +502,27 @@ end
 local function statsTop(): number
 	local t, line = rhythm()
 	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
+end
+
+-- Signature effect of a unique under its stat rows (Shared/UniqueEffects), two lines at most
+local function effectLine(parent: Frame, item: Items.Item)
+	local text = if item.rarity == "unique" and item.unique
+		then UniqueEffects.text(item.unique, Items.rankOf(item))
+		else ""
+	if text == "" then
+		return
+	end
+	local _, line = rhythm()
+	local step = math.max(22, line)
+	local fx = Flat.text(text, 11, Theme.Rarity.unique, Theme.Font.Body)
+	fx.Name = "Effect"
+	fx.AutomaticSize = Enum.AutomaticSize.None
+	fx.Size = UDim2.fromOffset(COL_W, 2 * line)
+	fx.TextWrapped = true
+	fx.TextScaled = true
+	fx.TextYAlignment = Enum.TextYAlignment.Top
+	fx.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * step + 2)
+	fx.Parent = parent
 end
 
 -- Stat rows with bars; `other` = values to compare against (deltas shown when given)
@@ -608,6 +633,7 @@ local function renderCompare()
 		caption(left, "Equipped")
 		itemHeader(left, worn)
 		statRows(left, statTotals({ worn }), nil, C.Cyan)
+		effectLine(left, worn)
 		if selectedEquipped then
 			local w = if compact then COL_W - 118 else COL_W
 			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
@@ -659,6 +685,7 @@ local function renderCompare()
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
 		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
+		effectLine(right, bagItem)
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)

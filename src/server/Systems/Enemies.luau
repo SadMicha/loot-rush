@@ -37,6 +37,7 @@ local Feel = require(ReplicatedStorage.Shared.Feel)
 local Leash = require(ReplicatedStorage.Shared.Leash)
 local Anim = require(ReplicatedStorage.Shared.Anim)
 local Net = require(ReplicatedStorage.Shared.Net)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Combat = require(script.Parent.Combat)
 
 type Ai = "slam" | "charge" | "ranged" | "summon"
@@ -1596,7 +1597,12 @@ function Enemies.start()
 					e.skillPoiseAt = now
 					amount = Bosses.POISE_SKILL
 				end
-				chipPoise(e, amount * (if crit then Bosses.POISE_CRIT else 1), now)
+				-- Lumen Lantern (Shared/UniqueEffects): the Break meter fills faster
+				local lantern = if player then Combat.uniqueRank(player, "lumen_lantern") else nil
+				local fast = if lantern
+					then 1 + UniqueEffects.value("lumen_lantern", "poise", lantern) / 100
+					else 1
+				chipPoise(e, amount * (if crit then Bosses.POISE_CRIT else 1) * fast, now)
 			end
 		end
 	)

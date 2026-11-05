@@ -20,6 +20,8 @@ local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
+local Profile = require(ReplicatedStorage.Shared.Profile)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
@@ -144,8 +146,53 @@ function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: nu
 		bossItems = Balance.P.drops_boss,
 		eliteItems = Balance.P.drops_elite,
 		shift = Balance.rarityShift(d) + t.shift,
-		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2, -- uniques from Veteran on (docs/GAMEPLAY.md "World Tiers")
+		-- lowest rarity of a random drop: no Normal items from Balance.MAGIC_FROM (LOOT.md P5)
+		min = if d >= Balance.MAGIC_FROM then "magic" else nil,
+		-- bosses may drop their uniques: from UNIQUE_FROM, or from Veteran on (docs/GAMEPLAY.md "World Tiers")
+		uniques = d >= Balance.UNIQUE_FROM or (tier or 1) >= 2,
+		tier = t.id,
+		bossKind = if region then region.bossKind else nil,
 	}
+end
+
+-- Chance that a boss kill drops one of the boss's uniques (Balance.UniqueDrops), pure
+function Loot.uniqueChance(tier: number?, pity: number?): number
+	local u = Balance.UniqueDrops
+	local t = math.max(1, math.floor(tier or 1))
+	return math.clamp(u.base + u.perTier * (t - 1) + u.pity * math.max(0, pity or 0), 0, 1)
+end
+
+-- Rolls the unique of one boss kill and books the luck (pity, Veteran firsts), pure apart from
+-- changing `luck`. `allowed` = this depth/tier may drop uniques and the boss kind owns some.
+-- Returns true when a unique drops.
+function Loot.rollBossUnique(
+	luck: Profile.Luck,
+	kind: string,
+	tier: number?,
+	allowed: boolean,
+	r: number
+): boolean
+	if not allowed then
+		return false
+	end
+	local t = math.max(1, math.floor(tier or 1))
+	if Balance.UniqueDrops.veteranFirst and t >= 2 and not luck.firsts[kind] then
+		luck.firsts[kind] = true
+		luck.pity[kind] = 0
+		return true
+	end
+	if r < Loot.uniqueChance(t, luck.pity[kind]) then
+		luck.pity[kind] = 0
+		return true
+	end
+	luck.pity[kind] = (luck.pity[kind] or 0) + 1
+	return false
+end
+
+-- Does this boss kill (the n-th of the hero) bring the guaranteed Epic? Pure.
+function Loot.epicDue(bossKills: number): boolean
+	local every = Balance.UniqueDrops.epicEvery
+	return every > 0 and bossKills > 0 and bossKills % every == 0
 end
 
 -- Roll options of a guaranteed first drop (Balance.FirstDrops), nil once all were given (pure)
@@ -208,11 +255,35 @@ local function onKilled(
 		for _ = 1, coins do
 			makeDrop(pos, owner, coin(total / coins), nil)
 		end
-		-- Table: boss loot at least 1× Rare+
+		-- Table: boss loot at least 1× Rare+ (random rolls never give uniques, see below)
 		for i = 1, t.bossItems do
-			local opts =
-				{ shift = t.shift, min = if i == 1 then "rare" else nil, uniques = t.uniques }
+			local opts = { shift = t.shift, min = if i == 1 then "rare" else t.min }
 			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, forHero(owner, opts)))
+		end
+		local profile = Data.get(owner)
+		if not profile then
+			return
+		end
+		local luck = profile.luck
+		luck.bosses += 1
+		if Loot.epicDue(luck.bosses) then
+			makeDrop(
+				pos,
+				owner,
+				0,
+				Items.roll(t.ilvl, rng, nil, forHero(owner, { shift = t.shift, min = "epic" }))
+			)
+		end
+		-- Targeted uniques (LOOT.md P4): each boss kind drops its own, with pity
+		local kind = t.bossKind
+		local pool = if kind then Items.uniquesFrom(kind) else {}
+		if
+			kind
+			and Loot.rollBossUnique(luck, kind, t.tier, t.uniques and #pool > 0, rng:NextNumber())
+		then
+			local u = pool[rng:NextInteger(1, #pool)]
+			makeDrop(pos, owner, 0, Items.makeUnique(u, t.ilvl, rng, profile.class))
+			Analytics.custom(owner, "unique_found", t.tier)
 		end
 		return
 	end
@@ -226,12 +297,7 @@ local function onKilled(
 				pos,
 				owner,
 				0,
-				Items.roll(
-					t.ilvl,
-					rng,
-					nil,
-					forHero(owner, { shift = t.shift, min = "magic", uniques = t.uniques })
-				)
+				Items.roll(t.ilvl, rng, nil, forHero(owner, { shift = t.shift, min = "magic" }))
 			)
 		end
 		return
@@ -248,7 +314,7 @@ local function onKilled(
 				t.ilvl,
 				rng,
 				nil,
-				forHero(owner, starter or { shift = t.shift, uniques = t.uniques })
+				forHero(owner, starter or { shift = t.shift, min = t.min })
 			)
 		)
 		if profile and starter then
@@ -265,12 +331,7 @@ function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string
 			pos,
 			owner,
 			0,
-			Items.roll(
-				t.ilvl,
-				rng,
-				nil,
-				forHero(owner, { shift = t.shift, min = "rare", uniques = t.uniques })
-			)
+			Items.roll(t.ilvl, rng, nil, forHero(owner, { shift = t.shift, min = "rare" }))
 		)
 	end
 end
