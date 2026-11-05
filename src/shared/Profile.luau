@@ -29,6 +29,7 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Salvage = require(script.Parent.Salvage)
 local Seasons = require(script.Parent.Seasons)
 local Settings = require(script.Parent.Settings)
 local Stash = require(script.Parent.Stash)
@@ -57,6 +58,7 @@ export type Data = {
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
 	class: string, -- class of this character (Shared/Classes id), locked after setup
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
+	autoKeep: boolean, -- auto-salvage keeps loot that is an upgrade (Shared/Salvage)
 	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
 	starters: number, -- guaranteed first drops already given (Balance.FirstDrops, Systems/Loot)
 	journey: Journey.Data, -- Journey milestones claimed (Shared/Journey)
@@ -125,6 +127,7 @@ local DEFAULTS: Data = {
 	quests = Quests.fresh(),
 	class = Classes.DEFAULT,
 	autoSalvage = "",
+	autoKeep = true,
 	debugged = false,
 	starters = 0,
 	journey = {},
@@ -331,15 +334,17 @@ function Profile.reconcile(raw: any): Data
 	end
 	for _, item in data.inventory do
 		stamp(item)
+		Salvage.cleanLock(item)
 	end
 	for _, item in data.equipped do
 		stamp(item)
+		Salvage.cleanLock(item)
 	end
-	if
-		data.autoSalvage ~= ""
-		and (Items.rank(data.autoSalvage) == 0 or data.autoSalvage == "unique")
-	then
+	if not Salvage.validLimit(data.autoSalvage) then
 		data.autoSalvage = ""
+	end
+	if typeof(data.autoKeep) ~= "boolean" then
+		data.autoKeep = true
 	end
 	return data :: Data
 end

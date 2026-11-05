@@ -9,6 +9,7 @@
 
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
+local Salvage = require(script.Parent.Salvage)
 
 local Stash = {}
 
@@ -60,6 +61,7 @@ function Stash.reconcile(raw: any, taken: { [string]: boolean }?): Data
 		for _, item in tab do
 			if validItem(item) and not seen[item.id] and not (taken and taken[item.id]) then
 				seen[item.id] = true
+				Salvage.cleanLock(item) -- Item.locked: true or absent
 				table.insert(into, item :: Items.Item)
 			end
 		end

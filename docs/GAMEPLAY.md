@@ -287,9 +287,21 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   (effect id → rank; two copies do not stack).
 - **First drops:** a new character's first kills each drop an item (`Balance.FirstDrops`,
   `Loot.starter`, counted in `profile.starters`); the first boss drops a Rare.
-- **Auto-salvage:** unlocks at depth 10; inventory footer cycles Off → Normal → Magic → Rare.
-  Saved as `profile.autoSalvage`; `Net.AutoSalvage` (rate limited). The run summary still counts
-  auto-salvaged items as collected.
+- **Auto-salvage:** unlocks at depth 10; the "Auto" button in the salvage footer opens a dialog:
+  rarity limit (Off, ≤ Normal … ≤ Epic) and "Keep upgrades" (default on: loot that beats the worn
+  piece stays). Saved as `profile.autoSalvage` + `profile.autoKeep`; `Net.AutoSalvage(rarity, keep?)`
+  (rate limited, attributes `AutoSalvage`/`AutoKeep`). Never uniques or locked items (`Shared/Salvage`).
+  The run summary still counts auto-salvaged items as collected.
+- **Item lock:** "Lock" in the bag footer locks the selected bag or worn item (`Item.locked`, saved on
+  the item, so it travels into the stash). A locked item shows a gold lock badge and is never
+  salvaged: not by a tap, quick or bulk salvage, auto-salvage, nor used up as a Forge Fuse duplicate.
+  `Net.ItemLock(id, on)`.
+- **Salvage all downgrades:** "Downgrades" in the salvage footer opens a confirm dialog with the count
+  and the expected gold/materials (`Salvage.expected`), then sends `Net.SalvageMany(ids)`. The server
+  salvages only ids that are still a downgrade for the hero (`Salvage.isDowngrade` = the red arrow),
+  never locked items, uniques or items the hero cannot wear yet.
+- **Grid arrows:** green arrows always show; the red "down" arrow only on the selected or hovered
+  cell (held on touch in the stash), and on every cell while salvage mode is on (`Upgrade.shownMark`).
 
 ## Forge
 - Rules in `Shared/Forge` (Add Affix, Upgrade Tier, Reroll, Seal; 0-2 charges per action except

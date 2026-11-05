@@ -450,6 +450,7 @@ export type CellOptions = {
 	-- hero level the item needs (Items.requiredLevel): dark veil + red "Lv N" chip; a string
 	-- (class name of a class-locked item, Items.classLock) is shown as the chip text instead
 	locked: (number | string)?,
+	kept: boolean?, -- locked by the player (Item.locked, Shared/Salvage): lock icon top right
 }
 
 -- Upgrade corner icon of a cell (top left): painted green arrow up for the best upgrade, a smaller
@@ -536,6 +537,36 @@ function Flat.setCellLock(b: GuiObject, size: number, level: (number | string)?)
 	veil.Parent = b
 end
 
+-- Player lock of a cell (Item.locked: never salvaged): small lock badge top right, changed in place
+function Flat.setCellKeep(b: GuiObject, size: number, on: boolean)
+	local old = b:FindFirstChild("Keep")
+	if (old ~= nil) == on then
+		return
+	end
+	if old then
+		old:Destroy()
+		return
+	end
+	local d = math.max(F.KeepMarkMin, math.floor(size * F.KeepMarkScale))
+	local badge = Instance.new("Frame")
+	badge.Name = "Keep"
+	badge.AnchorPoint = Vector2.new(1, 0)
+	badge.Position = UDim2.new(1, -F.UpgradeMarkInset, 0, F.UpgradeMarkInset)
+	badge.Size = UDim2.fromOffset(d, d)
+	badge.BackgroundColor3 = F.Surface0
+	badge.BackgroundTransparency = 0.25
+	badge.BorderSizePixel = 0
+	badge.ZIndex = 6
+	Flat.corner(badge, math.floor(d / 2))
+	Flat.stroke(badge, C.Gold, 1)
+	local ic = Kit.icon("lock", math.floor(d * 0.72))
+	ic.AnchorPoint = Vector2.new(0.5, 0.5)
+	ic.Position = UDim2.fromScale(0.5, 0.5)
+	ic.ZIndex = 6
+	ic.Parent = badge
+	badge.Parent = b
+end
+
 -- Salvage mark of a cell (red veil with a cross), changed in place
 function Flat.setCellMarked(b: GuiObject, on: boolean)
 	local old = b:FindFirstChild("Mark")
@@ -570,6 +601,7 @@ function Flat.setCell(b: GuiButton, size: number, opts: CellOptions)
 	Flat.setCellUpgrade(b, size, opts.upgrade)
 	Flat.setCellMarked(b, opts.marked == true)
 	Flat.setCellLock(b, size, opts.locked)
+	Flat.setCellKeep(b, size, opts.kept == true)
 	Shape.setRest(b, if opts.selected then F.SelectScale else 1)
 end
 
@@ -612,6 +644,7 @@ function Flat.cell(size: number, iconName: string?, opts: CellOptions?): TextBut
 	Flat.setCellUpgrade(b, size, o.upgrade)
 	Flat.setCellMarked(b, o.marked == true)
 	Flat.setCellLock(b, size, o.locked)
+	Flat.setCellKeep(b, size, o.kept == true)
 
 	if o.caption then
 		local side = o.captionSide or "below"

@@ -21,6 +21,7 @@ local Items = require(ReplicatedStorage.Shared.Items)
 local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Stash)
+local Salvage = require(ReplicatedStorage.Shared.Salvage)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Flat = require(script.Parent.Parent.UI.Flat)
@@ -163,6 +164,9 @@ local function showInfo(item: Items.Item?, note: string?)
 	elseif need then
 		meta ..= ` - Requires Level {Format.int(need)}`
 	end
+	if Salvage.isLocked(item) then
+		meta ..= " - Locked"
+	end
 	infoMeta.Text = if note then `{meta} - {note}` else meta
 	infoMeta.TextColor3 = if need then C.Danger else C.Muted
 	local lines = {}
@@ -202,14 +206,25 @@ local function canSend(id: string): boolean
 end
 
 local function itemCell(item: Items.Item, mark: Upgrade.Mark?, toStash: boolean): TextButton
+	-- Green arrows always; the red "down" arrow only while the item is hovered or held
 	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot, item), {
 		rarity = item.rarity,
-		upgrade = mark,
+		upgrade = Upgrade.shownMark(mark, false),
 		locked = lockOf(item),
+		kept = Salvage.isLocked(item),
 	})
 	b.Name = if toStash then "BagItem" else "StashItem"
+	local function focus(on: boolean)
+		if b.Parent then
+			Flat.setCellUpgrade(b, CELL, Upgrade.shownMark(mark, on))
+		end
+	end
 	b.MouseEnter:Connect(function()
 		showInfo(item)
+		focus(true)
+	end)
+	b.MouseLeave:Connect(function()
+		focus(false)
 	end)
 	-- Touch: a finger resting HOLD seconds shows the stats; the release after it does not move
 	local press = 0
@@ -225,12 +240,14 @@ local function itemCell(item: Items.Item, mark: Upgrade.Mark?, toStash: boolean)
 			if press == mine and b.Parent then
 				held = true
 				showInfo(item)
+				focus(true)
 			end
 		end)
 	end)
 	b.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.Touch then
 			press += 1 -- cancels a pending hold
+			focus(false)
 		end
 	end)
 	b.Activated:Connect(function()

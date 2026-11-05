@@ -31,6 +31,8 @@ export type Item = {
 	-- name in the shared stash, and only that class can wear it (Items.ClassLocked).
 	-- Missing on old stash items = fits every class (Profile.reconcile stamps hero-owned ones).
 	class: string?,
+	-- Locked by the player (Shared/Salvage): never salvaged, never used up by the Forge
+	locked: boolean?,
 }
 
 local Items = {}
