@@ -1,22 +1,17 @@
--- Boss phases (adds at 66 %, enrage at 33 %) and rift variants (rules and the goblin in game).
+-- Boss phases (adds at 66 %, enrage at 33 %) and rift affixes (rules and the goblin in game).
 local Bosses = require("ReplicatedStorage.Shared.Bosses")
-local RiftVariants = require("ReplicatedStorage.Shared.RiftVariants")
+local RiftAffixes = require("ReplicatedStorage.Shared.RiftAffixes")
 
-describe("Rift variants", function()
-	it("keep the first depths plain and roll every variant later", function()
-		local rng = Random.new(11)
-		for _ = 1, 50 do
-			expect(RiftVariants.roll(rng, 1)).toBe("")
-			expect(RiftVariants.roll(rng, RiftVariants.FROM_DEPTH - 1)).toBe("")
-		end
+describe("Rift affixes", function()
+	it("have unique ids, a rule text and a reward weight", function()
 		local seen = {}
-		for _ = 1, 2000 do
-			seen[RiftVariants.roll(rng, 10)] = true
+		for _, a in RiftAffixes.List do
+			expect(seen[a.id]).toBeNil()
+			seen[a.id] = true
+			expect(#a.text > 0).toBe(true)
+			expect(a.weight >= 1).toBe(true)
 		end
-		expect(seen[""]).toBe(true)
-		for _, v in RiftVariants.List do
-			expect(seen[v.id]).toBe(true)
-		end
+		expect(#RiftAffixes.List >= 11).toBe(true)
 	end)
 end)
 
@@ -146,7 +141,7 @@ describe("Bosses and variants in game", function()
 			return ((goblin:GetPivot().Position - root.Position) * Vector3.new(1, 0, 1)).Magnitude
 		end)
 		expect(d1 > d0).toBe(true)
-		sim:run(RiftVariants.GOBLIN_TIME)
+		sim:run(RiftAffixes.GOBLIN_TIME)
 		local left = server(function(req)
 			return req("ServerScriptService.Server.Systems.Enemies").count(43)
 		end)
@@ -163,13 +158,13 @@ describe("Bosses and variants in game", function()
 				"slime",
 				root.Position + Vector3.new(4, 0, -30),
 				30,
-				{ run = 42, healthMult = RiftVariants.SWARM_HEALTH }
+				{ run = 42, healthMult = RiftAffixes.SWARM_HEALTH }
 			)
 			local x, y = a:GetAttribute("MaxHealth"), b:GetAttribute("MaxHealth")
 			Enemies.clear(42)
 			return x, y
 		end)
-		expect(half).toBe(math.floor(full * RiftVariants.SWARM_HEALTH))
+		expect(half).toBe(math.floor(full * RiftAffixes.SWARM_HEALTH))
 	end)
 
 	it("breaks after enough hits, recovers with a bigger meter", function()

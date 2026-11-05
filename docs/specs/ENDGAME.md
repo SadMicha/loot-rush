@@ -1,6 +1,8 @@
 # Endgame redesign – from "deeper" to "different"
 
-As of 2026-11-05, base `main` @ `e7899c4`. Status: **proposal, nothing built**. Owner feedback
+As of 2026-11-05, base `main` @ `e7899c4`. Status: **E1 Path Cards (11 of 12 affixes) and the E3
+Altered boss rotation are built** (docs/GAMEPLAY.md "Path Cards", "Altered World bosses"); the
+rest is still a proposal. Owner feedback
 (Micha, 2026-11-05): "I just run Altered World over and over again, going deeper but still doing
 the same over and over again." This spec says why, and what to build, ranked, so Micha can pick.
 
@@ -243,6 +245,12 @@ session go **down** while sessions get **longer** and region spread goes **up**.
 - Signature uniques (E4) are permanent; seasons can add season-only uniques.
 
 ## 11. Open decisions for Micha
+
+Answered 2026-11-05: build ranks 1-3 first; Path Cards **replace** the random variants. Built so
+far: E1 with 11 affixes (`smooth_zones` and Fragment/Unique reward tags wait for E4/E6) and the
+Altered rotation without the "borrowed attack" (the twist is a violet glow + one elite mod + The
+Rift's toughness).
+
 
 1. Which pieces to build first? Recommended: ranks 1-3 (Path Cards, Altered boss rotation,
    signature uniques).

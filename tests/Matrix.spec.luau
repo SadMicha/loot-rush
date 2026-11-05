@@ -29,6 +29,7 @@ local SCREENS = {
 	"journey",
 	"season",
 	"great-build",
+	"rift-cards", -- last: its Altered World run levels the hero up, which would change later screens
 }
 
 -- one run for all screens while the spec loads (they share a stocked sandbox of their own), then

@@ -143,9 +143,12 @@ function Rush.init()
 		if typeof(killer) ~= "Instance" or not killer:IsA("Player") or not killer.Parent then
 			return
 		end
+		-- rift affix Rush Hour (Systems/Rift sets the factor for the depth)
+		local fill = killer:GetAttribute("RiftRushFill")
 		Rush.add(
 			killer,
 			RushRules.gain(enemy:GetAttribute("Elite") == true, enemy:GetAttribute("Boss") == true)
+				* (if typeof(fill) == "number" and fill > 0 then fill else 1)
 		)
 	end)
 end

@@ -168,10 +168,16 @@ local function stock(sb)
 end
 
 -- Enter a Rift (Atlas) and slay enemies like the debug command until the phase is reached
-local function riftTo(sb, goal: string)
+local function riftTo(sb, goal: string, region: string?)
 	if (sb.player:GetAttribute("RiftPhase") or "") == "" then
+		if region then
+			sb:runAs("client", function(req)
+				req("ReplicatedStorage.Shared.Net").Debug:FireServer("atlas") -- opens every region
+			end)
+			sb:run(1)
+		end
 		sb:runAs("client", function(req)
-			req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", "green_plains")
+			req("ReplicatedStorage.Shared.Net").Rift:FireServer("enter", region or "green_plains")
 		end)
 		sb:run(1)
 	end
@@ -228,6 +234,12 @@ Matrix.SCREENS = {
 		open = function(sb)
 			riftTo(sb, "boss")
 			riftTo(sb, "clear")
+		end,
+	},
+	{
+		name = "rift-cards", -- boss down from depth 3 on: three Path Cards for the next depth
+		open = function(sb)
+			riftTo(sb, "clear", "altered_world")
 		end,
 	},
 	{ name = "inventory", open = window("inventory") },

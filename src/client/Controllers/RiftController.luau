@@ -4,7 +4,8 @@
 --     enemies left, plus a two-tap "Leave" while a run is active
 --   top center: a slim boss bar while the boss lives, with its Break meter (Shared/Bosses) below
 --   boss down: a big "Victory" banner with the fight stats (Net.Fx "victory")
---   after the boss: a centered card with the run so far and "Deeper" / "Back to Hub"
+--   after the boss: a centered card with the run so far and "Deeper" / "Back to Hub"; from
+--     PathCards.FROM_DEPTH on "Deeper" becomes three Path Cards (affixes + reward, Shared/PathCards)
 -- The state comes from the server as player attributes (see Types.luau) and Net.RiftResult; this
 -- only displays it and requests "deeper" or "leave" via Net.Rift. Entering happens in the Atlas.
 
@@ -20,7 +21,8 @@ local Bosses = require(ReplicatedStorage.Shared.Bosses)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Net = require(ReplicatedStorage.Shared.Net)
-local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
+local PathCards = require(ReplicatedStorage.Shared.PathCards)
+local RiftAffixes = require(ReplicatedStorage.Shared.RiftAffixes)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -37,6 +39,7 @@ local C = Theme.Color
 local INFO_W, INFO_H = 230, 68 -- run card (top left)
 local BOSS_W = 360 -- boss bar (top center)
 local CHOICE_W, CHOICE_BTN = 330, 38 -- compact card after the boss (width, button height)
+local PATH_H = 46 -- one Path Card row
 local CONFIRM_TIME = 3 -- seconds the "Leave" button stays armed after the first tap
 
 local root: Frame
@@ -62,6 +65,16 @@ local choice: Frame
 local choiceTitle: TextLabel
 local choiceStats: TextLabel
 local deeperLabel: TextLabel
+local deeperButton: TextButton
+local pathBox: Frame
+type PathRow = {
+	button: TextButton,
+	icon: Frame,
+	title: TextLabel,
+	rule: TextLabel,
+	reward: TextLabel,
+}
+local pathRows: { PathRow } = {}
 local lastSummary: { [string]: any }? = nil
 
 local function phase(): string
@@ -115,6 +128,50 @@ local function refreshChoiceStats()
 	) .. (if fightLine ~= "" and fightDepth == s.depth then "\n" .. fightLine else "")
 end
 
+-- Path Cards of this depth's clear (empty = plain "Deeper")
+local function currentCards(): { PathCards.Card }
+	local s = lastSummary
+	local out = {}
+	if not s or s.depth ~= player:GetAttribute("RiftDepth") or typeof(s.cards) ~= "table" then
+		return out
+	end
+	for _, raw in s.cards do
+		local card = PathCards.sanitize(raw)
+		if card then
+			table.insert(out, card)
+		end
+	end
+	return out
+end
+
+local function showCards(cards: { PathCards.Card })
+	for i, row in pathRows do
+		local card = cards[i]
+		row.button.Visible = card ~= nil
+		if card then
+			local first = RiftAffixes.ById[card.affixes[1] or ""]
+			row.title.Text = if first then RiftAffixes.names(card.affixes) else "Safe Path"
+			local rules = {}
+			for _, id in card.affixes do
+				table.insert(rules, RiftAffixes.ById[id].text)
+			end
+			row.rule.Text = if #rules > 0 then table.concat(rules, " - ") else "No twist"
+			row.reward.Text = PathCards.describe(card)
+			row.reward.TextColor3 = if card.reward == "cache"
+				then C.GoldHi
+				elseif card.reward == "items" then C.Cyan
+				else C.Gold
+			for _, child in row.icon:GetChildren() do
+				child:Destroy()
+			end
+			local ic = Kit.icon(if first then first.icon else "gold", 26)
+			ic.AnchorPoint = Vector2.new(0.5, 0.5)
+			ic.Position = UDim2.fromScale(0.5, 0.5)
+			ic.Parent = row.icon
+		end
+	end
+end
+
 local function setLeaveArmed(armed: boolean)
 	leaveArmed = armed
 	leaveLabel.Text = if armed then "Sure?" else "Leave"
@@ -125,7 +182,8 @@ local function refresh()
 	local p = phase()
 	local depth = (player:GetAttribute("RiftDepth") or 1) :: number
 	local region = Atlas.ById[(player:GetAttribute("RiftRegion") or "") :: string]
-	local variant = RiftVariants.ById[(player:GetAttribute("RiftVariant") or "") :: string]
+	local affixes = RiftAffixes.decode(player:GetAttribute("RiftAffixes"))
+	local reward = (player:GetAttribute("RiftReward") or "") :: string
 	local regionName = if region then region.name else "Rift"
 
 	local downed = player:GetAttribute("RiftDowned") == true
@@ -137,8 +195,12 @@ local function refresh()
 	if not leaveButton.Visible then
 		setLeaveArmed(false)
 	end
-	infoVariant.Text = if variant then variant.name else ""
-	infoVariant.Visible = variant ~= nil
+	local twist = RiftAffixes.names(affixes)
+	infoVariant.Text = if twist ~= "" and reward ~= ""
+		then twist .. " - " .. reward
+		elseif twist ~= "" then twist
+		else reward
+	infoVariant.Visible = infoVariant.Text ~= ""
 	infoTitle.Text = string.format("%s - D%d", regionName, depth)
 	infoTitle.TextColor3 = if p == "failed" then C.Danger else C.GoldHi
 	if downed and (p == "wave" or p == "boss" or p == "clear") then
@@ -162,8 +224,14 @@ local function refresh()
 	end
 	choice.Visible = showChoice
 	if showChoice then
-		choiceTitle.Text = string.format("%s - Depth %d cleared", regionName, depth)
+		local cards = currentCards()
+		choiceTitle.Text = if #cards > 0
+			then string.format("Choose your path to D%d", depth + 1)
+			else string.format("%s - Depth %d cleared", regionName, depth)
 		deeperLabel.Text = string.format("Deeper - D%d", depth + 1)
+		deeperButton.Visible = #cards == 0
+		pathBox.Visible = #cards > 0
+		showCards(cards)
 		refreshChoiceStats()
 	end
 end
@@ -394,8 +462,60 @@ local function buildChoice()
 	rule.LayoutOrder = 3
 	rule.Parent = body
 
+	-- Path Cards: three rows, tap = go deeper with that card
+	local inner = CHOICE_W - 24
+	pathBox = Flat.frame(UDim2.fromOffset(inner, 0))
+	pathBox.Name = "PathCards"
+	pathBox.AutomaticSize = Enum.AutomaticSize.Y
+	pathBox.LayoutOrder = 4
+	pathBox.Visible = false
+	Kit.list(pathBox, Enum.FillDirection.Vertical, 6)
+	for i = 1, PathCards.COUNT do
+		local b =
+			Flat.button("", if i == 1 then "ghost" else "secondary", Vector2.new(inner, PATH_H))
+		b.Name = "Card" .. i
+		b.LayoutOrder = i
+		local label = b:FindFirstChild("Row")
+		if label then
+			label:Destroy()
+		end
+		local icon = Flat.frame(UDim2.fromOffset(30, 30))
+		icon.AnchorPoint = Vector2.new(0, 0.5)
+		icon.Position = UDim2.new(0, 8, 0.5, 0)
+		icon.Parent = b
+		local textW = inner - 46 - 92
+		local title = Flat.text("", 12, C.GoldHi, Theme.Font.Title)
+		title.AutomaticSize = Enum.AutomaticSize.None
+		title.Size = UDim2.fromOffset(textW, 16)
+		title.TextTruncate = Enum.TextTruncate.AtEnd
+		title.Position = UDim2.fromOffset(46, 6)
+		title.Parent = b
+		local ruleText = Flat.text("", 9.5, C.Muted, Theme.Font.Body)
+		ruleText.AutomaticSize = Enum.AutomaticSize.None
+		ruleText.Size = UDim2.fromOffset(textW, 14)
+		ruleText.TextTruncate = Enum.TextTruncate.AtEnd
+		ruleText.Position = UDim2.fromOffset(46, 25)
+		ruleText.Parent = b
+		local rewardText = Flat.text("", 11, C.Gold, Theme.Font.UI, Enum.TextXAlignment.Right)
+		rewardText.AutomaticSize = Enum.AutomaticSize.None
+		rewardText.Size = UDim2.fromOffset(84, 16)
+		rewardText.TextTruncate = Enum.TextTruncate.AtEnd
+		rewardText.AnchorPoint = Vector2.new(1, 0.5)
+		rewardText.Position = UDim2.new(1, -8, 0.5, 0)
+		rewardText.Parent = b
+		b.Activated:Connect(function()
+			Net.Rift:FireServer("deeper", i)
+		end)
+		b.Parent = pathBox
+		table.insert(
+			pathRows,
+			{ button = b, icon = icon, title = title, rule = ruleText, reward = rewardText }
+		)
+	end
+	pathBox.Parent = body
+
 	local row = Flat.frame(UDim2.fromOffset(CHOICE_W - 24, CHOICE_BTN))
-	row.LayoutOrder = 4
+	row.LayoutOrder = 5
 	local rl = Kit.list(row, Enum.FillDirection.Horizontal, 8)
 	rl.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	local btnW = (CHOICE_W - 24 - 8) / 2
@@ -407,6 +527,7 @@ local function buildChoice()
 		Net.Rift:FireServer("deeper")
 	end)
 	deeper.Parent = row
+	deeperButton = deeper
 	local home = Flat.button("Back to Hub", "secondary", Vector2.new(btnW, CHOICE_BTN))
 	home.Name = "Home"
 	home.LayoutOrder = 2
@@ -464,9 +585,9 @@ function RiftController.start()
 		lastSummary = if summary.kind == "clear" then summary else nil
 		refresh()
 	end)
-	-- Announce the variant of each new depth (name in the run card, rule as a toast). Keyed on
-	-- region + depth + variant and checked one frame later, so a repeated roll still toasts and
-	-- the attributes the server sets one after another are read together.
+	-- Announce the affixes of each new depth (names in the run card, rules as toasts). Keyed on
+	-- region + depth + affixes and checked one frame later, so the same twist twice in a row
+	-- still toasts and the attributes the server sets one after another are read together.
 	local announced = ""
 	local pending = false
 	local function announce()
@@ -479,20 +600,22 @@ function RiftController.start()
 		if p ~= "wave" then
 			return -- a depth always starts with its waves; boss/clear never announce
 		end
-		local id = (player:GetAttribute("RiftVariant") or "") :: string
+		local ids = RiftAffixes.decode(player:GetAttribute("RiftAffixes"))
 		local key = string.format(
 			"%s|%d|%s",
 			(player:GetAttribute("RiftRegion") or "") :: string,
 			(player:GetAttribute("RiftDepth") or 0) :: number,
-			id
+			RiftAffixes.encode(ids)
 		)
-		local variant = RiftVariants.ById[id]
-		if key ~= announced and variant then
-			QuestController.toast(variant.name .. ": " .. variant.text, C.Gold)
+		if key ~= announced then
+			for _, id in ids do
+				local a = RiftAffixes.ById[id]
+				QuestController.toast(a.name .. ": " .. a.text, C.Gold)
+			end
 		end
 		announced = key
 	end
-	for _, attr in { "RiftVariant", "RiftDepth", "RiftRegion", "RiftPhase" } do
+	for _, attr in { "RiftAffixes", "RiftDepth", "RiftRegion", "RiftPhase" } do
 		player:GetAttributeChangedSignal(attr):Connect(function()
 			if not pending then
 				pending = true
@@ -500,7 +623,8 @@ function RiftController.start()
 			end
 		end)
 	end
-	player:GetAttributeChangedSignal("RiftVariant"):Connect(refresh)
+	player:GetAttributeChangedSignal("RiftAffixes"):Connect(refresh)
+	player:GetAttributeChangedSignal("RiftReward"):Connect(refresh)
 	refresh()
 	-- Boss bar (the fill springs, so hits drain it smoothly)
 	while true do

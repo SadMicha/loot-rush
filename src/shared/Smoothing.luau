@@ -26,6 +26,9 @@ Smoothing.BossIntro = table.freeze({
 	altered_world = "The Rift: where the Smoothing began. Every stud here is a battle.",
 } :: { [string]: string })
 
+-- Intro of an Altered World boss (rotation, Atlas.bossFor): %s = the boss's name
+Smoothing.ALTERED_INTRO = "The Rift wears the face of the %s. Break it."
+
 -- How far a region is restored, 0 (untouched) .. 1 (restored), from the player's best depth there
 function Smoothing.restored(regionStartDepth: number, bestDepth: number): number
 	if bestDepth < regionStartDepth then
