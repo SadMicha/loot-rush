@@ -1325,6 +1325,60 @@
     505
    ],
    "registry": "Assets.Art"
+  },
+  {
+   "key": "region_green_plains",
+   "file": "assets/ui/art/region_green_plains.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "region_crystal_caves",
+   "file": "assets/ui/art/region_crystal_caves.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "region_mushroom_swamp",
+   "file": "assets/ui/art/region_mushroom_swamp.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "region_sky_islands",
+   "file": "assets/ui/art/region_sky_islands.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "region_fire_desert",
+   "file": "assets/ui/art/region_fire_desert.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "region_altered_world",
+   "file": "assets/ui/art/region_altered_world.png",
+   "size": [
+    768,
+    432
+   ],
+   "registry": "Assets.Art"
   }
  ]
 }
