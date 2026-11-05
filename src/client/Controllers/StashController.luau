@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Bag = require(ReplicatedStorage.Shared.Bag)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Items = require(ReplicatedStorage.Shared.Items)
@@ -46,7 +47,8 @@ local CELL = 92
 local GAP = 5
 local GRID_W = COLS * CELL + (COLS - 1) * GAP
 local PAD = math.floor((PANEL_W - GRID_W) / 2)
-local BAG_ROWS = math.ceil(Items.BAG_MAX / COLS)
+-- Rows shown for the base bag; an upgraded bag (Shared/Bag, up to 100 slots) scrolls
+local BAG_ROWS = math.ceil(Bag.BASE / COLS)
 local INFO_Y = BAG_Y + BAG_ROWS * (CELL + GAP) + 8
 local RESEND = 1.5 -- seconds a tapped item ignores more taps (waiting for the server)
 local CLOSE_CHECK = 0.5 -- seconds between "still at the stash?" checks while open
@@ -76,7 +78,7 @@ local function clear(parent: Instance)
 	end
 end
 
-local function grid(parent: Frame, rows: number, pos: Vector2): Frame
+local function grid(parent: GuiObject, rows: number, pos: Vector2): Frame
 	local f = Flat.frame(UDim2.fromOffset(GRID_W, rows * CELL + (rows - 1) * GAP))
 	f.Position = UDim2.fromOffset(pos.X, pos.Y)
 	local layout = Instance.new("UIGridLayout")
@@ -97,9 +99,9 @@ local function heroLevel(): number
 	return (player:GetAttribute("Level") or 1) :: number
 end
 
--- Hero level the item still needs (Items.requiredLevel), nil when this hero can wear it
-local function lockOf(item: Items.Item): number?
-	return if Items.canWear(item, heroLevel()) then nil else Items.requiredLevel(item)
+-- Why this hero cannot wear the item (Items.lockOf): class name or level needed, nil when it can
+local function lockOf(item: Items.Item): (number | string)?
+	return Items.lockOf(item, heroLevel(), Kit.playerClass())
 end
 
 local function showInfo(item: Items.Item?, note: string?)
@@ -115,7 +117,9 @@ local function showInfo(item: Items.Item?, note: string?)
 	local slot = Items.SlotName[item.slot] or item.slot
 	local meta = `{rarityName(item.rarity)} {slot} - Item Level {Format.int(item.ilvl)}`
 	local need = lockOf(item)
-	if need then
+	if typeof(need) == "string" then
+		meta ..= ` - {need} Only`
+	elseif need then
 		meta ..= ` - Requires Level {Format.int(need)}`
 	end
 	infoMeta.Text = if note then `{meta} - {note}` else meta
@@ -137,7 +141,7 @@ local function canSend(id: string): boolean
 end
 
 local function itemCell(item: Items.Item, mark: Items.UpgradeMark?, toStash: boolean): TextButton
-	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot), {
+	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot, item), {
 		rarity = item.rarity,
 		upgrade = mark,
 		locked = lockOf(item),
@@ -164,7 +168,7 @@ end
 local function fill(parent: Frame, list: { Items.Item }, slots: number, toStash: boolean)
 	clear(parent)
 	local _, equipped = InventoryController.snapshot()
-	local marks = Items.upgradeMarks(list, equipped, heroLevel())
+	local marks = Items.upgradeMarks(list, equipped, heroLevel(), Kit.playerClass())
 	for i, item in list do
 		local b = itemCell(item, marks[item.id], toStash)
 		b.LayoutOrder = i
@@ -184,12 +188,13 @@ local function render()
 	end
 	local bag = InventoryController.snapshot()
 	local list = stashTabs[tab] or {}
+	local capacity = Bag.fromAttribute(player:GetAttribute("BagMax"))
 	fill(stashGrid, list, Rules.TAB_SLOTS, false)
-	fill(bagGrid, bag, Items.BAG_MAX, true)
+	fill(bagGrid, bag, capacity, true)
 	stashCount.Text = `{Format.int(#list)} / {Format.int(Rules.TAB_SLOTS)}`
 	stashCount.TextColor3 = if #list >= Rules.TAB_SLOTS then C.Danger else C.Muted
-	bagCount.Text = `{Format.int(#bag)} / {Format.int(Items.BAG_MAX)}`
-	bagCount.TextColor3 = if #bag >= Items.BAG_MAX then C.Danger else C.Muted
+	bagCount.Text = `{Format.int(#bag)} / {Format.int(capacity)}`
+	bagCount.TextColor3 = if #bag >= capacity then C.Danger else C.Muted
 	status.Text = if loaded then "" else "Opening the stash…"
 	Flat.setEnabled(storeAll, loaded and #bag > 0 and #list < Rules.TAB_SLOTS)
 end
@@ -256,8 +261,22 @@ local function build()
 	end)
 	b.Parent = right
 	storeAll = b
-	bagGrid = grid(right, BAG_ROWS, Vector2.new(PAD, BAG_Y))
+	-- The bag grid scrolls once the bag holds more than BAG_ROWS rows
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "BagScroll"
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Position = UDim2.fromOffset(PAD, BAG_Y)
+	scroll.Size = UDim2.fromOffset(GRID_W + 12, BAG_ROWS * CELL + (BAG_ROWS - 1) * GAP)
+	scroll.ScrollBarThickness = 4
+	scroll.ScrollBarImageColor3 = F.EdgeHi
+	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.Parent = right
+	bagGrid = grid(scroll, BAG_ROWS, Vector2.zero)
 	bagGrid.Name = "BagGrid"
+	bagGrid.AutomaticSize = Enum.AutomaticSize.Y
 
 	local info = Flat.card(UDim2.fromOffset(PANEL_W - 2 * PAD, PANEL_H - INFO_Y - 14), F.Surface2)
 	info.Name = "Info"

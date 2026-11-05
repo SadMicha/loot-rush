@@ -92,14 +92,14 @@ function Pets.hatch(player: Player, eggId: string): (boolean, string, string?)
 		return false, "Not enough " .. Shop.nameOf(egg.price.kind), nil
 	end
 	if price > 0 then
-		Shop.grant(player, egg.price.kind, -price)
+		Shop.grant(player, egg.price.kind, -price, "Gameplay", "pet_egg")
 	end
 	local pet = Rules.roll(egg, rng)
 	local level, shards = Rules.hatchResult(account.pets, pet.id)
 	local fresh = account.pets.owned[pet.id] == nil
 	account.pets.owned[pet.id] = level
 	if shards > 0 then
-		Shop.grant(player, "shards", shards)
+		Shop.grant(player, "shards", shards, "Gameplay", "pet_duplicate")
 	end
 	-- equip the first pet right away if a slot is free
 	if fresh and #account.pets.equipped < Pets.slots(player) then

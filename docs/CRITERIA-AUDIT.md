@@ -67,6 +67,12 @@ retuned, or a bigger Break payoff (longer stun, more damage taken) so skilled pl
 | R7 | One "what is this?" line on first open of Star Web, Forge and Pets (same callout system). | tutorial | S |
 | R8 | Rename "Rune Candy" (display name only), fix the README tagline. | 6 | XS |
 
+**Status 2026-11-04 (first-minutes review, PR #139):** R2 done (`boss_hp` 26, new `EASE_HEALTH`,
+sim boss 16-27 s), R3 done (Leaderboard, Journey, Season and the Soulstar coin behind the
+`extras` unlock at depth 1), R4 done (#125 merged with main), R6 done (`drop_early` 0.11 to depth
+10), R8 done ("Forge Candy"). R5's guaranteed boss piece already existed (first boss item is
+Rare+); the fan-out burst is still open. R1 (phone pass) and R7 stay open.
+
 ### Suggested order
 
 1. R1 first (Micha), since it may reshuffle everything else.

@@ -6,7 +6,7 @@ Playtests: `docs/SMOKE-TEST.md` (quick), `docs/TEST-RELEASE.md` (release). Relea
 
 ## Language
 Everything is English: code, identifiers, comments, UI text, docs. Do not hardcode translations
-(the owner localizes through the Roblox translator). Numbers use English formats (`1,240`, `4.5%`).
+(the owner localizes through the Roblox translator). Numbers use English formats (`1,240`, `4.5%`); currency amounts (gold, shards, soulstars) always use `Format.currency` (`950`, `1.2K`, `1.2M`).
 
 ## Layout
 - `src/server` → ServerScriptService/Server (game state, authority)
@@ -26,11 +26,12 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
 ## Checks (Windows, Git Bash)
 - Put `~/.rokit/bin` first on PATH (the old Aftman shims break the tools).
 - `bash tools/check.sh [packages|format|lint|types|build|test|ui]`; no argument runs all of them.
-- **Usage budget: do not run the full Lune suite (~4-5 min) while working.** Run
-  `bash tools/check.sh format lint types` plus only the specs you touched:
-  `lune run tools/lune/test <name-fragment>` (e.g. `Data`, `Items`). CI runs everything on every
-  PR; the main session runs the full suite once before a commit/merge and reads the last
-  "N passed, M failed" line.
+- **Plan: Claude Max 5x.** Work stays under the 5-hour limit by spending it where it pays:
+  agents run the checks for the area they touched (`bash tools/check.sh format lint types` plus the
+  specs they touched: `lune run tools/lune/test <name-fragment>`); the full Lune suite (~4-5 min) runs
+  once per agent at the end of a task that changes server or shared logic, not after every edit.
+  CI runs everything on every PR. Read the last "N passed, M failed" line.
+- Up to ~4 agents may run in parallel, each in its own worktree. Do not start more: the limit is shared.
 - After a `.gitattributes` change, checkouts must be LF (StyLua line_endings = Unix).
 - Smoke test for a quick playtest: `docs/SMOKE-TEST.md` (10 steps); `docs/TEST-RELEASE.md` is for releases.
 
@@ -45,11 +46,12 @@ Everything is English: code, identifiers, comments, UI text, docs. Do not hardco
   never revert files you did not change.
 - Parallel agents: the main session starts each with `isolation: "worktree"` when their files
   could overlap, and merges their branches; otherwise it splits work by folder.
-- Models: `backend-developer` runs Opus (risky server/data code); the main session overrides it to
-  Sonnet for routine tasks (translations, docs, adding tests, small fixes). Reviewer/planner run Sonnet;
-  override to Opus only for saving, purchases, remotes or security reviews.
-- Review once per milestone or PR, not after every step; review early only for saving, purchases,
-  remotes and security. Cosmetic UI shares one review at the end.
+- Models (Max 5x): Opus for `backend-developer`, `code-reviewer` and `project-planner` (server,
+  data, review, design); Sonnet for `ui-designer` and `frontend-developer` and for routine tasks
+  (translations, docs, adding tests, small fixes). The main session may override per task.
+- Review per PR: a read-only `code-reviewer` pass on every PR that touches server, shared logic,
+  saving, purchases or remotes; cosmetic UI PRs share one review. Reviews use the committed state.
+- After a merge, pull `main` into the main checkout (`git pull`) so Studio (Rojo) shows the same code that is live. Agents work in worktrees; Studio only sees merged, pulled code.
 - Do not commit unless asked. Commit messages end with the Co-Authored-By line from the session.
 - Ask the user (AskUserQuestion) only for real design decisions; collect them in one question.
 

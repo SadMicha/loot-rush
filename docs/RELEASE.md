@@ -7,7 +7,7 @@ Publishing setup: `docs/PUBLISH.md`. Robux ids: `docs/MONETIZATION.md`.
 
 - [ ] **Basic Settings → Max Players:** 12 (= `Config.RIFT_SLOTS`; raise both together).
 - [ ] **Security → Enable Studio Access to API Services** on (otherwise Studio doesn't save).
-- [ ] Genre, description, icon (512²), thumbnails (1920×1080).
+- [ ] Genre, description (text in `docs/STORE-PAGE.md`), icon (512²), thumbnails (1920×1080).
 - [ ] **Maturity** questionnaire (combat against fantasy enemies, no graphic violence).
 - [ ] **Devices:** computer, phone, tablet on (console off for 1.0).
 - [ ] Monetization: all products and passes exist (2026-11-03); check prices match `Monetization.luau`.

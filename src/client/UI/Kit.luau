@@ -85,14 +85,18 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 	local texts: { [Instance]: true } = {}
 	local hits: { [GuiButton]: true } = {}
 
-	-- Total scale incl. further UIScales under the root (e.g. window content)
+	-- Total scale incl. further UIScales under the root (e.g. window content). A zoom layer
+	-- (UIScale with the ZoomLayer attribute, e.g. the Star Web) only counts when it enlarges: zoomed
+	-- out it is a true-to-scale overview instead of ballooning every node and caption.
 	local function scaleOf(d: Instance): number
 		local s = scale.Scale
 		local node: Instance? = d
 		while node and node ~= root do
 			local inner = node:FindFirstChildOfClass("UIScale")
 			if inner then
-				s *= inner.Scale
+				s *= if inner:GetAttribute("ZoomLayer")
+					then math.max(1, inner.Scale)
+					else inner.Scale
 			end
 			node = node.Parent
 		end
@@ -191,6 +195,11 @@ end
 
 function Kit.hudScale(): number
 	return hudScale
+end
+
+-- Runs `fn` whenever the HUD scale setting changes (world billboards that follow it)
+function Kit.onHudScale(fn: () -> ())
+	table.insert(hudRescalers, fn)
 end
 
 -- Top-center column: elements that stand at the top middle of the screen (resource capsules, boss
@@ -547,10 +556,13 @@ function Kit.playerClass(): string
 	return string.lower(Theme.Class.Default)
 end
 
--- Icon name for an item slot (helmet, armor, ...): class art if uploaded, otherwise the atlas icon
-function Kit.equipIcon(slot: string, fallback: string): string
+-- Icon name for an item slot (helmet, armor, ...): class art if uploaded, otherwise the atlas icon.
+-- `classId` = the item's own class (Item.class), so stash items keep their look for every hero;
+-- nil (empty slot, class-less item) = the local player's class.
+function Kit.equipIcon(slot: string, fallback: string, classId: string?): string
 	local file = Theme.Class.EquipSlot[slot]
-	local key = if file then "equip_" .. Kit.playerClass() .. "_" .. file else ""
+	local class = if classId and Theme.Class.SkillName[classId] then classId else Kit.playerClass()
+	local key = if file then "equip_" .. class .. "_" .. file else ""
 	return if Assets.Class[key] then key else fallback
 end
 

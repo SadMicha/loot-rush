@@ -91,6 +91,9 @@ local function slime(offset: Vector3): Model
 end
 
 local function cast(slot: number, aim: Vector3)
+	server(function(_, player)
+		player:SetAttribute("RiftPhase", "wave") -- skills only work in a Rift (Combat.inRift)
+	end)
 	sim:runAs("client", function(req)
 		local root = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart
 		req("ReplicatedStorage.Shared.Net").CastSkill:FireServer(slot, aim, root.Position)
@@ -167,6 +170,10 @@ describe("Classes in game", function()
 	end)
 
 	it("leaps to the aim with Charge", function()
+		-- a new hero learns Charge (starting skill 3) at a later level (Skills.StartUnlock)
+		server(function(_, player)
+			player:SetAttribute("Level", Skills.StartUnlock[Skills.SLOTS])
+		end)
 		local before = server(function(_, player)
 			return player.Character.HumanoidRootPart.Position
 		end)

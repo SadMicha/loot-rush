@@ -1,6 +1,7 @@
 --!nocheck
 -- Hub stash (Shared/Stash, Systems/Stash, Client/StashController): pure move rules, the save
 -- field, and the real server + window: moves only at the station, never a duplicate.
+local Bag = require("ReplicatedStorage.Shared.Bag")
 local Items = require("ReplicatedStorage.Shared.Items")
 local Profile = require("ReplicatedStorage.Shared.Profile")
 local Stash = require("ReplicatedStorage.Shared.Stash")
@@ -37,10 +38,10 @@ describe("Stash rules", function()
 		expect(#bag).toBe(1)
 		expect(#data.tabs[2]).toBe(1)
 		expect(Stash.deposit(data, bag, "a", 1)).toBe("missing") -- already moved
-		expect(Stash.withdraw(data, bag, "a", Items.BAG_MAX)).toBe("ok")
+		expect(Stash.withdraw(data, bag, "a", Bag.BASE)).toBe("ok")
 		expect(#bag).toBe(2)
 		expect(count(data, "a")).toBe(0)
-		expect(Stash.withdraw(data, bag, "a", Items.BAG_MAX)).toBe("missing")
+		expect(Stash.withdraw(data, bag, "a", Bag.BASE)).toBe("missing")
 	end)
 
 	it("rejects bad tabs, a full tab, a full bag and duplicates", function()
@@ -345,5 +346,127 @@ describe("Item level requirement", function()
 		end)
 		sim:run(0.3)
 		expect(stat("StatDamage")).toBe(before + 500)
+	end)
+end)
+
+-- Item.class: an item keeps the class that found it (look, name, lock), whichever hero holds it
+describe("Item class", function()
+	local function weapon(id: string, class: string?)
+		local it = item(id, "weapon")
+		it.class = class
+		return it
+	end
+
+	it("rolls the class of the hero it drops for, with class base names", function()
+		local seenSword, seenStaff = false, false
+		for seed = 1, 60 do
+			local w = Items.roll(5, Random.new(seed), nil, { slot = "weapon", class = "warrior" })
+			expect(w.class).toBe("warrior")
+			expect(string.find(w.name, "Staff")).toBeNil()
+			seenSword = seenSword or string.find(w.name, "Sword") ~= nil
+			local m = Items.roll(5, Random.new(seed), nil, { slot = "weapon", class = "mage" })
+			expect(m.class).toBe("mage")
+			seenStaff = seenStaff or string.find(m.name, "Staff") ~= nil
+		end
+		expect(seenSword).toBe(true)
+		expect(seenStaff).toBe(true)
+		-- uniques and unknown classes
+		expect(Items.makeUnique(Items.Uniques[1], 5, Random.new(1), "ranger").class).toBe("ranger")
+		expect(Items.roll(5, Random.new(1), nil, { class = "pirate" }).class).toBeNil()
+	end)
+
+	it("locks every item to its class", function()
+		local staff = weapon("staff", "mage")
+		expect(Items.canWear(staff, 10, "mage")).toBe(true)
+		expect(Items.canWear(staff, 10, "warrior")).toBe(false)
+		expect(Items.canWear(staff, 10)).toBe(true) -- no class given: level only
+		expect(Items.classLock(staff, "warrior")).toBe("mage")
+		expect(Items.lockOf(staff, 10, "warrior")).toBe("Mage")
+		expect(Items.lockOf(staff, 10, "mage")).toBeNil()
+		local orb = item("orb", "offhand")
+		orb.class = "mage"
+		expect(Items.canWear(orb, 10, "ranger")).toBe(false)
+		local ring = item("ring")
+		ring.class = "mage"
+		expect(Items.canWear(ring, 10, "warrior")).toBe(false)
+		expect(Items.lockOf(ring, 10, "mushroom")).toBe("Mage")
+		expect(Items.canWear(ring, 10, "mage")).toBe(true)
+		for _, slot in Items.Slots do
+			expect(Items.ClassLocked[slot]).toBe(true)
+		end
+		-- old class-less items and broken values fit every class
+		expect(Items.canWear(weapon("old", nil), 10, "warrior")).toBe(true)
+		expect(Items.canWear(weapon("junk", 5 :: any), 10, "warrior")).toBe(true)
+		-- another class's weapon gets no upgrade marker
+		expect(Items.upgradeMarks({ staff }, {}, 10, "warrior").staff).toBeNil()
+		expect(Items.upgradeMarks({ staff }, {}, 10, "mage").staff).toBe("up")
+	end)
+
+	it("keeps its class through the stash and on a hero of another class", function()
+		local account = Profile.freshAccount()
+		local mage = account.characters[1]
+		mage.class = "mage"
+		mage.inventory = { weapon("staff", nil), item("ring") }
+		local again = Profile.reconcileAccount(account)
+		-- old hero-owned items take the hero's class
+		expect(again.characters[1].inventory[1].class).toBe("mage")
+		expect(again.characters[1].inventory[2].class).toBe("mage")
+		-- the mage stores the staff, a warrior takes it: still a mage staff
+		local staff = again.characters[1].inventory[1]
+		expect(Stash.deposit(again.stash, again.characters[1].inventory, staff.id, 1)).toBe("ok")
+		local warrior = Profile.reconcile({ id = "c2", class = "warrior" })
+		expect(Stash.withdraw(again.stash, warrior.inventory, staff.id, Bag.BASE)).toBe("ok")
+		Profile.reconcile(warrior)
+		expect(warrior.inventory[1].class).toBe("mage")
+		expect(warrior.inventory[1].name).toBe(staff.name)
+		expect(Items.canWear(warrior.inventory[1], 10, warrior.class)).toBe(false)
+		-- the mage's ring is a mage ring for the warrior too
+		local ring = again.characters[1].inventory[1]
+		expect(Stash.deposit(again.stash, again.characters[1].inventory, ring.id, 1)).toBe("ok")
+		expect(Stash.withdraw(again.stash, warrior.inventory, ring.id, Bag.BASE)).toBe("ok")
+		expect(Items.canWear(warrior.inventory[2], 10, warrior.class)).toBe(false)
+	end)
+
+	it("the server refuses another class's weapon and it gives no stats when worn", function()
+		local function damage()
+			return server(function(_, player)
+				return player:GetAttribute("StatDamage")
+			end)
+		end
+		server(function(req, player)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(player)
+			profile.class = "warrior"
+			profile.equipped = {}
+			local staff = weapon("mage-staff", "mage")
+			staff.affixes = { { stat = "damage", value = 300 } }
+			staff.ilvl = 1
+			req("ServerScriptService.Server.Systems.Inventory").add(player, staff)
+			req("ServerScriptService.Server.Systems.Stats").refresh(player, false)
+		end)
+		local before = damage()
+		client(function(Net)
+			Net.Equip:FireServer("mage-staff")
+		end)
+		expect(server(function(req, player)
+			return req("ServerScriptService.Server.Systems.Data").get(player).equipped.weapon
+		end)).toBeNil()
+		-- worn anyway (forced): no stats for the wrong class
+		server(function(req, player)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(player)
+			for i, it in profile.inventory do
+				if it.id == "mage-staff" then
+					profile.equipped.weapon = table.remove(profile.inventory, i)
+					break
+				end
+			end
+			req("ServerScriptService.Server.Systems.Stats").refresh(player, false)
+		end)
+		expect(damage()).toBe(before)
+		server(function(req, player)
+			local profile = req("ServerScriptService.Server.Systems.Data").get(player)
+			profile.class = "mage"
+			req("ServerScriptService.Server.Systems.Stats").refresh(player, false)
+		end)
+		expect(damage()).toBe(before + 300)
 	end)
 end)

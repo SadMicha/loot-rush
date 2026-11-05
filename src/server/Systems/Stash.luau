@@ -96,7 +96,13 @@ local function onStash(player: Player, action: any, a: any, b: any)
 		if not validId(a) then
 			return
 		end
-		result = Rules.withdraw(account.stash, profile.inventory, a, Items.BAG_MAX)
+		result = Rules.withdraw(account.stash, profile.inventory, a, Inventory.capacity(player))
+		-- An old class-less item becomes this hero's (Item.class), like Profile.reconcile does
+		for _, item in profile.inventory do
+			if item.id == a and Items.classOf(item) == nil then
+				item.class = profile.class
+			end
+		end
 	elseif action == "all" then
 		if not Rules.validTab(a) then
 			return

@@ -119,7 +119,8 @@ local function card(index: number, reward: Daily.Reward, s: State): Frame
 		local ic = Kit.icon(line[1] :: string, 36)
 		ic.LayoutOrder = 1
 		ic.Parent = row
-		local n = Flat.text(Format.int(line[2] :: number), 18, line[3] :: Color3, Theme.Font.UI)
+		local n =
+			Flat.text(Format.currency(line[2] :: number), 18, line[3] :: Color3, Theme.Font.UI)
 		n.LayoutOrder = 2
 		n.Parent = row
 		row.Parent = list

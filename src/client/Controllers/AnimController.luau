@@ -578,9 +578,13 @@ local function animate(rig: Rig, dt: number, now: number)
 		addVec("rShoulder", Vector3.new(0, 0, b * 0.5))
 		addVec("lShoulder", Vector3.new(0, 0, -b * 0.5))
 		-- Holding stance of the class weapon (Anim.STANCE), eased toward its target weight
-		local want = Anim.stanceWeight(run, #rig.layers > 0)
+		local acting = #rig.layers > 0
+		local want = Anim.stanceWeight(run, acting, weaponId)
 		local ease = math.min(1, dt * Anim.STANCE_BLEND)
-		rig.stance += (want - rig.stance) * ease
+		local drop = if acting and want < rig.stance
+			then math.min(1, dt * Anim.STANCE_DROP)
+			else ease
+		rig.stance += (want - rig.stance) * drop
 		rig.legs += (Anim.stanceLegs(speed) - rig.legs) * ease
 		lift += Anim.stance(weaponId, rig.stance, rig.legs, now, pose)
 	elseif not rig.broken and now - rig.deadAt >= Anim.DEATH_BREAK then

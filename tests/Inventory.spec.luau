@@ -260,7 +260,7 @@ describe("Full bag", function()
 			local p = Data.get(player)
 			p.autoSalvage = ""
 			local rng = Random.new(3)
-			while #p.inventory < Items.BAG_MAX do
+			while #p.inventory < Inventory.capacity(player) do
 				table.insert(p.inventory, Items.roll(1, rng))
 			end
 			-- worn weapon far above the loot: a level 1 weapon is no upgrade
@@ -282,7 +282,7 @@ describe("Full bag", function()
 		expect(goldGain).toBeGreaterThan(0)
 		expect(upStored).toBe(false)
 		expect(upFull).toBe(true)
-		expect(count).toBe(require("ReplicatedStorage.Shared.Items").BAG_MAX)
+		expect(count).toBe(require("ReplicatedStorage.Shared.Bag").BASE)
 	end)
 end)
 

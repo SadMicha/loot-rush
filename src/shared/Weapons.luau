@@ -34,6 +34,25 @@ export type Weapon = {
 
 local Weapons = {}
 
+-- Mesh axes. Weapon space is the FBX space of the pack: Y up (head/tip/upper limb at +Y), X and Z
+-- as authored. Measured on assets/weapons/Ranger_Bow/Standard.fbx (header UpAxis Y, FrontAxis +Z,
+-- CoordAxis +X; the model node turns the Z-long geometry -90° about X so the limbs run along +Y):
+-- the riser and the bow's back (outer curve) bulge toward +X (up to x = +0.9 at the grip height),
+-- both limb tips and the straight string sit at x ≈ -0.1, so the string side is -X; Z is only the
+-- thickness (±0.24). Roblox's importer turns FBX "front +Z" into its own front (-Z): the uploaded
+-- MeshPart is the FBX turned 180° about Y (X and Z negated). Without undoing that, the bow showed
+-- its string on the wrong side and the hand missed the grip by the mirrored `offset` (2026-11-04
+-- screenshot: string away from the body, back of the bow toward the leg). IMPORT undoes it.
+Weapons.IMPORT = CFrame.Angles(0, math.pi, 0)
+
+-- Where the loaded MeshPart sits in weapon space: its bounding-box center (gripAt, offset), turned
+-- back into FBX axes (IMPORT), then `align` for an import that lies on its side
+function Weapons.meshCFrame(w: Weapon, align: CFrame?): CFrame
+	return CFrame.new(w.offset.X * w.length, (0.5 - w.gripAt) * w.length, w.offset.Y * w.length)
+		* Weapons.IMPORT
+		* (align or CFrame.identity)
+end
+
 -- Roblox's default "toolnone" animations (arm raised forward, like holding any Roblox tool)
 Weapons.HOLD_ANIM = table.freeze({
 	R15 = "rbxassetid://507768375",

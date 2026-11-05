@@ -10,6 +10,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Settings)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
+local Gear = require(script.Parent.Gear)
 
 local Settings = {}
 
@@ -24,6 +25,7 @@ function Settings.set(player: Player, key: any, value: any): boolean
 	end
 	if key == Rules.RESET then
 		account.settings = Rules.fresh()
+		task.defer(Gear.apply, player)
 		return true
 	end
 	local v = Rules.validate(key, value)
@@ -31,6 +33,9 @@ function Settings.set(player: Player, key: any, value: any): boolean
 		return false
 	end
 	account.settings[key :: string] = v
+	if key == "hideHelmet" then
+		task.defer(Gear.apply, player) -- the look on the body follows at once
+	end
 	return true
 end
 

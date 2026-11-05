@@ -25,11 +25,15 @@ return table.freeze({
 	DASH_RECHARGE = 2.5, -- seconds per charge
 	DASH_SKIN = 2.5, -- studs ahead of the body a dash stops in front of a wall (no ramming into parts)
 	DASH_LOW = 1.6, -- the low wall probe runs this far below the root (railings, ledges)
+	DASH_HIGH = 1.5, -- the high wall probe runs this far above the root (overhangs, head height)
 	DASH_MAX_RISE = 8, -- studs per second a dash may lift the character (stairs yes, popping onto walls no)
 	-- Server movement check (Systems/Movement): speed/teleport hacks get pulled back
 	MOVE_SAMPLE = 0.25, -- seconds between position samples
 	MOVE_SLACK = 1.35, -- walk speed factor allowed (lag, slopes, knockback)
 	MOVE_GRACE = 4, -- studs per sample on top (replication jitter)
+	-- seconds after a server teleport in which samples only re-base: the owning client keeps sending
+	-- its old position until the teleport reaches it (ping), which must never anchor a pull-back
+	MOVE_TELEPORT_SETTLE = 2,
 	HINT_SKILL_RANGE = 35, -- studs: the first enemy this close shows the skills hint
 	HINT_TELEGRAPH_RANGE = 40, -- studs: the first enemy telegraph this close shows the dodge hint
 	HINT_CALM_RANGE = 20, -- studs: hints wait until no enemy is this close (and no telegraph near)
@@ -59,8 +63,9 @@ return table.freeze({
 	FALL_MARGIN = 3, -- studs outside the walls before the server guard steps in
 	BOUNDS_REACH = 40, -- up to this far outside a map the player is pushed back to the edge
 	BOUNDS_PAD = 1.5, -- studs inside the edge where a pushed-back player lands
+	BOUNDS_SNAP = 120, -- client: past BOUNDS_REACH but this close to the last spot inside = back there
 	BOUNDS_DROP = 6, -- push back only down to this far below map level (river, pools); lower = full rescue
-	FALL_TICK = 0.25, -- seconds between guard checks
+	FALL_TICK = 0.1, -- seconds between guard checks (the authoritative Hub/map clamp)
 
 	-- Combat (player)
 	RESPAWN_TIME = 3,
@@ -92,6 +97,7 @@ return table.freeze({
 	RIFT_WAVE_MAX = 24, -- cap on enemies per wave (server/network load at high depth)
 	RIFT_WAVE_PAUSE = 1.5, -- seconds between waves
 	RIFT_ELITES = 2, -- elites per depth: one each in the last waves (spreadsheet: 3 per 150 enemies)
+	RIFT_REENTER_DELAY = 0.4, -- seconds after a run ends in which "enter" is ignored (double taps)
 	RIFT_SLOTS = 12, -- this many Rifts run at once on a server (one per player)
 	ARENA_SPACING = 1000, -- studs between arena slots along +X (slot 1 at the origin); no map sees the next
 

@@ -10,6 +10,7 @@
 | [balancing.md](balancing.md) | Balance values vs. `LootRush_Balancing.xlsx`, pacing targets, simulation |
 | [MONETIZATION.md](MONETIZATION.md) | Robux products, passes, Shop and Market |
 | [ART-STYLE.md](ART-STYLE.md) | One art style for all icons and images, asset inventory, regeneration list with prompts |
+| [ANALYTICS.md](ANALYTICS.md) | Fetching Roblox analytics (DAU, retention, revenue) via Open Cloud into `docs/analytics/` |
 | [PUBLISH.md](PUBLISH.md) | Auto-upload to Roblox (GitHub Actions, Open Cloud) |
 | [RELEASE.md](RELEASE.md) | Release checklist, PR template, security review |
 | [SMOKE-TEST.md](SMOKE-TEST.md) | 5-minute check after any merge |
@@ -17,6 +18,7 @@
 | [specs/WORLD-MAPS.md](specs/WORLD-MAPS.md) | Hub, horizon, Rift Trail, never-fall-off, colours |
 | [specs/SEASONS.md](specs/SEASONS.md) | Season framework, leagues, Great Build (built for the Beta) |
 | [specs/SEASON-1-BLUEPRINTS.md](specs/SEASON-1-BLUEPRINTS.md) | Season 1 Blueprints (plan) |
+| [specs/GEAR-COSMETICS.md](specs/GEAR-COSMETICS.md) | Gear skins: catalog idea, free vs paid, fairness (proposal) |
 
 Rules: one file per topic, update the existing section instead of adding a new file, and delete
 finished plans (git history keeps them). Code comments point at these files by name and section.

@@ -231,9 +231,14 @@ Differences from the sketch above, all on purpose for the smallest robust versio
   starts fresh). One season-wide donor board `LootRush_GreatBuildDonors_beta` (top 5 in the window),
   no per-stage plaques yet.
 - Personal milestones 100 / 1,000 / 10,000: gold, Soulstars + a spell stone, the *Builder Aura*.
-- Buff +20 % gold, +10 % item drop chance for 2 h after the newest stage (Boosts source + HUD status
-  `build`), not stacking.
-- Studio without DataStore access: the server runs on a local record (stages, buff and monument
+- **Season bonus instead of a timed buff** (owner, 2026-11-04): every finished stage gives every
+  player a small permanent bonus for the rest of the season, stacking: +2 % item drop chance,
+  +2 % gold, +1 % XP per stage, capped at +20 / +20 / +10 (`Balance.GreatBuild.perStage` / `cap`).
+  Farming stats only, never damage or life. Boosts source `greatBuild` reads the finished stages
+  of the global record, so late joiners and new servers get it; a new build id = fresh bonus. The
+  window shows the active bonus. (Replaces the earlier 2 h +20 % gold / +10 % items buff; the table
+  rows above about a time-based buff are outdated.)
+- Studio without DataStore access: the server runs on a local record (stages, bonus and monument
   work, nothing is shared). Dbg: "Build: +1,000 Shards", "Build: Finish Stage" (writes the global record!).
 
 ## 8. Season roadmap (proposal)

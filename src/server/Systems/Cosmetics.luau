@@ -1,16 +1,18 @@
 --!strict
 -- Cosmetics on the server (rules: Shared/Cosmetics). Owned cosmetics are account-wide
 -- (account.cosmetics), worn ones per slot (account.wear). Robux packs grant them via
--- Systems/Monetization → Cosmetics.give. The effect (trail, aura) is built on the character here,
--- so everyone in the server sees it. The client only asks to wear (Net.Wear) and gets the state
+-- Systems/Monetization → Cosmetics.give. The trail ribbon is built on the character here, so
+-- everyone in the server sees it; what is worn goes to every client as the player attributes
+-- WearAura / WearTrail (Shared/CosmeticFx.ATTR), and AuraController builds the 3D aura and the trail
+-- extras locally (LOD per viewer). The client only asks to wear (Net.Wear) and gets the state
 -- (Net.Store).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
-local Kit = require(ReplicatedStorage.Shared.Models.Kit)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Fx = require(ReplicatedStorage.Shared.CosmeticFx)
 local Rules = require(ReplicatedStorage.Shared.Cosmetics)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Data = require(script.Parent.Data)
@@ -20,7 +22,7 @@ local Cosmetics = {}
 local allow = RateLimit.new(3, 6)
 
 local TRAIL = "CosmeticTrail"
-local AURA = "CosmeticAura"
+local AURA = "CosmeticAura" -- old server-built particle aura (removed if still there)
 local ATTACH_A = "CosmeticA"
 local ATTACH_B = "CosmeticB"
 
@@ -45,14 +47,23 @@ function Cosmetics.apply(player: Player)
 	local account = Data.account(player)
 	local character = player.Character
 	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if not account or not root or not root:IsA("BasePart") then
+	if not account then
+		return
+	end
+	-- Everyone's client builds the aura and the trail extras from these (AuraController)
+	for _, slot in Rules.Slots do
+		local worn = account.wear[slot] or ""
+		player:SetAttribute(Fx.ATTR[slot], if Rules.ById[worn] then worn else "")
+	end
+	if not root or not root:IsA("BasePart") then
 		return
 	end
 	clearFx(root)
 
 	local trail = Rules.ById[account.wear.trail or ""]
 	if trail then
-		local half = Rules.TRAIL_WIDTH / 2
+		local tier = Fx.trailTier(trail.rarity)
+		local half = tier.width / 2
 		local a = Instance.new("Attachment")
 		a.Name = ATTACH_A
 		a.Position = Vector3.new(0, half, 0.6)
@@ -67,7 +78,7 @@ function Cosmetics.apply(player: Player)
 		t.Attachment1 = b
 		t.Color = sequence(trail.colors)
 		t.LightEmission = trail.light
-		t.Lifetime = Rules.TRAIL_LIFETIME
+		t.Lifetime = tier.lifetime
 		t.FaceCamera = true
 		t.Transparency = NumberSequence.new(0.15, 1)
 		t.WidthScale = NumberSequence.new(1, 0.2)
@@ -80,40 +91,6 @@ function Cosmetics.apply(player: Player)
 			t.Color = ColorSequence.new(Color3.new(1, 1, 1))
 		end
 		t.Parent = root
-	end
-
-	local aura = Rules.ById[account.wear.aura or ""]
-	if aura then
-		local p = Instance.new("ParticleEmitter")
-		p.Name = AURA
-		p.Color = sequence(aura.colors)
-		p.LightEmission = aura.light
-		p.Rate = Rules.AURA_RATE
-		p.Lifetime = NumberRange.new(Rules.AURA_LIFETIME * 0.7, Rules.AURA_LIFETIME)
-		p.Speed = NumberRange.new(1.5, 3)
-		p.SpreadAngle = Vector2.new(25, 25)
-		p.EmissionDirection = Enum.NormalId.Top
-		p.Size = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0),
-			NumberSequenceKeypoint.new(0.2, Rules.AURA_SIZE),
-			NumberSequenceKeypoint.new(1, 0),
-		})
-		p.Transparency = NumberSequence.new(0.1, 1)
-		p.LightInfluence = 0
-		p.Shape = Enum.ParticleEmitterShape.Cylinder
-		p.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
-		if aura.texture and Kit.vfx(p, aura.texture) then
-			-- Painted sprites are already in color: white tint, a bit larger, slow spin
-			p.Color = ColorSequence.new(Color3.new(1, 1, 1))
-			p.Size = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0),
-				NumberSequenceKeypoint.new(0.2, Rules.AURA_TEXTURE_SIZE),
-				NumberSequenceKeypoint.new(1, 0),
-			})
-			p.Rotation = NumberRange.new(0, 360)
-			p.RotSpeed = NumberRange.new(-40, 40)
-		end
-		p.Parent = root
 	end
 end
 

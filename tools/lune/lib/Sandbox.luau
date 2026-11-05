@@ -1197,6 +1197,7 @@ function Sandbox:installCustom()
 			end
 		end,
 	})
+	self:custom("WorldModel", "BulkMoveTo", self.customs.Workspace.BulkMoveTo) -- ViewportFrame scenes
 	self:custom("Workspace", "GetServerTimeNow", {
 		method = function()
 			return 1.7e9 + sched.now

@@ -1,6 +1,8 @@
 --!strict
 -- Shop window = the Robux shop (bar button "Shop", key P, the + on the gold and Soulstar capsules).
--- Tabs: Featured (hero banner + hot offers), Soulstars, Gold, Cosmetics (+ wardrobe), Passes.
+-- Tabs: Featured (hero banner + hot offers), Soulstars, Gold, Cosmetics (preview + wardrobe + packs),
+-- Passes. The Cosmetics tab starts with a turning 3D preview of the own hero (UI/CosmeticPreview):
+-- it shows the worn look, or a pack's cosmetics after "Try on" on its card.
 -- Catalog and button states: Shared/Store; what a purchase gives and every Robux ID:
 -- Shared/Monetization. The client only opens the Roblox purchase dialog; the server books the
 -- purchase (Systems/Monetization) and answers via Net.ShopResult (robux = true) → celebration.
@@ -19,6 +21,8 @@ local Monetization = require(ReplicatedStorage.Shared.Monetization)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Format = require(ReplicatedStorage.Shared.Util.Format)
+local CosmeticPreview = require(script.Parent.Parent.UI.CosmeticPreview)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
@@ -52,6 +56,9 @@ local promptAt = 0 -- debounce of the purchase dialog
 local ownedCosmetics: { [string]: boolean } = {}
 local wear: { [string]: string } = { trail = "", aura = "" }
 local bought: { [string]: boolean } = {}
+-- Cosmetics preview: built once, moved into each new render of the Cosmetics tab
+local preview: CosmeticPreview.Preview? = nil
+local trying: { [string]: string }? = nil -- slot → id of a pack being tried on (nil = own look)
 
 local owner: Store.Owner = {
 	pass = function(key: string): boolean
@@ -365,6 +372,30 @@ local function card(offer: Store.Offer, w: number, h: number): Frame
 	text.Parent = col
 	col.Parent = f
 
+	local product = Store.product(offer)
+	local packed: { string } = if product and product.cosmetics then product.cosmetics else {}
+	if #packed > 0 then
+		local try = Flat.button("Try on", "secondary", Vector2.new(124, 44), "wings")
+		try.Name = "TryOn"
+		try.AnchorPoint = Vector2.new(1, 0)
+		try.Position = UDim2.new(1, -14, 0, 14)
+		try.ZIndex = 6
+		try.Activated:Connect(function()
+			local set: { [string]: string } = { trail = "", aura = "" }
+			for _, id in packed do
+				local c = CosmeticRules.ById[id]
+				if c then
+					set[c.slot] = id
+				end
+			end
+			-- the preview lives on the Cosmetics tab (Try on also sits on featured cards)
+			tab = "cosmetics"
+			tabs.select(tab)
+			trying = set
+			StoreController.render() -- to the top: the preview is the first thing on the tab
+		end)
+		try.Parent = f
+	end
 	if offer.bonus then
 		local tag = Flat.text(offer.bonus, 18, C.Good, Theme.Font.UI, Enum.TextXAlignment.Right)
 		tag.Name = "Bonus"
@@ -509,16 +540,85 @@ local function hero(offer: Store.Offer, order: number): Frame
 end
 
 -- ------------------------------------------------------------------ Wardrobe (Cosmetics tab)
+local COLUMN_W = PAGE_W - S.Preview.X - 40 -- slot rows right of the preview
+
+local function shown(slot: string): string
+	local t = trying
+	if t then
+		return t[slot] or ""
+	end
+	return wear[slot] or ""
+end
+
+-- Preview stage (left) with a caption of what it shows
+local function stage(): Frame
+	local p: CosmeticPreview.Preview = preview or CosmeticPreview.new(S.Preview)
+	preview = p
+	p.show(shown("aura"), shown("trail"))
+	local names = {}
+	for _, slot in CosmeticRules.Slots do
+		local c = CosmeticRules.ById[shown(slot)]
+		if c then
+			table.insert(names, c.name)
+		end
+	end
+	local caption = p.frame:FindFirstChild("Caption")
+	if caption then
+		caption:Destroy()
+	end
+	local text = if trying
+		then "Trying on: " .. table.concat(names, " + ")
+		elseif #names > 0 then table.concat(names, " + ")
+		else "Nothing worn yet"
+	local label = Flat.text(
+		text,
+		18,
+		if trying then C.GoldHi else C.Text,
+		Theme.Font.UI,
+		Enum.TextXAlignment.Center
+	)
+	label.Name = "Caption"
+	label.AnchorPoint = Vector2.new(0.5, 1)
+	label.Position = UDim2.new(0.5, 0, 1, -14)
+	label.ZIndex = 4
+	label.Parent = p.frame
+	return p.frame
+end
+
 local function wardrobe(order: number): Frame
-	local f = Flat.frame(UDim2.fromOffset(PAGE_W, 0))
+	local outer = Flat.frame(UDim2.fromOffset(PAGE_W, 0))
+	outer.Name = "Look"
+	outer.LayoutOrder = order
+	outer.AutomaticSize = Enum.AutomaticSize.Y
+	local ol = Kit.list(outer, Enum.FillDirection.Horizontal, 30, Enum.VerticalAlignment.Top)
+	ol.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local pad0 = Instance.new("UIPadding")
+	pad0.PaddingLeft = UDim.new(0, 10)
+	pad0.Parent = outer
+	local st = stage()
+	st.LayoutOrder = 1
+	st.Parent = outer
+
+	local f = Flat.frame(UDim2.fromOffset(COLUMN_W, 0))
 	f.Name = "Wardrobe"
-	f.LayoutOrder = order
+	f.LayoutOrder = 2
 	f.AutomaticSize = Enum.AutomaticSize.Y
+	f.Parent = outer
 	local list = Kit.list(f, Enum.FillDirection.Vertical, 18, Enum.VerticalAlignment.Top)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	if trying then
+		local back = Flat.button("Back to my look", "secondary", Vector2.new(260, 56), "close")
+		back.Name = "BackToLook"
+		back.LayoutOrder = 0
+		back.Activated:Connect(function()
+			trying = nil
+			StoreController.render(true)
+		end)
+		back.Parent = f
+	end
 	local any = false
 	for i, slot in CosmeticRules.Slots do
-		local row = Flat.frame(UDim2.fromOffset(PAGE_W, 150))
+		local row = Flat.frame(UDim2.fromOffset(COLUMN_W, 150))
 		row.Name = "Slot_" .. slot
 		row.LayoutOrder = i
 		local rl = Kit.list(row, Enum.FillDirection.Horizontal, 22, Enum.VerticalAlignment.Top)
@@ -553,27 +653,29 @@ local function wardrobe(order: number): Frame
 			cell.Name = "Wear_" .. (if e.id == "" then slot .. "_none" else e.id)
 			cell.LayoutOrder = j
 			cell.Activated:Connect(function()
+				trying = nil -- wearing something shows the own look again
 				if (wear[slot] or "") ~= e.id then
 					wear[slot] = e.id
 					Net.Wear:FireServer(slot, e.id)
-					StoreController.render(true)
 				end
+				StoreController.render(true)
 			end)
 			cell.Parent = row
 		end
 		row.Parent = f
 	end
 	if not any then
-		local hint = Flat.text(
-			"Buy a pack to unlock trails and auras. Everyone in the server sees them.",
+		local hint = wrapText(
+			"Buy a pack to unlock trails and auras. Everyone in the server sees them. Tap Try on to see a pack on your hero.",
 			18,
 			C.Muted,
-			Theme.Font.Body
+			COLUMN_W
 		)
+		hint.TextXAlignment = Enum.TextXAlignment.Left
 		hint.LayoutOrder = 10
 		hint.Parent = f
 	end
-	return f
+	return outer
 end
 
 -- ------------------------------------------------------------------ Pages
@@ -582,6 +684,9 @@ function StoreController.render(keepScroll: boolean?)
 	local scroll = page.CanvasPosition
 	bobs = {}
 	pulses = {}
+	if preview then
+		preview.frame.Parent = nil -- kept across renders (no new hero copy on every click)
+	end
 	clear(page)
 
 	if tab == "featured" then
@@ -598,10 +703,12 @@ function StoreController.render(keepScroll: boolean?)
 		end
 		grid(offers, 3).Parent = page
 	else
-		grid(Store.inTab(tab), 1).Parent = page
 		if tab == "cosmetics" then
-			sectionTitle("Your look", 2).Parent = page
-			wardrobe(3).Parent = page
+			sectionTitle(if trying then "Try on" else "Your look", 1).Parent = page
+			wardrobe(2).Parent = page
+			grid(Store.inTab(tab), 3).Parent = page
+		else
+			grid(Store.inTab(tab), 1).Parent = page
 		end
 	end
 	if not Store.anyLive() then
@@ -773,6 +880,7 @@ local function buildTop()
 	end
 	tabs = Flat.tabs(defs, S.TopH - 4, function(id: string)
 		tab = id
+		trying = nil
 		StoreController.render()
 	end)
 	tabs.frame.Parent = top
@@ -804,8 +912,8 @@ local function buildTop()
 end
 
 local function updateWallet()
-	Shape.tickTo(starLabel, number("Soulstars"))
-	Shape.tickTo(goldLabel, number("Gold"))
+	Shape.tickTo(starLabel, number("Soulstars"), Format.currency)
+	Shape.tickTo(goldLabel, number("Gold"), Format.currency)
 end
 
 function StoreController.init()
@@ -841,6 +949,10 @@ function StoreController.init()
 
 	win.onOpen(function()
 		updateWallet()
+		trying = nil
+		if preview then
+			preview.refresh() -- new copy of the hero: gear or character may have changed
+		end
 		StoreController.render()
 	end)
 	local function refresh()

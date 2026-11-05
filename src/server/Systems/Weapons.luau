@@ -323,12 +323,8 @@ function WeaponSystem.equip(player: Player)
 	local root: BasePart
 	if mesh then
 		root = mesh.part:Clone()
-		-- bounding-box center of the mesh sits (0.5 - gripAt) lengths above the grip point
-		root.CFrame = CFrame.new(
-			w.offset.X * w.length,
-			(0.5 - w.gripAt) * w.length,
-			w.offset.Y * w.length
-		) * mesh.align
+		-- bounding-box center (0.5 - gripAt) lengths above the grip point, in FBX axes (Weapons.IMPORT)
+		root.CFrame = Weapons.meshCFrame(w, mesh.align)
 		root.Parent = model
 	else
 		root = buildParts(w, model)

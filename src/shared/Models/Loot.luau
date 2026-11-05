@@ -1,6 +1,6 @@
 --!strict
 -- Loot objects from parts (concept: poison box in rarity color, coin, shard,
--- Rune Candy). All small (≈ 1.5 studs), no collision and movable via Kit.rig:
+-- Forge Candy). All small (≈ 1.5 studs), no collision and movable via Kit.rig:
 -- only the part "Core" (= PrimaryPart) is anchored, pivot bottom center.
 -- Moving: model:PivotTo(cf) or a tween on Core.CFrame (= target * Core.PivotOffset:Inverse()).
 
@@ -170,7 +170,7 @@ function Loot.shard(color: Color3?): Model
 	return done(m, main)
 end
 
--- Rune Candy (crafting material): round ball, two twisted paper ends, golden rune in front.
+-- Forge Candy (crafting material): round ball, two twisted paper ends, golden rune in front.
 function Loot.runeCandy(color: Color3?): Model
 	local m = Instance.new("Model")
 	m.Name = "RuneCandy"

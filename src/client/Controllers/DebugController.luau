@@ -30,8 +30,8 @@ local dumpText: TextLabel
 local text: TextLabel
 local tools: Frame
 
--- Button -> command to Systems/Debug
-local COMMANDS: { { label: string, command: string, value: number? } } = {
+-- Button -> command to Systems/Debug (confirm = the first tap only arms the button)
+local COMMANDS: { { label: string, command: string, value: number?, confirm: boolean? } } = {
 	{ label = "+10k Gold", command = "gold", value = 10000 },
 	{ label = "Level 10", command = "level", value = 10 },
 	{ label = "Level 50", command = "level", value = 50 },
@@ -52,7 +52,10 @@ local COMMANDS: { { label: string, command: string, value: number? } } = {
 	{ label = "All Cosmetics", command = "cosmetics" },
 	{ label = "Dump Joints", command = "joints", value = nil }, -- client only: Output
 	{ label = "Next Stance", command = "stance" }, -- weapon + stance preview, then back to own
+	-- wipes the whole account (all heroes, stash, quests, hints) and kicks: replay the start
+	{ label = "Reset Account", command = "reset", confirm = true },
 }
+local CONFIRM_TIME = 4 -- seconds an armed confirm button waits for the second tap
 local LOCAL_COMMANDS: { [string]: () -> () } = {
 	joints = function()
 		dumpText.Text = AnimController.dump()
@@ -146,7 +149,25 @@ function DebugController.init()
 				label.Text = if w then "Stance: " .. w.name else entry.label
 			end)
 		end
+		local armed = 0 -- os.clock() of the first tap on a confirm button (0 = not armed)
 		b.Activated:Connect(function()
+			if entry.confirm then
+				local label = Kit.buttonLabel(b)
+				if armed == 0 or os.clock() - armed > CONFIRM_TIME then
+					armed = os.clock()
+					label.Text = "Sure? Tap again"
+					local stamp = armed
+					task.delay(CONFIRM_TIME, function()
+						if armed == stamp then
+							armed = 0
+							label.Text = entry.label
+						end
+					end)
+					return
+				end
+				armed = 0
+				label.Text = entry.label
+			end
 			local run = LOCAL_COMMANDS[entry.command]
 			if run then
 				run()

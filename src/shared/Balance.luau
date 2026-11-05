@@ -14,7 +14,9 @@ Balance.P = table.freeze({
 	hp_growth = 1.22,
 	dmg_base = 12,
 	dmg_growth = 1.12,
-	boss_hp = 40,
+	-- 40 → 26 (2026-11-04, CRITERIA-AUDIT R2): bosses took 25–39 s, 36–44 % of every run;
+	-- now about 18–26 s (sim), so a run is not "30 s trash, 30 s boss"
+	boss_hp = 26,
 	-- Deep curve (own assumption): past this depth enemy life grows a bit faster, so deeper
 	-- depths stay harder than gear progress. Not a prestige wall: World Tiers carry the rest.
 	deep_from = 20,
@@ -40,6 +42,9 @@ Balance.P = table.freeze({
 	weapon_growth = 1.155,
 	-- Loot
 	drop_normal = 0.08, -- spreadsheet 0.12; upgrades stay a find, not a given
+	-- depth 1 to Balance.EARLY_DROP_DEPTH: a bit more loot while the player decides to stay
+	-- (CRITERIA-AUDIT R6: minutes 3–10 were mostly boss loot)
+	drop_early = 0.11,
 	drops_boss = 3,
 	loot_depth = 50,
 	ip_per_depth = 10,
@@ -57,6 +62,7 @@ Balance.Rarity = table.freeze({
 	{ id = "epic", weight = 2, exp = 1.5 },
 	{ id = "unique", weight = 0.45, exp = 2 },
 })
+Balance.EARLY_DROP_DEPTH = 10 -- drop_early applies up to this depth, drop_normal after it
 Balance.UNIQUE_FROM = 10 -- uniques only drop from this depth on (own assumption)
 
 -- IP bonus per rarity (sheet "Loot · Affixes & Salvage")
@@ -185,20 +191,39 @@ Balance.FirstDrops = table.freeze({
 	firstSlot = "weapon",
 })
 
+-- Bag upgrades (Shared/Bag, docs/GAMEPLAY.md "Bag"): capacity = base + step × level, level 0 to
+-- maxLevel, bought with gold. Level L → L + 1 costs price × growth^L (rounded like shop prices),
+-- a fixed price: the curve itself is the gold sink, it does not follow Balance.shopFactor.
+--   Income reference (docs/balancing.md): ~100 gold/min at depth 1, ×1.13 per depth, so ~300/min
+--   at depth 10 (minute ~18), ~1,000/min at depth 20 (minute ~57), ~3,300/min at depth 30.
+--   Level 1 (1,200) is a first-session buy around minute 10-15; levels 1-6 (~50k in total) land
+--   in the first few hours; level 12 alone (770k) is hours of deep / Veteran farming, all 12
+--   together ~1.74M. Account-wide and reset every season (Shared/Seasons).
+Balance.Bag = table.freeze({
+	base = 40,
+	step = 5,
+	maxLevel = 12,
+	price = 1200,
+	growth = 1.8,
+})
+
 -- The Great Build (docs/specs/SEASONS.md §7, Shared/GreatBuild): one monument the whole player
 -- base raises together by donating Crystal Shards. Stage n needs first × growth^(n-1) shards on
 -- top of the stages before it (Beta numbers: few players, retune after week 1).
 --   dailyCap     shards one account may donate per UTC day (nobody finishes a stage alone)
---   buffSeconds  every finished stage: global buff for everyone for this long
---   buffGold / buffItems   that buff in percent (gold found, item drop chance)
+--   perStage     every finished stage: permanent bonus for every player for the rest of the
+--                season, in percent, stacking (items = item drop chance, gold = gold found,
+--                xp = experience). Only farming stats, never damage or life: the bonus is free for
+--                everyone and must not shift the difficulty curve.
+--   cap          ceiling of the stacked bonus per stat (all 10 stages = +20 / +20 / +10, about one
+--                game pass or one strong pet; pets give 10-15, passes 10-25)
 Balance.GreatBuild = table.freeze({
 	stages = 10,
 	first = 1000,
 	growth = 1.5,
 	dailyCap = 1000,
-	buffSeconds = 2 * 3600,
-	buffGold = 20,
-	buffItems = 10,
+	perStage = table.freeze({ items = 2, gold = 2, xp = 1 }),
+	cap = table.freeze({ items = 20, gold = 20, xp = 10 }),
 })
 
 return table.freeze(Balance)

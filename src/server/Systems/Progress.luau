@@ -17,6 +17,7 @@ local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local StarNet = require(ReplicatedStorage.Shared.StarNet)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Stats = require(script.Parent.Stats)
@@ -27,7 +28,7 @@ local Progress = {
 }
 
 local FLUSH = 1 -- seconds between batched snapshots
-local BOSS_CANDY = 1 -- Rune Candy per boss (until there are candy drops)
+local BOSS_CANDY = 1 -- Forge Candy per boss (until there are candy drops)
 local BOSS_DUST_CHANCE = 0.25
 
 local rng = Random.new()
@@ -49,18 +50,28 @@ local function send(player: Player)
 end
 Progress.sync = send
 
-function Progress.addMaterials(player: Player, delta: { [string]: number })
+-- txn (Analytics transaction type) logs the Crystal Shards change as one economy event
+function Progress.addMaterials(
+	player: Player,
+	delta: { [string]: number },
+	txn: string?,
+	sku: string?
+)
 	local profile = Data.get(player)
 	if not profile then
 		return
 	end
 	local m = profile.materials :: any
+	local shardsBefore = m.shards
 	for key, n in delta do
 		if MAT_ATTR[key] then
 			m[key] = math.max(0, m[key] + math.floor(n))
 		end
 	end
 	dirty[player] = true
+	if txn and m.shards ~= shardsBefore then
+		Analytics.economy(player, "Shards", m.shards - shardsBefore, m.shards, txn, sku)
+	end
 end
 
 -- Salvage: shards fixed, candy by expected value, Glitter Dust by chance
@@ -73,11 +84,13 @@ function Progress.salvage(player: Player, item: Items.Item)
 	local find = (Progression.starMods(profile.progress).shardFind or 0) / 100
 	local candy = math.floor(s.candy) + (if rng:NextNumber() < s.candy % 1 then 1 else 0)
 	local dust = if rng:NextNumber() < s.dust then 1 else 0
+	local shards = math.floor(s.shards * (1 + find) + 0.5)
 	Progress.addMaterials(player, {
-		shards = math.floor(s.shards * (1 + find) + 0.5),
+		shards = shards,
 		candy = candy,
 		dust = dust,
 	})
+	Analytics.pool(player, "Shards", shards, profile.materials.shards, "Gameplay", "salvage")
 	send(player)
 end
 

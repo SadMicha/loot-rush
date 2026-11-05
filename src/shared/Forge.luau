@@ -32,12 +32,12 @@ export type Result = {
 local Forge = {}
 
 Forge.MaterialName = table.freeze({
-	candy = "Rune Candy",
+	candy = "Forge Candy",
 	shards = "Crystal Shard",
 	dust = "Glitter Dust",
 } :: { [string]: string })
 Forge.MaterialPlural = table.freeze({
-	candy = "Rune Candy",
+	candy = "Forge Candy",
 	shards = "Crystal Shards",
 	dust = "Glitter Dust",
 } :: { [string]: string })

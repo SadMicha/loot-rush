@@ -20,6 +20,7 @@ local Classes = require(ReplicatedStorage.Shared.Classes)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Progress = require(script.Parent.Progress)
@@ -116,10 +117,16 @@ function Characters.setup(player: Player, name: any, classId: any): (boolean, st
 	profile.name = clean
 	profile.class = classId
 	profile.setupDone = true
+	-- A brand-new hero learns its starting skills one by one (Skills.StartUnlock); a hero that
+	-- somehow played before its setup keeps all of them
+	if profile.level <= 1 and profile.xp <= 0 then
+		profile.progress.gradual = true
+	end
 	player:SetAttribute("CharacterName", clean)
 	player:SetAttribute("SetupDone", true)
 	applyClass(player)
 	Characters.sync(player)
+	Analytics.funnel(player, Analytics.FUNNEL_HERO, "hero_created")
 	return true, nil
 end
 

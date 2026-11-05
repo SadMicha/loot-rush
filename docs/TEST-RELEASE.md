@@ -26,6 +26,10 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 17 | Phone (Studio device 844x390 or the app) | HUD, skill arc, Rush meter + buff bar (no overlap with skills/joystick), dodge, all windows | Everything reachable and tappable, nothing under the notch/topbar, Star Web pans by swipe |
 | 18 | Phone | Dbg overlay (F3 / Dbg) during a full rift | Frame time stays playable, no growing memory over a few runs |
 | 19 | Live test place | Join with a second account | No Dbg button visible (only for `DEV_USERS`) |
+| 20 | Hub | Press Q/E/R/F and tap the skill buttons | Nothing is cast, no cooldown veil starts; the dodge roll still works |
+| 21 | Rift in the Altered World (Dbg "Unlock Areas") | "Back to Hub" / HUD Hub / Leave, once per phase (waves, boss, after the boss, dead with a revive left); also on the phone and with a high ping | Always lands in Lumenhaven (spawn), never in an empty Green Plains map; Output has no `[Movement] ... pulled back` line |
+| 22 | Hub edge | Sprint and roll into every hub wall and corner (also with Dbg "Fill Rush" speed and the terrace stairs) | Never past the wall; if a lag spike carries you out, you are back inside within a moment |
+| 23 | Dbg | "Reset Account", tap twice | Kicked with "Account reset - rejoin to start over."; rejoin → hero setup, first quest, hints, fresh stash and heroes |
 
 
 Studio tests Robux purchases for free (`docs/MONETIZATION.md`).
@@ -59,6 +63,7 @@ One line each: what to do → what should happen.
 - [ ] **Nameplates + station labels:** walk the hub with 2 players → name over each hero, floating labels over Rift Gate, Forge, Market, Stash, Pet Stable; readable, not over the HUD.
 - [ ] **Stash:** walk to the Stash in the hub, press Open → Stash window with 4 tabs and your bag; tap a bag item → it lands in the open tab; tap it again → back in the bag; "Store All" fills the tab; switch hero → the same items are in the stash; walk away → the window closes.
 - [ ] **Stash twink guard:** store a high item from a strong hero, switch to a level 1 hero → the item shows a red "Lv N" badge, Equip says "Needs Level N" and does nothing; at that level it equips normally.
+- [ ] **Bag upgrade:** Inventory header shows "N / 40" and a gold button "+5 · 1.2K"; without the gold it is dimmed and a tap says "Not enough gold" (no gold lost); with the gold → "Bag upgraded to 45 slots", gold drops by 1,200, the grid shows 45 cells and scrolls once it needs more rows than fit; double tap buys only one level; switch hero → same bag size; the Stash window's bag side shows "/ 45" and scrolls; at 100 slots the button is gone. Phone 844x390: the button is tappable and does not cover the currencies.
 - [ ] **Inventory upgrade icons:** pick up a better and a worse item → green up arrow / red down arrow on the bag cells, counter and "Upgrades" sort match.
 - [ ] **Boss start (d1–5):** fight bosses at depth 1, 3, 4, 5 → d1 phase 1 only + Break callout; d3 Counter/Openings; d4 Pursuit (ranged class at its own range is not jumped); d5 adds + enrage.
 - [ ] **Mobile layouts, all HUD sizes:** Settings → each HUD size on 844×390 and a tablet → no overlap of skills, joystick, minimap, capsules, buff bar, Rush meter; every window opens and closes.

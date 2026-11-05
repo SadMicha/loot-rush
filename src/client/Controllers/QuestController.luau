@@ -162,11 +162,16 @@ local function onQuest(payload: any)
 			end
 		end
 		if typeof(payload.unlocked) == "table" then
+			-- one toast for everything unlocked at once (a level jump can open several windows)
+			local names = {}
 			for _, id in payload.unlocked do
 				local name = if typeof(id) == "string" then Rules.Names[id] else nil
 				if name then
-					QuestController.toast("New: " .. name, C.Cyan)
+					table.insert(names, name)
 				end
+			end
+			if #names > 0 then
+				QuestController.toast("New: " .. table.concat(names, ", "), C.Cyan)
 			end
 		end
 	end
@@ -199,7 +204,7 @@ function QuestController.lines(): (string, string, string)
 		local depth = (player:GetAttribute("BestDepth") or 0) :: number
 		return "Push deeper!", string.format("Best depth %d", depth), ""
 	end
-	local reward = if state.gold then "+" .. Format.big(state.gold) .. " Gold" else ""
+	local reward = if state.gold then "+" .. Format.currency(state.gold) .. " Gold" else ""
 	-- Extra rewards (Forge materials, spell stones) on their own line under the objective
 	local q = Rules.Chain[state.step]
 	local extra = if q then Rules.extraText(q) else ""

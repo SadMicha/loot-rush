@@ -285,19 +285,58 @@ describe("Holding stances", function()
 		expect(sword.UpVector.Z).toBeLessThan(-0.5)
 		expect(sword.Position.Y).toBeLessThan(0)
 		expect(sword.Position.X).toBeGreaterThan(0.8)
-		-- bow: vertical at arm's length in front, riser forward, string toward the archer
-		local bow = standing("ranger_bow")
-		expect(tilt(bow)).toBeLessThan(5)
-		expect(bow.Position.X > -1.3 and bow.Position.X < -0.4).toBe(true) -- in front, not at the side
-		expect(bow.Position.Z).toBeLessThan(-1.4)
-		expect(bow.RightVector.Z).toBeLessThan(-0.7)
-		-- the draw hand at the string in front of the chest, at the bow's height
-		local draw = {}
-		Anim.hold("ranger_bow", 1, false, draw, {})
-		local hand = handFrame("right", draw).Position
-		expect(hand.Z).toBeLessThan(-0.6)
-		expect(hand.X > -0.8 and hand.X < 0.4).toBe(true)
-		expect(math.abs(hand.Y - bow.Position.Y)).toBeLessThan(0.5)
+		-- bow at rest, epic archer: the left arm RAISED at the target (hand at about shoulder
+		-- height, far out front), the bow upright but tipped a little forward (not hanging at the
+		-- leg), riser toward the target, string toward the archer; the right hand drawn-ready
+		-- at the cheek, beside (not inside) the head
+		local bow, bowArm = standing("ranger_bow")
+		local tipTilt = tilt(bow)
+		expect(tipTilt > 4 and tipTilt < 15).toBe(true)
+		expect(bow.UpVector.Z).toBeLessThan(0) -- the top leans toward the target, not back
+		local lHand = handFrame("left", bowArm).Position
+		expect(lHand.Y > 0.15 and lHand.Y < 1).toBe(true) -- chest to shoulder height, not the hip
+		expect(lHand.Z).toBeLessThan(-0.8) -- reaching forward
+		expect(lHand.X).toBeLessThan(-2) -- and out to the side
+		expect(bow.RightVector.Z).toBeLessThan(-0.7) -- back of the bow toward the target
+		expect(bow.RightVector.X).toBeLessThan(-0.3) -- along the arm, a little out
+		local str = bow * Vector3.new(-0.6, 0, 0)
+		expect(str.X).toBeGreaterThan(bow.Position.X + 0.3) -- string toward the body
+		expect(str.Z).toBeGreaterThan(bow.Position.Z + 0.4) -- behind the back of the bow
+		local rHand = handFrame("right", bowArm).Position
+		expect(rHand.Y > 0.6 and rHand.Y < 1.6).toBe(true) -- chin/cheek height
+		expect(rHand.X > 0.3 and rHand.X < 1.4).toBe(true) -- right side of the face
+		expect(inBody(rHand)).toBe(false) -- the fist does not sink into the head
+		expect((rHand - lHand).Magnitude).toBeGreaterThan(2) -- a drawn bow's reach
+		-- the torso is turned side-on and the head turned back along the aim line
+		local bs = Anim.STANCE.ranger_bow
+		expect(bs.pose.waist.Y).toBeLessThan(-30) -- left shoulder leads
+		expect(math.abs(bs.pose.waist.Y + bs.pose.neck.Y)).toBeLessThan(10) -- head along the aim
+		expect(math.abs(bs.hold.lShoulder.Y + bs.pose.waist.Y)).toBeLessThan(10) -- arm along the aim
+		-- wide stance: front foot forward, back foot turned out, weight on the bent back knee
+		local bl = assert(bs.legs)
+		expect(bl.lHip.X).toBeGreaterThan(25)
+		expect(bl.rHip.Y).toBeLessThan(-25)
+		expect(bl.rKnee.X).toBeLessThan(bl.lKnee.X - 10)
+		expect(assert(bs.lift).Y).toBeLessThan(-0.12)
+		expect(sole(-1, bl.lHip, bl.lKnee).Z).toBeLessThan(-0.7)
+		expect(sole(1, bl.rHip, bl.rKnee).Z).toBeGreaterThan(0.4)
+		for _, p in { bs.pose, bs.hold, bl, assert(bs.off) } do
+			for _, a in p do
+				expect(a.X == a.X and a.Y == a.Y and a.Z == a.Z).toBe(true) -- no NaN
+			end
+		end
+		-- leg stance gone while walking, the rest pose weighted out into the run
+		local walk = {}
+		expect(Anim.stance("ranger_bow", Anim.STANCE_MOVING, 0, 0, walk)).toBe(Vector3.zero)
+		expect(walk.lHip).toBeNil()
+		expect(walk.rKnee).toBeNil()
+		local run, runShare = {}, {}
+		Anim.hold("ranger_bow", Anim.STANCE_MOVING, false, run, runShare)
+		expect(runShare.rShoulder).toBe(Anim.STANCE_MOVING)
+		-- the shot starts from the carry alone, no draw arm of the rest pose
+		local aimShare = {}
+		Anim.hold("ranger_bow", 0, false, {}, aimShare)
+		expect(aimShare.rShoulder).toBeNil()
 		-- staff: upright beside the body, its foot on the ground (lowered with the stance)
 		local staff = standing("mage_staff")
 		local w = Weapons.ById.mage_staff
@@ -318,9 +357,41 @@ describe("Holding stances", function()
 		expect(math.abs(tilt(weaponFrame(Weapons.ById.warrior_sword, arm)) - 15)).toBeLessThan(1)
 	end)
 
+	it("holds the bow mesh by its grip, upright, string toward the body", function()
+		-- The uploaded MeshPart comes from Roblox's importer turned 180° about Y against the FBX
+		-- (Weapons.IMPORT). A point of the FBX (measured on Ranger_Bow/Standard.fbx, scaled to the
+		-- weapon length) is (-x, y, -z) in the part; meshCFrame must bring it back to weapon space.
+		local w = Weapons.ById.ranger_bow
+		local k = w.length / 4.2 -- FBX bow length 4.2
+		local center = Vector3.new(0.133, 0.147, 0) * k -- FBX bounding-box center (x, up)
+		local function fromFbx(x: number, up: number): Vector3
+			local p = Vector3.new(x, up, 0) * k - center
+			return Weapons.meshCFrame(w) * Vector3.new(-p.X, p.Y, -p.Z) -- part space → weapon space
+		end
+		local gripUp = -1.953 + w.gripAt * 4.2
+		local grip = fromFbx(0.27, gripUp) -- middle of the handle at the grip height
+		local string = fromFbx(-0.1, gripUp) -- the string, level with the grip
+		local back = fromFbx(0.85, 0.15) -- outer curve of the riser
+		local top = fromFbx(-0.04, 2.247)
+		expect(grip.Magnitude).toBeLessThan(0.25) -- the fist closes on the handle
+		expect(string.X).toBeLessThan(-0.3) -- string on weapon -X (Weapons.grip assumes it)
+		expect(back.X).toBeGreaterThan(0.3)
+		expect(top.Y).toBeGreaterThan(2)
+		-- in the character (UpperTorso space, LookVector -Z) at rest
+		local arm = {}
+		Anim.hold(w.id, 1, false, arm, {})
+		local f = weaponFrame(w, arm)
+		local look = Vector3.new(0, 0, -1)
+		local wString, wBack, wGrip = f * string, f * back, f * grip
+		expect((f * top - f.Position).Unit.Y).toBeGreaterThan(0.97) -- limbs up, tipped <= 14° forward
+		expect((wGrip - handFrame("left", arm).Position).Magnitude).toBeLessThan(0.25)
+		expect((wBack - wString):Dot(look)).toBeGreaterThan(0.5) -- back faces forward
+		expect(math.abs(wString.X)).toBeLessThan(math.abs(wBack.X)) -- string toward the body
+	end)
+
 	it("raises the bow straight for the shot", function()
 		local arm = {}
-		Anim.hold("ranger_bow", Anim.STANCE_ACTING, false, arm, {})
+		Anim.hold("ranger_bow", Anim.stanceWeight(0, true, "ranger_bow"), false, arm, {})
 		local shot: Anim.Pose = {}
 		local m = Anim.Moves.shoot
 		Anim.sample(m, m.time * 0.5, shot)
@@ -344,7 +415,7 @@ describe("Holding stances", function()
 			local m = Anim.Moves[id]
 			for i = 0, 10 do
 				local arm = {}
-				Anim.hold(w.id, Anim.STANCE_ACTING, false, arm, {})
+				Anim.hold(w.id, Anim.stanceWeight(0, true, w.id), false, arm, {})
 				local moved: Anim.Pose = {}
 				Anim.sample(m, m.time * i / 10, moved)
 				for _, joint in Anim.ARM.left do
@@ -379,6 +450,13 @@ describe("Holding stances", function()
 		expect(Anim.stanceWeight(0, false)).toBe(1)
 		expect(math.abs(Anim.stanceWeight(1, false) - Anim.STANCE_MOVING)).toBeLessThan(1e-9)
 		expect(Anim.stanceWeight(0, true)).toBe(Anim.STANCE_ACTING)
+		expect(Anim.stanceWeight(0, true, "warrior_sword")).toBe(Anim.STANCE_ACTING)
+		-- the bow shoots from its ready carry: no rest-pose arm turn in the aim
+		expect(Anim.stanceWeight(0, true, "ranger_bow")).toBe(0)
+		local aim = {}
+		Anim.hold("ranger_bow", Anim.stanceWeight(0, true, "ranger_bow"), false, aim, {})
+		expect(aim.lShoulder.Y).toBe(0)
+		expect(Anim.STANCE_DROP).toBeGreaterThan(Anim.STANCE_BLEND)
 		expect(Anim.stanceLegs(0)).toBe(1)
 		expect(Anim.stanceLegs(Anim.STANCE_STILL)).toBe(0)
 		local pose = {}
@@ -403,8 +481,13 @@ describe("Holding stances", function()
 		expect(half.waist.X).toBe(Anim.STANCE.mage_staff.pose.waist.X * 0.5)
 		-- the weapon arm is always ours; the off arm blends with the Animator's by weight
 		local arm, share = {}, {}
-		Anim.hold("ranger_bow", 0.3, false, arm, share)
-		expect(share.lShoulder).toBe(1)
-		expect(share.rShoulder).toBe(0.3)
+		Anim.hold("warrior_sword", 0.3, false, arm, share)
+		expect(share.rShoulder).toBe(1)
+		expect(share.lShoulder).toBe(0.3)
+		-- the bow's draw arm is ours at rest (drawn-ready), the Animator's while a move plays
+		local bowArm, bowShare = {}, {}
+		Anim.hold("ranger_bow", 1, false, bowArm, bowShare)
+		expect(bowShare.lShoulder).toBe(1)
+		expect(bowShare.rShoulder).toBe(1)
 	end)
 end)

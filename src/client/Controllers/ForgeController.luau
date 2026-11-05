@@ -242,7 +242,7 @@ local function renderGrid(shown: { Items.Item }, worn: { [string]: boolean })
 		local w = worn[it.id] == true
 		local charges = Items.chargesOf(it)
 		local dim = not Forge.ready(it, m) -- faded: no action works on it right now
-		local icon = InventoryController.slotIcon(it.slot)
+		local icon = InventoryController.slotIcon(it.slot, it)
 		local key =
 			table.concat({ it.rarity, icon, tostring(charges), tostring(dim), tostring(w) }, "|")
 		local opts: Flat.CellOptions = {
@@ -312,7 +312,7 @@ local function textLine(
 end
 
 local function renderHeader(it: Items.Item, w: number, worn: boolean)
-	local cell = Flat.cell(HEAD, InventoryController.slotIcon(it.slot), { rarity = it.rarity })
+	local cell = Flat.cell(HEAD, InventoryController.slotIcon(it.slot, it), { rarity = it.rarity })
 	cell.Name = "Selected"
 	cell.Active = false
 	cell.Position = UDim2.fromOffset(0, 0)

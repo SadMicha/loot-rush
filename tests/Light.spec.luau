@@ -9,6 +9,25 @@ describe("Lighting", function()
 		end
 	end)
 
+	it("keeps every place in one brightness band (not too dark, not blown out)", function()
+		local places = { hub = Looks.Hub }
+		for id, light in Looks.Regions do
+			places[id] = light
+		end
+		local lo, hi = math.huge, 0
+		for id, light in places do
+			local est = Looks.estimate(light)
+			expect(est).toBeGreaterThan(0.45)
+			expect(est).toBeLessThan(0.8)
+			expect(light.brightness or 0).toBeLessThan(2.4)
+			expect(light.bloom or 0).toBeLessThan(0.7)
+			lo, hi = math.min(lo, est), math.max(hi, est)
+		end
+		expect(hi - lo).toBeLessThan(0.22)
+		-- the Altered World is no longer the dark outlier
+		expect(Looks.estimate(Looks.Regions.altered_world)).toBeGreaterThan(0.48)
+	end)
+
 	it("player in the Hub sees Hub light even while the arena is rebuilt", function()
 		sim:boot({ seconds = 2 })
 		sim:runAs("server", function(req)
@@ -32,7 +51,7 @@ describe("Lighting", function()
 				:GetPlayers()[1].Character
 				:PivotTo(CFrame.new(Config.RIFT_START))
 		end)
-		sim:run(1)
+		-- read at once: without a run, FallGuard brings a player on an idle map slot home
 		sim:runAs("client", function(req)
 			place =
 				req("StarterPlayer.StarterPlayerScripts.Client.Controllers.LightController").place()

@@ -5,6 +5,7 @@
 local HttpService = game:GetService("HttpService")
 
 local Balance = require(script.Parent.Balance)
+local Classes = require(script.Parent.Classes)
 
 -- tier: 1 (best) to 7, missing on base values (implicit) and old items (= 7)
 -- sealed: sealed by the Forge (fixed, does not take an affix slot)
@@ -25,6 +26,10 @@ export type Item = {
 	affixes: { Affix },
 	charges: number?,
 	unique: string?, -- id in Items.Uniques (rarity "unique")
+	-- Class that found the item (Shared/Classes id). Fixed for life: the item keeps its look and
+	-- name in the shared stash, and only that class can wear it (Items.ClassLocked).
+	-- Missing on old stash items = fits every class (Profile.reconcile stamps hero-owned ones).
+	class: string?,
 }
 
 local Items = {}
@@ -109,8 +114,43 @@ local BASE = {
 	belt = { "Rope Belt", "Studded Belt", "Soul Girdle" },
 	offhand = { "Wooden Buckler", "Spark Orb", "Crystal Tome" },
 }
+-- Class base names for the class-locked slots (the rest of BASE is shared by every class)
+local CLASS_BASE: { [string]: { [string]: { string } } } = {
+	warrior = {
+		weapon = { "Wooden Sword", "Iron Blade", "Crystal Greatsword" },
+		offhand = { "Wooden Buckler", "Iron Shield", "Crystal Aegis" },
+	},
+	ranger = {
+		weapon = { "Wooden Bow", "Hunter's Bow", "Crystal Longbow" },
+		offhand = { "Leather Quiver", "Spark Quiver", "Crystal Quiver" },
+	},
+	mage = {
+		weapon = { "Wooden Staff", "Spark Staff", "Crystal Staff" },
+		offhand = { "Spark Orb", "Rune Tome", "Crystal Tome" },
+	},
+	mushroom = {
+		weapon = { "Mossy Scepter", "Spore Scepter", "Crystal Scepter" },
+		offhand = { "Spore Pouch", "Glowcap Lantern", "Crystal Totem" },
+	},
+}
+
+-- Slots that only the item's own class can wear: every equipment slot (Micha 2026-11-04)
+local locked: { [string]: boolean } = {}
+for _, slot in Items.Slots do
+	locked[slot] = true
+end
+Items.ClassLocked = table.freeze(locked)
+
 for _, slot in Items.Slots do
 	assert(IMPLICIT[slot] and BASE[slot], `slot {slot}: implicit stat or base names missing`)
+end
+for _, c in Classes.List do
+	for _, slot in { "weapon", "offhand" } do
+		assert(
+			CLASS_BASE[c.id] and CLASS_BASE[c.id][slot],
+			`class {c.id}: {slot} base names missing`
+		)
+	end
 end
 local SUFFIX =
 	{ damage = "of Fury", life = "of Toughness", crit = "of Precision", speed = "of Haste" }
@@ -127,14 +167,13 @@ local TITLES = {
 Items.TierMult = table.freeze({ 2.4, 2.05, 1.75, 1.5, 1.3, 1.15, 1 })
 Items.TierMinIP = table.freeze({ 550, 420, 300, 200, 120, 60, 0 })
 Items.IP_PER_LEVEL = 10 -- item power = item level × 10
-Items.BAG_MAX = 40 -- bag slots (Systems/Inventory, InventoryController); equipped gear not counted
 
 -- Forge charges of new items per rarity (balancing: Loot · Affixes & Salvage)
 -- Uniques are finished items: no charges, the Forge cannot change them
 Items.Charges =
 	table.freeze({ normal = 3, magic = 4, rare = 4, epic = 5, unique = 0 } :: { [string]: number })
 
--- Salvage yield: shards fixed, Rune Candy as expected value, Glitter Dust as a chance
+-- Salvage yield: shards fixed, Forge Candy as expected value, Glitter Dust as a chance
 Items.Salvage = table.freeze({
 	normal = { shards = 2, candy = 0, dust = 0 },
 	magic = { shards = 5, candy = 0, dust = 0 },
@@ -261,8 +300,38 @@ function Items.requiredLevel(item: Item): number
 	return math.max(1, math.floor(ilvl) - Balance.P.equip_level_grace)
 end
 
-function Items.canWear(item: Item, level: number): boolean
+-- Valid class id of an item, nil when it has none (old stash items) or a broken one
+function Items.classOf(item: Item): string?
+	local c = item.class
+	return if typeof(c) == "string" and Classes.ById[c] then c else nil
+end
+
+-- The class an item is locked to when `class` may not wear it, otherwise nil. Items without a
+-- class (old stash items) fit everyone.
+function Items.classLock(item: Item, class: string): string?
+	local own = Items.classOf(item)
+	if own and own ~= class and Items.ClassLocked[item.slot] then
+		return own
+	end
+	return nil
+end
+
+-- Level gate (Items.requiredLevel) and, with `class`, the class lock (Items.classLock)
+function Items.canWear(item: Item, level: number, class: string?): boolean
+	if class and Items.classLock(item, class) then
+		return false
+	end
 	return level >= Items.requiredLevel(item)
+end
+
+-- Why this hero cannot wear the item, for the UI: the short class name of a class-locked item
+-- (Items.classLock, "Mage"), else the hero level it needs, nil when it can be worn
+function Items.lockOf(item: Item, level: number, class: string): (number | string)?
+	local own = Items.classLock(item, class)
+	if own then
+		return Classes.ById[own].short
+	end
+	return if Items.canWear(item, level) then nil else Items.requiredLevel(item)
 end
 
 export type UpgradeMark = "up" | "down"
@@ -274,16 +343,18 @@ export type UpgradeMark = "up" | "down"
 -- that do not get "down", items without an equipment slot get none. Equipping the marked item
 -- makes the rest "down" once the marks are recomputed against the new worn piece.
 -- Also returns how many bag items are marked "up" (= slots with an upgrade waiting).
--- `level` given: items the hero cannot wear yet (Items.canWear) get no marker.
+-- `level` given: items the hero cannot wear yet (Items.canWear, with `class` also other-class
+-- weapons) get no marker.
 function Items.upgradeMarks(
 	bag: { Item },
 	equipped: { [string]: Item },
-	level: number?
+	level: number?,
+	class: string?
 ): ({ [string]: UpgradeMark }, number)
 	local marks: { [string]: UpgradeMark } = {}
 	local best: { [string]: Item } = {}
 	for _, it in bag do
-		if Items.SlotName[it.slot] and (level == nil or Items.canWear(it, level)) then
+		if Items.SlotName[it.slot] and (level == nil or Items.canWear(it, level, class)) then
 			if Items.isUpgrade(it, equipped[it.slot]) then
 				local top = best[it.slot]
 				if not top or Items.isUpgrade(it, top) then
@@ -307,6 +378,7 @@ export type RollOpts = {
 	min: string?, -- at least this rarity (boss: "rare")
 	uniques: boolean?, -- may roll a unique (depth ≥ Balance.UNIQUE_FROM)
 	slot: string?, -- force this slot (guaranteed first weapon); no unique then
+	class: string?, -- class of the hero it drops for (Item.class, class base names)
 }
 
 -- Uniques: fixed name, slot and stat package (factor on the normal roll range, like a tier).
@@ -433,12 +505,17 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 		end
 	end
 
+	local class = opts and opts.class
+	if class and not Classes.ById[class] then
+		class = nil
+	end
 	if rarity.id == "unique" then
-		return Items.makeUnique(Items.Uniques[rng:NextInteger(1, #Items.Uniques)], ilvl, rng)
+		return Items.makeUnique(Items.Uniques[rng:NextInteger(1, #Items.Uniques)], ilvl, rng, class)
 	end
 
 	local slot = forced or Items.Slots[rng:NextInteger(1, #Items.Slots)]
-	local bases = BASE[slot]
+	local classBases = if class then CLASS_BASE[class] else nil
+	local bases = if classBases and classBases[slot] then classBases[slot] else BASE[slot]
 	local base = bases[rng:NextInteger(1, #bases)]
 
 	local implicit = IMPLICIT[slot]
@@ -473,11 +550,12 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 		ilvl = ilvl,
 		affixes = affixes,
 		charges = Items.Charges[rarity.id],
+		class = class,
 	}
 end
 
 -- A unique item at this level: implicit of the slot plus its fixed stat package
-function Items.makeUnique(u: Unique, ilvl: number, rng: Random): Item
+function Items.makeUnique(u: Unique, ilvl: number, rng: Random, class: string?): Item
 	local implicit = IMPLICIT[u.slot]
 	local affixes: { Affix } =
 		{ { stat = implicit, value = value(implicit, ilvl, rng, 1.5), implicit = true } }
@@ -493,6 +571,7 @@ function Items.makeUnique(u: Unique, ilvl: number, rng: Random): Item
 		affixes = affixes,
 		charges = 0,
 		unique = u.id,
+		class = if class and Classes.ById[class] then class else nil,
 	}
 end
 

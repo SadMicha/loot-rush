@@ -12,6 +12,7 @@
 -- The save stores the chain index: only append new quests at the end, never insert or reorder.
 
 local Forge = require(script.Parent.Forge)
+local Format = require(script.Parent.Util.Format)
 
 local Quests = {}
 
@@ -106,7 +107,7 @@ Quests.Chain = table.freeze({
 	{ id = "depth_20", text = "Clear depth 20", goal = "depth", target = 20, gold = 1500 },
 } :: { Quest })
 
--- Extra rewards as text for the quest panel ("+6 Rune Candy - +20 Crystal Shards", "" = none);
+-- Extra rewards as text for the quest panel ("+6 Forge Candy - +20 Crystal Shards", "" = none);
 -- the gold sits in the panel's head row
 function Quests.extraText(q: Quest): string
 	local parts = {}
@@ -116,7 +117,7 @@ function Quests.extraText(q: Quest): string
 			local n = (r :: any)[key]
 			if typeof(n) == "number" and n > 0 then
 				local name = if n == 1 then Forge.MaterialName[key] else Forge.MaterialPlural[key]
-				table.insert(parts, string.format("+%d %s", n, name))
+				table.insert(parts, "+" .. Format.currency(n) .. " " .. name)
 			end
 		end
 		if r.stones and r.stones > 0 then
@@ -136,6 +137,9 @@ Quests.Unlocks = table.freeze({
 	forge = { depth = 5, caption = "Clear depth 5" },
 	pets = { depth = 8, caption = "Clear depth 8" },
 	auto_salvage = { depth = 10, caption = "Clear depth 10" },
+	-- HUD extras (Leaderboard, Journey, Season, Soulstar coin): hidden until the first boss, so the
+	-- first hub visit shows only what the first quest needs (CRITERIA-AUDIT R3)
+	extras = { depth = 1, caption = "Clear depth 1" },
 } :: { [string]: { level: number?, depth: number?, caption: string } })
 
 Quests.Names = table.freeze({
@@ -143,13 +147,18 @@ Quests.Names = table.freeze({
 	forge = "Forge",
 	pets = "Pets",
 	auto_salvage = "Auto-Salvage",
+	extras = "Journey, Season & Rankings",
 } :: { [string]: string })
 
 -- Quest waypoint (docs/ROADMAP.md O1): the hub station a goal is done at, by the window name
--- of its prompt (Hub builds a part "Station_<window>"). Goals that happen in a Rift or in a
--- window have none.
+-- of its prompt (Hub builds a part "Station_<window>"). Goals that are done inside a Rift
+-- (kills, pickups, levels, depths) point back at the Rift Gate: a player who died or left before
+-- finishing them stands in the hub with nothing to do otherwise. Window goals have none.
 Quests.Waypoints = table.freeze({
 	rift = "Atlas",
+	kill = "Atlas",
+	pickup = "Atlas",
+	level = "Atlas",
 	depth = "Atlas",
 	forge = "Forge",
 	hatch = "Pets",

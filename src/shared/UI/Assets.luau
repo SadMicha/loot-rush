@@ -378,7 +378,7 @@ local ICON_ALIAS: { [string]: string } = {
 	buff_shield = "G33", -- hex shield medallion
 	leaderboard = "F41", -- golden podium
 	shards_big = "J34", -- crystal shard (market card)
-	candy_big = "J41", -- rune candy (market card)
+	candy_big = "J41", -- Forge Candy (market card)
 	dust_big = "J42", -- glitter bottle (market card)
 	-- Atlas fallbacks for Assets.IconImage entries (shown until the image is uploaded)
 	soulstars_s = "soulstar",
@@ -389,7 +389,6 @@ local ICON_ALIAS: { [string]: string } = {
 	season_beta = "crown",
 	journey = "quest",
 	great_build = "hub", -- Great Build monument (window, milestones, Builder Aura)
-	buff_build = "upgrade", -- Great Build global buff
 	buff_chill = "ice",
 	buff_rush = "fire",
 	stone_linger = "skills",

@@ -23,6 +23,7 @@ local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Trail = require(ReplicatedStorage.Shared.Trail)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local CombatState = require(script.Parent.CombatState)
 local Data = require(script.Parent.Data)
@@ -68,6 +69,10 @@ local POLL = 0.3
 
 local runs: { [Player]: Run } = {}
 local slots: { [number]: Run } = {}
+-- Slot of a run that just ended while its owner is sent home (the Hub streams in first): FallGuard
+-- keeps that map allowed until the teleport, instead of rescuing to an unstreamed Hub
+local homebound: { [Player]: number } = {}
+local endedAt: { [Player]: number } = {} -- os.clock() of the player's last run end (enter debounce)
 local nextId = 0
 local rng = Random.new()
 
@@ -270,14 +275,25 @@ local function streamAround(player: Player, pos: Vector3)
 end
 
 local function returnToHub(player: Player)
-	local model = character(player)
-	if model then
+	local model, root = character(player)
+	if model and root then
 		streamAround(player, Config.HUB_POS)
+		-- A new run may have started while the Hub streamed in: never pull the player out of it
+		if runs[player] or player.Character ~= model then
+			return
+		end
 		Movement.teleported(player)
+		root.AssemblyLinearVelocity = Vector3.zero
 		model:PivotTo(CFrame.new(Config.HUB_POS))
 		Combat.refreshStats(player, true)
 		CombatState.reset(player)
 	end
+end
+
+-- Outside the Hub's walkable square (plus the FallGuard margin)?
+local function awayFromHub(pos: Vector3): boolean
+	local d = pos - Config.HUB_ORIGIN
+	return math.max(math.abs(d.X), math.abs(d.Z)) > Config.HUB_HALF + Config.FALL_MARGIN
 end
 
 -- Ends the run (reason see RiftRun; "gone" = player left the game)
@@ -300,32 +316,39 @@ local function finish(r: Run, reason: EndReason)
 		string.format("Depth %d %s", r.depth, if failed then "failed" else "left")
 	)
 	local owner = r.owner
+	Analytics.riftEnd(owner, failed, r.region.id)
 	Leaderboard.flush(owner)
 	if reason ~= "gone" then
 		local gold, items = Loot.collect(owner)
 		r.tally.gold += gold
 		table.move(items, 1, #items, #r.tally.items + 1, r.tally.items)
 	end
+	-- the run's gold as one economy event, also on a disconnect (pickups are not logged one by
+	-- one; shards come from salvage, pooled in Progress.salvage)
+	-- (on a disconnect Data may already have dropped the profile: the Gold attribute stays set)
+	local profile = Data.get(owner)
+	local balance = if profile then profile.gold else owner:GetAttribute("Gold")
+	if typeof(balance) == "number" then
+		Analytics.economy(owner, "Gold", r.tally.gold, balance, "Gameplay", "rift")
+	end
 	Enemies.clear(r.id)
-	-- After death the body stays in the arena until respawn: only tear down the floor after that
+	endedAt[owner] = os.clock()
 	local function release()
 		World.release(r.slot)
 		slots[r.slot] = nil
-	end
-	if failed and reason ~= "gone" then
-		task.delay(Config.RESPAWN_TIME + 1, release)
-	else
-		release()
 	end
 	owner:SetAttribute("RiftRegion", nil)
 	owner:SetAttribute("RiftRevives", nil)
 	owner:SetAttribute("RiftDowned", nil)
 	if reason == "gone" or not owner.Parent then
+		release()
 		return
 	end
 	owner:SetAttribute("RiftLeft", 0)
 	report(r, "end", reason)
 	if failed then
+		-- After death the body stays in the arena until respawn: only tear down the floor after that
+		task.delay(Config.RESPAWN_TIME + 1, release)
 		owner:SetAttribute("RiftPhase", "failed") -- respawn brings the player to the Hub by itself
 		task.delay(FAILED_SHOWN, function()
 			if owner.Parent and owner:GetAttribute("RiftPhase") == "failed" then
@@ -334,7 +357,17 @@ local function finish(r: Run, reason: EndReason)
 		end)
 	else
 		owner:SetAttribute("RiftPhase", "")
-		returnToHub(owner)
+		-- Into the Hub first, then free the slot: slot 1 is rebuilt as the Green Plains on release,
+		-- and the player must never stand in that rebuilt, empty map while the Hub streams in
+		homebound[owner] = r.slot
+		local ok, err = pcall(function()
+			returnToHub(owner)
+		end)
+		homebound[owner] = nil
+		if not ok then
+			warn("[Rift] return to the Hub failed:", err)
+		end
+		release()
 	end
 end
 
@@ -417,6 +450,7 @@ end
 
 local function play(r: Run)
 	Metrics.begin(r.owner, r.id)
+	Analytics.riftStart(r.owner, r.depth, r.region.id)
 	r.variant = Rift.forceVariant or RiftVariants.roll(rng, r.depth)
 	local deadline = os.clock() + RiftVariants.TIMED_LIMIT
 	-- Rift Trail (Shared/Trail): one pack per clearing, in walking order. The next pack spawns
@@ -486,6 +520,7 @@ local function play(r: Run)
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
+	Analytics.riftClear(r.owner, r.depth, r.region.id)
 	-- Let the boss loot land, then pick up the leftovers before the choice (and its summary)
 	task.wait(Loot.VACUUM_DELAY)
 	if runs[r.owner] ~= r then
@@ -506,7 +541,16 @@ local function begin(player: Player, regionId: any, wanted: any)
 	if runs[player] or not model or not humanoid or humanoid.Health <= 0 then
 		return
 	end
-	local id = if typeof(regionId) == "string" then regionId else Atlas.Start
+	-- A tap that lands right after a leave ("Back to Hub" double-tapped onto "Play again"/Travel)
+	-- must not start a new run under the player's feet
+	if os.clock() - (endedAt[player] or -math.huge) < Config.RIFT_REENTER_DELAY then
+		return
+	end
+	-- No default region: a missing or unknown id is refused (it used to start the Green Plains)
+	if typeof(regionId) ~= "string" then
+		return
+	end
+	local id: string = regionId
 	local region = Atlas.ById[id]
 	if not region or not Atlas.isOpen(id, bestOf(player)) then
 		return
@@ -591,11 +635,34 @@ end
 
 local allow = RateLimit.new(1, 3) -- entering builds a whole arena: slow down spam
 local allowTier = RateLimit.new(4, 8) -- tier picker steps are cheap and must not eat the enter budget
+-- Leaving is never throttled away by an enter/deeper shortly before (own, generous budget)
+local allowLeave = RateLimit.new(4, 8)
+
+-- Ends the running Rift (also while its map is still being built: begin() then stops by itself).
+-- Idempotent: no run (already ended, a repeated tap) changes nothing, except that a living player
+-- somehow left standing outside Lumenhaven is brought home.
+local function leave(player: Player)
+	local r = runs[player]
+	if r then
+		finish(r, if player:GetAttribute("RiftPhase") == "clear" then "left" else "abandoned")
+		return
+	end
+	local _, root, humanoid = character(player)
+	if root and humanoid and humanoid.Health > 0 and awayFromHub(root.Position) then
+		returnToHub(player)
+	end
+end
 
 local function onAction(player: Player, action: any, regionId: any, depth: any)
 	if action == "tier" then
 		if allowTier(player) then
 			chooseTier(player, regionId)
+		end
+		return
+	end
+	if action == "leave" then
+		if allowLeave(player) then
+			leave(player)
 		end
 		return
 	end
@@ -606,11 +673,6 @@ local function onAction(player: Player, action: any, regionId: any, depth: any)
 		begin(player, regionId, depth)
 	elseif action == "deeper" then
 		deeper(player)
-	elseif action == "leave" then
-		local r = runs[player]
-		if r then
-			finish(r, if player:GetAttribute("RiftPhase") == "clear" then "left" else "abandoned")
-		end
 	end
 end
 
@@ -656,6 +718,7 @@ function Rift.init()
 		if r then
 			finish(r, "gone")
 		end
+		endedAt[player] = nil
 	end)
 end
 
@@ -665,10 +728,11 @@ function Rift.centerOf(player: Player): Vector3?
 	return if r then r.center else nil
 end
 
--- Map slot of the player's running Rift (nil = not in a Rift)
+-- Map slot the player may stand on: their running Rift's, or the one just left while the Hub
+-- streams in (nil = Hub only)
 function Rift.slotOf(player: Player): number?
 	local r = runs[player]
-	return if r then r.slot else nil
+	return if r then r.slot else homebound[player]
 end
 
 -- Where FallGuard puts a player of a running Rift back: last lit waypoint, else the start pad

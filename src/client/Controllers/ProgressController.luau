@@ -12,11 +12,17 @@ local ProgressController = {}
 local data: Progression.Data = Progression.fresh()
 local materials: Progression.Materials = Progression.freshMaterials()
 
+local got = false -- the first snapshot arrived
 local changed = Instance.new("BindableEvent")
 ProgressController.changed = changed.Event
 
 function ProgressController.data(): Progression.Data
 	return data
+end
+
+-- The server's first snapshot arrived (before that, data() is a fresh placeholder)
+function ProgressController.loaded(): boolean
+	return got
 end
 
 function ProgressController.materials(): Progression.Materials
@@ -31,6 +37,7 @@ function ProgressController.start()
 		-- Same sanitizing as on load: the UI relies on valid fields
 		data = Progression.reconcile(payload.progress)
 		materials = Progression.reconcileMaterials(payload.materials)
+		got = true
 		changed:Fire()
 	end)
 end

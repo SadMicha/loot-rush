@@ -98,6 +98,20 @@ describe("Studs", function()
 	end)
 end)
 
+describe("LootStuds variant in the Rojo project", function()
+	it("is defined with Plastic, 1 stud per tile and both maps", function()
+		-- the sandbox does not keep texture-map properties: check the project file itself
+		local name = "LootStuds" -- Studs.VARIANT
+		local v = projectJson().tree.MaterialService[name]
+		expect(v["$className"]).toBe("MaterialVariant")
+		expect(v["$properties"].BaseMaterial).toBe("Plastic")
+		expect(v["$properties"].StudsPerTile).toBe(1)
+		for _, key in { "ColorMap", "NormalMap" } do
+			expect(string.match(v["$properties"][key], "^rbxassetid://%d+$") ~= nil).toBe(true)
+		end
+	end)
+end)
+
 describe("Parts + studs map", function()
 	it("hub and every arena are studded parts without meshes", function()
 		sim:boot({ seconds = 1 })

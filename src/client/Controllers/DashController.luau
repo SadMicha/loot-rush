@@ -86,9 +86,17 @@ end
 local function blocked(character: Model, root: BasePart, step: number): boolean
 	local enemies = workspace:FindFirstChild("Enemies") -- dodging through a pack stays possible
 	probe.FilterDescendantsInstances = if enemies then { character, enemies } else { character }
-	local ahead = dashDir * (step + Config.DASH_SKIN)
+	-- two frames of look-ahead: a frame hitch (lag spike) must not carry the body past a thin part
+	local ahead = dashDir * (step * 2 + Config.DASH_SKIN)
 	local pos = root.Position
-	for _, from in { pos, pos - Vector3.new(0, Config.DASH_LOW, 0) } do
+	-- feet, hip and head height: low props and overhangs both stop the roll
+	for _, from in
+		{
+			pos,
+			pos - Vector3.new(0, Config.DASH_LOW, 0),
+			pos + Vector3.new(0, Config.DASH_HIGH, 0),
+		}
+	do
 		local hit = workspace:Raycast(from, ahead, probe)
 		if hit and hit.Normal.Y < 0.7 then -- steep: wall, railing, cliff (not a stair tread or slope)
 			return true

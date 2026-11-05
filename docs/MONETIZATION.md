@@ -65,7 +65,29 @@ the script with ID `0` in `Monetization.luau`, then run the workflow manually; i
 - Flashy parts: rarity glow + rotating edge highlight, light sweeps, floating art, turning light rays
   behind top offers, pulsing "Limited" ribbons, cards lift under the mouse, and a purchase
   celebration (rays, bouncing icon, stud confetti, reward text) when the server books a purchase.
-- Cosmetics tab: a wardrobe below the packs to wear/remove owned trails and auras (`Net.Wear`).
+- Cosmetics tab: a turning 3D preview of the own hero (`client/UI/CosmeticPreview`, ViewportFrame on a
+  studded pedestal) next to the wardrobe to wear/remove owned trails and auras (`Net.Wear`), the packs
+  below. "Try on" on a pack card shows its cosmetics on the preview without buying.
+- How cosmetics look in 3D: see "Cosmetics in 3D" below.
+
+## Cosmetics in 3D
+
+Rules by rarity: `src/shared/CosmeticFx.luau` (pure data, `tests/CosmeticFx.spec.luau`).
+- Server (`Systems/Cosmetics`): builds the trail ribbon (width/lifetime by rarity) and sets the player
+  attributes `WearAura` / `WearTrail`. Nothing else is built on the server.
+- Client (`AuraController` + `client/Fx/CosmeticRig`): every client builds every hero's aura from parts:
+  sigil disc + turning neon ring at the feet, studded plates, second dashed ring (legend), tilted waist
+  band (epic+), crown above the head (legend), orbiting shards in the cosmetic's style (`CosmeticFx.Shard`:
+  flame / crystal / void / stud / brick), rising neon motes, light pillar beam + breathing PointLight +
+  idle pulse ring (legend), and the painted sprite particles (`Assets.Vfx`) as atmosphere. Trails get
+  stud-mote sparks while running (rare+) and a bright core ribbon (unique/legend).
+- Equip moment: a shock ring (+ light column for auras) on everyone's screen at full detail, sound
+  `cosmetic_equip` / `cosmetic_equip_legend` for the own hero.
+- Budget for 12 players: own hero full detail; others full only within `FULL_RANGE` and up to
+  `FULL_OTHERS[effects quality]` (low 0, medium 1, high 3), else "lite" (sigil ring + 2 shards), off beyond
+  `LITE_RANGE`; sprite particles only on the nearest `SPRITE_LIMIT` auras. All rigs move with one
+  `BulkMoveTo` per frame; rigs are removed on swap, respawn and leave. Worst case (12 legends in one spot,
+  high) ≈ 370 parts, the spec caps it at 400.
 
 ## Tech
 

@@ -17,6 +17,7 @@ local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Flat = require(script.Parent.Parent.UI.Flat)
+local Headshot = require(script.Parent.Parent.UI.Headshot)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
@@ -76,7 +77,7 @@ local function clear(parent: Instance)
 	end
 end
 
--- One list row: rank, name, result, time
+-- One list row: rank, headshot, name, result, time
 local function row(e: Rules.Entry, width: number, overall: boolean, mine: boolean): Frame
 	local f = Flat.card(UDim2.fromOffset(width, ROW_H), if mine then F.Surface2 else nil)
 	f.Name = "Row_" .. e.rank
@@ -97,9 +98,19 @@ local function row(e: Rules.Entry, width: number, overall: boolean, mine: boolea
 		crown.Position = UDim2.new(0, 84, 0.5, 0)
 		crown.Parent = f
 	end
+	local face = Headshot.new({
+		userId = e.userId,
+		name = e.name,
+		size = Theme.Headshot.Row,
+		top = top3,
+		mine = mine,
+	})
+	face.AnchorPoint = Vector2.new(0, 0.5)
+	face.Position = UDim2.new(0, 124, 0.5, 0)
+	face.Parent = f
 	local name = Flat.text(e.name, 18, if mine then C.GoldHi else C.Text, Theme.Font.UI)
 	name.AnchorPoint = Vector2.new(0, 0.5)
-	name.Position = UDim2.new(0, 124, 0.5, 0)
+	name.Position = UDim2.new(0, 124 + Theme.Headshot.Row + 14, 0.5, 0)
 	name.Parent = f
 	local res = Flat.text(result(e, overall), 18, C.Text, Theme.Font.UI, Enum.TextXAlignment.Right)
 	res.AnchorPoint = Vector2.new(1, 0.5)
@@ -264,13 +275,28 @@ local function renderHub()
 		local e = page.entries[i]
 		local f = Flat.frame(UDim2.new(1, 0, 0, 28))
 		f.LayoutOrder = i
-		local left =
-			Flat.text(`#{e.rank}  {e.name}`, 20, if i <= 3 then C.GoldHi else C.Text, Theme.Font.UI)
+		local color = if i <= 3 then C.GoldHi else C.Text
+		local rank = Flat.text(`#{e.rank}`, 20, color, Theme.Font.UI)
+		rank.AnchorPoint = Vector2.new(0, 0.5)
+		rank.Position = UDim2.fromScale(0, 0.5)
+		rank.Parent = f
+		local face = Headshot.new({
+			userId = e.userId,
+			name = e.name,
+			size = Theme.Headshot.Hub,
+			top = i <= 3,
+		})
+		face.AnchorPoint = Vector2.new(0, 0.5)
+		face.Position = UDim2.new(0, 42, 0.5, 0)
+		face.Parent = f
+		local left = Flat.text(e.name, 20, color, Theme.Font.UI)
+		left.AnchorPoint = Vector2.new(0, 0.5)
+		left.Position = UDim2.new(0, 42 + Theme.Headshot.Hub + 8, 0.5, 0)
 		left.Parent = f
 		local right =
 			Flat.text(result(e, true), 20, C.Text, Theme.Font.UI, Enum.TextXAlignment.Right)
-		right.AnchorPoint = Vector2.new(1, 0)
-		right.Position = UDim2.fromScale(1, 0)
+		right.AnchorPoint = Vector2.new(1, 0.5)
+		right.Position = UDim2.fromScale(1, 0.5)
 		right.Parent = f
 		f.Parent = rows
 	end

@@ -458,6 +458,28 @@ function Shape.ripple(b: GuiObject, at: Vector2?)
 	tw:Play()
 end
 
+-- Calls fn whenever the button's ScreenGui is disabled (a hidden gui never sends MouseLeave, so
+-- hover state would stay stuck until the next open)
+local function onGuiHidden(b: GuiObject, fn: () -> ())
+	local conn: RBXScriptConnection? = nil
+	local function hook()
+		if conn then
+			conn:Disconnect()
+			conn = nil
+		end
+		local g = b:FindFirstAncestorWhichIsA("ScreenGui")
+		if g then
+			conn = g:GetPropertyChangedSignal("Enabled"):Connect(function()
+				if not g.Enabled then
+					fn()
+				end
+			end)
+		end
+	end
+	b.AncestryChanged:Connect(hook)
+	hook()
+end
+
 -- Hover grows, press shrinks + ripple + click sound, release springs back (UIScale "Motion")
 function Shape.motion(b: GuiButton, rest: number?): UIScale
 	local scale = Instance.new("UIScale")
@@ -497,6 +519,17 @@ function Shape.motion(b: GuiButton, rest: number?): UIScale
 			{ Scale = if hovering then base() * F.HoverScale else base() },
 			"Bouncy"
 		)
+	end)
+	-- Touch has no hover: a finger lifting ends the press for good
+	b.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			hovering = false
+			Spring.target(scale, { Scale = base() }, "Snappy")
+		end
+	end)
+	onGuiHidden(b, function()
+		hovering = false
+		Spring.snap(scale, { Scale = base() })
 	end)
 	return scale
 end
@@ -695,14 +728,23 @@ function Shape.close(size: number): ImageButton
 	x.FontFace = Theme.Font.UI
 	x.TextSize = math.floor(size * 0.66)
 	x.Parent = b
+	local function rest()
+		edge.Color = F.EdgeHi
+		x.TextColor3 = C.Text
+	end
 	b.MouseEnter:Connect(function()
 		edge.Color = C.Danger
 		x.TextColor3 = C.Danger
 	end)
-	b.MouseLeave:Connect(function()
-		edge.Color = F.EdgeHi
-		x.TextColor3 = C.Text
+	b.MouseLeave:Connect(rest)
+	-- A click closes the window, which never sends MouseLeave; touch has no hover at all
+	b.Activated:Connect(rest)
+	b.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			rest()
+		end
 	end)
+	onGuiHidden(b, rest)
 	Shape.motion(b)
 	return b
 end

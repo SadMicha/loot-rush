@@ -29,6 +29,8 @@ local PLAYED = {
 	"purchase",
 	"forge",
 	"hatch",
+	"cosmetic_equip",
+	"cosmetic_equip_legend",
 	"ui_click",
 	"ui_open",
 	"ui_close",

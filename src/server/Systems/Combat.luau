@@ -19,6 +19,7 @@ local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rush = require(ReplicatedStorage.Shared.Rush)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Data = require(script.Parent.Data)
 local Movement = require(script.Parent.Movement)
 local Status = require(script.Parent.Status)
@@ -251,6 +252,7 @@ local function addXP(player: Player, amount: number)
 		profile.level, profile.xp = level, xp
 	end
 	if leveled then
+		Analytics.custom(player, "LevelUp", level) -- here, not on the attribute: a join restore is no level-up
 		applyLevelStats(player, true)
 		local root = body(player)
 		if root then
@@ -261,6 +263,8 @@ local function addXP(player: Player, amount: number)
 		end
 	end
 end
+
+Combat.addXP = addXP
 
 -- Set level and XP directly (test commands); refills life
 function Combat.setLevel(player: Player, level: number, xp: number)
@@ -1104,7 +1108,19 @@ local function castChain(player: Player, root: BasePart, skill: Skills.Skill, ai
 	return true
 end
 
+-- Skills only work inside a running Rift. RiftPhase is written by Systems/Rift alone (a client
+-- cannot set server attributes): "" = Hub, "failed" = dead after a run. Dodge stays everywhere.
+local CAST_PHASES: { [string]: boolean } = table.freeze({ wave = true, boss = true, clear = true })
+
+function Combat.inRift(player: Player): boolean
+	local phase = player:GetAttribute("RiftPhase")
+	return typeof(phase) == "string" and CAST_PHASES[phase] == true
+end
+
 local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3): boolean
+	if not Combat.inRift(player) then
+		return false -- the Hub is a safe town: no skills, no cooldowns spent
+	end
 	local profile = Data.get(player)
 	local base = if profile then Progression.barSkill(profile.progress, slot) else nil
 	local st = states[player]
@@ -1114,6 +1130,10 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	end
 	if base.class ~= Classes.valid(profile and profile.class) then
 		return false -- a skill of another class (bar is refitted on class change)
+	end
+	local level = (player:GetAttribute("Level") or 1) :: number
+	if profile and not Progression.isUnlocked(base, level, profile.progress) then
+		return false -- a starting skill this new hero has not learned yet (Skills.StartUnlock)
 	end
 	local skill = effective(player, base)
 	local now = os.clock()

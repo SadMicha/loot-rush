@@ -507,9 +507,23 @@ local shownDash = ""
 local dashSize = H.DashSize -- touch screens use the bigger size (set in buildSkills)
 
 -- Loadout or class changed: new icons (skill art and the sprint icon depend on the class)
+local skillShown: { boolean } = {} -- slot button visible (the hero has learned its skill)
 local function refreshSkillButtons()
 	for i, btn in skillButtons do
 		local skill = SkillController.skill(i)
+		-- New heroes learn their starting skills one by one (Skills.StartUnlock): a locked slot
+		-- is hidden and bounces in once it unlocks (HintsController points at it)
+		local open = SkillController.unlocked(i)
+		if open ~= btn.Visible then
+			btn.Visible = open
+		end
+		if open and skillShown[i] == false then
+			local motion = btn:FindFirstChild("Motion")
+			if motion and motion:IsA("UIScale") then
+				Spring.impulse(motion, "Scale", 3, "Bouncy")
+			end
+		end
+		skillShown[i] = open
 		if skill then
 			local art = Kit.skillArt(skill.id) or H.SkillArt[skill.id]
 			local key = skill.id .. "|" .. (art or "")
@@ -980,6 +994,8 @@ local function updateMenuDock()
 	end
 end
 
+local extras: { star: GuiObject? } = {} -- HUD parts behind the "extras" unlock
+
 local function buildCalmPanels()
 	-- Resources at the top center (stays visible in combat too)
 	local res = clearGroup(Vector2.new(RES_WIDTH, 40))
@@ -995,7 +1011,7 @@ local function buildCalmPanels()
 	do
 		local value = (player:GetAttribute(spec[2] :: string) or 0) :: number
 		local pill, pillText, plus =
-			Kit.pill(spec[1] :: string, Format.big(value), spec[3] :: Color3)
+			Kit.pill(spec[1] :: string, Format.currency(value), spec[3] :: Color3)
 		if spec[1] == "gold" then
 			goldText = pillText
 		elseif spec[1] == "crystal" then
@@ -1017,6 +1033,9 @@ local function buildCalmPanels()
 		end
 		pill.LayoutOrder = i
 		pill.Parent = res
+		if spec[1] == "soulstar" then
+			extras.star = pill
+		end
 	end
 	place(res, Vector2.new(0, 0), UDim2.new(0.5, -RES_WIDTH / 2, 0, 18))
 	resGroup = res
@@ -1095,6 +1114,22 @@ local function buildCalmPanels()
 			refreshDot()
 		end
 	end)
+	-- Leaderboard, Journey, Season and the Soulstar coin wait for the first boss (Quests.Unlocks
+	-- "extras"): the first hub visit only shows what the first quest needs
+	local function refreshExtras()
+		local open = QuestController.isOpen("extras")
+		local list: { GuiObject } = { board, journey, season }
+		if extras.star then
+			table.insert(list, extras.star)
+		end
+		for _, b in list do
+			if b.Visible ~= open then
+				b.Visible = open
+			end
+		end
+	end
+	refreshExtras()
+	QuestController.changed:Connect(refreshExtras)
 	local gear = Kit.hudIconButton(H.GearSize, "hud_settings", "settings", nil)
 	gear.Name = "Gear"
 	gear.LayoutOrder = 5
@@ -1541,16 +1576,17 @@ function HudController.start()
 
 	ProgressController.changed:Connect(refreshSkillButtons)
 	player:GetAttributeChangedSignal("Class"):Connect(refreshSkillButtons)
+	player:GetAttributeChangedSignal("Level"):Connect(refreshSkillButtons)
 	refreshSkillButtons()
 
 	player:GetAttributeChangedSignal("Gold"):Connect(function()
-		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.big)
+		Shape.tickTo(goldText, (player:GetAttribute("Gold") or 0) :: number, Format.currency)
 	end)
 	player:GetAttributeChangedSignal("Shards"):Connect(function()
-		Shape.tickTo(shardText, (player:GetAttribute("Shards") or 0) :: number, Format.big)
+		Shape.tickTo(shardText, (player:GetAttribute("Shards") or 0) :: number, Format.currency)
 	end)
 	player:GetAttributeChangedSignal("Soulstars"):Connect(function()
-		Shape.tickTo(starText, (player:GetAttribute("Soulstars") or 0) :: number, Format.big)
+		Shape.tickTo(starText, (player:GetAttribute("Soulstars") or 0) :: number, Format.currency)
 	end)
 
 	local function refreshLevel()

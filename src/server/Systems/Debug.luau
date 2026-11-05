@@ -1,6 +1,7 @@
 --!strict
 -- Test commands for playtests (debug menu on the "Dbg" button): gold, level, materials, skill levels,
--- items, all shop cosmetics, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly). Only in Studio, for the
+-- items, all shop cosmetics, unlock all regions and defeat all enemies of the own Rift (play through a Rift quickly),
+-- and "reset" (whole account back to a first-join save, then a kick). Only in Studio, for the
 -- owner of the place (user-owned experience) or for UserIds in DEV_USERS.
 -- The check lives here on the server - the menu on the client is only a convenience.
 -- Every command goes through the same paths as the game (Inventory, Progress, Combat), never around the profile.
@@ -21,6 +22,7 @@ local Skills = require(ReplicatedStorage.Shared.Skills)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
+local Analytics = require(script.Parent.Analytics)
 local Combat = require(script.Parent.Combat)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
@@ -55,6 +57,9 @@ local REGION_SPAN = 5 -- depths per region (starting depths 1, 6, 11 …)
 
 local rng = Random.new()
 local allow = RateLimit.new(4, 8)
+local allowReset = RateLimit.new(1 / 30, 1) -- the kick ends the session anyway; no repeated saves
+
+Debug.RESET_MESSAGE = "Account reset - rejoin to start over."
 
 function Debug.allowed(player: Player): boolean
 	return RunService:IsStudio()
@@ -113,8 +118,10 @@ end
 
 local function addItems(player: Player, n: number)
 	local ilvl = (player:GetAttribute("Level") or 1) :: number
+	local profile = Data.get(player)
+	local opts: Items.RollOpts = { class = if profile then profile.class else nil }
 	for _ = 1, n do
-		if not Inventory.add(player, Items.roll(ilvl, rng)) then
+		if not Inventory.add(player, Items.roll(ilvl, rng, nil, opts)) then
 			break
 		end
 	end
@@ -257,6 +264,18 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 local function onCommand(player: Player, command: any, value: any)
 	-- Without a loaded save every command would silently do nothing
 	if not Debug.allowed(player) or not allow(player) or not Data.get(player) then
+		return
+	end
+	if command == "reset" then
+		-- Replay the start (tutorial, quests, first drops, hero creation): the whole account goes
+		-- back to a first-join save and the player is kicked (the menu asks twice before sending).
+		-- A running Rift ends on the kick ("gone"); its depths never reach a leaderboard.
+		if allowReset(player) then
+			print(string.format("[Debug] %s: reset account", player.Name))
+			Leaderboard.taint(player)
+			Analytics.flush(player) -- pooled economy flows of the old save go out first
+			Data.reset(player, Debug.RESET_MESSAGE)
+		end
 		return
 	end
 	local entry = if typeof(command) == "string" then COMMANDS[command] else nil

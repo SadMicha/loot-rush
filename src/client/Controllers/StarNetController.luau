@@ -1,10 +1,11 @@
 --!strict
 -- Star Web window (key N or menu button): the 100-star web on the left in a scroll area that
--- opens on the player's class start point (drag to pan, also on touch), points, star details
--- and actions on the right.
+-- opens on the player's class start point (drag to pan, also on touch; zoom by pinch, mouse wheel,
+-- +/- keys or the zoom buttons), points, star details and actions on the right.
 -- Allocations are validated and saved by the server (Systems/Progress); the window shows the snapshot
 -- from ProgressController and only sends requests (Net.Star).
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -28,6 +29,12 @@ local WEB_ROW = 30
 -- Empty border around the web inside the pan area: names of the outer stars stand wider than their
 -- node and would be cut at the canvas edge ("Overgrowth", "Berserker", "Double Strike")
 local WEB_MARGIN = 120
+-- Zoom: 1 = design size. The smallest zoom still fills the pan area (computed in init), the largest
+-- doubles the web. Buttons and +/- keys step by ZOOM_STEP, one mouse wheel notch by ZOOM_WHEEL.
+local ZOOM_MAX = 2
+local ZOOM_STEP = 1.25
+local ZOOM_WHEEL = 1.12
+local ZOOM_BUTTON = Vector2.new(68, 52)
 local SIZE: { [string]: number } = { core = 100, small = 46, big = 72, start = 64 }
 local BRANCH_COLOR: { [string]: Color3 } = {
 	might = Theme.Rarity.unique,
@@ -44,6 +51,10 @@ local side: Frame
 
 local allocated: { [string]: boolean } = { heart = true }
 local selected = "heart"
+-- Mouse drag-to-pan: true while a drag is past the threshold or ended a moment ago, so releasing
+-- the button over a star after panning does not select it
+local panning = false
+local PAN_THRESHOLD = 6 -- pixels the mouse must move before a press becomes a pan
 
 local function classId(): string?
 	local c = player:GetAttribute("Class")
@@ -123,6 +134,9 @@ local function renderNet()
 			tint = if on and s.kind ~= "core" then colorOf(s) else nil,
 		})
 		b.Activated:Connect(function()
+			if panning then
+				return
+			end
 			selected = s.id
 			StarNetController.render()
 		end)
@@ -369,12 +383,14 @@ function StarNetController.init()
 	})
 
 	-- The web in a pan area left of the panel (drag or swipe to pan, no visible scroll bars)
-	local area = Vector2.new(Window.BODY.X - SIDE_W - 20, Window.BODY.Y)
+	local rail = ZOOM_BUTTON.X + Theme.Space.M -- zoom buttons left of the web
+	local area = Vector2.new(Window.BODY.X - SIDE_W - 20 - rail, Window.BODY.Y)
 	view = Instance.new("ScrollingFrame")
 	view.Name = "Web"
 	view.BackgroundTransparency = 1
 	view.BorderSizePixel = 0
 	view.Size = UDim2.fromOffset(area.X, area.Y)
+	view.Position = UDim2.fromOffset(rail, 0)
 	local canvas = StarNet.Size + Vector2.new(2 * WEB_MARGIN, 2 * WEB_MARGIN)
 	view.CanvasSize = UDim2.fromOffset(canvas.X, canvas.Y)
 	view.ScrollingDirection = Enum.ScrollingDirection.XY
@@ -389,30 +405,253 @@ function StarNetController.init()
 	view.HorizontalScrollBarInset = Enum.ScrollBarInset.None
 	view.ElasticBehavior = Enum.ElasticBehavior.Never
 	view.Parent = win.body
+	-- Zoom layer: a UIScale on the whole canvas (lines, stars, captions); Roblox hit-tests scaled
+	-- buttons correctly. Kit's phone minimum sizes count it only above 100% (ZoomLayer): zoomed in
+	-- they relax, zoomed out the web is a true-to-scale overview (Kit.refit after every change).
+	local holder = Window.frame(UDim2.fromOffset(canvas.X, canvas.Y))
+	holder.Name = "Zoom"
+	holder.Parent = view
+	local zoomScale = Instance.new("UIScale")
+	zoomScale:SetAttribute("ZoomLayer", true)
+	zoomScale.Parent = holder
 	net = Window.frame(
 		UDim2.fromOffset(StarNet.Size.X, StarNet.Size.Y),
 		UDim2.fromOffset(WEB_MARGIN, WEB_MARGIN)
 	)
-	net.Parent = view
-	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively)
+	net.Parent = holder
+
+	local zoom = 1
+	local zoomMin = math.min(1, math.max(area.X / canvas.X, area.Y / canvas.Y))
+	local zoomLabel: TextLabel? = nil
+
+	-- Screen pixels -> pan-area units (the window itself is scaled by its own UIScale)
+	local function windowScale(): number
+		return view.AbsoluteSize.X / math.max(1, area.X)
+	end
+	local function toLocal(screen: Vector2): Vector2
+		return (screen - view.AbsolutePosition) / math.max(windowScale(), 0.01)
+	end
+	local function inView(screen: Vector2): boolean
+		local rel = screen - view.AbsolutePosition
+		return rel.X >= 0
+			and rel.Y >= 0
+			and rel.X <= view.AbsoluteSize.X
+			and rel.Y <= view.AbsoluteSize.Y
+	end
+	-- InputObject.Position leaves out the top bar inset; the window gui ignores it
+	local function screenOf(input: InputObject): Vector2
+		local inset = GuiService:GetGuiInset()
+		return Vector2.new(input.Position.X, input.Position.Y) + inset
+	end
+
+	-- Sets the zoom so that `content` (canvas point at zoom 1, default: what is under `anchor`) stays
+	-- under `anchor` (point in the pan area)
+	local function setZoom(z: number, anchor: Vector2, content: Vector2?)
+		if z ~= z then
+			return
+		end
+		local c = content or (view.CanvasPosition + anchor) / zoom
+		zoom = math.clamp(z, zoomMin, ZOOM_MAX)
+		zoomScale.Scale = zoom
+		local size = canvas * zoom
+		view.CanvasSize = UDim2.fromOffset(math.ceil(size.X), math.ceil(size.Y))
+		local p = c * zoom - anchor
+		view.CanvasPosition = Vector2.new(
+			math.clamp(p.X, 0, math.max(0, size.X - area.X)),
+			math.clamp(p.Y, 0, math.max(0, size.Y - area.Y))
+		)
+		if zoomLabel then
+			zoomLabel.Text = string.format("%d%%", math.floor(zoom * 100 + 0.5))
+		end
+		Kit.refit(win.root)
+	end
+
+	-- Mouse: the wheel zooms instead of scrolling, so native scrolling is only on for touch/gamepad
+	-- (and off while two fingers pinch)
+	local function isGamepad(t: Enum.UserInputType): boolean
+		return string.sub(t.Name, 1, 7) == "Gamepad"
+	end
+	local lastInput = UserInputService:GetLastInputType()
+	local touchPan = isGamepad(lastInput)
+		or (
+			UserInputService.TouchEnabled
+			and lastInput ~= Enum.UserInputType.MouseMovement
+			and lastInput ~= Enum.UserInputType.MouseButton1
+		)
+	local touches: { [InputObject]: true } = {}
+	local pinchDist = 0 -- finger distance when the pinch started (0 = no pinch)
+	local pinchZoom = 1
+	local pinchContent = Vector2.zero
+
+	local function updateScrolling()
+		view.ScrollingEnabled = touchPan and pinchDist == 0
+	end
+	updateScrolling()
+
+	local function pinchPair(): (InputObject?, InputObject?)
+		local a = next(touches)
+		local b = a and next(touches, a)
+		if not a or not b or next(touches, b) ~= nil then
+			return nil, nil
+		end
+		return a, b
+	end
+	-- Exactly two fingers on the web pinch; the midpoint is the zoom center and pans along
+	local function refreshPinch()
+		local a, b = pinchPair()
+		pinchDist = 0
+		if a and b then
+			local pa, pb = screenOf(a), screenOf(b)
+			local dist = (pa - pb).Magnitude
+			if dist > 1 then
+				pinchDist = dist
+				pinchZoom = zoom
+				pinchContent = (view.CanvasPosition + toLocal((pa + pb) / 2)) / zoom
+			end
+		end
+		updateScrolling()
+	end
+
+	-- Mouse drag pans the web too (touch pans the ScrollingFrame natively). Started from the global
+	-- input (a star button sinks the press before the ScrollingFrame sees it) and only counts as a
+	-- pan after PAN_THRESHOLD pixels, so a plain click still selects a star.
+	local pressAt: Vector2? = nil
 	local dragging = false
-	view.InputBegan:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
+	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+		local t = input.UserInputType
+		if isGamepad(t) and not touchPan then
+			touchPan = true -- thumbstick pans the ScrollingFrame natively
+			updateScrolling()
+		elseif t == Enum.UserInputType.Touch then
+			if not touchPan then
+				touchPan = true
+				updateScrolling()
+			end
+			if win.isOpen() and inView(screenOf(input)) then
+				touches[input] = true
+				refreshPinch()
+			end
+		elseif t == Enum.UserInputType.MouseButton1 then
+			if touchPan then
+				touchPan = false
+				updateScrolling()
+			end
+		elseif t == Enum.UserInputType.Keyboard and not processed and win.isOpen() then
+			local k = input.KeyCode
+			if k == Enum.KeyCode.Equals or k == Enum.KeyCode.KeypadPlus then
+				setZoom(zoom * ZOOM_STEP, area / 2)
+			elseif k == Enum.KeyCode.Minus or k == Enum.KeyCode.KeypadMinus then
+				setZoom(zoom / ZOOM_STEP, area / 2)
+			end
 		end
 	end)
 	UserInputService.InputChanged:Connect(function(input: InputObject)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			local d = input.Delta
-			local scale = view.AbsoluteSize.X / math.max(1, view.Size.X.Offset)
-			view.CanvasPosition -= Vector2.new(d.X, d.Y) / math.max(scale, 0.01)
+		local t = input.UserInputType
+		-- The mouse always moves before a wheel tick: native scrolling (touch/gamepad) goes off
+		-- right then, so the wheel never scrolls and zooms at once
+		-- and a tilted thumbstick turns it back on: the device used last always wins
+		if t == Enum.UserInputType.MouseMovement and touchPan then
+			touchPan = false
+			updateScrolling()
+		elseif isGamepad(t) and not touchPan and input.Position.Magnitude > 0.3 then
+			touchPan = true
+			updateScrolling()
+		end
+		if pressAt and t == Enum.UserInputType.MouseMovement then
+			local m = UserInputService:GetMouseLocation()
+			if not dragging and (m - pressAt).Magnitude >= PAN_THRESHOLD then
+				dragging = true
+				panning = true
+			end
+			if dragging then
+				local d = input.Delta
+				local p = view.CanvasPosition
+					- Vector2.new(d.X, d.Y) / math.max(windowScale(), 0.01)
+				local size = canvas * zoom
+				view.CanvasPosition = Vector2.new(
+					math.clamp(p.X, 0, math.max(0, size.X - area.X)),
+					math.clamp(p.Y, 0, math.max(0, size.Y - area.Y))
+				)
+			end
+		elseif t == Enum.UserInputType.MouseWheel then
+			local m = UserInputService:GetMouseLocation()
+			if win.isOpen() and inView(m) then
+				if touchPan then
+					touchPan = false
+					updateScrolling()
+				end
+				setZoom(zoom * ZOOM_WHEEL ^ input.Position.Z, toLocal(m))
+			end
+		elseif touches[input] and pinchDist > 0 then
+			local a, b = pinchPair()
+			if a and b then
+				local pa, pb = screenOf(a), screenOf(b)
+				setZoom(
+					pinchZoom * (pa - pb).Magnitude / pinchDist,
+					toLocal((pa + pb) / 2),
+					pinchContent
+				)
+			end
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressAt = nil
 			dragging = false
+			-- Activated fires right after the release: keep the guard up for a moment
+			task.delay(0.1, function()
+				if pressAt == nil then
+					panning = false
+				end
+			end)
+		elseif touches[input] then
+			touches[input] = nil
+			refreshPinch()
 		end
 	end)
+
+	-- Zoom rail left of the web (not over it, so it never covers star names): current zoom, +, -
+	-- and Reset (back to 100%)
+	local zoomBar = Window.frame(UDim2.fromOffset(ZOOM_BUTTON.X, area.Y), UDim2.fromOffset(0, 0))
+	zoomBar.Name = "ZoomBar"
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Bottom -- touch growth on phones goes upward
+	list.Padding = UDim.new(0, Theme.Space.S)
+	list.Parent = zoomBar
+	local percent = Kit.label("100%", 16, C.GoldHi, Theme.Font.Title)
+	percent.Name = "ZoomLevel"
+	percent.Size = UDim2.fromOffset(ZOOM_BUTTON.X, 24)
+	percent.TextXAlignment = Enum.TextXAlignment.Center
+	percent.LayoutOrder = 0
+	percent.Parent = zoomBar
+	zoomLabel = percent
+	local function zoomButton(
+		name: string,
+		text: string,
+		order: number,
+		onTap: () -> ()
+	): ImageButton
+		local b = Kit.button(text, C.Muted, ZOOM_BUTTON)
+		b.Name = name
+		b.LayoutOrder = order
+		b.Activated:Connect(onTap)
+		b.Parent = zoomBar
+		Kit.buttonLabel(b).TextSize = Kit.fontSize(28)
+		return b
+	end
+	zoomButton("ZoomIn", "+", 1, function()
+		setZoom(zoom * ZOOM_STEP, area / 2)
+	end)
+	zoomButton("ZoomOut", "-", 2, function()
+		setZoom(zoom / ZOOM_STEP, area / 2)
+	end)
+	local reset = zoomButton("ZoomReset", "Reset", 3, function()
+		setZoom(1, area / 2)
+	end)
+	Kit.buttonLabel(reset).TextSize = Kit.fontSize(15)
+	zoomBar.Parent = win.body
 
 	side = Kit.panel(Vector2.new(SIDE_W, Window.BODY.Y))
 	side.AnchorPoint = Vector2.new(1, 0)
@@ -424,11 +663,10 @@ function StarNetController.init()
 		local focus = StarNet.ById[StarNet.startOf(classId()) or "heart"]
 		selected = focus.id
 		StarNetController.render()
-		local p = (focus.pos + StarNet.Center) / 2 + Vector2.new(WEB_MARGIN, WEB_MARGIN) - area / 2
-		view.CanvasPosition = Vector2.new(
-			math.clamp(p.X, 0, math.max(0, canvas.X - area.X)),
-			math.clamp(p.Y, 0, math.max(0, canvas.Y - area.Y))
-		)
+		-- Every open starts at 100%, centered between the class start point and the heart
+		touches = {}
+		refreshPinch()
+		setZoom(1, area / 2, (focus.pos + StarNet.Center) / 2 + Vector2.new(WEB_MARGIN, WEB_MARGIN))
 	end)
 	local function refresh()
 		if win.isOpen() then

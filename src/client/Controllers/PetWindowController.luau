@@ -16,6 +16,7 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Window = require(script.Parent.Parent.UI.Window)
+local Flat = require(script.Parent.Parent.UI.Flat)
 local HubController = require(script.Parent.HubController)
 local QuestController = require(script.Parent.QuestController)
 local PetController = require(script.Parent.PetController)
@@ -139,7 +140,16 @@ local function renderTabs()
 		b.Parent = panel
 	end
 
-	-- Slot counter on the right
+	-- Right side: slot counter plus the wallet (same pills as the Shop header), so the player sees
+	-- what they can afford. Re-rendered on every Gold/Soulstars change, so the values stay live.
+	local right = Window.frame(UDim2.fromOffset(0, TAB_H))
+	right.Name = "Wallet"
+	right.AutomaticSize = Enum.AutomaticSize.X
+	right.AnchorPoint = Vector2.new(1, 0)
+	right.Position = UDim2.fromOffset(Window.BODY.X - PAD, PAD)
+	local rl = Kit.list(right, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Center)
+	rl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+
 	local used = #equippedList()
 	local counter = Kit.label(
 		string.format("Companions equipped  %d/%d", used, slotCount()),
@@ -147,9 +157,18 @@ local function renderTabs()
 		if used >= slotCount() then C.Gold else C.Text
 	)
 	counter.Name = "SlotCounter"
-	counter.AnchorPoint = Vector2.new(1, 0.5)
-	counter.Position = UDim2.new(1, -PAD, 0, PAD + TAB_H / 2)
-	counter.Parent = panel
+	counter.LayoutOrder = 1
+	counter.Visible = tab == "pets"
+	counter.Parent = right
+	local stars, starLabel = Flat.currency("soulstar", Theme.Rarity.epic)
+	stars.LayoutOrder = 2
+	starLabel.Text = Format.currency(walletOf("soulstars"))
+	stars.Parent = right
+	local gold, goldLabel = Flat.currency("gold", C.Gold)
+	gold.LayoutOrder = 3
+	goldLabel.Text = Format.currency(walletOf("gold"))
+	gold.Parent = right
+	right.Parent = panel
 end
 
 local function renderFooter()
@@ -250,7 +269,7 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	ic.LayoutOrder = 1
 	ic.Parent = priceRow
 	local amount = Kit.label(
-		if price == 0 then "FREE" else Format.int(price),
+		if price == 0 then "FREE" else Format.currency(price),
 		24,
 		if affordable then C.Gold else C.Danger
 	)
@@ -426,7 +445,7 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 		l.Parent = body
 	end
 	local note = if level >= Pets.MAX_LEVEL
-		then string.format("Max level. A duplicate gives %d Crystal Shards.", Pets.DUPE_SHARDS)
+		then `Max level. A duplicate gives {Format.currency(Pets.DUPE_SHARDS)} Crystal Shards.`
 		else string.format("Next level: %s", table.concat(bonusLines(id, level + 1), ", "))
 	local n = wrapLabel(note, 15, C.Muted, inner)
 	n.LayoutOrder = 10
@@ -562,8 +581,15 @@ local function renderPets()
 	grid.Name = "Grid"
 	grid.BackgroundTransparency = 1
 	grid.BorderSizePixel = 0
-	grid.Position = UDim2.fromOffset(PAD, TOP)
-	grid.Size = UDim2.fromOffset(gridW, h)
+	-- Inner padding: the scroll area clips at its edge and cut the selection glow of the first row/column
+	grid.Position = UDim2.fromOffset(PAD - 8, TOP - 8)
+	grid.Size = UDim2.fromOffset(gridW + 16, h + 16)
+	local gridPad = Instance.new("UIPadding")
+	gridPad.PaddingLeft = UDim.new(0, 8)
+	gridPad.PaddingTop = UDim.new(0, 8)
+	gridPad.PaddingRight = UDim.new(0, 8)
+	gridPad.PaddingBottom = UDim.new(0, 8)
+	gridPad.Parent = grid
 	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	grid.CanvasSize = UDim2.new()
 	grid.ScrollingDirection = Enum.ScrollingDirection.Y
