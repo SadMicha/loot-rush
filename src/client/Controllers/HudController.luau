@@ -919,6 +919,8 @@ local menuBarH = 0
 local menuScale: UIScale
 local menuBar: CanvasGroup
 local menuList: UIListLayout
+local menuGrid: UIGridLayout -- phone column: grid of touch-sized cells (1 or 2 columns)
+local menuRow: Frame
 local menuBarW = 0
 local menuVertical: boolean? = nil
 -- Phones (short screens): the dock stands as a smaller icon column at the left edge, where the
@@ -945,6 +947,12 @@ local function buildMenuDock()
 	menuBarW = bar.Size.X.Offset
 	local row = bar:FindFirstChild("Row")
 	menuList = (row and row:FindFirstChildOfClass("UIListLayout")) :: UIListLayout
+	menuRow = menuList.Parent :: Frame
+	menuGrid = Instance.new("UIGridLayout")
+	menuGrid.SortOrder = Enum.SortOrder.LayoutOrder
+	menuGrid.FillDirection = Enum.FillDirection.Horizontal
+	menuGrid.CellPadding = UDim2.fromOffset(PHONE_GAP, PHONE_GAP)
+	menuGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	menuScale = Instance.new("UIScale")
 	menuScale.Parent = bar
 	for i = first + 1, #barButtons do
@@ -1420,35 +1428,50 @@ local function layoutHud()
 		-- first and last icon. Solved a few rounds, since the scale depends on the height.
 		local dockScale = 1
 		local cellW = H.BarIcon + 12
+		local btnW = cellW
 		local btnH = H.BarIcon + H.BarCaption
+		local cols = 1
 		local colW = cellW + 2 * H.DockPad
 		local colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
 		if vertical then
 			local touch = UserInputService.TouchEnabled
-			dockScale = PHONE_DOCK
-			for _ = 1, 4 do
-				local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
+			-- Buttons and plate (design pixels) for a column count at a dock scale. The buttons grow
+			-- to the touch minimum at that scale (Kit.touchTarget); the plate is sized for them.
+			local function measure(c: number, d: number)
+				local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * d)) else 0
+				local rows = math.ceil(#H.Bar / c)
+				btnW = math.max(cellW, min)
 				btnH = math.max(H.BarIcon + H.BarCaption, min)
-				colW = math.max(cellW, min) + 2 * H.DockPad
-				colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
-				dockScale = math.min(PHONE_DOCK, colRoom / colH)
+				colW = c * btnW + (c - 1) * PHONE_GAP + 2 * H.DockPad
+				colH = rows * btnH + (rows - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
 			end
-			-- the last round may have shrunk the scale once more: size for that scale's buttons
-			local min = if touch then math.ceil(Kit.MIN_TOUCH_PX / (s * dockScale)) else 0
-			btnH = math.max(H.BarIcon + H.BarCaption, min)
-			colW = math.max(cellW, min) + 2 * H.DockPad
-			colH = #H.Bar * btnH + (#H.Bar - 1) * PHONE_GAP + H.DockPad + H.DockPad // 2
+			-- One column when the touch-sized buttons fit the free height at a sensible scale. Very
+			-- short screens (8 targets of 44 px do not fit under the Roblox buttons) take a second
+			-- column instead of shrinking the dock, which only makes the targets grow again.
+			for c = 1, 2 do
+				cols = c
+				dockScale = PHONE_DOCK
+				for _ = 1, 4 do
+					measure(c, dockScale)
+					dockScale = math.clamp(colRoom / colH, 0.3, PHONE_DOCK)
+				end
+				measure(c, dockScale) -- the last round may have shrunk the scale once more
+				if colH * dockScale <= colRoom + 0.5 then
+					break
+				end
+			end
 			menuBar.Size = UDim2.fromOffset(colW, colH)
+			menuGrid.CellSize = UDim2.fromOffset(btnW, btnH)
+			menuGrid.FillDirectionMaxCells = cols
 		end
 		menuScale.Scale = dockScale
 		if menuVertical ~= vertical then
 			menuVertical = vertical
-			menuList.FillDirection = if vertical
-				then Enum.FillDirection.Vertical
-				else Enum.FillDirection.Horizontal
-			menuList.Padding = UDim.new(0, if vertical then PHONE_GAP else H.BarGap)
+			-- one layout at a time: the row list (bottom bar) or the grid (phone column)
+			menuList.Parent = if vertical then nil else menuRow
+			menuGrid.Parent = if vertical then menuRow else nil
+			menuList.Padding = UDim.new(0, H.BarGap)
 			if vertical then
-				menuBar.Size = UDim2.fromOffset(colW, colH)
 				menuBar.AnchorPoint = Vector2.new(0, 1)
 				menuBar.Position = UDim2.new(0, H.Margin, 1, -H.Margin)
 			else
@@ -1456,12 +1479,26 @@ local function layoutHud()
 				menuBar.AnchorPoint = Vector2.new(0.5, 1)
 				menuBar.Position = UDim2.new(0.5, 0, 1, -H.Margin)
 			end
-			-- Phone column: icons only (the captions would not fit at the smaller size)
+			-- Phone column: icons only (the captions would not fit at the smaller size), centered
+			-- in their touch-sized cell
 			for _, mark in menuMarks do
 				local button = mark.Parent
-				local caption = button and button:FindFirstChildOfClass("TextLabel")
-				if caption then
-					caption.Visible = not vertical
+				if button then
+					for _, child in button:GetChildren() do
+						if child:IsA("TextLabel") then
+							child.Visible = not vertical
+						elseif child:IsA("GuiObject") and child.ZIndex == 2 then -- the icon (mark is 1, dots 4)
+							child.AnchorPoint = if vertical
+								then Vector2.new(0.5, 0.5)
+								else Vector2.new(0.5, 0)
+							child.Position = if vertical
+								then UDim2.fromScale(0.5, 0.5)
+								else UDim2.fromScale(0.5, 0)
+						end
+					end
+					mark.Position = if vertical
+						then UDim2.fromScale(0.5, 0.5)
+						else UDim2.new(0.5, 0, 0, H.BarIcon / 2)
 				end
 			end
 		end

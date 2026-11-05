@@ -339,6 +339,7 @@ Theme.Store = table.freeze({
 	Robux = hex("#F2EEE4"), -- tint of the Robux glyph on the gold buy button (multiplied)
 	Owned = hex("#7FD96A"),
 	CardH = 410,
+	CardHCompact = 660, -- phones: raised text and touch sizes need more room per card
 	Gap = 28,
 	HeroH = 340,
 	TopH = 80, -- tab row
