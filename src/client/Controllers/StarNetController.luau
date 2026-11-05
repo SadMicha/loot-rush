@@ -274,7 +274,7 @@ local function renderSide()
 	line.RichText = true
 	line.Text = string.format(
 		'%s<font color="#%s">%s</font>',
-		if costText then costText .. "  ·  " else "",
+		if costText then costText .. " - " else "",
 		stateColor:ToHex(),
 		string.upper(state)
 	)

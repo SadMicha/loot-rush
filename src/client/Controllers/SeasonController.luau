@@ -74,9 +74,9 @@ local function clockText(): string
 	elseif phase == "live" then
 		return if Rules.hasEnd()
 			then `Ends in {Rules.countdown(left)}`
-			else "Open season · runs until Season 1 arrives"
+			else "Open season - runs until Season 1 arrives"
 	end
-	return "Season over · claim the rewards you earned"
+	return "Season over - claim the rewards you earned"
 end
 
 -- One reward step of the track
