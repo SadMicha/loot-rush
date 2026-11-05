@@ -29,6 +29,14 @@ local C = Theme.Color
 local PAD = 28
 local TAB_W, TAB_H = 300, 64
 local TOP = PAD + TAB_H + 20 -- content starts below the tab row
+-- Small viewports (shorter side under Theme.TabletMinSide): the window is scaled down a lot, so texts
+-- and touch targets grow to their minimum screen size relative to the layout. The compact layout
+-- reserves taller rows (tabs, buttons, pet cells) and flows the egg card downward instead of
+-- pinning its parts at fixed offsets.
+local COMPACT_TAB_W, COMPACT_TAB_H, COMPACT_TAB_Y = 260, 112, 12
+local COMPACT_BTN_H = 112
+local COMPACT_ODD_H = 40
+local COMPACT_CELL_H = 196
 local FOOT = 52 -- feedback line at the bottom
 local CARD_GAP = 24
 local CARD_PAD = 24
@@ -55,6 +63,9 @@ local WALLET_ATTR: { [string]: string } = { gold = "Gold", soulstars = "Soulstar
 
 local win: Window.Window
 local panel: Frame
+
+local small = false -- compact layout (phones), set on every render
+local tabW, tabH, tabY, top, btnH = TAB_W, TAB_H, PAD, TOP, 64
 
 local tab = "eggs" -- "eggs" | "pets"
 local selectedPet: string? = nil
@@ -129,10 +140,9 @@ end
 local function renderTabs()
 	for i, t in { { "eggs", "Eggs" }, { "pets", "Companions" } } do
 		local active = t[1] == tab
-		local b =
-			Kit.button(t[2], if active then C.Gold else C.Mana, Vector2.new(TAB_W, TAB_H), nil)
+		local b = Kit.button(t[2], if active then C.Gold else C.Mana, Vector2.new(tabW, tabH), nil)
 		b.Name = "Tab_" .. t[1]
-		b.Position = UDim2.fromOffset(PAD + (i - 1) * (TAB_W + 12), PAD)
+		b.Position = UDim2.fromOffset(PAD + (i - 1) * (tabW + 12), tabY)
 		b.Activated:Connect(function()
 			tab = t[1]
 			lastResult = nil
@@ -143,17 +153,21 @@ local function renderTabs()
 
 	-- Right side: slot counter plus the wallet (same pills as the Shop header), so the player sees
 	-- what they can afford. Re-rendered on every Gold/Soulstars change, so the values stay live.
-	local right = Window.frame(UDim2.fromOffset(0, TAB_H))
+	local right = Window.frame(UDim2.fromOffset(0, tabH))
 	right.Name = "Wallet"
 	right.AutomaticSize = Enum.AutomaticSize.X
 	right.AnchorPoint = Vector2.new(1, 0)
-	right.Position = UDim2.fromOffset(Window.BODY.X - PAD, PAD)
+	right.Position = UDim2.fromOffset(Window.BODY.X - PAD, tabY)
 	local rl = Kit.list(right, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Center)
 	rl.HorizontalAlignment = Enum.HorizontalAlignment.Right
 
 	local used = #equippedList()
 	local counter = Kit.label(
-		string.format("Companions equipped  %d/%d", used, slotCount()),
+		string.format(
+			if small then "Equipped %d/%d" else "Companions equipped  %d/%d",
+			used,
+			slotCount()
+		),
 		20,
 		if used >= slotCount() then C.Gold else C.Text
 	)
@@ -188,7 +202,7 @@ local function renderFooter()
 	local foot = Kit.label(text :: string, 18, color, Theme.Font.Body)
 	foot.Name = "Hint"
 	foot.AutomaticSize = Enum.AutomaticSize.None
-	foot.Size = UDim2.new(1, -2 * PAD, 0, 30)
+	foot.Size = UDim2.new(1, -2 * PAD, 0, if small then 40 else 30)
 	foot.TextXAlignment = Enum.TextXAlignment.Left
 	foot.TextTruncate = Enum.TextTruncate.AtEnd
 	foot.AnchorPoint = Vector2.new(0, 1)
@@ -198,7 +212,7 @@ end
 
 -- ------------------------------------------------------------------ Eggs
 local function oddsRow(odd: Pets.Odd, w: number): Frame
-	local row = Window.frame(UDim2.fromOffset(w, ODD_H))
+	local row = Window.frame(UDim2.fromOffset(w, if small then COMPACT_ODD_H else ODD_H))
 	local col = Theme.Rarity[odd.rarity] or C.Text
 	local dot = Instance.new("Frame")
 	dot.Name = "Dot"
@@ -209,6 +223,7 @@ local function oddsRow(odd: Pets.Odd, w: number): Frame
 	dot.Size = UDim2.fromOffset(16, 16)
 	Kit.corner(dot, 8)
 	dot.Parent = row
+	local barX = if small then 250 else 190 -- compact: the grown label ("Legendary") needs the room
 	local name = Kit.label(RARITY_NAME[odd.rarity] or odd.rarity, 20, col)
 	name.AnchorPoint = Vector2.new(0, 0.5)
 	name.Position = UDim2.new(0, 34, 0.5, 0)
@@ -218,38 +233,16 @@ local function oddsRow(odd: Pets.Odd, w: number): Frame
 	pct.AnchorPoint = Vector2.new(1, 0.5)
 	pct.Position = UDim2.new(1, 0, 0.5, 0)
 	pct.Parent = row
-	local back, fill = Kit.bar(Vector2.new(w - 330, 14), col)
+	local back, fill = Kit.bar(Vector2.new(w - barX - (if small then 150 else 140), 14), col)
 	fill.Size = UDim2.fromScale(math.clamp(odd.percent / 100, 0.02, 1), 1)
 	back.AnchorPoint = Vector2.new(0, 0.5)
-	back.Position = UDim2.new(0, 190, 0.5, 0)
+	back.Position = UDim2.new(0, barX, 0.5, 0)
 	back.Parent = row
 	return row
 end
 
-local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
-	local f = Window.frame(UDim2.fromOffset(w, h))
-	f.Name = "Egg_" .. egg.id
-	Kit.skin(f, "stat_tile", 96, 0.4)
-	local inner = w - 2 * CARD_PAD
-
-	local art = Kit.itemSlot(ART, Pets.eggIconOf(egg), { rarity = topRarity(egg) })
-	art.Active = false
-	art.Position = UDim2.fromOffset(CARD_PAD, CARD_PAD)
-	art.ZIndex = 2
-	art.Parent = f
-
-	local textX = CARD_PAD + ART + 16
-	local textW = w - textX - CARD_PAD
-	local name = Window.heading(egg.name, 24, C.GoldHi)
-	name.Position = UDim2.fromOffset(textX, CARD_PAD)
-	name.ZIndex = 2
-	name.Parent = f
-	local desc = wrapLabel(egg.text, 16, C.Muted, textW)
-	desc.Position = UDim2.fromOffset(textX, CARD_PAD + 34)
-	desc.ZIndex = 2
-	desc.Parent = f
-
-	-- Price (live: gold grows with the best depth)
+-- Price line of an egg card (live: gold grows with the best depth)
+local function priceLine(egg: Pets.Egg, w: number, h: number): (Frame, boolean)
 	-- nil until the first pet state arrived (no "FREE" flash for players who own pets)
 	local ownedNow: number? = nil
 	if typeof(PetController.state.owned) == "table" then
@@ -260,9 +253,8 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	end
 	local price = Pets.eggPrice(egg, bestDepth(), ownedNow)
 	local affordable = walletOf(egg.price.kind) >= price
-	local priceRow = Window.frame(UDim2.fromOffset(textW, 32))
+	local priceRow = Window.frame(UDim2.fromOffset(w, h))
 	priceRow.Name = "Price"
-	priceRow.Position = UDim2.fromOffset(textX, CARD_PAD + ART - 32)
 	priceRow.ZIndex = 2
 	Kit.list(priceRow, Enum.FillDirection.Horizontal, 8).HorizontalAlignment =
 		Enum.HorizontalAlignment.Left
@@ -285,6 +277,129 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 		grows.LayoutOrder = 3
 		grows.Parent = priceRow
 	end
+	return priceRow, affordable
+end
+
+local function hatchButton(egg: Pets.Egg, affordable: boolean, w: number, h: number): GuiButton
+	-- Can't pay: the disabled button itself says why (no extra line squeezed above it)
+	local hatch = Kit.button(
+		if affordable
+			then "Hatch"
+			else "Not enough " .. (Shop.KindName[egg.price.kind] or egg.price.kind),
+		C.Gold,
+		Vector2.new(w, h),
+		nil
+	)
+	hatch.Name = "Hatch_" .. egg.id
+	hatch.ZIndex = 2
+	Kit.setEnabled(hatch, affordable)
+	hatch.Activated:Connect(function()
+		if hatch.Active then
+			Net.Pet:FireServer("hatch", egg.id)
+		end
+	end)
+	return hatch
+end
+
+-- Compact egg card (phones): one vertical flow, so wrapped texts push the rest down instead of
+-- overlapping it. Header = art left, name / description / price stacked right.
+local function eggCardCompact(egg: Pets.Egg, w: number, h: number): Frame
+	local f = Window.frame(UDim2.fromOffset(w, h))
+	f.Name = "Egg_" .. egg.id
+	Kit.skin(f, "stat_tile", 96, 0.4)
+	local pad = 16
+	local inner = w - 2 * pad
+
+	local flow = Window.frame(UDim2.fromOffset(inner, 0), UDim2.fromOffset(pad, pad))
+	flow.Name = "Flow"
+	flow.AutomaticSize = Enum.AutomaticSize.Y
+	Kit.list(flow, Enum.FillDirection.Vertical, 8, Enum.VerticalAlignment.Top).HorizontalAlignment =
+		Enum.HorizontalAlignment.Left
+
+	local header = Window.frame(UDim2.fromOffset(inner, 0))
+	header.Name = "Header"
+	header.AutomaticSize = Enum.AutomaticSize.Y
+	header.LayoutOrder = 1
+	local minH = Instance.new("UISizeConstraint")
+	minH.MinSize = Vector2.new(0, ART)
+	minH.Parent = header
+	local art = Kit.itemSlot(ART, Pets.eggIconOf(egg), { rarity = topRarity(egg) })
+	art.Active = false
+	art.ZIndex = 2
+	art.Parent = header
+	local textX = ART + 16
+	local textW = inner - textX
+	local stack = Window.frame(UDim2.fromOffset(textW, 0), UDim2.fromOffset(textX, 0))
+	stack.AutomaticSize = Enum.AutomaticSize.Y
+	Kit.list(stack, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top).HorizontalAlignment =
+		Enum.HorizontalAlignment.Left
+	local name = Window.heading(egg.name, 24, C.GoldHi)
+	name.LayoutOrder = 1
+	name.ZIndex = 2
+	name.Parent = stack
+	local desc = wrapLabel(egg.text, 16, C.Muted, textW)
+	desc.LayoutOrder = 2
+	desc.ZIndex = 2
+	desc.Parent = stack
+	local priceRow, affordable = priceLine(egg, textW, 40)
+	priceRow.LayoutOrder = 3
+	priceRow.Parent = stack
+	stack.Parent = header
+	header.Parent = flow
+
+	local divider = Kit.divider(inner)
+	divider.LayoutOrder = 2
+	divider.Parent = flow
+	local oddsHead = Window.heading("Drop chances", 16, C.Muted)
+	oddsHead.LayoutOrder = 3
+	oddsHead.Parent = flow
+	local rows = Window.frame(UDim2.fromOffset(inner, 0))
+	rows.Name = "Odds"
+	rows.LayoutOrder = 4
+	rows.AutomaticSize = Enum.AutomaticSize.Y
+	Kit.list(rows, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Top)
+	for i, odd in Pets.odds(egg) do
+		local row = oddsRow(odd, inner)
+		row.LayoutOrder = i
+		row.Parent = rows
+	end
+	rows.Parent = flow
+
+	local hatch = hatchButton(egg, affordable, inner, COMPACT_BTN_H)
+	hatch.LayoutOrder = 5
+	hatch.Parent = flow
+	flow.Parent = f
+	return f
+end
+
+local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
+	if small then
+		return eggCardCompact(egg, w, h)
+	end
+	local f = Window.frame(UDim2.fromOffset(w, h))
+	f.Name = "Egg_" .. egg.id
+	Kit.skin(f, "stat_tile", 96, 0.4)
+	local inner = w - 2 * CARD_PAD
+
+	local art = Kit.itemSlot(ART, Pets.eggIconOf(egg), { rarity = topRarity(egg) })
+	art.Active = false
+	art.Position = UDim2.fromOffset(CARD_PAD, CARD_PAD)
+	art.ZIndex = 2
+	art.Parent = f
+
+	local textX = CARD_PAD + ART + 16
+	local textW = w - textX - CARD_PAD
+	local name = Window.heading(egg.name, 24, C.GoldHi)
+	name.Position = UDim2.fromOffset(textX, CARD_PAD)
+	name.ZIndex = 2
+	name.Parent = f
+	local desc = wrapLabel(egg.text, 16, C.Muted, textW)
+	desc.Position = UDim2.fromOffset(textX, CARD_PAD + 34)
+	desc.ZIndex = 2
+	desc.Parent = f
+
+	local priceRow, affordable = priceLine(egg, textW, 32)
+	priceRow.Position = UDim2.fromOffset(textX, CARD_PAD + ART - 32)
 	priceRow.Parent = f
 
 	local divider = Kit.divider(inner)
@@ -307,35 +422,19 @@ local function eggCard(egg: Pets.Egg, w: number, h: number): Frame
 	end
 	rows.Parent = f
 
-	-- Can't pay: the disabled button itself says why (no extra line squeezed above it)
-	local hatch = Kit.button(
-		if affordable
-			then "Hatch"
-			else "Not enough " .. (Shop.KindName[egg.price.kind] or egg.price.kind),
-		C.Gold,
-		Vector2.new(inner, 64),
-		nil
-	)
-	hatch.Name = "Hatch_" .. egg.id
+	local hatch = hatchButton(egg, affordable, inner, 64)
 	hatch.AnchorPoint = Vector2.new(0.5, 1)
 	hatch.Position = UDim2.new(0.5, 0, 1, -CARD_PAD)
-	hatch.ZIndex = 2
-	Kit.setEnabled(hatch, affordable)
-	hatch.Activated:Connect(function()
-		if hatch.Active then
-			Net.Pet:FireServer("hatch", egg.id)
-		end
-	end)
 	hatch.Parent = f
 	return f
 end
 
 local function renderEggs()
 	local cardW = math.floor((Window.BODY.X - 2 * PAD - CARD_GAP) / 2)
-	local cardH = Window.BODY.Y - TOP - FOOT - PAD
+	local cardH = Window.BODY.Y - top - FOOT - (if small then 12 else PAD)
 	for i, egg in Pets.Eggs do
 		local card = eggCard(egg, cardW, cardH)
-		card.Position = UDim2.fromOffset(PAD + (i - 1) * (cardW + CARD_GAP), TOP)
+		card.Position = UDim2.fromOffset(PAD + (i - 1) * (cardW + CARD_GAP), top)
 		card.Parent = panel
 	end
 end
@@ -380,7 +479,7 @@ local function levelPips(level: number): Frame
 end
 
 local function renderDetail(x: number, w: number, h: number, ownedMap: { [string]: number })
-	local f = Window.frame(UDim2.fromOffset(w, h), UDim2.fromOffset(x, TOP))
+	local f = Window.frame(UDim2.fromOffset(w, h), UDim2.fromOffset(x, top))
 	f.Name = "Detail"
 	Kit.skin(f, "stat_tile", 96, 0.4)
 	local id = selectedPet
@@ -457,7 +556,7 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 	local btn = Kit.button(
 		if equipped then "Unequip" else "Equip",
 		if equipped then C.Mana else C.Gold,
-		Vector2.new(inner, 64),
+		Vector2.new(inner, btnH),
 		nil
 	)
 	btn.Name = "EquipToggle"
@@ -479,20 +578,20 @@ local function renderDetail(x: number, w: number, h: number, ownedMap: { [string
 			Theme.Font.Body
 		)
 		hint.AnchorPoint = Vector2.new(0.5, 1)
-		hint.Position = UDim2.new(0.5, 0, 1, -CARD_PAD - 70)
+		hint.Position = UDim2.new(0.5, 0, 1, -CARD_PAD - btnH - 6)
 		hint.Parent = f
 	elseif slotCount() < Pets.MAX_SLOTS then
 		local hint =
 			Kit.label("A second slot comes with the Pet Slot pass.", 14, C.Muted, Theme.Font.Body)
 		hint.AnchorPoint = Vector2.new(0.5, 1)
-		hint.Position = UDim2.new(0.5, 0, 1, -CARD_PAD - 70)
+		hint.Position = UDim2.new(0.5, 0, 1, -CARD_PAD - btnH - 6)
 		hint.Parent = f
 	end
 	f.Parent = panel
 end
 
 local function petCell(pet: Pets.Pet, level: number, equipped: boolean, selected: boolean): Frame
-	local cell = Window.frame(UDim2.fromOffset(CELL_W, CELL_H))
+	local cell = Window.frame(UDim2.fromOffset(CELL_W, if small then COMPACT_CELL_H else CELL_H))
 	cell.Name = "Pet_" .. pet.id
 	local slot = Kit.itemSlot(SLOT, Pets.iconOf(pet), { rarity = pet.rarity, selected = selected })
 	slot.Name = "PetSlot"
@@ -511,7 +610,7 @@ local function petCell(pet: Pets.Pet, level: number, equipped: boolean, selected
 		mark.BorderSizePixel = 0
 		mark.AnchorPoint = Vector2.new(0.5, 0)
 		mark.Position = UDim2.new(0.5, 0, 0, 0)
-		mark.Size = UDim2.fromOffset(72, 22)
+		mark.Size = if small then UDim2.fromOffset(104, 36) else UDim2.fromOffset(72, 22)
 		mark.ZIndex = 5
 		Kit.corner(mark, 11)
 		local t = Kit.label("Active", 14, C.Bg0)
@@ -523,10 +622,10 @@ local function petCell(pet: Pets.Pet, level: number, equipped: boolean, selected
 	end
 	local name = Kit.label(pet.name, 16, Theme.Rarity[pet.rarity] or C.Text, Theme.Font.Body)
 	name.AutomaticSize = Enum.AutomaticSize.None
-	name.Size = UDim2.fromOffset(CELL_W, 20)
+	name.Size = UDim2.fromOffset(CELL_W, if small then 32 else 20)
 	name.TextXAlignment = Enum.TextXAlignment.Center
 	name.TextTruncate = Enum.TextTruncate.AtEnd
-	name.Position = UDim2.fromOffset(0, SLOT + 12)
+	name.Position = UDim2.fromOffset(0, SLOT + (if small then 10 else 12))
 	name.Parent = cell
 	local lv = Kit.label(
 		if level >= Pets.MAX_LEVEL then "Lv 5 MAX" else string.format("Lv %d", level),
@@ -535,9 +634,9 @@ local function petCell(pet: Pets.Pet, level: number, equipped: boolean, selected
 		Theme.Font.Body
 	)
 	lv.AutomaticSize = Enum.AutomaticSize.None
-	lv.Size = UDim2.fromOffset(CELL_W, 18)
+	lv.Size = UDim2.fromOffset(CELL_W, if small then 32 else 18)
 	lv.TextXAlignment = Enum.TextXAlignment.Center
-	lv.Position = UDim2.fromOffset(0, SLOT + 34)
+	lv.Position = UDim2.fromOffset(0, SLOT + (if small then 46 else 34))
 	lv.Parent = cell
 	return cell
 end
@@ -550,7 +649,7 @@ local function renderPets()
 			table.insert(list, pet)
 		end
 	end
-	local h = Window.BODY.Y - TOP - FOOT - PAD
+	local h = Window.BODY.Y - top - FOOT - (if small then 12 else PAD)
 
 	if #list == 0 then
 		local empty = wrapLabel(
@@ -559,10 +658,10 @@ local function renderPets()
 			C.Muted,
 			Window.BODY.X - 2 * PAD
 		)
-		empty.Position = UDim2.fromOffset(PAD, TOP)
+		empty.Position = UDim2.fromOffset(PAD, top)
 		empty.Parent = panel
-		local go = Kit.button("Go to Eggs", C.Gold, Vector2.new(300, TAB_H), nil)
-		go.Position = UDim2.fromOffset(PAD, TOP + 56)
+		local go = Kit.button("Go to Eggs", C.Gold, Vector2.new(300, tabH), nil)
+		go.Position = UDim2.fromOffset(PAD, top + (if small then 80 else 56))
 		go.Activated:Connect(function()
 			tab = "eggs"
 			lastResult = nil
@@ -583,7 +682,7 @@ local function renderPets()
 	grid.BackgroundTransparency = 1
 	grid.BorderSizePixel = 0
 	-- Inner padding: the scroll area clips at its edge and cut the selection glow of the first row/column
-	grid.Position = UDim2.fromOffset(PAD - 8, TOP - 8)
+	grid.Position = UDim2.fromOffset(PAD - 8, top - 8)
 	grid.Size = UDim2.fromOffset(gridW + 16, h + 16)
 	local gridPad = Instance.new("UIPadding")
 	gridPad.PaddingLeft = UDim.new(0, 8)
@@ -597,7 +696,7 @@ local function renderPets()
 	grid.ScrollBarThickness = 8
 	grid.ScrollBarImageColor3 = C.Gold
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(CELL_W, CELL_H)
+	layout.CellSize = UDim2.fromOffset(CELL_W, if small then COMPACT_CELL_H else CELL_H)
 	layout.CellPadding = UDim2.fromOffset(12, 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = grid
@@ -619,6 +718,14 @@ end
 
 -- ------------------------------------------------------------------ Flow
 function PetWindowController.render()
+	local camera = workspace.CurrentCamera
+	small = camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.TabletMinSide
+	tabW = if small then COMPACT_TAB_W else TAB_W
+	tabH = if small then COMPACT_TAB_H else TAB_H
+	tabY = if small then COMPACT_TAB_Y else PAD
+	top = if small then tabY + tabH + 10 else TOP
+	btnH = if small then COMPACT_BTN_H else 64
 	clear(panel)
 	renderTabs()
 	if tab == "eggs" then

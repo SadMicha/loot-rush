@@ -31,6 +31,13 @@ local GAP = 20
 local STEP_GAP = 16
 local STEP_H = 200
 local CELL_H = 100
+-- Smallest phones (shorter side under Theme.SmallPhoneMaxSide): the window is scaled down a lot and Kit keeps
+-- texts at a minimum pixel size, so they grow relative to the layout. The compact layout flows
+-- top-down (no texts over each other) and gives the cards more room.
+local COMPACT_STEP_H = 310
+local COMPACT_CELL_H = 170
+local CARD_PAD = 14
+local POINTS_W = 110 -- right column of a compact challenge cell (reward / done)
 local POLL = 5 -- seconds between refreshes (counts, countdown) while open
 
 type State = {
@@ -53,6 +60,12 @@ local top: Frame -- dynamic content of the track panel (cleared on render)
 local grid: ScrollingFrame
 local clock: TextLabel
 local points: TextLabel
+local trackPanel: Frame
+local challengePanel: Frame
+local compact = false
+local topH = TOP_H
+local stepH = STEP_H
+local cellH = CELL_H
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -83,9 +96,79 @@ end
 local function stepCard(index: number, s: Rules.Step, width: number, have: number): Frame
 	local isClaimed = data.claimed[tostring(index)] == true
 	local ready = Rules.canClaim(data, index)
-	local f = Kit.panel(Vector2.new(width, STEP_H), if ready then C.GoldHi else nil)
+	local f = Kit.panel(Vector2.new(width, stepH), if ready then C.GoldHi else nil)
 	f.Name = "Step" .. index
 	f.LayoutOrder = index
+	if compact then
+		-- Top-down flow: header, reward chips, then the Claim button / state line below them
+		local inner = width - 2 * CARD_PAD
+		local flow = Flat.frame(UDim2.fromOffset(inner, stepH - 2 * CARD_PAD))
+		flow.Name = "Flow"
+		flow.Position = UDim2.fromOffset(CARD_PAD, CARD_PAD)
+		local layout = Kit.list(flow, Enum.FillDirection.Vertical, 8, Enum.VerticalAlignment.Top)
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local reached = have >= s.points
+		local need = Flat.text(
+			`{Format.int(s.points)} PTS`,
+			16,
+			if reached then C.GoldHi else C.Muted,
+			Theme.Font.UI
+		)
+		need.LayoutOrder = 1
+		need.Parent = flow
+		local line = Flat.frame(UDim2.fromOffset(inner, 0))
+		line.Name = "Title"
+		line.AutomaticSize = Enum.AutomaticSize.Y
+		line.LayoutOrder = 2
+		local row = Kit.list(line, Enum.FillDirection.Horizontal, 8, Enum.VerticalAlignment.Top)
+		row.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local ic = Kit.icon(s.icon, 48, if reached then nil else C.Muted)
+		ic.LayoutOrder = 1
+		ic.Parent = line
+		local name = Flat.text(s.name, 17, C.Text, Theme.Font.UI)
+		name.LayoutOrder = 2
+		name.AutomaticSize = Enum.AutomaticSize.Y
+		name.Size = UDim2.fromOffset(inner - 48 - 8, 0)
+		name.TextWrapped = true
+		name.Parent = line
+		line.Parent = flow
+		local chips = Reward.row(s.reward, 28, 3, inner)
+		chips.LayoutOrder = 3
+		chips.Parent = flow
+		local foot: GuiObject
+		if ready then
+			Shape.brackets(f, C.GoldHi)
+			local b = Flat.button("Claim", "primary", Vector2.new(inner, 44), "chest")
+			b.Name = "Claim"
+			b.Activated:Connect(function()
+				if b:GetAttribute("Enabled") == false then
+					return
+				end
+				Flat.setEnabled(b, false)
+				Net.Season:FireServer("claim", index)
+			end)
+			foot = b
+		else
+			local t = Flat.text(
+				if isClaimed
+					then "Claimed"
+					else `{Format.int(math.max(0, s.points - have))} points to go`,
+				15,
+				if isClaimed then C.Good else C.Muted,
+				Theme.Font.UI,
+				Enum.TextXAlignment.Center
+			)
+			t.Name = "State"
+			t.AutomaticSize = Enum.AutomaticSize.Y
+			t.Size = UDim2.fromOffset(inner, 0)
+			t.TextWrapped = true
+			foot = t
+		end
+		foot.LayoutOrder = 4
+		foot.Parent = flow
+		flow.Parent = f
+		return f
+	end
 	local need = Flat.text(
 		`{Format.int(s.points)} PTS`,
 		16,
@@ -136,11 +219,68 @@ local function stepCard(index: number, s: Rules.Step, width: number, have: numbe
 end
 
 -- One challenge cell
-local function challengeCell(ch: Rules.Challenge, order: number): Frame
+local function challengeCell(ch: Rules.Challenge, order: number, cellW: number): Frame
 	local done = Rules.done(data, ch)
-	local f = Flat.card(UDim2.fromOffset(0, CELL_H), if done then F.Surface2 else nil)
+	local f = Flat.card(UDim2.fromOffset(0, cellH), if done then F.Surface2 else nil)
 	f.Name = "Challenge_" .. ch.id
 	f.LayoutOrder = order
+	if compact then
+		-- Text column (title, description, bar + counter) left, reward / Done on the right
+		local ic = Kit.icon(ch.icon, 52, if done then nil else C.Muted)
+		ic.AnchorPoint = Vector2.new(0, 0.5)
+		ic.Position = UDim2.new(0, 16, 0.5, 0)
+		ic.Parent = f
+		local colW = cellW - 84 - POINTS_W
+		local col = Flat.frame(UDim2.fromOffset(colW, cellH - 20), UDim2.fromOffset(84, 10))
+		col.Name = "Text"
+		local colLayout = Kit.list(col, Enum.FillDirection.Vertical, 4)
+		colLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local name = Flat.text(ch.name, 18, if done then C.GoldHi else C.Text, Theme.Font.UI)
+		name.LayoutOrder = 1
+		name.AutomaticSize = Enum.AutomaticSize.Y
+		name.Size = UDim2.fromOffset(colW, 0)
+		name.TextWrapped = true
+		name.Parent = col
+		local desc = Flat.text(ch.desc, 14, C.Muted, Theme.Font.Body)
+		desc.LayoutOrder = 2
+		desc.AutomaticSize = Enum.AutomaticSize.Y
+		desc.Size = UDim2.fromOffset(colW, 0)
+		desc.TextWrapped = true
+		desc.Parent = col
+		local meter = Flat.frame(UDim2.fromOffset(colW, 0))
+		meter.Name = "Meter"
+		meter.AutomaticSize = Enum.AutomaticSize.Y
+		meter.LayoutOrder = 3
+		local meterLayout = Kit.list(meter, Enum.FillDirection.Horizontal, 10)
+		meterLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local bar, set =
+			Flat.bar(Vector2.new(math.max(40, colW - 100), 10), if done then C.GoldHi else C.Cyan)
+		bar.LayoutOrder = 1
+		bar.Parent = meter
+		set(Rules.progress(data, ch) / ch.target)
+		local count = Flat.text(
+			`{Format.int(Rules.progress(data, ch))} / {Format.int(ch.target)}`,
+			14,
+			C.Muted,
+			Theme.Font.UI
+		)
+		count.LayoutOrder = 2
+		count.Parent = meter
+		meter.Parent = col
+		col.Parent = f
+		local pts = Flat.text(
+			if done then "Done" else `+{ch.points}`,
+			18,
+			if done then C.Good else C.GoldHi,
+			Theme.Font.UI,
+			Enum.TextXAlignment.Right
+		)
+		pts.Name = "Points"
+		pts.AnchorPoint = Vector2.new(1, 0.5)
+		pts.Position = UDim2.new(1, -16, 0.5, 0)
+		pts.Parent = f
+		return f
+	end
 	local ic = Kit.icon(ch.icon, 52, if done then nil else C.Muted)
 	ic.AnchorPoint = Vector2.new(0, 0.5)
 	ic.Position = UDim2.new(0, 16, 0.5, 0)
@@ -178,7 +318,26 @@ local function challengeCell(ch: Rules.Challenge, order: number): Frame
 	return f
 end
 
+-- Picks the phone or the regular layout and resizes the two panels to it
+local function applyLayout()
+	local camera = workspace.CurrentCamera
+	compact = camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.SmallPhoneMaxSide
+	stepH = if compact then COMPACT_STEP_H else STEP_H
+	cellH = if compact then COMPACT_CELL_H else CELL_H
+	topH = TOP_H + stepH - STEP_H
+	local body = Window.BODY
+	trackPanel.Size = UDim2.fromOffset(body.X, topH)
+	top.Size = UDim2.fromOffset(body.X, topH)
+	challengePanel.Size = UDim2.fromOffset(body.X, body.Y - topH - GAP)
+	challengePanel.Position = UDim2.fromOffset(0, topH + GAP)
+	grid.Size = UDim2.fromOffset(body.X - 2 * PAD, challengePanel.Size.Y.Offset - 60 - 20)
+	local layout = grid:FindFirstChildOfClass("UIGridLayout") :: UIGridLayout
+	layout.CellSize = UDim2.fromOffset(math.floor((body.X - 2 * PAD - 16 - 12) / 2), cellH)
+end
+
 local function render()
+	applyLayout()
 	clock.Text = if loaded then clockText() else "Loading…"
 	local have = Rules.points(data)
 	points.Text = `{Format.int(have)} / {Format.int(Rules.TOTAL_POINTS)} season points`
@@ -205,7 +364,7 @@ local function render()
 		tick.BackgroundColor3 = if have >= s.points then C.GoldHi else F.EdgeHi
 		tick.Parent = bar
 	end
-	local steps = Flat.frame(UDim2.fromOffset(trackW, STEP_H), UDim2.fromOffset(PAD, 146))
+	local steps = Flat.frame(UDim2.fromOffset(trackW, stepH), UDim2.fromOffset(PAD, 146))
 	steps.Name = "Steps"
 	Kit.list(steps, Enum.FillDirection.Horizontal, STEP_GAP)
 	local n = #SEASON.track
@@ -216,7 +375,8 @@ local function render()
 	steps.Parent = top
 	-- Challenges: open ones first, finished ones last
 	for i, ch in SEASON.challenges do
-		challengeCell(ch, (if Rules.done(data, ch) then 1000 else 0) + i).Parent = grid
+		local cellW = math.floor((Window.BODY.X - 2 * PAD - 16 - 12) / 2)
+		challengeCell(ch, (if Rules.done(data, ch) then 1000 else 0) + i, cellW).Parent = grid
 	end
 end
 
@@ -224,6 +384,7 @@ local function build()
 	local body = Window.BODY
 	local panel = Kit.panel(Vector2.new(body.X, TOP_H))
 	panel.Name = "Track"
+	trackPanel = panel
 	panel.Parent = win.body
 	Shape.brackets(panel)
 	top = Flat.frame(UDim2.fromOffset(body.X, TOP_H))
@@ -260,6 +421,7 @@ local function build()
 
 	local bottom = Kit.panel(Vector2.new(body.X, body.Y - TOP_H - GAP))
 	bottom.Name = "Challenges"
+	challengePanel = bottom
 	bottom.Position = UDim2.fromOffset(0, TOP_H + GAP)
 	bottom.Parent = win.body
 	local head = Window.heading("Season challenges", 18, C.Muted)

@@ -49,6 +49,8 @@ Theme.HudDesignTouch = Vector2.new(1100, 620)
 -- quest card and result cards do not blow up past phone proportions (iPad 1180×820 ≈ 0.84).
 Theme.HudDesignTablet = Vector2.new(1400, 860)
 Theme.TabletMinSide = 600
+-- Smallest phones (shorter side under this): windows with dense option rows stack label above control
+Theme.SmallPhoneMaxSide = 450
 
 -- Font size: the screen is scaled down to 1600×900, small windows make text tiny.
 -- All text therefore goes through Kit.label / Kit.fontSize and is enlarged by this factor.
