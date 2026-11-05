@@ -254,7 +254,7 @@ function Inventory.salvageMany(player: Player, raw: any): number
 		Progress.salvage(player, item)
 	end
 	snapshot(player)
-	Actions.fire(player, "salvage")
+	Actions.fire(player, "salvage", #gone) -- quests count every item, like single salvages
 	return #gone
 end
 
