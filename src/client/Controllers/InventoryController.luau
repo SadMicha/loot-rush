@@ -527,15 +527,17 @@ local function statsTop(): number
 	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
 end
 
--- Stat rows with bars; `other` = values to compare against (deltas shown when given)
+-- Stat rows with bars; `other` = values to compare against (deltas shown when given); `pitch`
+-- given: tighter row pitch (design pixels) so a line below the rows still fits
 local function statRows(
 	parent: Frame,
 	mine: { [string]: number },
 	other: { [string]: number }?,
-	accent: Color3
+	accent: Color3,
+	pitch: number?
 )
 	local t, line = rhythm()
-	local step = math.max(22, line)
+	local step = pitch or math.max(22, line)
 	-- Compact (phones): no bars, the value stands right (left of the delta) so the enlarged label
 	-- keeps its room; wide windows keep the bar layout
 	local deltaW = if other then math.max(54, t * 3) else 0
@@ -684,21 +686,36 @@ local function renderCompare()
 		big.AnchorPoint = Vector2.new(1, 0)
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
-		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
-		local _, line = rhythm()
-		local locked = lockOf(bagItem) ~= nil
-		local effect = Flat.text(
-			if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
-			11,
-			if locked then C.Muted elseif better then C.Good else C.Danger,
-			Theme.Font.UI
+		-- The effect line sits between the stat rows and the action bar: the rows tighten to make
+		-- room, and when even the tightest rows leave none the line is left out (the big number
+		-- and the Equip button still tell the verdict and the lock)
+		local t, line = rhythm()
+		local actionsTop = cmpH - 2 * PAD - buttonH() - 4
+		local fit = math.floor((actionsTop - line - statsTop()) / #STAT_ORDER)
+		local showEffect = fit >= t + 2
+		statRows(
+			right,
+			statTotals({ bagItem }),
+			if worn then statTotals({ worn }) else nil,
+			color,
+			if showEffect then math.min(math.max(22, line), fit) else nil
 		)
-		effect.Name = "Effect"
-		effect.AutomaticSize = Enum.AutomaticSize.None
-		effect.Size = UDim2.fromOffset(COL_W, line)
-		effect.TextTruncate = Enum.TextTruncate.AtEnd
-		effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * math.max(22, line))
-		effect.Parent = right
+		if showEffect then
+			local locked = lockOf(bagItem) ~= nil
+			local effect = Flat.text(
+				if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
+				11,
+				if locked then C.Muted elseif better then C.Good else C.Danger,
+				Theme.Font.UI
+			)
+			effect.Name = "Effect"
+			effect.AutomaticSize = Enum.AutomaticSize.None
+			effect.Size = UDim2.fromOffset(COL_W, line)
+			effect.TextTruncate = Enum.TextTruncate.AtEnd
+			effect.Position =
+				UDim2.fromOffset(0, statsTop() + #STAT_ORDER * math.min(math.max(22, line), fit))
+			effect.Parent = right
+		end
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)
