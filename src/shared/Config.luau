@@ -17,6 +17,9 @@ return table.freeze({
 	CAMERA_MAX_DISTANCE = 72,
 	CAMERA_SMOOTHING = 12, -- higher = more direct
 
+	-- Every hero gets this one skin tone instead of the player's own avatar colors (Server/PlayerSetup)
+	SKIN_COLOR = Color3.fromRGB(204, 142, 105), -- Roblox "Nougat"
+
 	-- Movement
 	WALK_SPEED = 20,
 	DASH_SPEED = 72, -- studs per second during the dash
