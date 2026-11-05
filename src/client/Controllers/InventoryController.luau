@@ -632,11 +632,20 @@ local function renderCompare()
 	local bagItem = if item and not selectedEquipped then item else nil
 	local worn = if item then equipped[item.slot] else nil
 
+	-- Row pitch of both columns: with a bag item selected the effect line sits between its stat
+	-- rows and the action bar, so the rows tighten to make room (the same pitch on both sides
+	-- keeps them aligned); when even the tightest rows leave none the line is left out (the big
+	-- number and the Equip button still tell the verdict and the lock)
+	local t, line = rhythm()
+	local fit = math.floor((cmpH - 2 * PAD - buttonH() - 4 - line - statsTop()) / #STAT_ORDER)
+	local showEffect = bagItem ~= nil and fit >= t + 2
+	local pitch = if showEffect then math.min(math.max(22, line), fit) else nil
+
 	-- Left column: the worn piece of the selected slot, or the character totals
 	if worn then
 		caption(left, "Equipped")
 		itemHeader(left, worn)
-		statRows(left, statTotals({ worn }), nil, C.Cyan)
+		statRows(left, statTotals({ worn }), nil, C.Cyan, pitch)
 		if selectedEquipped then
 			local w = if compact then COL_W - 118 else COL_W
 			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
@@ -656,14 +665,13 @@ local function renderCompare()
 			F.Faint,
 			Theme.Font.Body
 		)
-		local _, line = rhythm()
 		hint.AutomaticSize = Enum.AutomaticSize.None
 		hint.Size = UDim2.fromOffset(COL_W, 2 * line)
 		hint.TextWrapped = true
 		hint.TextYAlignment = Enum.TextYAlignment.Top
 		hint.Position = UDim2.fromOffset(0, line + 8)
 		hint.Parent = left
-		statRows(left, statTotals(equipped), nil, C.Cyan)
+		statRows(left, statTotals(equipped), nil, C.Cyan, pitch)
 	end
 
 	-- Right column: the selected bag item against the worn one
@@ -686,19 +694,12 @@ local function renderCompare()
 		big.AnchorPoint = Vector2.new(1, 0)
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
-		-- The effect line sits between the stat rows and the action bar: the rows tighten to make
-		-- room, and when even the tightest rows leave none the line is left out (the big number
-		-- and the Equip button still tell the verdict and the lock)
-		local t, line = rhythm()
-		local actionsTop = cmpH - 2 * PAD - buttonH() - 4
-		local fit = math.floor((actionsTop - line - statsTop()) / #STAT_ORDER)
-		local showEffect = fit >= t + 2
 		statRows(
 			right,
 			statTotals({ bagItem }),
 			if worn then statTotals({ worn }) else nil,
 			color,
-			if showEffect then math.min(math.max(22, line), fit) else nil
+			pitch
 		)
 		if showEffect then
 			local locked = lockOf(bagItem) ~= nil
@@ -712,8 +713,7 @@ local function renderCompare()
 			effect.AutomaticSize = Enum.AutomaticSize.None
 			effect.Size = UDim2.fromOffset(COL_W, line)
 			effect.TextTruncate = Enum.TextTruncate.AtEnd
-			effect.Position =
-				UDim2.fromOffset(0, statsTop() + #STAT_ORDER * math.min(math.max(22, line), fit))
+			effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * (pitch or line))
 			effect.Parent = right
 		end
 
