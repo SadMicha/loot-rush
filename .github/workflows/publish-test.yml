@@ -35,8 +35,12 @@ on:
         default: Published
 
 # One test place: the newest upload wins, an older run still going is cancelled.
+# PR events without the label get their own group, so they never cancel a real upload.
 concurrency:
-  group: publish-test
+  group: >-
+    ${{ (github.event_name != 'pull_request' ||
+    contains(github.event.pull_request.labels.*.name, 'test-place'))
+    && 'publish-test' || format('publish-test-skip-{0}', github.run_id) }}
   cancel-in-progress: true
 
 jobs:
