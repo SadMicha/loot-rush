@@ -444,16 +444,19 @@ export type CellOptions = {
 	dim: boolean?, -- icon faded (empty equipment slot)
 	caption: string?, -- equipment slot name next to the cell
 	captionSide: "left" | "right" | "below" | nil, -- where the caption sits (default below)
-	upgrade: "up" | "down" | nil, -- corner icon: beats the worn piece (green arrow up) or not (red down)
+	-- corner icon: best upgrade of its slot (green arrow up), also beats the worn piece but a better
+	-- one waits (small faded green arrow, "side") or not an upgrade (red arrow down)
+	upgrade: "up" | "side" | "down" | nil,
 	-- hero level the item needs (Items.requiredLevel): dark veil + red "Lv N" chip; a string
 	-- (class name of a class-locked item, Items.classLock) is shown as the chip text instead
 	locked: (number | string)?,
 }
 
--- Upgrade corner icon of a cell (top left): painted green arrow up for upgrades, red arrow down
--- otherwise (Theme.Flat.UpgradeMark*), nil = none. Until the red "downgrade" image is uploaded,
+-- Upgrade corner icon of a cell (top left): painted green arrow up for the best upgrade, a smaller
+-- faded green arrow for other upgrades ("side"), red arrow down otherwise (Theme.Flat.UpgradeMark*),
+-- nil = none. Until the red "downgrade" image is uploaded,
 -- the green library arrow turned upside down and faded stands in. Changed in place.
-function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "down" | nil)
+function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "side" | "down" | nil)
 	local old = b:FindFirstChild("Upgrade")
 	if old and old:GetAttribute("Kind") == kind then
 		return
@@ -464,8 +467,12 @@ function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "down" | n
 	if not kind then
 		return
 	end
-	local up = kind == "up"
+	local side = kind == "side"
+	local up = kind == "up" or side
 	local d = math.max(F.UpgradeMarkMin, math.floor(size * F.UpgradeMarkScale))
+	if side then
+		d = math.max(F.UpgradeMarkSideMin, math.floor(d * F.UpgradeMarkSideScale))
+	end
 	local mark = Instance.new("Frame")
 	mark.Name = "Upgrade"
 	mark.BackgroundTransparency = 1
@@ -482,6 +489,8 @@ function Flat.setCellUpgrade(b: GuiObject, size: number, kind: "up" | "down" | n
 			ic.Rotation = 180
 		end
 		Kit.setIconTransparency(ic, F.UpgradeMarkDownFade)
+	elseif side then
+		Kit.setIconTransparency(ic, F.UpgradeMarkSideFade)
 	end
 	ic.Parent = mark
 	mark.Parent = b
