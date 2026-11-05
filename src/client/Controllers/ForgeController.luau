@@ -78,7 +78,8 @@ local function ctx(): Forge.Context
 		bag = bag,
 		attune = Forge.attuneLevel(
 			if typeof(best) == "number" then best else 1,
-			player:GetAttribute("WorldTierUnlocked") :: number?
+			player:GetAttribute("WorldTierUnlocked") :: number?,
+			player:GetAttribute("Level") :: number?
 		),
 	}
 end

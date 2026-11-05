@@ -76,7 +76,11 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 	-- Fuse looks for a duplicate in the bag, Attune raises to the best loot level (Shared/Forge)
 	local ctx: Rules.Context = {
 		bag = profile.inventory,
-		attune = Rules.attuneLevel(Atlas.bestDepth(profile.atlas), profile.tier.unlocked),
+		attune = Rules.attuneLevel(
+			Atlas.bestDepth(profile.atlas),
+			profile.tier.unlocked,
+			Stats.level(player)
+		),
 	}
 	local result = Rules.apply(actionId, item, affix :: number?, profile.materials, rng, ctx)
 	if not result.ok or not result.item or not result.material or not result.cost then

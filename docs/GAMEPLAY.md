@@ -206,7 +206,8 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   `Items.uniquesFrom`), from depth 10 (`UNIQUE_FROM`) or on Veteran+. Chance per boss kill 8 %
   +2 % per World Tier +1 % per kill of that boss without one (pity, `profile.luck.pity`); the first
   kill of each boss kind on Veteran+ always drops one (`profile.luck.firsts`). `Loot.uniqueChance`,
-  `Loot.rollBossUnique`. Never auto-salvaged, sell ×25, beam in `Theme.Glow.unique`.
+  `Loot.rollBossUnique`. Never auto-salvaged, and a unique from loot always fits the bag (even over
+  capacity, `Inventory.add`), sell ×25, beam in `Theme.Glow.unique`.
 - **Unique ranks I-V** (`item.rank`, `Items.rankOf`): +5 % on the package per rank and stronger
   effect numbers. Gained by **Fuse** in the Forge (a duplicate from the bag, ranks add up). The
   tooltip (Inventory, Stash, Forge) shows the rank and the effect text at that rank.
@@ -242,10 +243,11 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   (`Forge.maxTier` = `Items.tierCap(ilvl) − 1`, T1 only from item level 55). Older affixes above
   the cap keep their tier.
 - **Uniques** take only their own actions (`Forge.UniqueActions`, `Forge.actionsFor`), no charges:
-  **Fuse** (50 shards) fuses the best duplicate from the bag (`Forge.duplicateOf`, `Items.fuse`:
+  **Fuse** (50 shards) fuses the lowest-rank duplicate from the bag (`Forge.duplicateOf`, `Items.fuse`:
   ranks add up to V, higher item level and better rolls win, the duplicate is removed);
   **Attune** raises the item level to the boss loot level of the hero's best depth on its highest
-  unlocked tier (`Forge.attuneLevel`, from `BestDepth` / `WorldTierUnlocked`), price
+  unlocked tier, capped at hero level + `equip_level_grace` so it stays wearable
+  (`Forge.attuneLevel`, from `BestDepth` / `WorldTierUnlocked` / `Level`), price
   `Forge.attuneCost` (3 shards per level × (1 + level / 30)). The context (bag, attune level) is
   built the same way on client and server (`Forge.Context`).
 - Window (`ForgeController`), one flow: item grid (All / Worn / Bag, sort Best/Rarity/Slot/Level,

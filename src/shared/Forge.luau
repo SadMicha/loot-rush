@@ -9,6 +9,7 @@
 --   Fuse   – a duplicate of the same unique from the bag fuses in: ranks add up (max V)
 --   Attune – raise the item level to the best loot level the hero can reach (Forge.attuneLevel)
 
+local Balance = require(script.Parent.Balance)
 local Config = require(script.Parent.Config)
 local Items = require(script.Parent.Items)
 local WorldTiers = require(script.Parent.WorldTiers)
@@ -141,12 +142,17 @@ function Forge.maxTier(item: Items.Item): number
 end
 
 -- Item level Attune raises a unique to: what a boss drops at the hero's best depth on its highest
--- unlocked World Tier (Systems/Loot.forDepth)
-function Forge.attuneLevel(bestDepth: number, tierUnlocked: number?): number
+-- unlocked World Tier (Systems/Loot.forDepth), but never above what the hero can wear
+-- (Items.requiredLevel: hero level + equip_level_grace), so Attune never switches an item off
+function Forge.attuneLevel(bestDepth: number, tierUnlocked: number?, heroLevel: number?): number
 	local d = if typeof(bestDepth) == "number" and bestDepth == bestDepth then bestDepth else 1
-	return Items.levelForDepth(math.max(1, d))
+	local loot = Items.levelForDepth(math.max(1, d))
 		+ WorldTiers.get(tierUnlocked).ilvl
 		+ Config.LOOT_BOSS_ILVL
+	if typeof(heroLevel) == "number" and heroLevel == heroLevel then
+		return math.max(1, math.min(loot, math.floor(heroLevel) + Balance.P.equip_level_grace))
+	end
+	return loot
 end
 
 -- Attune price in Crystal Shards: per level gained, a bit more the higher it goes
@@ -158,8 +164,8 @@ function Forge.attuneCost(from: number, to: number): number
 	return math.ceil((to - from) * Forge.ATTUNE_PER_LEVEL * (1 + to / 30))
 end
 
--- Best duplicate of a unique in the bag (same unique, not the item itself, wearable by the same
--- class): highest rank first, then item level. nil when there is none.
+-- Duplicate of a unique in the bag to fuse (same unique, not the item itself, wearable by the same
+-- class): lowest rank first, then the highest item level. nil when there is none.
 function Forge.duplicateOf(item: Items.Item, bag: { Items.Item }?): Items.Item?
 	if item.rarity ~= "unique" or not item.unique or not bag then
 		return nil
@@ -174,9 +180,10 @@ function Forge.duplicateOf(item: Items.Item, bag: { Items.Item }?): Items.Item?
 			and it.rarity == "unique"
 			and (own == nil or cls == nil or cls == own)
 		then
+			-- the lowest rank first, so a higher copy is not wasted on the rank V cap
 			if
 				not best
-				or Items.rankOf(it) > Items.rankOf(best)
+				or Items.rankOf(it) < Items.rankOf(best)
 				or (Items.rankOf(it) == Items.rankOf(best) and it.ilvl > best.ilvl)
 			then
 				best = it

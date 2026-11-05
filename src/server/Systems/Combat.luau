@@ -49,6 +49,9 @@ type PState = {
 	geodeShards: number, -- Geode Heart: shards waiting for the next skill
 	crownAt: number, -- Crown of King Glibber: next splash allowed from then
 	wardenAt: number, -- Warden's Girdle: next rescue allowed from then
+	wardenArmor: number, -- Warden's Girdle: % armor until wardenUntil (own field, not Ice Armor's)
+	wardenUntil: number,
+	sporeAt: number, -- Spore Mantle: next cloud allowed from then
 }
 
 local Combat = {
@@ -332,6 +335,7 @@ local MINE_TIME, MINE_ARM, MINE_TRIGGER, MINE_RADIUS = 6, 0.4, 4, 6 -- Cloud Ste
 local SPLASH_RADIUS = 10 -- Crown of King Glibber
 local WARDEN_TIME = 4
 local POISON_TICKS = 3 -- Spore Mantle: over 3 s
+local SPORE_GAP = 0.5 -- Spore Mantle: at most one cloud per this many seconds
 local FIRE_TICK = 0.5 -- Ovenlord Mitts
 local SLIME = Color3.fromHex("#7BE36B")
 local SPORE = Color3.fromHex("#A6E05A")
@@ -600,7 +604,10 @@ local function applyDamage(
 		end
 		-- Spore Mantle: a kill bursts into a poison cloud (only direct kills, no chain reactions)
 		local spore = uniqueRank(player, "spore_mantle")
-		if spore and not proc and player.Parent then
+		local sst = states[player]
+		-- one cloud per SPORE_GAP: an AoE killing a whole pack does not stack N clouds on the rest
+		if spore and not proc and player.Parent and sst and os.clock() >= sst.sporeAt then
+			sst.sporeAt = os.clock() + SPORE_GAP
 			local radius = UniqueEffects.value("spore_mantle", "radius", spore)
 			local tick = procBase(player)
 				* UniqueEffects.value("spore_mantle", "hit", spore)
@@ -712,7 +719,9 @@ function Combat.hurtPlayer(player: Player, amount: number, source: Model?): bool
 	end
 	-- Armor % = less damage (star "Iron Skin" + bloom "Ice Armor")
 	local now = os.clock()
-	local armor = num(player, "StatArmor") + (if now < st.armorUntil then st.armorBuff else 0)
+	local armor = num(player, "StatArmor")
+		+ (if now < st.armorUntil then st.armorBuff else 0)
+		+ (if now < st.wardenUntil then st.wardenArmor else 0)
 	if armor > 0 then
 		amount = math.max(1, math.floor(amount * (1 - math.min(MAX_ARMOR, armor / 100)) + 0.5))
 	end
@@ -774,9 +783,8 @@ function Combat.hurtPlayer(player: Player, amount: number, source: Model?): bool
 					* UniqueEffects.value("warden_girdle", "heal", warden)
 					/ 100
 		)
-		local guard = UniqueEffects.value("warden_girdle", "armor", warden)
-		st.armorBuff = if now < st.armorUntil then math.max(st.armorBuff, guard) else guard
-		st.armorUntil = math.max(st.armorUntil, now + WARDEN_TIME)
+		st.wardenArmor = UniqueEffects.value("warden_girdle", "armor", warden)
+		st.wardenUntil = now + WARDEN_TIME
 		Net.Fx:FireAllClients("dmg", {
 			pos = root.Position + Vector3.new(0, 4, 0),
 			text = "Warden!",
@@ -1365,7 +1373,11 @@ local function cast(player: Player, slot: number, aim: Vector3, origin: Vector3)
 	local mitts = uniqueRank(player, "oven_mitts")
 	if mitts then
 		local centered = skill.kind == "nova" or skill.kind == "buff" or skill.range <= 0
-		local at = ground(if centered then root.Position else aim)
+		local rel = if centered then Vector3.zero else flat(aim - root.Position)
+		if rel.Magnitude > skill.range then -- never further than the skill reaches (like castZone)
+			rel = rel.Unit * skill.range
+		end
+		local at = ground(root.Position + rel)
 		local radius = UniqueEffects.value("oven_mitts", "radius", mitts)
 		local time = UniqueEffects.value("oven_mitts", "time", mitts)
 		local tick = procBase(player)
@@ -1521,6 +1533,9 @@ local function onPlayer(player: Player)
 		geodeShards = 0,
 		crownAt = 0,
 		wardenAt = 0,
+		wardenArmor = 0,
+		wardenUntil = 0,
+		sporeAt = 0,
 	}
 	player:SetAttribute("Level", 1)
 	player:SetAttribute("XP", 0)

@@ -177,7 +177,19 @@ describe("Forge on uniques", function()
 		local ok, why = Forge.check("attune", done, nil, RICH, ctx)
 		expect(ok).toBe(false)
 		expect(why).toBe("Already at your best loot level")
-		expect((Forge.check("attune", item, nil, RICH, nil))).toBe(false)
+		expect((Forge.check("attune", item, nil, RICH, nil))).toBe(false) -- never above what the hero can wear (level + grace)
+		expect(Forge.attuneLevel(30, 4, 10)).toBe(10 + Balance.P.equip_level_grace)
+		expect(Forge.attuneLevel(5, 1, 60)).toBe(Forge.attuneLevel(5, 1))
+	end)
+
+	it("fuses the lowest-rank duplicate first so no rank is wasted", function()
+		local target = Items.makeUnique(u, 10, Random.new(1), nil, 4)
+		target.id = "t"
+		local r3 = Items.makeUnique(u, 10, Random.new(2), nil, 3)
+		r3.id = "r3"
+		local r1 = Items.makeUnique(u, 10, Random.new(3))
+		r1.id = "r1"
+		expect((Forge.duplicateOf(target, { r3, r1 }) :: any).id).toBe("r1")
 	end)
 end)
 
