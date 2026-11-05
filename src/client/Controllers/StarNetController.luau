@@ -383,9 +383,9 @@ function StarNetController.init()
 		background = "bg_starnet",
 	})
 	Intro.attach(win, "introStarWeb", "STAR WEB", "star_net", {
-		"Every level from 2 gives you a star point. Spend it on a star next to one you already own.",
-		"Small stars cost 1 point, big stars 2. Gold bridges lead into the other classes' sectors.",
-		"Drag to look around, pinch or use the buttons to zoom.",
+		"Each level from 2 gives a star point. Spend it next to a star you own.",
+		"Small stars cost 1, big stars 2. Gold bridges lead to other classes.",
+		"Drag to look around. Pinch or use the buttons to zoom.",
 	})
 
 	-- The web in a pan area left of the panel (drag or swipe to pan, no visible scroll bars)

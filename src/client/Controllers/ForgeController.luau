@@ -755,8 +755,8 @@ function ForgeController.init()
 		background = "bg_forge",
 	})
 	Intro.attach(win, "introForge", "FORGE", "forge", {
-		"Pick an item on the left, then an action and an affix on the right. Add, upgrade or reroll affixes with materials from salvaged loot.",
-		"Each action uses 0-2 Forge charges. When an item runs out of charges, it is finished.",
+		"Pick an item, then an action and an affix. Materials come from salvaging.",
+		"Each action uses 0-2 Forge charges. An item without charges is finished.",
 		"Seal locks one affix for good and frees its slot for a new one.",
 	})
 

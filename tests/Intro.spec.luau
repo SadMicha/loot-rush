@@ -54,4 +54,32 @@ describe("Window intros", function()
 		togglePets() -- open again
 		expect(intro()).toBeNil()
 	end)
+
+	it("every line fits its row on a small phone, where text grows to the minimum size", function()
+		sim:setViewport(Vector2.new(667, 375), true)
+		sim:runAs("client", function(req)
+			req(CLIENT_() .. "Prefs").set("introPets", false) -- as after "Defaults"
+		end)
+		togglePets() -- close
+		togglePets() -- open: the card is back
+		local card = intro()
+		expect(card).toBeTruthy()
+		local lines = 0
+		for _, l in card:GetDescendants() do
+			if l:IsA("TextLabel") and l.Name:match("^Line") then
+				lines += 1
+				-- rough width per character (Montserrat ~0.55 em); rows at 1.2 line height
+				local perRow = math.floor(l.Size.X.Offset / (l.TextSize * 0.55))
+				if l.Size.X.Scale > 0 then
+					perRow = math.floor(l.Parent.Size.X.Offset / (l.TextSize * 0.55))
+				end
+				if perRow <= 0 then
+					perRow = math.floor(632 / (l.TextSize * 0.55))
+				end
+				local rows = math.ceil(#l.Text / perRow)
+				expect(rows * l.TextSize * 1.2).toBeLessThanOrEqual(l.Size.Y.Offset)
+			end
+		end
+		expect(lines).toBe(3)
+	end)
 end)

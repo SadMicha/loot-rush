@@ -17,8 +17,8 @@ local Intro = {}
 
 local C = Theme.Color
 local CARD_W = 680
-local LINE_H = 60 -- room for three wrapped rows (phones raise small text to a minimum size)
-local CARD_H = 380
+local LINE_H = 80 -- a line stays under ~75 characters: two rows even at the phone minimum text size, room for three
+local CARD_H = 430
 local PAD = Theme.Space.XL
 local Z = 40 -- above the window content
 

@@ -646,8 +646,8 @@ function PetWindowController.init()
 		icon = "companion",
 	})
 	Intro.attach(win, "introPets", "PET STABLE", "companion", {
-		"Hatch eggs to get pets. Every pet gives a bonus, like more gold, damage or item drops.",
-		"Equipped pets follow you and their bonus always counts. A duplicate levels its pet up, to level 5.",
+		"Hatch eggs for pets. Each pet gives a bonus, like more gold or damage.",
+		"Equipped pets follow you. A duplicate levels its pet up, to level 5.",
 		"Meadow Eggs cost gold, Star Eggs cost Soulstars.",
 	})
 	panel = Kit.panel(Window.BODY)
