@@ -18,11 +18,13 @@ local Items = require(ReplicatedStorage.Shared.Items)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
 local LootModels = require(ReplicatedStorage.Shared.Models.Loot)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Inventory = require(script.Parent.Inventory)
+local Stats = require(script.Parent.Stats)
 
 type Drop = {
 	model: Model,
@@ -314,11 +316,10 @@ local function pickup(d: Drop, at: Vector3?): boolean
 			else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 		-- Beats the worn piece of its slot (or the slot is empty): the client adds the "UPGRADE" tag
-		local profile = Data.get(d.owner)
-		upgrade = not salvaged
-			and profile ~= nil
-			and Items.canWear(item, profile.level, profile.class)
-			and Items.isUpgrade(item, profile.equipped[item.slot])
+		local hero = if salvaged then nil else Stats.hero(d.owner)
+		upgrade = hero ~= nil
+			and Items.canWear(item, hero.level, hero.class)
+			and Upgrade.isUpgrade(hero, item)
 	else
 		Inventory.addGold(d.owner, d.gold)
 		text = "+" .. Format.currency(d.gold) .. " Gold"

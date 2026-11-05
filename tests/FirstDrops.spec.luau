@@ -85,13 +85,18 @@ describe("First drops server", function()
 				local Items = req("ReplicatedStorage.Shared.Items")
 				local profile = req("ServerScriptService.Server.Systems.Data").get(player)
 				profile.inventory = {}
+				if strong then
+					player:SetAttribute("Level", 80)
+				end
 				for _, slot in Items.Slots do
 					profile.equipped[slot] = {
 						id = "worn_" .. slot,
 						slot = slot,
 						rarity = "magic",
 						name = "Worn",
-						ilvl = if strong then 999 else 1,
+						-- strong: a high hero level, since gear the hero cannot wear counts as an empty
+						-- slot (Shared/Upgrade)
+						ilvl = if strong then 60 else 1,
 						affixes = if strong
 							then { { stat = "life", value = 1e6 }, { stat = "damage", value = 1e6 } }
 							else {},

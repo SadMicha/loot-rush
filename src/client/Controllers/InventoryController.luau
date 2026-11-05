@@ -17,7 +17,9 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -177,6 +179,31 @@ local seenIds: { [string]: boolean }? = nil -- item ids known so far (nil until 
 local freshIds: { [string]: boolean } = {} -- new loot that gets a reveal when its cell is shown
 local salvaging = false
 local salvageItems: (list: { Items.Item }) -> ()
+
+-- Hero for upgrade comparisons (Shared/Upgrade), rebuilt only when the worn gear snapshot, the
+-- level, the class or the Star Web snapshot changed; its per-item cache survives between renders
+local heroCache: Upgrade.Hero? = nil
+local heroKey: { any } = {}
+
+local function hero(): Upgrade.Hero
+	local level = (player:GetAttribute("Level") or 1) :: number
+	local class = Kit.playerClass()
+	local progress = ProgressController.data()
+	local h = heroCache
+	if
+		h
+		and heroKey[1] == equipped
+		and heroKey[2] == level
+		and heroKey[3] == class
+		and heroKey[4] == progress
+	then
+		return h
+	end
+	local fresh = Upgrade.hero(equipped, level, class, Progression.starMods(progress))
+	heroCache = fresh
+	heroKey = { equipped, level, class, progress }
+	return fresh
+end
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -642,23 +669,36 @@ local function renderCompare()
 		local color = rarityColor(bagItem.rarity)
 		caption(right, "Selected", color)
 		itemHeader(right, bagItem)
-		local change = if worn
-			then (Items.itemPower(bagItem) - Items.itemPower(worn)) / math.max(
-				Items.itemPower(worn),
-				1
-			) * 100
-			else nil
+		-- Real effect on the hero (Shared/Upgrade): combined change as the big number, the damage /
+		-- life / speed change below the stat rows
+		local delta = Upgrade.compare(hero(), bagItem)
+		local better = Upgrade.isUpgrade(hero(), bagItem)
 		local big = Flat.text(
-			if change == nil then "NEW" else string.format("%+d%%", math.floor(change + 0.5)),
+			if delta.empty then "NEW" else Upgrade.scoreText(delta),
 			22,
-			if change == nil or change >= 0 then C.Good else C.Danger,
+			if better then C.Good else C.Danger,
 			Theme.Font.Title,
 			Enum.TextXAlignment.Right
 		)
+		big.Name = "Change"
 		big.AnchorPoint = Vector2.new(1, 0)
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
 		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
+		local _, line = rhythm()
+		local locked = lockOf(bagItem) ~= nil
+		local effect = Flat.text(
+			if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
+			11,
+			if locked then C.Muted elseif better then C.Good else C.Danger,
+			Theme.Font.UI
+		)
+		effect.Name = "Effect"
+		effect.AutomaticSize = Enum.AutomaticSize.None
+		effect.Size = UDim2.fromOffset(COL_W, line)
+		effect.TextTruncate = Enum.TextTruncate.AtEnd
+		effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * math.max(22, line))
+		effect.Parent = right
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)
@@ -727,17 +767,12 @@ local function renderCompare()
 end
 
 -- ------------------------------------------------------------------ Grid (right)
--- Upgrade marker per bag item (Items.upgradeMarks, same rule as the "UPGRADE" drop label)
-local marks: { [string]: Items.UpgradeMark } = {}
+-- Upgrade marker per bag item (Upgrade.marks, same rule as the "UPGRADE" drop label)
+local marks: { [string]: Upgrade.Mark } = {}
 local upgradeTotal = 0
 
 local function refreshMarks()
-	marks, upgradeTotal = Items.upgradeMarks(
-		items,
-		equipped,
-		(player:GetAttribute("Level") or 1) :: number,
-		Kit.playerClass()
-	)
+	marks, upgradeTotal = Upgrade.marks(items, hero())
 end
 
 local function visibleItems(): { Items.Item }
@@ -765,16 +800,20 @@ local function visibleItems(): { Items.Item }
 		return rev
 	end
 	-- "Upgrades": the marked best upgrade of each slot first, then the other items that still beat
-	-- the worn piece, each group with the biggest gain on top (empty slots count as the biggest)
+	-- the worn piece, each group with the biggest combined gain on top (Upgrade.gain; empty slots
+	-- count as the biggest)
 	local group: { [string]: number } = {}
 	local gains: { [string]: number } = {}
 	if sortMode == "upgrades" then
 		for _, item in list do
 			local gain = if Items.SlotName[item.slot]
-				then Items.upgradeGain(item, equipped[item.slot])
+				then Upgrade.gain(hero(), item)
 				else -math.huge
 			gains[item.id] = gain
-			group[item.id] = if marks[item.id] == "up" then 2 elseif gain > 1e-6 then 1 else 0
+			group[item.id] = if marks[item.id] == "up"
+				then 2
+				elseif marks[item.id] == "side" then 1
+				else 0
 		end
 	end
 	table.sort(list, function(a, b)
@@ -1578,6 +1617,11 @@ end
 local changed = Instance.new("BindableEvent")
 InventoryController.changed = changed.Event
 
+-- Hero for upgrade comparisons (cached, Shared/Upgrade); the stash uses the same one
+function InventoryController.hero(): Upgrade.Hero
+	return hero()
+end
+
 function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item })
 	return items, equipped
 end
@@ -1591,7 +1635,7 @@ InventoryController.upgradeChanged = upgradeEvent.Event
 function InventoryController.upgradeWaiting(): boolean
 	for _, it in items do
 		if not upgradeSeen[it.id] and Items.SlotName[it.slot] and lockOf(it) == nil then
-			if Items.isUpgrade(it, equipped[it.slot]) then
+			if Upgrade.isUpgrade(hero(), it) then
 				return true
 			end
 		end
@@ -1731,6 +1775,11 @@ function InventoryController.start()
 	-- A level-up can unlock gear (Items.requiredLevel): locks and upgrade marks follow it
 	-- (also while closed: the cells persist, and the first snapshot can come before the save's level)
 	player:GetAttributeChangedSignal("Level"):Connect(function()
+		InventoryController.render()
+		upgradeEvent:Fire()
+	end)
+	-- Star Web changes move the simulated stats (crit damage, life %): arrows and dot follow
+	ProgressController.changed:Connect(function()
 		InventoryController.render()
 		upgradeEvent:Fire()
 	end)
