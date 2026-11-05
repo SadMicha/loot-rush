@@ -1271,6 +1271,60 @@
     256
    ],
    "registry": "Assets.IconImage"
+  },
+  {
+   "key": "island_green_plains",
+   "file": "assets/ui/art/island_green_plains.png",
+   "size": [
+    494,
+    489
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_crystal_caves",
+   "file": "assets/ui/art/island_crystal_caves.png",
+   "size": [
+    484,
+    489
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_mushroom_swamp",
+   "file": "assets/ui/art/island_mushroom_swamp.png",
+   "size": [
+    510,
+    496
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_fire_desert",
+   "file": "assets/ui/art/island_fire_desert.png",
+   "size": [
+    500,
+    502
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_sky_islands",
+   "file": "assets/ui/art/island_sky_islands.png",
+   "size": [
+    484,
+    512
+   ],
+   "registry": "Assets.Art"
+  },
+  {
+   "key": "island_altered_world",
+   "file": "assets/ui/art/island_altered_world.png",
+   "size": [
+    509,
+    505
+   ],
+   "registry": "Assets.Art"
   }
  ]
 }
