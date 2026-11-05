@@ -52,6 +52,23 @@ local GRID_TOP = 14
 local GRID_LEFT = 10
 local CARD_W = math.floor((PAGE_W - GRID_LEFT - 2 * S.Gap) / 3) -- 3 per row
 
+-- Phones (shorter side under Theme.TabletMinSide): the window is scaled down a lot and the texts and
+-- touch targets grow to their minimum screen size, so the cards are taller, "Try on" sits inside the
+-- card layout and the wallet gets its own row below the tabs.
+local function compact(): boolean
+	local camera = workspace.CurrentCamera
+	return camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.TabletMinSide
+end
+
+local function cardHeight(): number
+	return if compact() then S.CardHCompact else S.CardH
+end
+
+local function topHeight(): number
+	return if compact() then 2 * S.TopH + 8 else S.TopH
+end
+
 local win: Window.Window
 local tabs: Flat.Tabs
 local page: ScrollingFrame
@@ -411,6 +428,11 @@ local function card(offer: Store.Offer, w: number, h: number): Frame
 		try.AnchorPoint = Vector2.new(1, 0)
 		try.Position = UDim2.new(1, -14, 0, 14)
 		try.ZIndex = 6
+		if compact() then
+			try.AnchorPoint = Vector2.zero
+			try.Position = UDim2.new()
+			try.LayoutOrder = 5
+		end
 		try.Activated:Connect(function()
 			local set: { [string]: string } = { trail = "", aura = "" }
 			for _, id in packed do
@@ -426,7 +448,7 @@ local function card(offer: Store.Offer, w: number, h: number): Frame
 			tryingGear = nil
 			StoreController.render() -- to the top: the preview is the first thing on the tab
 		end)
-		try.Parent = f
+		try.Parent = if compact() then col else f
 	end
 	if offer.bonus then
 		local tag = Flat.text(offer.bonus, 18, C.Good, Theme.Font.UI, Enum.TextXAlignment.Right)
@@ -453,7 +475,7 @@ end
 -- Grid of cards (3 per row)
 local function grid(offers: { Store.Offer }, order: number): Frame
 	local rows = math.max(1, math.ceil(#offers / 3))
-	local height = GRID_TOP + rows * S.CardH + (rows - 1) * (S.Gap + 8)
+	local height = GRID_TOP + rows * cardHeight() + (rows - 1) * (S.Gap + 8)
 	local g = Flat.frame(UDim2.fromOffset(PAGE_W, height))
 	g.Name = "Grid"
 	g.LayoutOrder = order
@@ -462,12 +484,12 @@ local function grid(offers: { Store.Offer }, order: number): Frame
 	pad.PaddingLeft = UDim.new(0, GRID_LEFT)
 	pad.Parent = g
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(CARD_W, S.CardH)
+	layout.CellSize = UDim2.fromOffset(CARD_W, cardHeight())
 	layout.CellPadding = UDim2.fromOffset(S.Gap, S.Gap + 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = g
 	for i, offer in offers do
-		local c = card(offer, CARD_W, S.CardH)
+		local c = card(offer, CARD_W, cardHeight())
 		c.LayoutOrder = i
 		c.Parent = g
 	end
@@ -975,8 +997,13 @@ local function skinCard(
 		try.AnchorPoint = Vector2.new(1, 0)
 		try.Position = UDim2.new(1, -14, 0, 14)
 		try.ZIndex = 6
+		if compact() then
+			try.AnchorPoint = Vector2.zero
+			try.Position = UDim2.new()
+			try.LayoutOrder = 5
+		end
 		try.Activated:Connect(o.tryOn)
-		try.Parent = f
+		try.Parent = if compact() then col else f
 	end
 	if chipText then
 		local c = chip(chipText(), chipColor or C.GoldHi)
@@ -997,7 +1024,7 @@ end
 
 local function skinGrid(cards: { Frame }, order: number): Frame
 	local rows = math.max(1, math.ceil(#cards / 3))
-	local height = GRID_TOP + rows * S.CardH + (rows - 1) * (S.Gap + 8)
+	local height = GRID_TOP + rows * cardHeight() + (rows - 1) * (S.Gap + 8)
 	local g = Flat.frame(UDim2.fromOffset(PAGE_W, height))
 	g.Name = "Grid"
 	g.LayoutOrder = order
@@ -1006,7 +1033,7 @@ local function skinGrid(cards: { Frame }, order: number): Frame
 	pad.PaddingLeft = UDim.new(0, GRID_LEFT)
 	pad.Parent = g
 	local layout = Instance.new("UIGridLayout")
-	layout.CellSize = UDim2.fromOffset(CARD_W, S.CardH)
+	layout.CellSize = UDim2.fromOffset(CARD_W, cardHeight())
 	layout.CellPadding = UDim2.fromOffset(S.Gap, S.Gap + 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = g
@@ -1041,7 +1068,7 @@ local function dailyPage()
 	for _, e in Rotation.daily(renderedDay) do
 		local o = offerOf(e.kind, e.id)
 		if o then
-			table.insert(cards, skinCard(o, CARD_W, S.CardH))
+			table.insert(cards, skinCard(o, CARD_W, cardHeight()))
 		end
 	end
 	skinGrid(cards, 2).Parent = page
@@ -1056,7 +1083,7 @@ local function dailyPage()
 		if o then
 			table.insert(
 				weekly,
-				skinCard(o, CARD_W, S.CardH, function()
+				skinCard(o, CARD_W, cardHeight(), function()
 					local _, w = Rotation.leavesIn(now())
 					return "Leaves in " .. Seasons.countdown(w)
 				end)
@@ -1081,12 +1108,12 @@ local function dailyPage()
 				for _, piece in set.pieces do
 					local o = offerOf("skin", piece)
 					if o then
-						table.insert(list, skinCard(o, CARD_W, S.CardH, seasonLeft, C.Cyan))
+						table.insert(list, skinCard(o, CARD_W, cardHeight(), seasonLeft, C.Cyan))
 					end
 				end
 				local o = offerOf("set", set.id)
 				if o then
-					table.insert(list, skinCard(o, CARD_W, S.CardH, seasonLeft, C.Cyan))
+					table.insert(list, skinCard(o, CARD_W, cardHeight(), seasonLeft, C.Cyan))
 				end
 			end
 		end
@@ -1415,7 +1442,8 @@ function StoreController.open(tabId: string?)
 end
 
 local function buildTop()
-	local top = Flat.frame(UDim2.fromOffset(BODY.X, S.TopH))
+	local small = compact()
+	local top = Flat.frame(UDim2.fromOffset(BODY.X, topHeight()))
 	top.Name = "Top"
 	local defs = {}
 	for _, t in Store.Tabs do
@@ -1428,13 +1456,29 @@ local function buildTop()
 		gearInfo = ""
 		StoreController.render()
 	end)
-	tabs.frame.Parent = top
+	if small then
+		-- Tabs scroll sideways when their raised text is wider than the window
+		local strip = Instance.new("ScrollingFrame")
+		strip.Name = "TabStrip"
+		strip.BackgroundTransparency = 1
+		strip.BorderSizePixel = 0
+		strip.Size = UDim2.fromOffset(BODY.X, S.TopH)
+		strip.CanvasSize = UDim2.new()
+		strip.AutomaticCanvasSize = Enum.AutomaticSize.X
+		strip.ScrollingDirection = Enum.ScrollingDirection.X
+		strip.ScrollBarThickness = 0
+		strip.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+		tabs.frame.Parent = strip
+		strip.Parent = top
+	else
+		tabs.frame.Parent = top
+	end
 
 	local right = Flat.frame(UDim2.fromOffset(0, S.TopH))
 	right.Name = "Wallet"
 	right.AutomaticSize = Enum.AutomaticSize.X
 	right.AnchorPoint = Vector2.new(1, 0)
-	right.Position = UDim2.fromScale(1, 0)
+	right.Position = if small then UDim2.new(1, 0, 0, S.TopH + 8) else UDim2.fromScale(1, 0)
 	local rl = Kit.list(right, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Center)
 	rl.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	local stars, sl = Flat.currency("soulstar", Theme.Rarity.epic)
@@ -1474,8 +1518,8 @@ function StoreController.init()
 	page.Name = "Page"
 	page.BackgroundTransparency = 1
 	page.BorderSizePixel = 0
-	page.Position = UDim2.fromOffset(0, S.TopH + 8)
-	page.Size = UDim2.fromOffset(BODY.X, BODY.Y - S.TopH - 8)
+	page.Position = UDim2.fromOffset(0, topHeight() + 8)
+	page.Size = UDim2.fromOffset(BODY.X, BODY.Y - topHeight() - 8)
 	page.CanvasSize = UDim2.new()
 	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	page.ScrollingDirection = Enum.ScrollingDirection.Y
