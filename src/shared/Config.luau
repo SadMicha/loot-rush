@@ -9,7 +9,7 @@ local TRAIL_REGION_SHAPE: { [string]: { [string]: number } } = table.freeze({
 	crystal_caves = table.freeze({ bendsMin = 2, bendsMax = 2, sway = 4, roomMax = 7 }),
 	-- hidden pockets in the swamp (almost every trail gets both); the dense swamp floor costs the
 	-- most parts per tile, so its clearings stay smaller and it jogs at most once
-	mushroom_swamp = table.freeze({ alcoveChance = 0.8, roomMax = 7, bendsMax = 1 }),
+	mushroom_swamp = table.freeze({ roomMax = 7, bendsMax = 1 }),
 	-- open dunes: wide clearings and corridors, a big hall, at most one jog
 	fire_desert = table.freeze({
 		roomMin = 7,
@@ -20,7 +20,7 @@ local TRAIL_REGION_SHAPE: { [string]: { [string]: number } } = table.freeze({
 		bendsMax = 1,
 	}),
 	-- floating islands joined by long bridges (no ground around them: parts to spare)
-	sky_islands = table.freeze({ corridor = 5, roomMin = 7, roomMax = 9, alcoves = 1 }),
+	sky_islands = table.freeze({ corridor = 5, roomMin = 7, roomMax = 9 }),
 	-- broken world: two wide jogs
 	altered_world = table.freeze({ bendsMin = 2, bendsMax = 2, bendMax = 10 }),
 })
@@ -89,8 +89,8 @@ return table.freeze({
 	TRAIL_BENDS_MAX = 2,
 	TRAIL_BEND_MIN = 6, -- tiles a jog moves the next clearing sideways (center to center)
 	TRAIL_BEND_MAX = 8,
-	-- Alcoves: small dead-end side rooms off a clearing, linked by a short neck
-	TRAIL_ALCOVES = 2, -- alcoves per trail at most
+	-- Alcoves (off by default): small dead-end side rooms off a clearing, linked by a short neck
+	TRAIL_ALCOVES = 0, -- alcoves per trail at most (0 = no dead ends, the owner does not want them)
 	TRAIL_ALCOVE_CHANCE = 0.5, -- chance per clearing (while alcoves are left)
 	TRAIL_ALCOVE = 3, -- tiles per alcove side
 	TRAIL_ALCOVE_NECK = 1, -- tiles of passage between clearing and alcove (length)

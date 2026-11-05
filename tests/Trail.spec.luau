@@ -205,7 +205,8 @@ describe("Trail floor plan (pure)", function()
 				end
 			end
 		end)
-		expect(count).toBeGreaterThan(0)
+		-- alcoves are off (Config.TRAIL_ALCOVES = 0, no dead ends); the rules above still hold if they return
+		expect(count).toBe(if Config.TRAIL_ALCOVES > 0 then count else 0)
 	end)
 
 	it("is reproducible per seed and region", function()
