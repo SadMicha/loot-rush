@@ -15,6 +15,7 @@ local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
+local ChangelogController = require(script.Parent.ChangelogController)
 local CharacterController = require(script.Parent.CharacterController)
 
 local SettingsController = {}
@@ -247,9 +248,25 @@ local function build()
 	local il = Kit.list(info, Enum.FillDirection.Vertical, 4)
 	il.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local buildNo = if game.PlaceVersion > 0 then ` - Build {game.PlaceVersion}` else ""
+	local top = Flat.frame(UDim2.fromOffset(0, 44))
+	top.Name = "Version"
+	top.AutomaticSize = Enum.AutomaticSize.X
+	top.LayoutOrder = 1
+	local tl = Kit.list(top, Enum.FillDirection.Horizontal, 12)
+	tl.VerticalAlignment = Enum.VerticalAlignment.Center
 	local title = Flat.text(`Loot Rush {Settings.GAME_VERSION}{buildNo}`, 16, C.Text, Theme.Font.UI)
 	title.LayoutOrder = 1
-	title.Parent = info
+	title.Parent = top
+	-- Release notes (Shared/Changelog) any time
+	local news = Flat.button("What's New", "ghost", Vector2.new(160, 40))
+	news.Name = "WhatsNew"
+	news.LayoutOrder = 2
+	news.Activated:Connect(function()
+		win.close()
+		ChangelogController.open()
+	end)
+	news.Parent = top
+	top.Parent = info
 	local credits = Flat.text(
 		Settings.CREDITS, -- short: the Switch Hero button needs the room on phones
 		13,
