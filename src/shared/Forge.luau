@@ -165,7 +165,8 @@ function Forge.attuneCost(from: number, to: number): number
 end
 
 -- Duplicate of a unique in the bag to fuse (same unique, not the item itself, wearable by the same
--- class): lowest rank first, then the highest item level. nil when there is none.
+-- class, not locked by the player): lowest rank first, then the highest item level. nil when there
+-- is none.
 function Forge.duplicateOf(item: Items.Item, bag: { Items.Item }?): Items.Item?
 	if item.rarity ~= "unique" or not item.unique or not bag then
 		return nil
@@ -178,6 +179,7 @@ function Forge.duplicateOf(item: Items.Item, bag: { Items.Item }?): Items.Item?
 			it.id ~= item.id
 			and it.unique == item.unique
 			and it.rarity == "unique"
+			and it.locked ~= true
 			and (own == nil or cls == nil or cls == own)
 		then
 			-- the lowest rank first, so a higher copy is not wasted on the rank V cap

@@ -87,6 +87,10 @@ local function onAct(player: Player, actionId: any, itemId: any, affix: any)
 		reply(player, false, result.reason or "Not possible", itemId)
 		return
 	end
+	-- The player's lock stays on the forged item (Shared/Salvage)
+	if item.locked then
+		result.item.locked = true
+	end
 	if result.cost > 0 then
 		Progress.addMaterials(player, { [result.material] = -result.cost }, "Gameplay", "forge")
 	end

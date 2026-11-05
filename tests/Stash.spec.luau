@@ -201,14 +201,14 @@ describe("Stash server and window", function()
 		expect(sim.player.PlayerGui.LootRushStash.Enabled).toBe(true)
 		expect(cells("BagItem")).toBe(3)
 		expect(cells("StashItem")).toBe(0)
-		-- every wearable bag item carries an upgrade marker (up, side or down), never none
+		-- green arrows show on their own; the red "down" arrow only on a hovered or held item
 		local gui = sim.player.PlayerGui.LootRushStash
 		local kinds = {}
 		for _, d in gui:GetDescendants() do
 			if d.Name == "BagItem" then
 				local mark = d:FindFirstChild("Upgrade")
-				expect(mark).never.toBeNil()
-				local k = mark:GetAttribute("Kind")
+				local k = if mark then mark:GetAttribute("Kind") else "none"
+				expect(k).never.toBe("down")
 				kinds[k] = (kinds[k] or 0) + 1
 			end
 		end

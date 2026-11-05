@@ -80,7 +80,8 @@ describe("Elites and auto-salvage in game", function()
 
 	it("salvages loot on pickup up to the chosen rarity", function()
 		sim:runAs("client", function(req)
-			req("ReplicatedStorage.Shared.Net").AutoSalvage:FireServer("magic")
+			-- keep upgrades off: this hero's empty slots would make the rolled item an upgrade
+			req("ReplicatedStorage.Shared.Net").AutoSalvage:FireServer("magic", false)
 		end)
 		sim:run(0.5)
 		local stored, salvaged, bag, gold, setting = server(function(req, player)
