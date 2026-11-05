@@ -49,6 +49,10 @@ Settings.Defs = table.freeze({
 	hintBreak = { kind = "bool", default = false },
 	hintCounter = { kind = "bool", default = false },
 	hintEquip = { kind = "bool", default = false },
+	-- First-open explainer cards (client/UI/Intro) already shown, same rules as the hints
+	introStarWeb = { kind = "bool", default = false },
+	introForge = { kind = "bool", default = false },
+	introPets = { kind = "bool", default = false },
 } :: { [string]: Def })
 
 -- Net.Setting key that puts every setting back to its default in one request (Defaults button)

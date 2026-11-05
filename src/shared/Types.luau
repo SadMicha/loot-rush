@@ -32,6 +32,7 @@ export type EnemyAttributes = {
 --           crit = tier >= 1; critTier (optional, >= 1 only on crits) = overcrit tier, 2 = double crit
 --   proj    { from, to, time, color, size }
 --   nova    { pos, radius, color }
+--   lootburst { pos, flight, arcs: { { to, delay, color, big? } } } - boss loot fountain (owner only)
 --   chain   { points: {Vector3}, color }
 --   death   { pos, color }
 --   levelup { pos, level, who }

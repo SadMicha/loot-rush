@@ -15,6 +15,7 @@ local Progression = require(ReplicatedStorage.Shared.Progression)
 local StarNet = require(ReplicatedStorage.Shared.StarNet)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Intro = require(script.Parent.Parent.UI.Intro)
 local Window = require(script.Parent.Parent.UI.Window)
 local ProgressController = require(script.Parent.ProgressController)
 
@@ -380,6 +381,11 @@ function StarNetController.init()
 		key = Enum.KeyCode.N,
 		unlock = "star_net",
 		background = "bg_starnet",
+	})
+	Intro.attach(win, "introStarWeb", "STAR WEB", "star_net", {
+		"Every level from 2 gives you a star point. Spend it on a star next to one you already own.",
+		"Small stars cost 1 point, big stars 2. Gold bridges lead into the other classes' sectors.",
+		"Drag to look around, pinch or use the buttons to zoom.",
 	})
 
 	-- The web in a pan area left of the panel (drag or swipe to pan, no visible scroll bars)
