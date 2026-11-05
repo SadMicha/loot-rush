@@ -2,7 +2,8 @@ name: Fetch analytics
 
 # Pulls experience analytics (DAU, new users, retention, session length, revenue, ...) from the
 # Roblox Open Cloud Analytics Query API (tools/fetch-analytics.py) and commits them to
-# docs/analytics/<date>/ on main, plus a run artifact. Docs: docs/ANALYTICS.md.
+# docs/analytics/<date>/ on the branch `analytics` (main only takes PRs with CI), plus a run artifact
+# and the data in the job log. Docs: docs/ANALYTICS.md.
 # Key scope needed: API system "universe-analytics" (universe.analytics:read) on the universe.
 
 on:
@@ -15,7 +16,7 @@ on:
         description: "Universe ID (empty = secret ROBLOX_UNIVERSE_ID)"
         default: ""
       commit:
-        description: "Commit the files to docs/analytics on main"
+        description: "Commit the files to docs/analytics on the branch analytics"
         type: boolean
         default: true
   schedule:
@@ -55,6 +56,15 @@ jobs:
           cat fetch.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Print data
+        if: always()
+        run: |
+          for f in docs/analytics/*/*.json; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d.get('response'), separators=(',', ':')))" "$f"
+          done
+
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,10 +77,14 @@ jobs:
       - name: Commit
         if: success() && (github.event_name == 'schedule' || inputs.commit)
         run: |
+          # main is protected (required check "CI ok"), so snapshots live on the branch `analytics`.
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
+          cp -r docs/analytics "$RUNNER_TEMP/snapshot"
+          if git fetch -q origin analytics; then git checkout -q -B analytics FETCH_HEAD; else git checkout -q --orphan analytics && git rm -rq --cached . && git clean -fdq -e fetch.log; fi
+          mkdir -p docs/analytics && cp -r "$RUNNER_TEMP/snapshot/." docs/analytics/
           git add docs/analytics
           git diff --cached --quiet && exit 0
           git commit -m "Analytics: snapshot $(date -u +%Y-%m-%d)"
-          for i in 1 2 3; do git pull --rebase -q origin "${GITHUB_REF_NAME}" && git push && exit 0; sleep $((i * 5)); done
+          for i in 1 2 3; do git push origin analytics && exit 0; sleep $((i * 5)); git pull --rebase -q origin analytics || true; done
           exit 1
