@@ -4,8 +4,8 @@
 --     enemies left, plus a two-tap "Leave" while a run is active
 --   top center: a slim boss bar while the boss lives, with its Break meter (Shared/Bosses) below
 --   boss down: a big "Victory" banner with the fight stats (Net.Fx "victory")
---   after the boss: a centered card with the run so far and "Deeper" / "Back to Hub"; from
---     PathCards.FROM_DEPTH on "Deeper" becomes three Path Cards (affixes + reward, Shared/PathCards)
+--   after the boss: a centered card with the run so far and "Deeper" / "Back to Hub"; in
+--     the end game (Altered World) "Deeper" becomes three Path Cards (affixes + reward, Shared/PathCards)
 -- The state comes from the server as player attributes (see Types.luau) and Net.RiftResult; this
 -- only displays it and requests "deeper" or "leave" via Net.Rift. Entering happens in the Atlas.
 

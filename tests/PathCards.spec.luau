@@ -119,6 +119,12 @@ describe("Altered World boss rotation", function()
 		end
 	end)
 
+	it("keeps Path Cards to the end game (Altered World only)", function()
+		for _, r in Atlas.Regions do
+			expect(r.pathCards == true).toBe(r.id == "altered_world")
+		end
+	end)
+
 	it("is the same for everyone (seeded by depth) and leaves other regions alone", function()
 		expect(Atlas.bossFor(altered, 40)).toBe((Atlas.bossFor(altered, 40)))
 		local kind, rotating = Atlas.bossFor(Atlas.ById.fire_desert, 20)
@@ -274,6 +280,22 @@ describe("Path Cards in a run", function()
 		end)
 		rift("leave")
 		expect(sim.player:GetAttribute("RiftDamageBonus")).toBeNil()
+	end)
+
+	it("keeps the plain Deeper button outside the end game", function()
+		sim:run(3) -- past the re-enter delay
+		rift("enter", "green_plains", 1)
+		expect(phase()).toBe("wave")
+		until_("clear")
+		expect(phase()).toBe("clear")
+		local summary = lastClear()
+		expect(summary).never.toBeNil()
+		expect((summary :: any).cards).toBeNil()
+		rift("deeper", 2) -- a card index without cards is ignored, the depth stays plain
+		sim:run(1)
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(2)
+		expect(sim.player:GetAttribute("RiftAffixes")).toBe("")
+		rift("leave")
 	end)
 
 	it("runs without runtime errors", function()

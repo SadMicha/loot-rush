@@ -1,8 +1,9 @@
 --!strict
 -- Rift flow: choose a region (Atlas) → waves → boss → choice "deeper" or "back to the Hub".
--- From depth PathCards.FROM_DEPTH on, "deeper" picks one of three Path Cards (Shared/PathCards):
--- each names the next depth's affixes (Shared/RiftAffixes) and its reward. The Altered World
--- rotates its boss every depth (Atlas.bossFor).
+-- In the end game (regions with Atlas pathCards: the Altered World) "deeper" picks one of three
+-- Path Cards (Shared/PathCards): each names the next depth's affixes (Shared/RiftAffixes) and its
+-- reward; every other region keeps the plain "Deeper". The Altered World rotates its boss every
+-- depth (Atlas.bossFor).
 -- Every region starts at its own depth and rolls its waves from its enemy mix
 -- (Shared/Atlas). Cleared depths go into the save (atlas, per tier in reach) and unlock follow-up
 -- regions; a new run resumes at the first depth not cleared yet (or a lower one the player picks).
@@ -634,8 +635,8 @@ local function play(r: Run)
 	if cache > 0 and r.owner.Parent then
 		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, cache)
 	end
-	-- The next depth's choice: three Path Cards (none before PathCards.FROM_DEPTH)
-	r.cards = PathCards.roll(r.rng, r.depth + 1)
+	-- The next depth's choice: three Path Cards, only in the end game (Atlas pathCards)
+	r.cards = if r.region.pathCards then PathCards.roll(r.rng, r.depth + 1) else {}
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))

@@ -158,8 +158,9 @@ banner "Crystal King defeated · Boss 0:42 · 2 Breaks · 3 Counters"). `Net.Fx`
 
 ## Path Cards
 
-Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. From depth 3
-(`PathCards.FROM_DEPTH`) the "Deeper" button after a boss becomes **three Path Cards** for the next
+Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. **End game only:** in the
+Altered World (region flag `pathCards` in `Shared/Atlas`, depth 26+) the "Deeper" button after a
+boss becomes **three Path Cards** for the next
 depth (`Shared/PathCards`, rolled by `Systems/Rift` with the run's own `Random` when the boss dies):
 
 | Card | Affixes | Reward |
@@ -403,8 +404,8 @@ The server owns the whole run (`Systems/Rift`); the UI reads attributes and send
    `reach["<tier>:<region>"]`); the depth picker can start lower. Resumed runs skip leaderboards.
 2. **Rift Trail → boss:** start pad, 3 clearings with one pack each (`RiftWave` = current area),
    then the boss arena (`docs/specs/WORLD-MAPS.md` §4). One revive per depth at the last waypoint.
-3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"` (with `cards` from
-   depth 3). Then `"deeper"` (Path Card index) or `"leave"`.
+3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"` (with `cards` in
+   the Altered World). Then `"deeper"` (Path Card index) or `"leave"`.
 4. **End** (`RiftResult` `kind = "end"`): `reason` = `left` (after a boss), `abandoned` (mid-depth),
    `failed` (died; phase stays `failed` 4 s, respawn in the hub). Loot on the ground is collected
    automatically at the end. `ReplayController` offers "Play again".
