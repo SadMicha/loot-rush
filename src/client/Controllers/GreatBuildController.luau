@@ -8,6 +8,8 @@
 -- The server checks every donation (Net.GreatBuildState answers); the client only asks.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -279,6 +281,51 @@ local function sizeBoard()
 	end
 end
 
+-- The board is a world billboard, drawn under every ScreenGui: when the camera frames the
+-- monument at the top right it ended up behind the minimap and the quest card. Hide it while its
+-- screen rectangle touches either HUD block (the HUD stays readable, the board returns once the
+-- camera moves on).
+local HUD_BLOCKS = { "Minimap", "Quests" }
+local BOARD_MARGIN = 8 -- px of air around a HUD block
+
+local function overlapsHud(gui: BillboardGui, beacon: BasePart, k: number): boolean
+	local cam = workspace.CurrentCamera
+	local player = Players.LocalPlayer
+	local hud = if player then player:FindFirstChild("PlayerGui") else nil
+	local root = if hud then hud:FindFirstChild("LootRushHUD") else nil
+	if not cam or not root then
+		return false
+	end
+	local center, onScreen = cam:WorldToViewportPoint(beacon.Position + gui.StudsOffsetWorldSpace)
+	if not onScreen then
+		return false
+	end
+	local halfW, halfH = BOARD_SIZE.X * k / 2 + BOARD_MARGIN, BOARD_SIZE.Y * k / 2 + BOARD_MARGIN
+	for _, name in HUD_BLOCKS do
+		local block = root:FindFirstChild(name, true)
+		if block and block:IsA("GuiObject") and block.Visible then
+			local p, s = block.AbsolutePosition, block.AbsoluteSize
+			if
+				center.X + halfW > p.X
+				and center.X - halfW < p.X + s.X
+				and center.Y + halfH > p.Y
+				and center.Y - halfH < p.Y + s.Y
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function updateBoardVisibility()
+	local gui, sc = boardGui, boardScale
+	local beacon = if gui then gui.Adornee else nil
+	if gui and sc and beacon and beacon:IsA("BasePart") then
+		gui.Enabled = not overlapsHud(gui, beacon, sc.Scale)
+	end
+end
+
 local function renderBoard()
 	sizeBoard()
 	local st, set = boardStage, boardSet
@@ -314,6 +361,7 @@ local function buildBoard(beacon: BasePart)
 	back.Parent = gui
 	if not boardGui then
 		Kit.onHudScale(sizeBoard)
+		RunService.Heartbeat:Connect(updateBoardVisibility)
 	end
 	boardGui, boardScale = gui, sc
 	local title = Window.gilded(string.upper(Rules.NAME), 22)

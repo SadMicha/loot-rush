@@ -20,12 +20,10 @@ local STRICT = {
 }
 
 -- Known, still open findings on main (as of PR #23/#24). Delete the entry once fixed;
--- new entries only with a reason. Inventory: gear title under the topbar. Abilities: stats row
--- runs under the key box.
+-- new entries only with a reason. Inventory: gear title under the topbar.
 -- Atlas: mod/boss texts stick out of their capsule.
 local KNOWN: { [string]: { [string]: boolean } } = {
 	Inventory = { topbar = true },
-	Abilities = { ["text-overlap"] = true, ["text-outside"] = true },
 	Atlas = { ["text-covered"] = true, ["text-outside"] = true },
 }
 
