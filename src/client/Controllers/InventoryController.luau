@@ -45,6 +45,7 @@ local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed
 -- screens (tablets) down to the menu dock: the figure gets taller and the bag cells bigger.
 local WIN_W, WIN_H = 1460, 650 -- WIN_H = smallest height (phones)
 local WIN_H_MAX = 1000
+local WIN_H_MIN = 520 -- shortest window (very low phone screens); below WIN_H the layout is compact
 local WINDOW_TOP = 84
 local HEAD_H = 48
 local BODY_Y = HEAD_H + 12
@@ -142,6 +143,8 @@ local stageLight: Frame
 local countLabel: TextLabel
 local capLabel: TextLabel
 local ipLabel: TextLabel
+local footFrame: Frame
+local footH = FOOT_H -- footer height: touch-sized buttons need more on phones
 local footNormal: Frame
 local footSalvage: Frame
 local salvageLabel: TextLabel
@@ -342,6 +345,7 @@ end
 -- ------------------------------------------------------------------ Equipment (left top)
 local dollTop = 12 -- y of the first equipment row (centered when the card grows)
 local dollStep = DOLL_STEP -- row pitch of the equipment slots (grows with touch-sized slots)
+local dollSlot = DOLL_CELL -- slot size on screen terms (grows with touch-sized slots)
 -- Phones: the window is scaled so far down that text and slots grow to their minimum sizes. The
 -- left column then shows either the figure or (while an item is picked) the comparison, each with
 -- the full column height, instead of both stacked.
@@ -374,7 +378,8 @@ local function renderDoll()
 	local function place(slot: string, x: number, row: number, side: "left" | "right")
 		local item = equipped[slot]
 		local isSel = item ~= nil and selected ~= nil and selected.id == item.id
-		local key = if item then item.id .. "|" .. item.rarity else ""
+		local key = (if item then item.id .. "|" .. item.rarity else "")
+			.. (if compact then "|c" else "")
 		local entry: DollEntry? = dollCells[slot]
 		if entry and (entry.key ~= key or not entry.cell.Parent) then
 			entry.cell:Destroy()
@@ -387,7 +392,7 @@ local function renderDoll()
 				dim = item == nil,
 				locked = if item then lockOf(item) else nil,
 				kept = item ~= nil and Salvage.isLocked(item),
-				caption = Items.SlotName[slot] or slot,
+				caption = if compact then nil else (Items.SlotName[slot] or slot),
 				captionSide = side,
 			})
 			b.Name = "Slot"
@@ -422,7 +427,7 @@ local function renderDoll()
 		place(slot, PAD + 2, i, "right")
 	end
 	for i, slot in DOLL_RIGHT do
-		place(slot, LEFT_W - PAD - 2 - DOLL_CELL, i, "left")
+		place(slot, LEFT_W - PAD - 2 - dollSlot, i, "left")
 	end
 
 	local sum = 0
@@ -1524,6 +1529,20 @@ local function buildGrid(parent: Frame)
 		InventoryController.render()
 	end)
 	search.Parent = card
+	-- Once the tab row is laid out, shrink or hide the search field by its real width (the glyph
+	-- estimate in relayout can be short on phones); design px = screen px / card scale
+	local function fitSearch()
+		local cardW = card.AbsoluteSize.X
+		local tabsW = tabs.frame.AbsoluteSize.X
+		if cardW <= 0 or tabsW <= 0 then
+			return
+		end
+		local room = RIGHT_W - 2 * PAD - tabsW * RIGHT_W / cardW - 18
+		search.Visible = room >= 120
+		search.Size = UDim2.fromOffset(math.clamp(room, 120, 190), TAB_H)
+	end
+	tabs.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitSearch)
+	card:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitSearch)
 
 	local gridY = PAD + TAB_H + 6
 	local gridH = WIN_H - BODY_Y - gridY - FOOT_H - PAD - 6
@@ -1555,6 +1574,7 @@ local function buildGrid(parent: Frame)
 	-- salvage switch on the right
 	local foot = Flat.frame(UDim2.new(1, -2 * PAD, 0, FOOT_H), UDim2.new(0, PAD, 1, -PAD - FOOT_H))
 	foot.Name = "Footer"
+	footFrame = foot
 	foot.Parent = card
 	local rule = Flat.rule(RIGHT_W - 2 * PAD)
 	rule.Position = UDim2.fromOffset(0, -6)
@@ -1696,7 +1716,7 @@ local shownCompact = false
 local shownUnit = 0
 local function relayout(h: number)
 	h = math.floor(h)
-	local isCompact = lastUnit > 0 and lastUnit < COMPACT_UNIT
+	local isCompact = (lastUnit > 0 and lastUnit < COMPACT_UNIT) or h < WIN_H
 	if h == shownH and isCompact == shownCompact and math.abs(lastUnit - shownUnit) < 0.005 then
 		return
 	end
@@ -1709,7 +1729,10 @@ local function relayout(h: number)
 	-- Compact: figure and comparison each take the whole left column (one shows at a time)
 	local dollH = if compact then h - BODY_Y else DOLL_H + extra
 	dollCard.Size = UDim2.fromOffset(LEFT_W, dollH)
-	viewport.Size = UDim2.fromOffset(LEFT_W - 180, dollH - 16)
+	-- Compact: no slot captions; the figure keeps clear of both (touch-sized) slot columns
+	local inset = if compact then dollSlot + 2 * PAD else 90
+	viewport.Position = UDim2.fromOffset(inset, 8)
+	viewport.Size = UDim2.fromOffset(LEFT_W - 2 * inset, dollH - 16)
 	stageLight.Position = UDim2.new(0.5, 0, 0, math.floor(dollH * 0.45))
 	stageLight.Size = UDim2.fromOffset(300 + extra // 2, 300 + extra // 2)
 	-- Slot rows: at least a touch-sized slot apart, the column centered in the card
@@ -1718,7 +1741,12 @@ local function relayout(h: number)
 		DOLL_CELL,
 		if UserInputService.TouchEnabled then math.ceil(Kit.MIN_TOUCH_PX / unit) else 0
 	)
+	dollSlot = slotH
 	dollStep = math.max(DOLL_STEP, slotH + 4)
+	if compact then
+		-- the column must fit the card: squeeze the pitch before the slots overlap
+		dollStep = math.max(slotH + 2, math.min(dollStep, (dollH - 24 - slotH) // (#DOLL_LEFT - 1)))
+	end
 	local column = (#DOLL_LEFT - 1) * dollStep + slotH
 	dollTop = math.max(12, math.floor((dollH - column) / 2))
 	if compact then
@@ -1730,11 +1758,17 @@ local function relayout(h: number)
 	end
 	cmpCard.Size = UDim2.fromOffset(LEFT_W, cmpH)
 	-- Search field takes what the tabs leave (their text grows on phones); hidden below a usable width
-	local room = RIGHT_W - 2 * PAD - tabs.width() - 10
+	local room = RIGHT_W - 2 * PAD - tabs.width() - 18
 	searchFrame.Visible = room >= 120
 	searchFrame.Size = UDim2.fromOffset(math.clamp(room, 120, 190), TAB_H)
 	bagCard.Size = UDim2.fromOffset(RIGHT_W, h - BODY_Y)
-	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - FOOT_H - PAD - 6
+	-- Footer: touch-sized buttons are taller than the design row, so the grid reserves their height
+	footH = if UserInputService.TouchEnabled then math.max(FOOT_H, buttonH() + 8) else FOOT_H
+	footFrame.Size = UDim2.new(1, -2 * PAD, 0, footH)
+	footFrame.Position = UDim2.new(0, PAD, 1, -PAD - footH)
+	footNormal.Size = UDim2.fromOffset(footNormal.Size.X.Offset, footH)
+	footSalvage.Size = UDim2.fromOffset(footSalvage.Size.X.Offset, footH)
+	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - footH - PAD - 6
 	gridFrame.Size = UDim2.fromOffset(gridFrame.Size.X.Offset, gridH)
 	-- Fewest columns (= biggest cells) whose rows for a full bag still fit the grid height
 	local inner = gridFrame.Size.X.Offset - 2 * GRID_PAD - 8 -- 8: scroll bar inset + rounding
@@ -1791,9 +1825,11 @@ local function arrange()
 	if roomH / k >= WIN_H then
 		h = math.min(roomH / k, WIN_H_MAX)
 	else
-		k = math.min(k, roomH / WIN_H)
+		-- low screen: a shorter window at the width-fitted scale; scale down only below the minimum
+		h = math.max(WIN_H_MIN, roomH / k)
+		k = math.min(k, roomH / h)
 	end
-	k = math.max(k, 0.5)
+	k = math.max(k, 0.3)
 	local unit = s * k -- screen pixels per window design pixel
 	-- Scale and touch / text minimums first, then the new height (its re-render reads sizes)
 	if math.abs(fit.Scale - k) > 0.001 or math.abs(unit - lastUnit) > 0.0001 then
