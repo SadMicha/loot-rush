@@ -614,7 +614,10 @@ local CLASS: { [string]: Fixed } = {
 	},
 	skill_mage_06_firewall = { id = "rbxassetid://105868487177402", size = Vector2.new(128, 128) },
 	skill_mage_07_teleport = { id = "rbxassetid://97292414283224", size = Vector2.new(128, 128) },
-	skill_mage_08_magicshield = { id = "rbxassetid://100541780096434", size = Vector2.new(128, 128) },
+	skill_mage_08_magicshield = {
+		id = "rbxassetid://100541780096434",
+		size = Vector2.new(128, 128),
+	},
 	skill_mage_09_sprint = { id = "rbxassetid://77220099605869", size = Vector2.new(128, 128) },
 	skill_warrior_01_shieldbash = {
 		id = "rbxassetid://72113908970070",
