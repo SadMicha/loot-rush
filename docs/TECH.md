@@ -89,10 +89,11 @@ studded parts and `Kit.finish` re-applies it:
 | Ball, Cylinder | MaterialVariant `LootStuds` (Plastic + `assets/world/Stud_Color.png`/`Stud_Normal.png`, StudsPerTile 1); plain Plastic until it exists |
 | Neon, Glass, ForceField, invisible, `NoStuds = true` | unchanged |
 
-- **Worn gear** (`Systems/Gear`) uses `Studs.applyAllFaces`: with `LootStuds` present every piece
-  (any shape, all faces) gets the 1-stud variant tiling instead of top-only surface studs, which
-  are cut off on thin resized pieces; gems stay Glass/Neon. Without the variant: surface studs.
-  Owner decision: studs on every face of armor.
+- **Worn gear** (`Systems/Gear`) uses `Studs.applyAllFaces`: blocks and wedges get native surface
+  studs on every face (Top/Front/Back/Left/Right = Studs, Bottom = Inlet), balls and discs the
+  `LootStuds` variant; gems stay Glass/Neon. Owner decision: studs on every face of armor. (The
+  variant on every piece was tried first and read as plain: its soft tiling barely shows on small
+  plates.)
 - `World.build` and `Hub.init` run `Studs.applyTree` as a safety net; `tests/Studs.spec.luau` fails
   if any part lacks the look. New builders go into `Props`/`Buildings`/`Creatures` with `Kit.*`.
   Particles `Kit.emit(part, "smoke"|"sparks"|"motes")`, light `Kit.light`.
@@ -165,10 +166,12 @@ parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear`
   `Gear.signature` (class, slot rarities, skins) changed. Respawn, avatar loading and new
   accessories rebuild it too. Hat and hair accessories are hidden while a helmet is worn; the setting "Hide helmet"
   (`settings.hideHelmet`) leaves the helmet off the body (stats stay).
-- Budget: at most `Gear.MAX_PIECES` (16) parts per slot and `Gear.MAX_SET` (60) per full set at the
-  top rarity (today 27-31 at normal, 50-55 at unique); massless, CanCollide/CanQuery/CanTouch off,
+- Budget: at most `Gear.MAX_PIECES` (22) parts per slot and `Gear.MAX_SET` (72) per full set at the
+  top rarity; rivets/buttons (`rivet` in `Shared/Gear`, metal domes every rarity shows) add detail; massless, CanCollide/CanQuery/CanTouch off,
   shadowless, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
   same gear; it refreshes when a new `WornGear` model arrives while the window is open.
+  Inventory doll and shop preview share one light (`Theme.Store.PreviewAmbient/Light/LightDir`):
+  key light from the upper left in front of the hero, so studs and plates shade.
 - R6 or custom rigs: pieces whose body part is missing are skipped.
 - The builder is shared (`Shared/Models/GearBuild`): the server builds the replicated model, the
   shop preview (`UI/CosmeticPreview.showGear`) rebuilds a still copy to try skins on. `WornGear`

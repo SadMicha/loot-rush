@@ -49,7 +49,7 @@ function CosmeticPreview.new(size: Vector2): Preview
 	viewport.Size = UDim2.fromScale(1, 1)
 	viewport.Ambient = S.PreviewAmbient
 	viewport.LightColor = S.PreviewLight
-	viewport.LightDirection = Vector3.new(-0.4, -1, -0.6)
+	viewport.LightDirection = S.PreviewLightDir
 	viewport.ZIndex = 2
 	viewport.Parent = frame
 

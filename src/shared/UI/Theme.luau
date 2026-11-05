@@ -354,8 +354,12 @@ Theme.Store = table.freeze({
 	-- Cosmetics preview (client/UI/CosmeticPreview): turning hero on a studded pedestal
 	Preview = Vector2.new(440, 470), -- design pixels of the stage
 	PreviewSpin = 0.7, -- radians per second the hero turns
-	PreviewAmbient = hex("#9A94B8"),
+	-- Hero figures in ViewportFrames (this preview and the inventory doll): a warm key light from
+	-- the upper left in FRONT of the hero (the cameras look along +Z at the chest), so plates,
+	-- studs and edges shade; a cooler, lower ambient keeps the unlit sides readable but darker.
+	PreviewAmbient = hex("#7E7A9C"),
 	PreviewLight = hex("#FFF0DC"),
+	PreviewLightDir = Vector3.new(-0.5, -0.9, 0.75),
 	PreviewPedestal = hex("#3A3350"),
 	PreviewRim = hex("#C9A14A"),
 })

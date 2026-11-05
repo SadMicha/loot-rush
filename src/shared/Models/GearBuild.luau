@@ -13,8 +13,8 @@ local GearBuild = {}
 
 export type Worn = { [string]: any } -- slot → item (only its rarity is read)
 
--- Every piece goes through the stud rule (Studs.applyAllFaces: 1-stud tiles on all shapes and
--- faces like the world); glowing pieces (runes, rarity edges, gems) keep their Neon/Glass look.
+-- Every piece goes through the stud rule (Studs.applyAllFaces: classic studs on every face but
+-- the bottom); glowing pieces (runes, rarity edges, gems) keep their Neon/Glass look.
 local function makePart(
 	model: Model,
 	piece: Gear.Piece,

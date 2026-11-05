@@ -49,8 +49,8 @@ export type Style = {
 -- Slots with a body look. Weapon/offhand are held (Systems/Weapons), rings are too small to read.
 Gear.Slots = table.freeze({ "helmet", "armor", "gloves", "belt", "boots", "amulet" })
 -- Budget (performance, 12 players): parts per slot and per full set at the top rarity
-Gear.MAX_PIECES = 16
-Gear.MAX_SET = 60
+Gear.MAX_PIECES = 22
+Gear.MAX_SET = 72
 Gear.TOP_RARITY = "unique"
 Gear.MODEL = "WornGear" -- model in the character that holds every piece
 Gear.GEM_NEON_RANK = 3 -- Items.rank from which gems glow (rare)
@@ -93,6 +93,12 @@ end
 -- wider (<= 0.08 part sizes), so just a thin edge line shows, never a plate (spec "edge rims").
 local THIN_Y = v(0, 0.04, 0)
 local THIN_XZ = v(0.04, 0, 0.04)
+
+-- Rivets, studs and buttons: small domes half sunk into the face of a plate (metal by default),
+-- detail every rarity shows. size = ball diameter in part sizes; mirror = a pair at -X.
+local function rivet(part: string, p: Vector3, size: number, role: Role, mirror: boolean?): Piece
+	return pc(part, "ball", v(size, 0, 0), p, role, { mirror = mirror })
+end
 
 -- Amulet (every class, colored by the class palette): two short chain bars and a small pendant high
 -- on the chest. Chest plates of every class stay below y = 0.3 in front so the pendant shows.
@@ -139,6 +145,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ mirror = true }
 			),
 			pc("Head", "block", v(1.24, 0.12, 1.24), v(0, 0.08, 0), "dark"),
+			rivet("Head", v(0.36, 0.08, -0.62), 0.1, "metal", true),
 			pc("Head", "block", v(0.12, 0.42, 0.08), v(0, 0, -0.6), "dark"),
 			pc("Head", "block", v(0.14, 0.34, 1), v(0, 0.72, 0.05), "accent"),
 			pc("Head", "block", v(0.2, 0.08, 1.06), v(0, 0.57, 0.05), "trim"),
@@ -192,6 +199,9 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = THIN_Y }
 			),
 			pc("UpperTorso", "ball", v(0.1, 0, 0), v(0, 0.1, -0.76), "gem"),
+			rivet("UpperTorso", v(0.4, 0.22, -0.69), 0.06, "metal", true),
+			rivet("UpperTorso", v(0.34, -0.22, -0.67), 0.06, "metal", true),
+			rivet("{S}UpperArm", v(0.08, 0.34, -0.71), 0.12, "metal"),
 			pc(
 				"{S}UpperArm",
 				"block",
@@ -228,6 +238,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("{S}UpperLeg", "block", v(1.14, 0.28, 1.16), v(0.02, 0.34, 0), "main"),
 			pc("LowerTorso", "block", v(1.14, 0.12, 1.24), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.15, -0.7), "gem"),
+			rivet("LowerTorso", v(0.3, 0.15, -0.6), 0.06, "metal", true),
 			pc(
 				"{S}UpperLeg",
 				"block",
@@ -353,6 +364,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("LowerTorso", "block", v(0.26, 0.9, 0.22), v(0.3, -0.25, 0.66), "accent"),
 			pc("LowerTorso", "block", v(1.12, 0.12, 1.22), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.08, 0, 0), v(0, 0.12, -0.69), "gem"),
+			rivet("LowerTorso", v(0.3, 0.12, -0.59), 0.06, "metal", true),
 			pc(
 				"LowerTorso",
 				"block",
@@ -366,6 +378,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("{S}Foot", "block", v(1.12, 1.2, 1.12), v(0, 0.05, -0.02), "dark"),
 			pc("{S}LowerLeg", "block", v(1.08, 0.6, 1.08), v(0, -0.2, 0), "dark"),
 			pc("{S}LowerLeg", "block", v(1.16, 0.18, 1.16), v(0, 0.1, 0), "accent"),
+			rivet("{S}LowerLeg", v(0, 0.1, -0.58), 0.16, "metal"),
 			pc("{S}LowerLeg", "block", v(1.2, 0.05, 1.2), v(0, 0.1, 0), "trim", { pad = THIN_Y }),
 		},
 	},
@@ -415,6 +428,8 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 				{ pad = THIN_Y }
 			),
 			pc("UpperTorso", "ball", v(0.12, 0, 0), v(0, 0.12, -0.64), "gem"),
+			rivet("UpperTorso", v(0, -0.15, -0.57), 0.06, "metal"),
+			rivet("UpperTorso", v(0, -0.35, -0.57), 0.06, "metal"),
 			pc(
 				"LowerTorso",
 				"block",
@@ -458,6 +473,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			),
 			pc("LowerTorso", "block", v(1.2, 0.1, 1.26), v(0, -0.08, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.15, -0.7), "gem"),
+			rivet("LowerTorso", v(0.3, 0.15, -0.61), 0.06, "metal", true),
 			pc(
 				"LowerTorso",
 				"block",
@@ -557,6 +573,7 @@ local CLASS: { [string]: { [string]: { Piece } } } = {
 			pc("LowerTorso", "ball", v(0.2, 0, 0), v(0.5, -0.2, 0.4), "main"),
 			pc("LowerTorso", "block", v(1.12, 0.1, 1.22), v(0, -0.06, 0), "trim"),
 			pc("LowerTorso", "ball", v(0.1, 0, 0), v(0, 0.12, -0.7), "gem"),
+			rivet("LowerTorso", v(0.3, 0.12, -0.59), 0.07, "accent", true),
 			pc(
 				"LowerTorso",
 				"ball",
