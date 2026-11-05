@@ -315,9 +315,10 @@ describe("Item level requirement", function()
 		broken.ilvl = 0 / 0
 		expect(Items.requiredLevel(broken)).toBe(1)
 		-- an item the hero cannot wear yet gets no upgrade marker
-		local marks = Items.upgradeMarks({ deep }, {}, 5)
+		local Upgrade = require("ReplicatedStorage.Shared.Upgrade")
+		local marks = Upgrade.marks({ deep }, Upgrade.hero({}, 5))
 		expect(marks.deep).toBeNil()
-		expect(Items.upgradeMarks({ deep }, {})["deep"]).toBe("up")
+		expect(Upgrade.marks({ deep }, Upgrade.hero({}, 31))["deep"]).toBe("up")
 	end)
 
 	local function stat(name)
@@ -417,8 +418,9 @@ describe("Item class", function()
 		expect(Items.canWear(weapon("old", nil), 10, "warrior")).toBe(true)
 		expect(Items.canWear(weapon("junk", 5 :: any), 10, "warrior")).toBe(true)
 		-- another class's weapon gets no upgrade marker
-		expect(Items.upgradeMarks({ staff }, {}, 10, "warrior").staff).toBeNil()
-		expect(Items.upgradeMarks({ staff }, {}, 10, "mage").staff).toBe("up")
+		local Upgrade = require("ReplicatedStorage.Shared.Upgrade")
+		expect(Upgrade.marks({ staff }, Upgrade.hero({}, 10, "warrior")).staff).toBeNil()
+		expect(Upgrade.marks({ staff }, Upgrade.hero({}, 10, "mage")).staff).toBe("up")
 	end)
 
 	it("keeps its class through the stash and on a hero of another class", function()

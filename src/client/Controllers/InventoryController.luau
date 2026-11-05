@@ -17,8 +17,10 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -178,6 +180,31 @@ local seenIds: { [string]: boolean }? = nil -- item ids known so far (nil until 
 local freshIds: { [string]: boolean } = {} -- new loot that gets a reveal when its cell is shown
 local salvaging = false
 local salvageItems: (list: { Items.Item }) -> ()
+
+-- Hero for upgrade comparisons (Shared/Upgrade), rebuilt only when the worn gear snapshot, the
+-- level, the class or the Star Web snapshot changed; its per-item cache survives between renders
+local heroCache: Upgrade.Hero? = nil
+local heroKey: { any } = {}
+
+local function hero(): Upgrade.Hero
+	local level = (player:GetAttribute("Level") or 1) :: number
+	local class = Kit.playerClass()
+	local progress = ProgressController.data()
+	local h = heroCache
+	if
+		h
+		and heroKey[1] == equipped
+		and heroKey[2] == level
+		and heroKey[3] == class
+		and heroKey[4] == progress
+	then
+		return h
+	end
+	local fresh = Upgrade.hero(equipped, level, class, Progression.starMods(progress))
+	heroCache = fresh
+	heroKey = { equipped, level, class, progress }
+	return fresh
+end
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -504,8 +531,9 @@ local function statsTop(): number
 	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
 end
 
--- Signature effect of a unique under its stat rows (Shared/UniqueEffects), two lines at most
-local function effectLine(parent: Frame, item: Items.Item)
+-- Signature effect of a unique under its stat rows (Shared/UniqueEffects): two lines at the
+-- normal pitch, one line when the rows are tightened (`pitch`)
+local function effectLine(parent: Frame, item: Items.Item, pitch: number?)
 	local text = if item.rarity == "unique" and item.unique
 		then UniqueEffects.text(item.unique, Items.rankOf(item))
 		else ""
@@ -513,11 +541,11 @@ local function effectLine(parent: Frame, item: Items.Item)
 		return
 	end
 	local _, line = rhythm()
-	local step = math.max(22, line)
+	local step = pitch or math.max(22, line)
 	local fx = Flat.text(text, 11, Theme.Rarity.unique, Theme.Font.Body)
-	fx.Name = "Effect"
+	fx.Name = "UniqueEffect"
 	fx.AutomaticSize = Enum.AutomaticSize.None
-	fx.Size = UDim2.fromOffset(COL_W, 2 * line)
+	fx.Size = UDim2.fromOffset(COL_W, if pitch then line else 2 * line)
 	fx.TextWrapped = true
 	fx.TextScaled = true
 	fx.TextYAlignment = Enum.TextYAlignment.Top
@@ -525,15 +553,17 @@ local function effectLine(parent: Frame, item: Items.Item)
 	fx.Parent = parent
 end
 
--- Stat rows with bars; `other` = values to compare against (deltas shown when given)
+-- Stat rows with bars; `other` = values to compare against (deltas shown when given); `pitch`
+-- given: tighter row pitch (design pixels) so a line below the rows still fits
 local function statRows(
 	parent: Frame,
 	mine: { [string]: number },
 	other: { [string]: number }?,
-	accent: Color3
+	accent: Color3,
+	pitch: number?
 )
 	local t, line = rhythm()
-	local step = math.max(22, line)
+	local step = pitch or math.max(22, line)
 	-- Compact (phones): no bars, the value stands right (left of the delta) so the enlarged label
 	-- keeps its room; wide windows keep the bar layout
 	local deltaW = if other then math.max(54, t * 3) else 0
@@ -628,12 +658,21 @@ local function renderCompare()
 	local bagItem = if item and not selectedEquipped then item else nil
 	local worn = if item then equipped[item.slot] else nil
 
+	-- Row pitch of both columns: with a bag item selected the effect line sits between its stat
+	-- rows and the action bar, so the rows tighten to make room (the same pitch on both sides
+	-- keeps them aligned); when even the tightest rows leave none the line is left out (the big
+	-- number and the Equip button still tell the verdict and the lock)
+	local t, line = rhythm()
+	local fit = math.floor((cmpH - 2 * PAD - buttonH() - 4 - line - statsTop()) / #STAT_ORDER)
+	local showEffect = bagItem ~= nil and fit >= t + 2
+	local pitch = if showEffect then math.min(math.max(22, line), fit) else nil
+
 	-- Left column: the worn piece of the selected slot, or the character totals
 	if worn then
 		caption(left, "Equipped")
 		itemHeader(left, worn)
-		statRows(left, statTotals({ worn }), nil, C.Cyan)
-		effectLine(left, worn)
+		statRows(left, statTotals({ worn }), nil, C.Cyan, pitch)
+		effectLine(left, worn, pitch)
 		if selectedEquipped then
 			local w = if compact then COL_W - 118 else COL_W
 			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
@@ -653,14 +692,13 @@ local function renderCompare()
 			F.Faint,
 			Theme.Font.Body
 		)
-		local _, line = rhythm()
 		hint.AutomaticSize = Enum.AutomaticSize.None
 		hint.Size = UDim2.fromOffset(COL_W, 2 * line)
 		hint.TextWrapped = true
 		hint.TextYAlignment = Enum.TextYAlignment.Top
 		hint.Position = UDim2.fromOffset(0, line + 8)
 		hint.Parent = left
-		statRows(left, statTotals(equipped), nil, C.Cyan)
+		statRows(left, statTotals(equipped), nil, C.Cyan, pitch)
 	end
 
 	-- Right column: the selected bag item against the worn one
@@ -668,24 +706,46 @@ local function renderCompare()
 		local color = rarityColor(bagItem.rarity)
 		caption(right, "Selected", color)
 		itemHeader(right, bagItem)
-		local change = if worn
-			then (Items.itemPower(bagItem) - Items.itemPower(worn)) / math.max(
-				Items.itemPower(worn),
-				1
-			) * 100
-			else nil
+		-- Real effect on the hero (Shared/Upgrade): combined change as the big number, the damage /
+		-- life / speed change below the stat rows
+		local delta = Upgrade.compare(hero(), bagItem)
+		local better = Upgrade.isUpgrade(hero(), bagItem)
 		local big = Flat.text(
-			if change == nil then "NEW" else string.format("%+d%%", math.floor(change + 0.5)),
+			if delta.empty then "NEW" else Upgrade.scoreText(delta),
 			22,
-			if change == nil or change >= 0 then C.Good else C.Danger,
+			if better then C.Good else C.Danger,
 			Theme.Font.Title,
 			Enum.TextXAlignment.Right
 		)
+		big.Name = "Change"
 		big.AnchorPoint = Vector2.new(1, 0)
 		big.Position = UDim2.fromOffset(COL_W, -2)
 		big.Parent = right
-		statRows(right, statTotals({ bagItem }), if worn then statTotals({ worn }) else nil, color)
-		effectLine(right, bagItem)
+		statRows(
+			right,
+			statTotals({ bagItem }),
+			if worn then statTotals({ worn }) else nil,
+			color,
+			pitch
+		)
+		if showEffect then
+			local locked = lockOf(bagItem) ~= nil
+			local effect = Flat.text(
+				if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
+				11,
+				if locked then C.Muted elseif better then C.Good else C.Danger,
+				Theme.Font.UI
+			)
+			effect.Name = "Effect"
+			effect.AutomaticSize = Enum.AutomaticSize.None
+			effect.Size = UDim2.fromOffset(COL_W, line)
+			effect.TextTruncate = Enum.TextTruncate.AtEnd
+			effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * (pitch or line))
+			effect.Parent = right
+		else
+			-- the upgrade line owns the space when shown; otherwise the unique's effect
+			effectLine(right, bagItem, pitch)
+		end
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
 		actions.AnchorPoint = Vector2.new(0, 1)
@@ -754,17 +814,12 @@ local function renderCompare()
 end
 
 -- ------------------------------------------------------------------ Grid (right)
--- Upgrade marker per bag item (Items.upgradeMarks, same rule as the "UPGRADE" drop label)
-local marks: { [string]: Items.UpgradeMark } = {}
+-- Upgrade marker per bag item (Upgrade.marks, same rule as the "UPGRADE" drop label)
+local marks: { [string]: Upgrade.Mark } = {}
 local upgradeTotal = 0
 
 local function refreshMarks()
-	marks, upgradeTotal = Items.upgradeMarks(
-		items,
-		equipped,
-		(player:GetAttribute("Level") or 1) :: number,
-		Kit.playerClass()
-	)
+	marks, upgradeTotal = Upgrade.marks(items, hero())
 end
 
 local function visibleItems(): { Items.Item }
@@ -792,16 +847,20 @@ local function visibleItems(): { Items.Item }
 		return rev
 	end
 	-- "Upgrades": the marked best upgrade of each slot first, then the other items that still beat
-	-- the worn piece, each group with the biggest gain on top (empty slots count as the biggest)
+	-- the worn piece, each group with the biggest combined gain on top (Upgrade.gain; empty slots
+	-- count as the biggest)
 	local group: { [string]: number } = {}
 	local gains: { [string]: number } = {}
 	if sortMode == "upgrades" then
 		for _, item in list do
 			local gain = if Items.SlotName[item.slot]
-				then Items.upgradeGain(item, equipped[item.slot])
+				then Upgrade.gain(hero(), item)
 				else -math.huge
 			gains[item.id] = gain
-			group[item.id] = if marks[item.id] == "up" then 2 elseif gain > 1e-6 then 1 else 0
+			group[item.id] = if marks[item.id] == "up"
+				then 2
+				elseif marks[item.id] == "side" then 1
+				else 0
 		end
 	end
 	table.sort(list, function(a, b)
@@ -1605,6 +1664,11 @@ end
 local changed = Instance.new("BindableEvent")
 InventoryController.changed = changed.Event
 
+-- Hero for upgrade comparisons (cached, Shared/Upgrade); the stash uses the same one
+function InventoryController.hero(): Upgrade.Hero
+	return hero()
+end
+
 function InventoryController.snapshot(): ({ Items.Item }, { [string]: Items.Item })
 	return items, equipped
 end
@@ -1618,7 +1682,7 @@ InventoryController.upgradeChanged = upgradeEvent.Event
 function InventoryController.upgradeWaiting(): boolean
 	for _, it in items do
 		if not upgradeSeen[it.id] and Items.SlotName[it.slot] and lockOf(it) == nil then
-			if Items.isUpgrade(it, equipped[it.slot]) then
+			if Upgrade.isUpgrade(hero(), it) then
 				return true
 			end
 		end
@@ -1758,6 +1822,11 @@ function InventoryController.start()
 	-- A level-up can unlock gear (Items.requiredLevel): locks and upgrade marks follow it
 	-- (also while closed: the cells persist, and the first snapshot can come before the save's level)
 	player:GetAttributeChangedSignal("Level"):Connect(function()
+		InventoryController.render()
+		upgradeEvent:Fire()
+	end)
+	-- Star Web changes move the simulated stats (crit damage, life %): arrows and dot follow
+	ProgressController.changed:Connect(function()
 		InventoryController.render()
 		upgradeEvent:Fire()
 	end)

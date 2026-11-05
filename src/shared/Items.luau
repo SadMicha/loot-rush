@@ -255,45 +255,6 @@ function Items.itemPower(item: Item): number
 	return item.ilvl * Items.IP_PER_LEVEL + (Balance.IpBonus[item.rarity] or 0)
 end
 
--- Gear score for the "UPGRADE" signal: every stat counted in average base rolls at item level
--- `ref` (value / middle of its roll range there), so damage, life, crit and speed weigh the same
--- and life is not inflated by its level growth. Implicit stats count too.
-function Items.score(item: Item, ref: number?): number
-	local level = ref or item.ilvl
-	local total = 0
-	for _, a in item.affixes do
-		local r = RANGE[a.stat]
-		if r and typeof(a.value) == "number" and a.value == a.value then
-			total += a.value / ((r[1] + r[2]) / 2 * levelScale(a.stat, level))
-		end
-	end
-	return total
-end
-
--- How much `item` beats what is worn in its slot, in average base rolls (Items.score). Empty
--- slot = math.huge. A weapon's item power scales all damage (Balance.weaponFactor, Systems/Stats):
--- its gain counts as that many percent of extra damage.
-function Items.upgradeGain(item: Item, worn: Item?): number
-	if not worn then
-		return math.huge
-	end
-	local ref = math.max(item.ilvl, worn.ilvl)
-	local gain = Items.score(item, ref) - Items.score(worn, ref)
-	if item.slot == "weapon" then
-		local ratio = Balance.weaponFactor(Items.itemPower(item))
-			/ Balance.weaponFactor(Items.itemPower(worn))
-		local r = RANGE.damage
-		gain += (ratio - 1) * 100 / ((r[1] + r[2]) / 2)
-	end
-	return if gain == gain then gain else 0
-end
-
--- Does `item` beat what is worn in its slot? Empty slot = always an upgrade. Pure, used by the
--- server (pickup "UPGRADE" tag), the HUD (Inventory dot) and the bag grid arrow icons.
-function Items.isUpgrade(item: Item, worn: Item?): boolean
-	return Items.upgradeGain(item, worn) > 1e-6
-end
-
 -- Hero level needed to wear an item (item level − Balance equip_level_grace, at least 1).
 -- Stops a low hero from wearing gear an over-levelled hero stored in the shared stash.
 function Items.requiredLevel(item: Item): number
@@ -335,46 +296,8 @@ function Items.lockOf(item: Item, level: number, class: string): (number | strin
 	return if Items.canWear(item, level) then nil else Items.requiredLevel(item)
 end
 
-export type UpgradeMark = "up" | "side" | "down"
-
--- Upgrade marker per bag item against the worn gear (same rule as the drop label), at most one
--- "up" per slot: of all bag items that beat the worn piece, only the best one is marked (each
--- candidate is compared with the best so far, so an empty slot picks its best item too). Other
--- items that would still beat the worn piece get "side" (better than what is worn, but a better
--- one waits in the bag), items that do not get "down", items without an equipment slot get none.
--- Every wearable gear piece therefore carries a marker. Equipping the marked item makes the rest
--- "down" once the marks are recomputed against the new worn piece.
--- Also returns how many bag items are marked "up" (= slots with an upgrade waiting).
--- `level` given: items the hero cannot wear yet (Items.canWear, with `class` also other-class
--- weapons) get no marker (the cell shows its lock instead).
-function Items.upgradeMarks(
-	bag: { Item },
-	equipped: { [string]: Item },
-	level: number?,
-	class: string?
-): ({ [string]: UpgradeMark }, number)
-	local marks: { [string]: UpgradeMark } = {}
-	local best: { [string]: Item } = {}
-	for _, it in bag do
-		if Items.SlotName[it.slot] and (level == nil or Items.canWear(it, level, class)) then
-			if Items.isUpgrade(it, equipped[it.slot]) then
-				marks[it.id] = "side"
-				local top = best[it.slot]
-				if not top or Items.isUpgrade(it, top) then
-					best[it.slot] = it
-				end
-			else
-				marks[it.id] = "down"
-			end
-		end
-	end
-	local ups = 0
-	for _, it in best do
-		marks[it.id] = "up"
-		ups += 1
-	end
-	return marks, ups
-end
+-- Upgrade verdicts (arrows, "UPGRADE" tag, HUD dot) live in Shared/Upgrade: a stat simulation
+-- of the hero with and without the item.
 
 export type RollOpts = {
 	shift: number?, -- rarity shift (Balance.rarityShift), 1 = depth 0

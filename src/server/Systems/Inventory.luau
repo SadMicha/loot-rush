@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Bag = require(ReplicatedStorage.Shared.Bag)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Analytics = require(script.Parent.Analytics)
@@ -119,7 +120,8 @@ function Inventory.add(
 	-- they must never become salvage or vanish with the arena
 	local keepUnique = fromLoot == true and item.rarity == "unique"
 	if #profile.inventory >= Inventory.capacity(player) and not keepUnique then
-		if fromLoot and not Items.isUpgrade(item, profile.equipped[item.slot]) then
+		local hero = if fromLoot then Stats.hero(player) else nil
+		if hero and not Upgrade.isUpgrade(hero, item) then
 			Inventory.salvageLoot(player, item)
 			return true, true, true
 		end

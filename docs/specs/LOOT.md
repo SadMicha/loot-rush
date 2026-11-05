@@ -18,7 +18,7 @@ never built.)
 
 | # | Finding | Where |
 |---|---|---|
-| L1 | **A unique is weaker than an uncrafted Epic from item level ~20.** Uniques have a fixed package (implicit + 2 stats, factor 1.6–3.6); Epics get 4 affixes whose tier cap rises with item power. Gear score in average rolls (`Items.score`): see table below. | `Items.Uniques`, `Items.roll` |
+| L1 | **A unique is weaker than an uncrafted Epic from item level ~20.** Uniques have a fixed package (implicit + 2 stats, factor 1.6–3.6); Epics get 4 affixes whose tier cap rises with item power. Gear score in average rolls (the old `Items.score`, replaced by the stat simulation in `Shared/Upgrade`): see table below. | `Items.Uniques`, `Items.roll` |
 | L2 | **The Forge ignores the item-power tier gate.** Drops respect `TierMinIP` (T1 only from IP 550), but *Upgrade Tier* goes to T1 on any item. A depth-10 Epic can be forged to the depth-55 ceiling. Uniques cannot be forged at all (`charges = 0`). | `Forge.check` "tier" |
 | L3 | **Only 4 stats exist** (damage, life, crit, speed). Every Epic already has all 4, so "Add Affix" never works on Epics, and every drop is "the same four numbers, slightly different". Nothing to look for, no build choice. | `Items.StatList`, `Forge.freeStats` |
 | L4 | **Long stretches with no item growth.** Percent affixes only grow through the tier cap, which moves at IP 60/120/200/300/420/550. Item level 30 → 41 (depth 30 Normal → depth 30 Veteran) rolls exactly the same stats; only life and the weapon grow. | `Items.TierMinIP`, `PER_LEVEL` |
@@ -161,7 +161,8 @@ max life %, armor, block**, plus **item find** and **gold find** on jewelry only
   *Add Affix* finally matter, and the Epic `MaxAffixes 5` slot opens up.
 - Tier creep inside a band: the tier roll (`cap … cap+2`) leans toward the cap the closer the item
   power is to the next threshold, so every depth is a little better (L4) without raising the ceiling.
-- `Items.score` weights each stat by its average roll, so the UPGRADE arrow keeps working.
+- The UPGRADE arrow simulates the hero's stats (`Shared/Upgrade`); new stats need a line in its
+  formulas (or they count as nothing).
 
 This one touches the Balancing sim and every gear tooltip, so it comes after P1–P5.
 

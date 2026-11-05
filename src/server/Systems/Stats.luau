@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Balance = require(ReplicatedStorage.Shared.Balance)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Combat = require(script.Parent.Combat)
 local Data = require(script.Parent.Data)
 local Gear = require(script.Parent.Gear)
@@ -95,6 +96,15 @@ function Stats.level(player: Player): number
 	end
 	local profile = Data.get(player)
 	return if profile then profile.level else 1
+end
+
+-- Upgrade comparisons for this hero (Shared/Upgrade: same formulas as refresh), nil without a save
+function Stats.hero(player: Player): Upgrade.Hero?
+	local profile = Data.get(player)
+	if not profile then
+		return nil
+	end
+	return Upgrade.fromData(profile.equipped, Stats.level(player), profile.class, profile.progress)
 end
 
 -- A level change can wake worn gear that was above the hero's level

@@ -22,6 +22,7 @@ local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Rules = require(ReplicatedStorage.Shared.Stash)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
 local Shape = require(script.Parent.Parent.UI.Shape)
@@ -78,13 +79,14 @@ local infoName: TextLabel
 local infoVerdict: TextLabel
 local infoMeta: TextLabel
 local infoAffixes: TextLabel
+local infoEffect: TextLabel
 local storeAll: TextButton
 
 local stashTabs: { { Items.Item } } = {}
 local loaded = false
 local tab = 1
 local sent: { [string]: number } = {} -- item id → time of the last move request
-local marks: { [string]: Items.UpgradeMark } = {}
+local marks: { [string]: Upgrade.Mark } = {}
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -145,6 +147,7 @@ local function showInfo(item: Items.Item?, note: string?)
 		infoMeta.Text = note or hint()
 		infoMeta.TextColor3 = C.Muted
 		infoAffixes.Text = ""
+		infoEffect.Text = ""
 		return
 	end
 	local verdict = VERDICT[marks[item.id] or ""]
@@ -173,6 +176,20 @@ local function showInfo(item: Items.Item?, note: string?)
 		end
 	end
 	infoAffixes.Text = table.concat(lines, "   ")
+	-- Real effect on this hero (Shared/Upgrade); a locked item shows what it would do once worn
+	if Items.SlotName[item.slot] then
+		local delta = Upgrade.compare(InventoryController.hero(), item)
+		local text = if delta.empty
+			then "Empty slot: " .. Upgrade.text(delta)
+			else Upgrade.text(delta)
+		infoEffect.Text = if need then `{text} (once you can wear it)` else text
+		infoEffect.TextColor3 = if need
+			then C.Muted
+			elseif Upgrade.isUpgrade(InventoryController.hero(), item) then C.Good
+			else C.Danger
+	else
+		infoEffect.Text = ""
+	end
 end
 
 local function canSend(id: string): boolean
@@ -184,7 +201,7 @@ local function canSend(id: string): boolean
 	return true
 end
 
-local function itemCell(item: Items.Item, mark: Items.UpgradeMark?, toStash: boolean): TextButton
+local function itemCell(item: Items.Item, mark: Upgrade.Mark?, toStash: boolean): TextButton
 	local b = Flat.cell(CELL, InventoryController.slotIcon(item.slot, item), {
 		rarity = item.rarity,
 		upgrade = mark,
@@ -258,10 +275,9 @@ local function render()
 	local list = stashTabs[tab] or {}
 	local capacity = Bag.fromAttribute(player:GetAttribute("BagMax"))
 	-- One verdict over both sides: the best piece of a slot is "up" wherever it lies
-	local _, equipped = InventoryController.snapshot()
 	local both = table.clone(bag)
 	table.move(list, 1, #list, #both + 1, both)
-	marks = Items.upgradeMarks(both, equipped, heroLevel(), Kit.playerClass())
+	marks = Upgrade.marks(both, InventoryController.hero())
 	fill(stashGrid, list, Rules.TAB_SLOTS, false)
 	fill(bagGrid, bag, capacity, true)
 	stashCount.Text = `{Format.int(#list)} / {Format.int(Rules.TAB_SLOTS)}`
@@ -388,9 +404,16 @@ local function build()
 	infoMeta.Name = "Meta"
 	infoMeta.Position = UDim2.fromOffset(18, 40)
 	infoMeta.Parent = info
+	infoEffect = Flat.text("", 16, C.Good, Theme.Font.UI)
+	infoEffect.Name = "Effect"
+	infoEffect.Position = UDim2.fromOffset(18, 66)
+	infoEffect.AutomaticSize = Enum.AutomaticSize.None
+	infoEffect.Size = UDim2.fromOffset(PANEL_W - 2 * PAD - 36, 22)
+	infoEffect.TextTruncate = Enum.TextTruncate.AtEnd
+	infoEffect.Parent = info
 	infoAffixes = Flat.text("", 16, C.Text, Theme.Font.Body)
 	infoAffixes.Name = "Affixes"
-	infoAffixes.Position = UDim2.fromOffset(18, 66)
+	infoAffixes.Position = UDim2.fromOffset(18, 92)
 	infoAffixes.AutomaticSize = Enum.AutomaticSize.Y
 	infoAffixes.Size = UDim2.fromOffset(PANEL_W - 2 * PAD - 36, 0)
 	infoAffixes.TextWrapped = true
