@@ -140,7 +140,7 @@ end
 
 local function pickAffix(it: Items.Item, index: number)
 	local a = it.affixes[index]
-	if not a or a.implicit then
+	if not a or a.implicit or a.sealed then -- sealed: shown with a lock, not selectable
 		return
 	end
 	selectedAffix = index
