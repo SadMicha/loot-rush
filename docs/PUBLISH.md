@@ -1,12 +1,37 @@
-# Publishing to Roblox automatically
+# Publishing to Roblox (test place and live)
 
-On every push to `main` that changes the game (or via a button in GitHub), GitHub Actions checks the game, builds it with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud to an existing place as a **Published** version. After that it's playable in the Roblox app on phone and iPad.
+Two targets, two workflows:
+
+| Target | Workflow | When |
+|---|---|---|
+| **Test place** (private) | `publish-test.yml`, environment `Roblox-Test` | automatically on every merge to `main`, or on demand for a branch/PR |
+| **Live game** | `publish.yml`, environment `Roblox` | **only by hand**: Actions → **Publish** → Run workflow on `main`, type `LIVE` |
+
+Each run builds the game with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud as a **Published** version.
+
+## Release flow
+
+1. Work lands on `main` through PRs as usual. Every merge goes to the **test place** only.
+2. Play the test place (`docs/SMOKE-TEST.md`; `docs/TEST-RELEASE.md` before a bigger release).
+3. When it's good: add the release to `src/shared/Changelog.luau` (see "Release notes" below) in a PR and merge it. The test place shows the new "What's New" card, so you see it exactly as players will.
+4. GitHub → Actions → **Publish** → Run workflow (branch `main`), type `LIVE` → the live game gets that `main`.
+5. Running live servers keep the old version until they empty; to force it: Creator Hub → the place → **⋯ → Shut down all servers** (or "Migrate to latest update").
+
+The live workflow refuses to run from any branch but `main` and skips without the typed `LIVE`.
+
+### Release notes
+
+`src/shared/Changelog.luau` is the single source. Newest release on top: `build` (whole number, +1 per live release), `version` (shown in Settings → About), `date`, `title`, `notes` (short player-facing lines, about 3-8, no internal jargon, each under ~90 characters). Players who knew the previous release see a "What's New" window once on their next join (seen-marker per account in their settings); brand-new players don't. Settings → **What's New** shows the list any time.
+
+Writing them: when asking Claude for a release, say "prepare release notes"; Claude reads the merged PR titles since the last release entry and drafts the lines for you to edit in the PR.
 
 **Speed:** the workflow runs only the fast gates (format, lint, types, Rojo build, about a second each) and then uploads; the toolchain comes from the Actions cache. The full Lune suite (~9 min) is not repeated here because CI already runs it on every PR. A run takes well under a minute. Pushes that only touch `docs/`, `tests/`, `assets/` or other non-game files don't publish at all, and a newer push cancels an older run that is still going. **Run workflow** has a `fullTests` box if you want the suite before an upload anyway.
 
-> **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. Still, use a **separate test game** instead of the later live game.
+> **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. That is why every change goes to the test place first.
 
-## 1. Create the test game (once)
+Steps 1-5 below are how the **live** game (environment `Roblox`) was set up; the test place repeats them with its own names, see "Test place".
+
+## 1. Create the game (once)
 
 1. Roblox Studio → **New → Baseplate** → **File → Publish to Roblox As …** → new game, e.g. "Loot Rush Test".
 2. [Creator Hub](https://create.roblox.com/dashboard/creations) → the game → **⋯ → Copy Universe ID** → remember as `ROBLOX_UNIVERSE_ID`.
@@ -50,7 +75,7 @@ On the phone/iPad: Roblox app with **your** account, then open the link `https:/
 
 Running servers keep the old version. If you're already in: leave the game and rejoin, otherwise in Creator Hub at the place **⋯ → Shut down all servers**.
 
-From now on every merge to `main` publishes automatically. `Saved` in the Run workflow menu only saves a version without making it playable.
+The live workflow needs the typed `LIVE` and runs only on `main`. `Saved` in the Run workflow menu only saves a version without making it playable.
 
 ## Test place (separate from the live game)
 
