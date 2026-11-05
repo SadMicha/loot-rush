@@ -126,7 +126,9 @@ describe("Inventory", function()
 		local grid = gridButtons(inv)
 		expect(#grid).toBe(1)
 		-- The cell marker follows the drop label rule against the worn piece
-		local up = Items.isUpgrade(second, first)
+		-- same simulation as the client (level 5 mage, no stars yet)
+		local Upgrade = require("ReplicatedStorage.Shared.Upgrade")
+		local up = Upgrade.isUpgrade(Upgrade.hero({ [first.slot] = first }, 5, "mage"), second)
 		expect(upgradeMark(grid[1])).toBe(if up then "up" else "down")
 		local chip = inv:FindFirstChild("Upgrades", true)
 		expect(chip).never.toBeNil()
@@ -263,7 +265,9 @@ describe("Full bag", function()
 			while #p.inventory < Inventory.capacity(player) do
 				table.insert(p.inventory, Items.roll(1, rng))
 			end
-			-- worn weapon far above the loot: a level 1 weapon is no upgrade
+			-- worn weapon far above the loot: a level 1 weapon is no upgrade. The hero can wear it
+			-- (gear above the hero's level gives nothing, Shared/Upgrade counts it as an empty slot)
+			player:SetAttribute("Level", 60)
 			local worn = Items.roll(60, rng, nil, { slot = "weapon" })
 			p.equipped.weapon = worn
 			local weak = Items.roll(1, rng, nil, { slot = "weapon" })

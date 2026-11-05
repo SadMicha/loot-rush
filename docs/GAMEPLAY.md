@@ -208,6 +208,19 @@ line `Smoothing.ALTERED_INTRO`.
 Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity.unique`, `UNIQUE_FROM`).
 - 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. A full bag salvages
   non-upgrades from loot; upgrades stay on the ground ("Bag full" popup).
+- **Upgrade verdict** (`Shared/Upgrade`): simulates the hero with and without the item, with the
+  server's formulas (Systems/Stats → Combat): damage = weapon factor (`Balance.weaponFactor`) × (1 +
+  level bonus + damage %) × average crit factor (`Crit.expectedMult`, Star Web crit damage); life =
+  (`Balance.life` + flat life) × (1 + Star Web life %); speed = 1 + move speed %. Gear the hero
+  cannot wear counts as an empty slot (it gives nothing on the server). One combined score
+  (`Balance.UpgradeWeight`: damage 1, life 0.5, speed 0.5 per percent) drives every arrow:
+  `Upgrade.marks` (bag, stash, "Upgrades" sort, header chip: best per slot "up", other upgrades
+  "side", rest "down", locked items none), the "UPGRADE" pickup tag and the full-bag salvage
+  (`Upgrade.isUpgrade`), and the HUD dot. The Inventory compare card shows the combined change as
+  the big number and "+8% damage, -2% life" below the stats; the stash info card shows the same
+  line (muted with "once you can wear it" for locked items). Uniques are judged by their stats.
+  Client: one cached hero (`InventoryController.hero`, rebuilt on new gear snapshot, level, class
+  or Star Web), each item's result cached on it.
 - **Bag size** (`Shared/Bag`, numbers in `Balance.Bag`): 40 slots + 5 per upgrade level, level 0-12
   (max 100). Bought with the active hero's gold in the Inventory header (gold button "+5 · price" next to the "N / 40" chip),
   `Net.Bag` → `Net.BagResult`. Price of level L → L+1 = 1,200 × 1.8^L, rounded like shop prices

@@ -164,6 +164,11 @@ function Balance.rarityOdds(shift: number, uniques: boolean?): { [string]: numbe
 	return out
 end
 
+-- Upgrade verdict (Shared/Upgrade): how much one percent of each simulated change counts in the
+-- combined score that picks the arrow. Damage is the hero's average hit (weapon, damage, crit);
+-- life and move speed count half (own assumption: offense clears faster, life is a safety margin).
+Balance.UpgradeWeight = table.freeze({ damage = 1, life = 0.5, speed = 0.5 })
+
 -- Daily rewards (docs/ROADMAP.md §4.2): a 7-day calendar, one claim per UTC day. Gold grows
 -- with Balance.shopFactor(best depth) like shop prices, so it stays worth claiming. Missing a day
 -- never resets the cycle (no loss mechanics). Day 7 is the big one, then the cycle repeats.

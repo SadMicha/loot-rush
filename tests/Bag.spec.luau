@@ -242,6 +242,9 @@ describe("Bag upgrade on the server", function()
 			local profile = Data.get(p)
 			profile.autoSalvage = ""
 			profile.inventory = rolls(44, 5)
+			-- a strong weapon the hero can wear (gear above the hero's level counts as an empty
+			-- slot, Shared/Upgrade), so weak weapon drops are no upgrade
+			p:SetAttribute("Level", 80)
 			profile.equipped.weapon = Items.roll(60, Random.new(1), nil, { slot = "weapon" })
 			-- slot 45 is free
 			first = table.pack(
