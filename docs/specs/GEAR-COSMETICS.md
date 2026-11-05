@@ -1,6 +1,7 @@
 # Gear skins (proposal)
 
-Status: proposal, not built. Micha 2026-11-04: "Maybe then we can bring out cosmetics for the
+Status: built 2026-11-05 (skins, sets, rotating shop, season shop, free unlocks; docs/TECH.md
+"Gear skins and the rotating shop"). Robux set IDs wait for the "Create Robux products" workflow. Micha 2026-11-04: "Maybe then we can bring out cosmetics for the
 equipment as well, maybe even getting cosmetics for free."
 
 Base: visible gear (`Shared/Gear`, `Systems/Gear`, docs/TECH.md "Visible gear"). A look is a
@@ -72,6 +73,17 @@ amulet hangs at y 0.3-0.5 in front of every class's chest plates.
 - A skin only shows on a slot with an item equipped (no "naked" skins), so the body still tells the
   gear story. Toggle per slot: class look or skin.
 - Ids are persisted: stable English ids like `skin_pumpkin_helm`.
+
+## Catalog as built (2026-11-05)
+
+28 skins (`Shared/GearSkins`). Free: Lumen Circlet (guide quests), Rift Walker Boots (depth 10),
+Conqueror's Crown (boss of every region; replaces the "Glibber Crown", there is no King Glibber
+boss), Daily Loyalist Belt (7 daily claims), Journey Gauntlets (depth 30). Beta "Beacon Dawn":
+Helm (track step 3), Greaves (track step 4), Mantle (Great Build 1,000 shards = milestone 2),
+Beta Pioneer Pendant (play in the Beta), and for Soulstars Gauntlets, Sash, Lantern (300 each,
+set 700). Rotating shop: Pumpkin Helm 600, Crystal Plate 800, Ember Gauntlets 300, Cloud Striders
+Deluxe 300, the four class sets (pieces 600/800/300, set 1,400 or 549 R$), and the paid trails and
+auras for Soulstars (Gilded 150, Ember/Frost 250 each, Void Trail 450, Void Aura 500).
 
 ## Catalog idea (first 16)
 

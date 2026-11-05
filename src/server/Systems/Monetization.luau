@@ -1,7 +1,7 @@
 --!strict
 -- Robux on the server (IDs: Shared/Monetization).
 --  • Developer Products: ProcessReceipt credits the goods (Soulstars/gold via Shop.grant,
---    cosmetics via Cosmetics.give - an already owned cosmetic is refunded in Soulstars). A purchase only counts
+--    gear skin sets via GearSkins.give, cosmetics via Cosmetics.give - an already owned cosmetic is refunded in Soulstars). A purchase only counts
 --    as booked once it is saved (Data.saveNow) - otherwise NotProcessedYet, Roblox asks
 --    again later. The PurchaseId goes into account.receipts so nothing is credited twice.
 --  • Game passes: ownership on join (UserOwnsGamePassAsync with retries) and after a purchase in
@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local CosmeticRules = require(ReplicatedStorage.Shared.Cosmetics)
+local SkinRules = require(ReplicatedStorage.Shared.GearSkins)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -24,6 +25,7 @@ local Store = require(ReplicatedStorage.Shared.Store)
 local Boosts = require(script.Parent.Boosts)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Data = require(script.Parent.Data)
+local GearSkins = require(script.Parent.GearSkins)
 local Shop = require(script.Parent.Shop)
 
 local Monetization = {}
@@ -145,6 +147,26 @@ local function grant(player: Player, account: Profile.Account, product: Rules.Pr
 		else
 			refund += product.refund or 0
 		end
+	end
+	-- Gear skin sets: owned pieces are refunded in Soulstars (the player paid), capped at the
+	-- set's Soulstar value (GearSkins.setRefund). Robux sets are not tied to the rotation:
+	-- a receipt cannot be refused after payment, the Shop only shows the button in rotation.
+	local skins: { string } = product.skins or {}
+	local set = SkinRules.setForProduct(product.key)
+	if set then
+		refund += SkinRules.setRefund(set, function(id)
+			return account.gearSkins[id] == true
+		end)
+	end
+	for _, id in skins do
+		if GearSkins.give(player, id) then
+			table.insert(parts, SkinRules.ById[id].name)
+		elseif not set then
+			refund += SkinRules.refund(id)
+		end
+	end
+	if #skins > 0 then
+		GearSkins.sync(player)
 	end
 	if refund > 0 then
 		Shop.grant(player, "soulstars", refund, "IAP", product.key)

@@ -20,6 +20,7 @@ export type Cosmetic = {
 	light: number, -- LightEmission of the effect (0..1)
 	texture: string?, -- Assets.Vfx key: trail ribbon or aura sprite sheet (empty id = flat look)
 	season: string?, -- earned on that season's reward track (Shared/Seasons), never sold
+	soulstars: number?, -- price in the rotating Daily Shop (Shared/ShopRotation); nil = not sold there
 }
 
 Cosmetics.Slots = table.freeze({ "trail", "aura" } :: { Slot })
@@ -31,6 +32,7 @@ Cosmetics.TRAIL_TEXTURE_LENGTH = 6 -- studs one repeat of a painted trail textur
 local LIST: { Cosmetic } = {
 	{
 		id = "gilded_trail",
+		soulstars = 150,
 		slot = "trail",
 		name = "Gilded Trail",
 		rarity = "rare",
@@ -41,6 +43,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "ember_trail",
+		soulstars = 250,
 		slot = "trail",
 		name = "Ember Trail",
 		rarity = "epic",
@@ -51,6 +54,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "ember_aura",
+		soulstars = 250,
 		slot = "aura",
 		name = "Ember Aura",
 		rarity = "epic",
@@ -61,6 +65,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "frost_trail",
+		soulstars = 250,
 		slot = "trail",
 		name = "Frost Trail",
 		rarity = "epic",
@@ -71,6 +76,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "frost_aura",
+		soulstars = 250,
 		slot = "aura",
 		name = "Frost Aura",
 		rarity = "epic",
@@ -81,6 +87,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "void_trail",
+		soulstars = 450,
 		slot = "trail",
 		name = "Void Trail",
 		rarity = "legend",
@@ -91,6 +98,7 @@ local LIST: { Cosmetic } = {
 	},
 	{
 		id = "void_aura",
+		soulstars = 500,
 		slot = "aura",
 		name = "Void Aura",
 		rarity = "legend",
