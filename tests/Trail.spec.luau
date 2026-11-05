@@ -1,4 +1,5 @@
 -- Rift Trail (docs/specs/WORLD-MAPS.md §4): start pad → clearings with packs → boss arena.
+local Atlas = require("ReplicatedStorage.Shared.Atlas")
 local Config = require("ReplicatedStorage.Shared.Config")
 local Trail = require("ReplicatedStorage.Shared.Trail")
 
@@ -64,6 +65,197 @@ describe("Trail layout (pure)", function()
 	it("gives regions with equally long ids different paths", function()
 		expect(Trail.seed("fire_desert", 2) ~= Trail.seed("sky_islands", 2)).toBe(true)
 		expect(Trail.seed("crystal_caves", 1) ~= Trail.seed("altered_world", 1)).toBe(true)
+	end)
+end)
+
+-- Every region id (nil = default shape) × many depths
+local function eachLayout(fn: (Trail.Layout, Trail.Shape, string) -> ())
+	local ids = { "default" }
+	for _, r in Atlas.Regions do
+		table.insert(ids, r.id)
+	end
+	for _, id in ids do
+		local region = if id == "default" then nil else id
+		local shape = Trail.shape(region)
+		for depth = 1, 30 do
+			fn(Trail.layout(Trail.seed(id, depth), region), shape, id)
+		end
+	end
+end
+
+local function touches(a: Trail.Rect, b: Trail.Rect, gap: number): boolean
+	return a.x0 - gap <= b.x1 and b.x0 - gap <= a.x1 and a.z0 - gap <= b.z1 and b.z0 - gap <= a.z1
+end
+
+-- Do the rects share a side (a 4-neighbour step leads from one into the other)?
+local function adjacent(a: Trail.Rect, b: Trail.Rect): boolean
+	local xs = a.x0 <= b.x1 and b.x0 <= a.x1
+	local zs = a.z0 <= b.z1 and b.z0 <= a.z1
+	return (xs and (a.z1 + 1 == b.z0 or b.z1 + 1 == a.z0))
+		or (zs and (a.x1 + 1 == b.x0 or b.x1 + 1 == a.x0))
+end
+
+local function inside(r: Trail.Rect, x: number, z: number): boolean
+	return x >= r.x0 and x <= r.x1 and z >= r.z0 and z <= r.z1
+end
+
+-- Shortest walk in tiles from the start pad to the arena (4-neighbour BFS)
+local function walkLength(l: Trail.Layout): number
+	local x0 = math.floor((l.start.x0 + l.start.x1) / 2)
+	local dist: { [number]: number } = { [Trail.key(x0, l.start.z1)] = 0 }
+	local queue = { { x0, l.start.z1 } }
+	local head = 1
+	while head <= #queue do
+		local c = queue[head]
+		head += 1
+		local d = dist[Trail.key(c[1], c[2])]
+		if inside(l.arena, c[1], c[2]) then
+			return d
+		end
+		for _, o in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } } do
+			local k = Trail.key(c[1] + o[1], c[2] + o[2])
+			if l.cells[k] and dist[k] == nil then
+				dist[k] = d + 1
+				table.insert(queue, { c[1] + o[1], c[2] + o[2] })
+			end
+		end
+	end
+	return math.huge
+end
+
+describe("Trail floor plan (pure)", function()
+	it("connects every tile, rooms never overlap or touch, all inside the trail bounds", function()
+		eachLayout(function(l, s)
+			local seen = reachable(l)
+			for key in l.cells do
+				expect(seen[key]).toBe(true)
+			end
+			-- rooms keep at least one tile apart (only corridors join them)
+			local rooms: { Trail.Rect } = { l.arena, l.start }
+			for _, r in l.clearings do
+				table.insert(rooms, r)
+			end
+			for _, r in l.alcoves do
+				table.insert(rooms, r)
+			end
+			for i = 1, #rooms do
+				for j = i + 1, #rooms do
+					expect(touches(rooms[i], rooms[j], 1)).toBe(false)
+				end
+			end
+			-- the rects are exactly the walkable tiles (FallGuard / client clamp use their union)
+			local union: { [number]: boolean } = {}
+			for _, r in Trail.rects(l) do
+				expect(r.x0 >= -s.maxX and r.x1 <= s.maxX).toBe(true)
+				expect(r.x0 >= l.minX and r.x1 <= l.maxX).toBe(true)
+				expect(r.z0 >= l.minZ and r.z1 <= l.maxZ).toBe(true)
+				if r ~= l.arena then
+					expect(r.z0).toBeGreaterThan(l.arena.z1) -- the trail lies south of the arena
+				end
+				for x = r.x0, r.x1 do
+					for z = r.z0, r.z1 do
+						union[Trail.key(x, z)] = true
+					end
+				end
+			end
+			for key in l.cells do
+				expect(union[key]).toBe(true)
+			end
+			for key in union do
+				expect(l.cells[key]).toBe(true)
+			end
+			-- start pad and boss arena on the walk, clearings in order toward the boss
+			expect(walkLength(l) < math.huge).toBe(true)
+			for i = 2, #l.clearings do
+				expect(l.clearings[i].z0).toBeLessThan(l.clearings[i - 1].z0)
+			end
+		end)
+	end)
+
+	it("keeps alcoves dead ends reached through one neck from one clearing", function()
+		local count = 0
+		eachLayout(function(l)
+			for _, a in l.alcoves do
+				count += 1
+				local necks = 0
+				for _, c in l.corridors do
+					if adjacent(a, c) then
+						necks += 1
+						local from = 0
+						for _, r in l.clearings do
+							if adjacent(c, r) then
+								from += 1
+							end
+						end
+						expect(from).toBe(1)
+					end
+				end
+				expect(necks).toBe(1)
+				-- every walkable tile next to the alcove belongs to that neck
+				for x = a.x0 - 1, a.x1 + 1 do
+					for z = a.z0 - 1, a.z1 + 1 do
+						if not inside(a, x, z) and l.cells[Trail.key(x, z)] then
+							local inNeck = false
+							for _, c in l.corridors do
+								inNeck = inNeck or (inside(c, x, z) and adjacent(a, c))
+							end
+							expect(inNeck).toBe(true)
+						end
+					end
+				end
+			end
+		end)
+		expect(count).toBeGreaterThan(0)
+	end)
+
+	it("is reproducible per seed and region", function()
+		local function dump(l: Trail.Layout): string
+			local parts = {}
+			for _, r in Trail.rects(l) do
+				table.insert(parts, `{r.x0},{r.x1},{r.z0},{r.z1}`)
+			end
+			return table.concat(parts, ";")
+		end
+		for _, id in { "green_plains", "crystal_caves", "sky_islands", "fire_desert" } do
+			for depth = 1, 5 do
+				local seed = Trail.seed(id, depth)
+				expect(dump(Trail.layout(seed, id))).toBe(dump(Trail.layout(seed, id)))
+			end
+		end
+	end)
+
+	it("has a wider hall before the boss, jogs and a similar walk", function()
+		local jogs, total, walk, runs = 0, 0, 0, 0
+		eachLayout(function(l, s, id)
+			expect(l.clearings[#l.clearings].x1 - l.clearings[#l.clearings].x0 + 1).toBe(s.hall)
+			for i = 1, Config.TRAIL_CLEARINGS do
+				total += 1
+				if l.corridors[i].x1 - l.corridors[i].x0 + 1 > s.corridorWidth then
+					jogs += 1
+				end
+			end
+			if id == "default" or id == "green_plains" then
+				walk += walkLength(l)
+				runs += 1
+			end
+		end)
+		expect(jogs).toBeGreaterThan(0)
+		expect(jogs).toBeLessThan(total)
+		-- old straight trail: 3 × (3-tile corridor + 8-tile clearing) + tail ≈ 35 tiles
+		local mean = walk / runs
+		expect(mean).toBeGreaterThan(30)
+		expect(mean).toBeLessThan(50)
+	end)
+
+	it("has shapes whose clearings fit a straight corridor", function()
+		for _, id in { "default", "crystal_caves", "mushroom_swamp", "fire_desert", "sky_islands" } do
+			local s = Trail.shape(if id == "default" then nil else id)
+			expect(s.roomMin >= s.corridorWidth + 2).toBe(true)
+			expect(s.roomMin <= s.roomMax).toBe(true)
+			expect(s.bendsMin <= s.bendsMax).toBe(true)
+		end
+		expect(Trail.shape("fire_desert").hall).toBeGreaterThan(Trail.shape(nil).hall)
+		expect(Trail.shape("crystal_caves").bendsMin).toBe(2)
 	end)
 end)
 

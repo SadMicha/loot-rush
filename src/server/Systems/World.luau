@@ -1676,7 +1676,7 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 	end
 	currentId[n] = id
 	seeds[n] = trailSeed
-	local trail = Trail.layout(trailSeed)
+	local trail = Trail.layout(trailSeed, id) -- region flavour: Config.TRAIL_REGION_SHAPE
 	layouts[n] = trail
 	rng = Random.new(7)
 	local folder = Instance.new("Folder")

@@ -3,6 +3,28 @@
 -- Note: replicated to clients - nothing secret here, and the server
 -- never trusts a value the client reports.
 
+-- Rift Trail shape per region (keys = Trail.Shape fields; missing = the TRAIL_* default below)
+local TRAIL_REGION_SHAPE: { [string]: { [string]: number } } = table.freeze({
+	-- winding tunnels: always two jogs, more sway, slightly smaller caverns
+	crystal_caves = table.freeze({ bendsMin = 2, bendsMax = 2, sway = 4, roomMax = 7 }),
+	-- hidden pockets in the swamp (almost every trail gets both); the dense swamp floor costs the
+	-- most parts per tile, so its clearings stay smaller and it jogs at most once
+	mushroom_swamp = table.freeze({ alcoveChance = 0.8, roomMax = 7, bendsMax = 1 }),
+	-- open dunes: wide clearings and corridors, a big hall, at most one jog
+	fire_desert = table.freeze({
+		roomMin = 7,
+		roomMax = 8,
+		hall = 11,
+		corridorWidth = 5,
+		bendsMin = 0,
+		bendsMax = 1,
+	}),
+	-- floating islands joined by long bridges (no ground around them: parts to spare)
+	sky_islands = table.freeze({ corridor = 5, roomMin = 7, roomMax = 9, alcoves = 1 }),
+	-- broken world: two wide jogs
+	altered_world = table.freeze({ bendsMin = 2, bendsMax = 2, bendMax = 10 }),
+})
+
 return table.freeze({
 	-- Combat/calm state (drives the UI flying in and out)
 	COMBAT_RADIUS = 40, -- studs: enemies in this radius = combat
@@ -53,10 +75,29 @@ return table.freeze({
 	ARENA_TILES_Z = 15,
 	-- Rift Trail (Shared/Trail): start → corridor → clearings with packs → boss arena
 	TRAIL_CLEARINGS = 3, -- clearings per depth, one enemy pack each (shown as "Area 1/3")
-	TRAIL_CLEARING = 8, -- tiles per clearing side
+	-- Floor area stays about the old 500 tiles (jogs and alcoves paid for by slightly smaller
+	-- clearings): the region maps sit right at the 4,500-instance phone budget (Regions spec).
+	TRAIL_ROOM_MIN = 6, -- tiles per clearing side, rolled per side (was a fixed 8)
+	TRAIL_ROOM_MAX = 8,
+	TRAIL_HALL = 10, -- tiles across the last clearing before the boss arena (a wider hall)
 	TRAIL_CORRIDOR = 3, -- tiles of corridor between two clearings
 	TRAIL_CORRIDOR_WIDTH = 3, -- tiles across a corridor
 	TRAIL_SWAY = 3, -- tiles a clearing may shift sideways (winding path)
+	-- Jogs: the corridor runs sideways and the next clearing sits off to the side (an S-bend). Only
+	-- between two clearings; the link into the boss arena stays straight.
+	TRAIL_BENDS_MIN = 1, -- jogs per trail (capped at TRAIL_CLEARINGS - 1)
+	TRAIL_BENDS_MAX = 2,
+	TRAIL_BEND_MIN = 6, -- tiles a jog moves the next clearing sideways (center to center)
+	TRAIL_BEND_MAX = 8,
+	-- Alcoves: small dead-end side rooms off a clearing, linked by a short neck
+	TRAIL_ALCOVES = 2, -- alcoves per trail at most
+	TRAIL_ALCOVE_CHANCE = 0.5, -- chance per clearing (while alcoves are left)
+	TRAIL_ALCOVE = 3, -- tiles per alcove side
+	TRAIL_ALCOVE_NECK = 1, -- tiles of passage between clearing and alcove (length)
+	TRAIL_ALCOVE_NECK_WIDTH = 2, -- tiles across the neck
+	TRAIL_MAX_X = 16, -- no trail tile further sideways than this (tiles from the slot center)
+	-- Per-region flavour: overrides of the Trail.Shape fields above (Trail.shape(regionId))
+	TRAIL_REGION_SHAPE = TRAIL_REGION_SHAPE,
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	HUB_TOP = 15, -- root higher than this above the Hub floor = on a roof or cliff, back to spawn
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
