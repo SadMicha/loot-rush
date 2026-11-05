@@ -1,5 +1,5 @@
 --!strict
--- Hub "Lumenhaven", a walled valley town (docs/specs/WORLD-MAPS.md §3). 20 × 20 cells of 8 studs
+-- Hub "Lumenhaven", a walled valley town (docs/specs/WORLD-MAPS.md Â§3). 20 Ã— 20 cells of 8 studs
 -- around Config.HUB_ORIGIN, everything on one level except the Rift terrace, so phone players
 -- never fight stairs on the way to a station:
 --   south: river (natural barrier) and the spawn plaza, main street north
@@ -9,8 +9,8 @@
 --   east of the spawn plaza: the Great Build monument (Shared/GreatBuild) with its donation chute
 --   north: grand stairs to the Rift terrace, Rift Gate with a light beam, waterfalls left and right
 --   edges: town walls with towers west and east, cliffs and a castle in the north
--- Outside the walls (Backdrop, no collision): farm fields, windmills, pines and the endless horizon
--- (Shared/Models/Horizon). Invisible walls (Util/Fence) and FallGuard stay as the safety net.
+-- Outside the walls (Backdrop, no collision, Util/HubScenery): road, farm fields, stream, cottages,
+-- windmills, trees, hills and a snow-capped mountain range. Invisible walls (Util/Fence) and FallGuard stay as the safety net.
 -- Everything is built from parts with the classic stud look (Shared/Models). Water is Terrain water
 -- where a Terrain exists (glass otherwise). Stations carry a ProximityPrompt with the attribute
 -- "Window"; the HubController uses it to open the matching window. The trigger parts are tagged
@@ -25,6 +25,7 @@ local Models = require(ReplicatedStorage.Shared.Models)
 local Nameplate = require(ReplicatedStorage.Shared.Nameplate)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
+local HubScenery = require(script.Parent.Parent.Util.HubScenery)
 
 local Hub = {}
 
@@ -37,7 +38,7 @@ local Buildings = Models.Buildings
 local T = 8 -- cell size (studs)
 local N = 20 -- cells per side
 
--- Site plan, row 20 (north) to 1 (south), columns 1–20 (west → east).
+-- Site plan, row 20 (north) to 1 (south), columns 1â€“20 (west â†’ east).
 -- G grass, g grass hill, K cliff, W water, P cobblestone, R Rift terrace, X stairs to the terrace,
 -- w town wall (grass under the wall)
 local PLAN = {
@@ -71,12 +72,6 @@ local WATER = Color3.fromHex("#2FB6FF")
 local CLIFF = Color3.fromHex("#5E5878")
 local WALL = Color3.fromHex("#D9C6A0")
 local ROOF_BLUE = Color3.fromHex("#2A68FF")
-local CROPS = {
-	Color3.fromHex("#FFC83A"),
-	Color3.fromHex("#A6E03A"),
-	Color3.fromHex("#E08A2A"),
-	Color3.fromHex("#5FCB2E"),
-}
 
 local root: Model
 local origin = Vector3.zero
@@ -84,7 +79,7 @@ local rng = Random.new(11)
 local reserved: { Vector3 } = {} -- spots of buildings/stations: no trees there
 
 -- ------------------------------------------------------------------ Grid
--- Cell center (column 1–20 = west–east, row 1–20 = south–north) in local coordinates; fractions ok
+-- Cell center (column 1â€“20 = westâ€“east, row 1â€“20 = southâ€“north) in local coordinates; fractions ok
 local function cell(col: number, row: number): Vector3
 	return Vector3.new((col - (N / 2 + 0.5)) * T, 0, ((N / 2 + 0.5) - row) * T)
 end
@@ -375,7 +370,7 @@ local function plaza(parent: Instance)
 	table.insert(reserved, PLAZA)
 end
 
--- Town walls along the west and east edge (rows 2–14) with towers at the ends and in the middle
+-- Town walls along the west and east edge (rows 2â€“14) with towers at the ends and in the middle
 local function walls(parent: Instance)
 	local rowsFrom, rowsTo = 2, 14
 	local zA, zB = cell(1, rowsTo).Z - T / 2, cell(1, rowsFrom).Z + T / 2
@@ -429,7 +424,7 @@ local function buildGround(parent: Instance)
 			tile(ground, col, row)
 		end
 	end
-	-- Grand stairs: market plaza → Rift terrace
+	-- Grand stairs: market plaza â†’ Rift terrace
 	local south = cell(1, 13.5).Z
 	local north = cell(1, 15.5).Z
 	stairs(ground, Vector3.new(0, H.P, south), Vector3.new(0, H.R, north), 32)
@@ -678,71 +673,10 @@ local function buildTown(parent: Instance)
 	end
 end
 
--- Countryside outside the walls: crop fields, windmills, hay; then the endless horizon.
--- All in "Backdrop" folders (minimap ignores them), no collision.
+-- Countryside outside the walls (road, fields, stream, cottages, hills and mountains): see
+-- Util/HubScenery. Backdrop only, no collision.
 local function buildCountry(parent: Instance)
-	local far = Instance.new("Folder")
-	far.Name = "Backdrop"
-	far.Parent = parent
-	local edge = N * T / 2
-	local y = H.G - 0.4
-	for _, s in { -1, 1 } do
-		for f = 0, 3 do
-			local x = s * (edge + 22 + (f % 2) * 34)
-			local z = -50 + math.floor(f / 2) * 70
-			for row = 0, 5 do
-				block(
-					far,
-					Vector3.new(30, 0.6, 4.6),
-					at(Vector3.new(x, y + 0.3, z + row * 5)),
-					CROPS[(f + row % 2 + (if s > 0 then 1 else 0)) % #CROPS + 1]
-				)
-			end
-		end
-		place(far, Biomes.windmill(1.3), Vector3.new(s * (edge + 40), y + 0.6, 36), s * 30)
-		place(far, Biomes.windmill(1), Vector3.new(s * (edge + 90), y + 0.6, -70), s * -20)
-		for i = 1, 4 do
-			place(
-				far,
-				Biomes.hayBale(),
-				Vector3.new(s * (edge + 14 + i * 7), y + 0.6, 60 - i * 3),
-				i * 40
-			)
-		end
-	end
-	-- Floating islands high above the mountains
-	local function island(m: Model, pos: Vector3)
-		m:PivotTo(CFrame.new(origin + pos))
-		m.Parent = far
-	end
-	island(Props.island(2.2, true), Vector3.new(-150, 70, -200))
-	island(Props.island(2.8, false), Vector3.new(70, 84, -250))
-	island(Props.island(1.6, true), Vector3.new(210, 60, -110))
-	for _, d in far:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.CanCollide = false
-			d.CanQuery = false
-			d.CanTouch = false
-		end
-	end
-
-	Models.Horizon.build(parent, {
-		center = origin + Vector3.new(0, H.G, 0),
-		halfX = edge + 30,
-		halfZ = edge + 10,
-		inner = 40,
-		ground = Color3.fromHex("#3BAE2C"),
-		groundY = -0.4,
-		rock = { Color3.fromHex("#8790AE"), Color3.fromHex("#77809E"), Color3.fromHex("#98A0BC") },
-		cap = Color3.fromHex("#F2F4F8"),
-		height = 44,
-		seed = 4242,
-		fill = function(r: Random, _i: number): Model
-			return if r:NextNumber() < 0.6
-				then Props.pine(r:NextNumber(1, 1.6))
-				else Props.tree(r:NextNumber(1.2, 1.8))
-		end,
-	})
+	HubScenery.build(parent, origin, H.G - 0.4)
 end
 
 function Hub.init()
@@ -772,7 +706,7 @@ function Hub.init()
 	root.Parent = workspace
 end
 
--- Local position in the Hub → world (for tests and other systems)
+-- Local position in the Hub â†’ world (for tests and other systems)
 function Hub.toWorld(pos: Vector3): Vector3
 	return Config.HUB_ORIGIN + pos
 end
