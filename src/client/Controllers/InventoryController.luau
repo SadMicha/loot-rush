@@ -483,21 +483,32 @@ end
 -- ------------------------------------------------------------------ Comparison (left bottom)
 local COL_W = (LEFT_W - 3 * PAD) // 2
 
+-- Height of the three header text lines (name, rarity · slot, item power); the icon cell is
+-- as tall, so on phones (where small text grows) the text column moves right with it
+local function headerH(): number
+	local t, line = rhythm()
+	return math.max(52, math.max(22, t + 4) + line + t)
+end
+
 -- Header of one comparison column: icon cell, name, rarity · slot, item power
 local function itemHeader(parent: Frame, item: Items.Item)
 	local color = rarityColor(item.rarity)
 	local t, line = rhythm()
 	local top = line + 4 -- below the caption
-	local cell = Flat.cell(52, slotArt(item.slot, item), { rarity = item.rarity })
+	local size = headerH()
+	local cell = Flat.cell(size, slotArt(item.slot, item), { rarity = item.rarity })
 	cell.Active = false
+	-- display only: no touch-size growth (it would push the cell under the text beside it)
+	cell:SetAttribute("TouchTarget", nil)
 	cell.Position = UDim2.fromOffset(0, top + 2)
 	cell.Parent = parent
-	local textW = COL_W - 64
+	local textX = size + 10
+	local textW = COL_W - textX
 	local name = Flat.text(item.name, 14, color, Theme.Font.Title)
 	name.AutomaticSize = Enum.AutomaticSize.None
 	name.Size = UDim2.fromOffset(textW, math.max(20, t + 2))
 	name.TextTruncate = Enum.TextTruncate.AtEnd
-	name.Position = UDim2.fromOffset(64, top)
+	name.Position = UDim2.fromOffset(textX, top)
 	name.Parent = parent
 	local sub = Flat.text(
 		string.format(
@@ -515,26 +526,26 @@ local function itemHeader(parent: Frame, item: Items.Item)
 	sub.AutomaticSize = Enum.AutomaticSize.None
 	sub.Size = UDim2.fromOffset(textW, t)
 	sub.TextTruncate = Enum.TextTruncate.AtEnd
-	sub.Position = UDim2.fromOffset(64, top + math.max(22, t + 4))
+	sub.Position = UDim2.fromOffset(textX, top + math.max(22, t + 4))
 	sub.Parent = parent
 	local ip =
 		Flat.text("Item Power " .. Format.int(Items.itemPower(item)), 11, C.Text, Theme.Font.Body)
 	ip.AutomaticSize = Enum.AutomaticSize.None
 	ip.Size = UDim2.fromOffset(textW, t)
 	ip.TextTruncate = Enum.TextTruncate.AtEnd
-	ip.Position = UDim2.fromOffset(64, top + math.max(22, t + 4) + line)
+	ip.Position = UDim2.fromOffset(textX, top + math.max(22, t + 4) + line)
 	ip.Parent = parent
 end
 
 -- y of the first stat row below a caption + item header (or caption + one hint line)
 local function statsTop(): number
-	local t, line = rhythm()
-	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
+	local _, line = rhythm()
+	return line + 4 + math.max(56, headerH() + 2) + 8
 end
 
 -- Signature effect of a unique under its stat rows (Shared/UniqueEffects): two lines at the
--- normal pitch, one line when the rows are tightened (`pitch`)
-local function effectLine(parent: Frame, item: Items.Item, pitch: number?)
+-- normal pitch, one line when the rows are tightened (`pitch`); `y` overrides where it starts
+local function effectLine(parent: Frame, item: Items.Item, pitch: number?, y: number?)
 	local text = if item.rarity == "unique" and item.unique
 		then UniqueEffects.text(item.unique, Items.rankOf(item))
 		else ""
@@ -550,7 +561,7 @@ local function effectLine(parent: Frame, item: Items.Item, pitch: number?)
 	fx.TextWrapped = true
 	fx.TextScaled = true
 	fx.TextYAlignment = Enum.TextYAlignment.Top
-	fx.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * step + 2)
+	fx.Position = UDim2.fromOffset(0, y or (statsTop() + #STAT_ORDER * step + 2))
 	fx.Parent = parent
 end
 
@@ -667,6 +678,10 @@ local function renderCompare()
 	local fit = math.floor((cmpH - 2 * PAD - buttonH() - 4 - line - statsTop()) / #STAT_ORDER)
 	local showEffect = bagItem ~= nil and fit >= t + 2
 	local pitch = if showEffect then math.min(math.max(22, line), fit) else nil
+	-- Free height between the stat rows and the action bar (phones have plenty: the card takes
+	-- the whole column); the upgrade line wraps into it instead of being cut off
+	local rowsEnd = statsTop() + #STAT_ORDER * (pitch or math.max(22, line))
+	local room = cmpH - 2 * PAD - buttonH() - 6 - rowsEnd
 
 	-- Left column: the worn piece of the selected slot, or the character totals
 	if worn then
@@ -711,10 +726,13 @@ local function renderCompare()
 		-- life / speed change below the stat rows
 		local delta = Upgrade.compare(hero(), bagItem)
 		local better = Upgrade.isUpgrade(hero(), bagItem)
+		local verdict = if better then C.Good else C.Danger
+		-- Big number = the weighted overall change (Upgrade.scoreText); the line under the stat
+		-- rows names it ("Overall +16%: ...") and breaks it down into damage / life / speed
 		local big = Flat.text(
 			if delta.empty then "NEW" else Upgrade.scoreText(delta),
 			22,
-			if better then C.Good else C.Danger,
+			verdict,
 			Theme.Font.Title,
 			Enum.TextXAlignment.Right
 		)
@@ -729,23 +747,33 @@ local function renderCompare()
 			color,
 			pitch
 		)
+		local fxY = rowsEnd + 2
 		if showEffect then
 			local locked = lockOf(bagItem) ~= nil
+			-- up to three lines, wrapped, when the card has the room (phones); one line otherwise
+			local lines = math.clamp(math.floor(room / line), 1, 3)
+			local summary = if delta.empty
+				then Upgrade.text(delta)
+				else `Overall {Upgrade.scoreText(delta)}: {Upgrade.text(delta)}`
 			local effect = Flat.text(
-				if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
+				if locked then `{summary} once worn` else summary,
 				11,
-				if locked then C.Muted elseif better then C.Good else C.Danger,
+				if locked then C.Muted else verdict,
 				Theme.Font.UI
 			)
 			effect.Name = "Effect"
 			effect.AutomaticSize = Enum.AutomaticSize.None
-			effect.Size = UDim2.fromOffset(COL_W, line)
+			effect.Size = UDim2.fromOffset(COL_W, lines * line)
+			effect.TextWrapped = lines > 1
 			effect.TextTruncate = Enum.TextTruncate.AtEnd
-			effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * (pitch or line))
+			effect.TextYAlignment = Enum.TextYAlignment.Top
+			effect.Position = UDim2.fromOffset(0, rowsEnd + 2)
 			effect.Parent = right
-		else
-			-- the upgrade line owns the space when shown; otherwise the unique's effect
-			effectLine(right, bagItem, pitch)
+			-- a unique's own effect still fits below when the wrapped line leaves two lines free
+			fxY = if room - lines * line >= 2 * line + 6 then rowsEnd + lines * line + 8 else -1
+		end
+		if fxY >= 0 then
+			effectLine(right, bagItem, nil, if showEffect then fxY else nil)
 		end
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
