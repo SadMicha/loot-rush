@@ -43,13 +43,18 @@ function Reward.lines(r: Journey.Reward): { Line }
 	return out
 end
 
--- Horizontal row of chips; `size` = icon size in design pixels
-function Reward.row(r: Journey.Reward, size: number, maxLines: number?): Frame
-	local f = Flat.frame(UDim2.fromOffset(0, size))
+-- Horizontal row of chips; `size` = icon size in design pixels. `wrapWidth` (design pixels):
+-- the chips wrap onto further lines inside that width instead of running past it.
+function Reward.row(r: Journey.Reward, size: number, maxLines: number?, wrapWidth: number?): Frame
+	local f = Flat.frame(UDim2.fromOffset(wrapWidth or 0, size))
 	f.Name = "Reward"
-	f.AutomaticSize = Enum.AutomaticSize.X
-	local layout = Kit.list(f, Enum.FillDirection.Horizontal, 14)
+	f.AutomaticSize = if wrapWidth then Enum.AutomaticSize.Y else Enum.AutomaticSize.X
+	local layout = Kit.list(f, Enum.FillDirection.Horizontal, if wrapWidth then 8 else 14)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	if wrapWidth then
+		layout.Wraps = true
+		layout.VerticalAlignment = Enum.VerticalAlignment.Top
+	end
 	for i, line in Reward.lines(r) do
 		if maxLines and i > maxLines then
 			break

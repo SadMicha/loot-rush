@@ -336,12 +336,33 @@ local function textLine(
 	return t
 end
 
-local function renderHeader(it: Items.Item, w: number, worn: boolean)
+-- Small viewports (shorter side under Theme.TabletMinSide): grown texts and touch targets make
+-- the fixed y positions overlap, so the right panel flows top-down in a scroll area instead.
+local function isCompact(): boolean
+	local camera = workspace.CurrentCamera
+	return camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.TabletMinSide
+end
+
+-- `flow` (compact only): vertical list that holds the header, materials, actions and affixes
+local function renderHeader(it: Items.Item, w: number, worn: boolean, flow: GuiObject?)
+	local host: Instance = detail
+	if flow then
+		local hf = Flat.frame(UDim2.fromOffset(w, 0))
+		hf.Name = "Header"
+		hf.AutomaticSize = Enum.AutomaticSize.Y
+		hf.LayoutOrder = 1
+		local hl = Kit.list(hf, Enum.FillDirection.Horizontal, 16, Enum.VerticalAlignment.Top)
+		hl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		hf.Parent = flow
+		host = hf
+	end
 	local cell = Flat.cell(HEAD, InventoryController.slotIcon(it.slot, it), { rarity = it.rarity })
 	cell.Name = "Selected"
 	cell.Active = false
 	cell.Position = UDim2.fromOffset(0, 0)
-	cell.Parent = detail
+	cell.LayoutOrder = 1
+	cell.Parent = host
 
 	-- Materials top right
 	local matRow = Flat.frame(UDim2.fromOffset(0, 40))
@@ -361,12 +382,31 @@ local function renderHeader(it: Items.Item, w: number, worn: boolean)
 		label.Text = Flat.thousands(have[key] or 0)
 		pill.Parent = matRow
 	end
-	matRow.Parent = detail
+	if flow then
+		matRow.AutomaticSize = Enum.AutomaticSize.XY
+		matRow.AnchorPoint = Vector2.new(0, 0)
+		matRow.Position = UDim2.new()
+		ml.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		matRow.LayoutOrder = 2
+		matRow.Parent = flow
+	else
+		matRow.Parent = detail
+	end
 
-	local colW = w - HEAD - 24 - 330
+	local colW = if flow then w - HEAD - 16 else w - HEAD - 24 - 330
 	local col = Flat.frame(UDim2.fromOffset(colW, HEAD), UDim2.fromOffset(HEAD + 24, 0))
 	col.Name = "Info"
-	local cl = Kit.list(col, Enum.FillDirection.Vertical, 4, Enum.VerticalAlignment.Center)
+	if flow then
+		col.AutomaticSize = Enum.AutomaticSize.Y
+		col.Size = UDim2.fromOffset(colW, 0)
+		col.LayoutOrder = 2
+	end
+	local cl = Kit.list(
+		col,
+		Enum.FillDirection.Vertical,
+		4,
+		if flow then Enum.VerticalAlignment.Top else Enum.VerticalAlignment.Center
+	)
 	cl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local name = textLine(
 		col,
@@ -395,7 +435,7 @@ local function renderHeader(it: Items.Item, w: number, worn: boolean)
 		elseif charges <= 0 then "Fully forged: no charges left"
 		else string.format("%d Forge charge%s left", charges, if charges == 1 then "" else "s")
 	textLine(col, state, 17, if Forge.canForge(it) then C.Good else C.GoldHi, colW, 3)
-	col.Parent = detail
+	col.Parent = host
 end
 
 -- Action tile: icon above the name; selected = gold edge and tint, faded when it cannot work now
@@ -445,9 +485,14 @@ local function actionTile(
 	return b
 end
 
-local function renderActions(it: Items.Item, w: number, y: number)
+local function renderActions(it: Items.Item, w: number, y: number, flow: GuiObject?)
 	local row = Flat.frame(UDim2.fromOffset(w, ACTION_H), UDim2.fromOffset(0, y))
 	row.Name = "Actions"
+	if flow then -- the row is as tall as its (touch-size) tiles
+		row.Size = UDim2.fromOffset(w, 0)
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.LayoutOrder = 3
+	end
 	Kit.list(row, Enum.FillDirection.Horizontal, 10)
 	local actions = Forge.actionsFor(it)
 	local n = #actions
@@ -467,7 +512,7 @@ local function renderActions(it: Items.Item, w: number, y: number)
 		end)
 		b.Parent = row
 	end
-	row.Parent = detail
+	row.Parent = flow or detail
 end
 
 local function affixTile(
@@ -529,7 +574,7 @@ local function affixTile(
 	return b
 end
 
-local function renderAffixes(it: Items.Item, w: number, y: number)
+local function renderAffixes(it: Items.Item, w: number, y: number, flow: GuiObject?)
 	local action = Forge.ById[selectedAction]
 	-- A unique shows its signature effect above the affixes (Shared/UniqueEffects)
 	local effect = if it.rarity == "unique" and it.unique
@@ -548,11 +593,13 @@ local function renderAffixes(it: Items.Item, w: number, y: number)
 		hint.TextXAlignment = Enum.TextXAlignment.Left
 	end
 	hint.Position = UDim2.fromOffset(0, y)
-	hint.Parent = detail
+	hint.LayoutOrder = 4
+	hint.Parent = flow or detail
 
 	local box = Flat.frame(UDim2.fromOffset(w, 0), UDim2.fromOffset(0, y + 28))
 	box.Name = "Affixes"
 	box.AutomaticSize = Enum.AutomaticSize.Y
+	box.LayoutOrder = 5
 	local tileW = math.floor((w - AFFIX_GAP) / 2)
 	local layout = Instance.new("UIGridLayout")
 	layout.CellSize = UDim2.fromOffset(tileW, AFFIX_H)
@@ -596,7 +643,7 @@ local function renderAffixes(it: Items.Item, w: number, y: number)
 		row.Parent = f
 		f.Parent = box
 	end
-	box.Parent = detail
+	box.Parent = flow or detail
 end
 
 -- Bottom bar: before -> after, charges / reason / last result, and the one Forge button with its cost
@@ -674,11 +721,39 @@ local function renderDetail(it: Items.Item?, worn: { [string]: boolean }, filter
 		return
 	end
 	validate(it)
-	renderHeader(it, w, worn[it.id] == true)
-	local y = HEAD + 18
-	renderActions(it, w, y)
-	y += ACTION_H + 14
-	renderAffixes(it, w, y)
+	if isCompact() then
+		-- Top-down flow above the confirm bar; scrolls when grown texts need more room
+		local pad = 6 -- keeps selection strokes at the edge from being clipped
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.Name = "Flow"
+		scroll.BackgroundTransparency = 1
+		scroll.BorderSizePixel = 0
+		scroll.Size = UDim2.fromOffset(w, h - BAR_H - 12)
+		scroll.ScrollBarThickness = 4
+		scroll.ScrollBarImageColor3 = F.EdgeHi
+		scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		scroll.CanvasSize = UDim2.new()
+		local sp = Instance.new("UIPadding")
+		sp.PaddingLeft = UDim.new(0, pad)
+		sp.PaddingRight = UDim.new(0, pad)
+		sp.PaddingTop = UDim.new(0, pad)
+		sp.PaddingBottom = UDim.new(0, pad)
+		sp.Parent = scroll
+		local fl = Kit.list(scroll, Enum.FillDirection.Vertical, 14, Enum.VerticalAlignment.Top)
+		fl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		scroll.Parent = detail
+		local cw = w - 2 * pad - 8 -- room for the scroll bar
+		renderHeader(it, cw, worn[it.id] == true, scroll)
+		renderActions(it, cw, 0, scroll)
+		renderAffixes(it, cw, 0, scroll)
+	else
+		renderHeader(it, w, worn[it.id] == true, nil)
+		local y = HEAD + 18
+		renderActions(it, w, y, nil)
+		y += ACTION_H + 14
+		renderAffixes(it, w, y, nil)
+	end
 	renderConfirm(it, w, h)
 end
 
@@ -750,11 +825,22 @@ local function buildLeft(body: Vector2)
 	grid.Parent = left
 
 	-- Footer: sort, rarity filter, item count
-	local foot = Flat.frame(
-		UDim2.fromOffset(LEFT_W - 2 * PAD, FOOT_H),
-		UDim2.fromOffset(PAD, body.Y - PAD - FOOT_H)
-	)
+	-- Anchored at the bottom and auto-sized: when grown buttons make it taller than FOOT_H it grows
+	-- upward and the grid is shortened by the same amount (never overlapping the last row).
+	local foot = Flat.frame(UDim2.fromOffset(LEFT_W - 2 * PAD, FOOT_H), UDim2.new(0, PAD, 1, -PAD))
+	foot.AnchorPoint = Vector2.new(0, 1)
+	foot.AutomaticSize = Enum.AutomaticSize.Y
 	foot.Name = "Footer"
+	local gridH = grid.Size.Y.Offset
+	local function fitGrid()
+		local ratio = left.AbsoluteSize.Y / body.Y -- screen px per design px
+		if ratio > 0 then
+			local extra = math.max(0, foot.AbsoluteSize.Y / ratio - FOOT_H)
+			grid.Size = UDim2.fromOffset(grid.Size.X.Offset, gridH - math.ceil(extra))
+		end
+	end
+	foot:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitGrid)
+	left:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitGrid)
 	local fl = Kit.list(foot, Enum.FillDirection.Horizontal, 10)
 	fl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local sort
