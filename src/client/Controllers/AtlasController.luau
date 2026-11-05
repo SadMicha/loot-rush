@@ -30,6 +30,7 @@ local SIDE_W = 440
 local INFO_PAD = 8 -- room for glows/strokes inside the clipping info scroll area
 local LABEL = Vector2.new(230, 98) -- aspect ratio like plaque_region
 local DOT_GAP = 18
+local COMPACT_BTN = 100 -- phones: row height that already is touch size after scaling (no growing)
 local MARK_Y = 22 -- diamond/lock sits this far below the plate
 
 local win: Window.Window
@@ -240,11 +241,29 @@ local function renderSide()
 	clear(side)
 	local r = Atlas.ById[selected]
 	local w = SIDE_W - 2 * PAD
+	-- Small viewports (shorter side under Theme.TabletMinSide): controls flow bottom-up in their own
+	-- auto-sized list so grown texts/touch targets never overlap; banner and description are dropped.
+	local camera = workspace.CurrentCamera
+	local compact = camera ~= nil
+		and math.min(camera.ViewportSize.X, camera.ViewportSize.Y) < Theme.TabletMinSide
+	local actionH = if compact then COMPACT_BTN else ACTION_H
+	local stepH = if compact then COMPACT_BTN else STEP_H
+	local controls: Frame? = nil
+	if compact then
+		local cf = Window.frame(UDim2.fromOffset(w, 0), UDim2.new(0, PAD, 1, -PAD))
+		cf.Name = "Controls"
+		cf.AnchorPoint = Vector2.new(0, 1)
+		cf.AutomaticSize = Enum.AutomaticSize.Y
+		local cl = Kit.list(cf, Enum.FillDirection.Vertical, 16, Enum.VerticalAlignment.Top)
+		cl.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		cf.Parent = side
+		controls = cf
+	end
 
 	-- Everything above the bottom controls flows top-down in a scroll area: on phones the enlarged
 	-- text wraps into more lines and must not run into the rewards or the depth picker
 	local open0 = isOpen(r)
-	local controlsH = if open0 then ACTION_H + 46 + STEP_H else ACTION_H + 8 + 34
+	local controlsH = if open0 then actionH + 46 + stepH else actionH + 8 + 34
 	local info = Instance.new("ScrollingFrame")
 	info.Name = "Info"
 	info.BackgroundTransparency = 1
@@ -268,6 +287,24 @@ local function renderSide()
 	info.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	info.CanvasSize = UDim2.new()
 	info.Parent = side
+	if controls then
+		-- Fill what the controls leave free (their height follows the real text size)
+		local cf = controls
+		local function fit()
+			local sideH = side.AbsoluteSize.Y
+			if sideH > 0 then
+				info.Size = UDim2.new(
+					0,
+					w + 8 + 2 * INFO_PAD,
+					1 - cf.AbsoluteSize.Y / sideH,
+					-(2 * PAD + 10) + 2 * INFO_PAD
+				)
+			end
+		end
+		cf:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+		side:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+		task.defer(fit)
+	end
 	local flow = Kit.list(info, Enum.FillDirection.Vertical, 10, Enum.VerticalAlignment.Top)
 	flow.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local order = 0
@@ -278,17 +315,18 @@ local function renderSide()
 	end
 
 	-- Preview image; the fallback (area color + boss) always sits underneath in case the image fails to load
-	local ph = Window.frame(UDim2.fromOffset(w, 160))
+	local bannerH = if compact then 90 else 160
+	local ph = Window.frame(UDim2.fromOffset(w, bannerH))
 	ph.Name = "Preview"
 	ph:SetAttribute("Media", true) -- picture row: no text on purpose (UI check)
 	ph.BackgroundTransparency = 0.8
 	ph.BackgroundColor3 = r.color
 	Kit.corner(ph, Theme.Radius.M)
-	local ic = Kit.icon(r.bossIcon, 110)
+	local ic = Kit.icon(r.bossIcon, if compact then 70 else 110)
 	ic.AnchorPoint = Vector2.new(0.5, 0.5)
 	ic.Position = UDim2.fromScale(0.5, 0.5)
 	ic.Parent = ph
-	local picture = Window.art("region_" .. r.id, Vector2.new(w, 160))
+	local picture = Window.art("region_" .. r.id, Vector2.new(w, bannerH))
 	if picture then
 		picture.ScaleType = Enum.ScaleType.Crop
 		picture.Size = UDim2.fromScale(1, 1)
@@ -315,8 +353,12 @@ local function renderSide()
 	local top = tileRow()
 	local record = best(r.id)
 	local depthText = if record > 0
-		then string.format("Best: Depth %d", record)
-		else string.format("From Depth %d", r.depth)
+		then if compact
+			then string.format("Best %d", record)
+			else string.format("Best: Depth %d", record)
+		else if compact
+			then string.format("From %d", r.depth)
+			else string.format("From Depth %d", r.depth)
 	infoTile("portal", depthText, half, 1).Parent = top
 	infoTile(r.bossIcon, r.boss, half, 2).Parent = top
 	local mods = tileRow()
@@ -324,7 +366,9 @@ local function renderSide()
 		infoTile(m.icon, m.text, half, i).Parent = mods
 	end
 
-	add(wrapLabel(r.desc, 15, C.Muted, w))
+	if not compact then
+		add(wrapLabel(r.desc, 15, C.Muted, w))
+	end
 
 	add(Window.heading("Possible Rewards", 16, C.Text))
 	local rewards = tileRow()
@@ -343,13 +387,15 @@ local function renderSide()
 	local unlocked = WorldTiers.get(player:GetAttribute("WorldTierUnlocked")).id
 	-- One bottom row: [<] [Travel] [>], all ACTION_H tall (already touch size on phones, so
 	-- nothing grows into a neighbour); the tier name sits on its own line above the row.
-	local bottom = Window.frame(UDim2.fromOffset(w, ACTION_H))
+	local bottom = Window.frame(UDim2.fromOffset(w, actionH))
 	bottom.Name = "WorldTier"
-	bottom.AnchorPoint = Vector2.new(0, 1)
-	bottom.Position = UDim2.new(0, PAD, 1, -PAD)
+	if not controls then
+		bottom.AnchorPoint = Vector2.new(0, 1)
+		bottom.Position = UDim2.new(0, PAD, 1, -PAD)
+	end
 	local function arrow(text: string, step: number)
 		local target = tier.id + step
-		local b = Kit.button(text, C.Gold, Vector2.new(ARROW_W, ACTION_H))
+		local b = Kit.button(text, C.Gold, Vector2.new(ARROW_W, actionH))
 		b.Name = if step < 0 then "TierDown" else "TierUp"
 		b.AnchorPoint = Vector2.new(if step < 0 then 0 else 1, 0.5)
 		b.Position = UDim2.new(if step < 0 then 0 else 1, 0, 0.5, 0)
@@ -369,9 +415,15 @@ local function renderSide()
 	tierText.Size = UDim2.fromOffset(w, 0)
 	tierText.TextXAlignment = Enum.TextXAlignment.Center
 	tierText.TextTruncate = Enum.TextTruncate.AtEnd
-	tierText.AnchorPoint = Vector2.new(0.5, 1)
-	tierText.Position = UDim2.new(0, PAD + w / 2, 1, -PAD - ACTION_H - 8)
-	tierText.Parent = side
+	if controls then
+		tierText.TextWrapped = true
+		tierText.LayoutOrder = 2
+		tierText.Parent = controls
+	else
+		tierText.AnchorPoint = Vector2.new(0.5, 1)
+		tierText.Position = UDim2.new(0, PAD + w / 2, 1, -PAD - ACTION_H - 8)
+		tierText.Parent = side
+	end
 
 	local inRift = RiftController.active()
 	local open = isOpen(r)
@@ -380,13 +432,15 @@ local function renderSide()
 	local max = maxStart(r)
 	local start = startOf(r)
 	if open then
-		local depthRow = Window.frame(UDim2.fromOffset(w, STEP_H))
+		local depthRow = Window.frame(UDim2.fromOffset(w, stepH))
 		depthRow.Name = "StartDepth"
-		depthRow.AnchorPoint = Vector2.new(0, 1)
-		depthRow.Position = UDim2.new(0, PAD, 1, -PAD - ACTION_H - 46)
+		if not controls then
+			depthRow.AnchorPoint = Vector2.new(0, 1)
+			depthRow.Position = UDim2.new(0, PAD, 1, -PAD - ACTION_H - 46)
+		end
 		local function step(text: string, delta: number)
 			local target = start + delta
-			local b = Kit.button(text, C.Gold, Vector2.new(STEP_H, STEP_H))
+			local b = Kit.button(text, C.Gold, Vector2.new(stepH, stepH))
 			b.Name = if delta < 0 then "DepthDown" else "DepthUp"
 			b.AnchorPoint = Vector2.new(if delta < 0 then 0 else 1, 0.5)
 			b.Position = UDim2.new(if delta < 0 then 0 else 1, 0, 0.5, 0)
@@ -403,19 +457,26 @@ local function renderSide()
 		step("-", -1)
 		step("+", 1)
 		local startText = Kit.label(
-			string.format("Start: Depth %d", start),
+			if compact
+				then string.format("Depth %d", start)
+				else string.format("Start: Depth %d", start),
 			20,
 			if start == max then C.Text else C.Muted
 		)
 		startText.Name = "StartText"
-		startText.Size = UDim2.new(1, -2 * (STEP_H + 8), 1, 0)
+		startText.Size = UDim2.new(1, -2 * (stepH + 8), 1, 0)
 		startText.AutomaticSize = Enum.AutomaticSize.None
 		startText.TextXAlignment = Enum.TextXAlignment.Center
 		startText.TextTruncate = Enum.TextTruncate.AtEnd
 		startText.AnchorPoint = Vector2.new(0.5, 0.5)
 		startText.Position = UDim2.fromScale(0.5, 0.5)
 		startText.Parent = depthRow
-		depthRow.Parent = side
+		if controls then
+			depthRow.LayoutOrder = 1
+			depthRow.Parent = controls
+		else
+			depthRow.Parent = side
+		end
 	end
 	local text = if not open
 		then string.format("Clear Depth %d first", r.depth - 1)
@@ -424,7 +485,7 @@ local function renderSide()
 	local go = Kit.button(
 		text,
 		C.Gold,
-		Vector2.new(w - 2 * (ARROW_W + 10), ACTION_H),
+		Vector2.new(w - 2 * (ARROW_W + 10), actionH),
 		if open then "portal" else "lock"
 	)
 	Kit.buttonLabel(go).TextSize = Kit.fontSize(24)
@@ -439,7 +500,12 @@ local function renderSide()
 		win.close()
 	end)
 	go.Parent = bottom
-	bottom.Parent = side
+	if controls then
+		bottom.LayoutOrder = 3
+		bottom.Parent = controls
+	else
+		bottom.Parent = side
+	end
 end
 
 -- ------------------------------------------------------------------ Flow

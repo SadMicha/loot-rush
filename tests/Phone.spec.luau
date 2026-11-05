@@ -19,13 +19,9 @@ local STRICT = {
 	["empty-row"] = true,
 }
 
--- Known, still open findings on main (as of PR #23/#24). Delete the entry once fixed;
--- new entries only with a reason. Inventory: gear title under the topbar.
--- Atlas: mod/boss texts stick out of their capsule.
-local KNOWN: { [string]: { [string]: boolean } } = {
-	Inventory = { topbar = true },
-	Atlas = { ["text-covered"] = true, ["text-outside"] = true },
-}
+-- Known, still open findings on main. Delete the entry once fixed; new entries only with a
+-- reason. Empty: every window passes the strict phone check.
+local KNOWN: { [string]: { [string]: boolean } } = {}
 
 local closeLooks = {}
 
