@@ -267,14 +267,6 @@ local function build()
 	end)
 	news.Parent = top
 	top.Parent = info
-	local credits = Flat.text(
-		Settings.CREDITS, -- short: the Switch Hero button needs the room on phones
-		13,
-		C.Muted,
-		Theme.Font.Body
-	)
-	credits.LayoutOrder = 2
-	credits.Parent = info
 	info.Parent = foot
 
 	local buttons = Flat.frame(UDim2.fromOffset(FOOT_BUTTONS_W, FOOT_H))

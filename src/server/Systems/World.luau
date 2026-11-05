@@ -1001,11 +1001,12 @@ local LOOKS: { [string]: Look } = {
 		},
 	},
 	crystal_caves = {
-		top = { Color3.fromHex("#3D4F94"), Color3.fromHex("#344486") },
-		edge = Color3.fromHex("#1E2868"),
-		lane = Color3.fromHex("#6A86D8"),
-		soil = Color3.fromHex("#1A2048"),
-		cliff = Color3.fromHex("#2A3878"),
+		-- slate floor, violet walls: floor, walls and horizon no longer share one blue
+		top = { Color3.fromHex("#6672A0"), Color3.fromHex("#5A6694") },
+		edge = Color3.fromHex("#2E2A66"),
+		lane = Color3.fromHex("#9AB0E8"),
+		soil = Color3.fromHex("#262250"),
+		cliff = Color3.fromHex("#443C80"),
 		liquid = {
 			color = Color3.fromHex("#4FD8F5"),
 			material = Enum.Material.Neon,
@@ -1023,11 +1024,11 @@ local LOOKS: { [string]: Look } = {
 		detail = cavesDetail,
 		deco = caves,
 		horizon = {
-			ground = Color3.fromHex("#1A2048"),
+			ground = Color3.fromHex("#262250"),
 			rock = {
-				Color3.fromHex("#2A3878"),
-				Color3.fromHex("#24306C"),
-				Color3.fromHex("#1E285E"),
+				Color3.fromHex("#443C80"),
+				Color3.fromHex("#3A3474"),
+				Color3.fromHex("#302A68"),
 			},
 			cap = Color3.fromHex("#4FD8F5"),
 			capMaterial = Enum.Material.Neon,
@@ -1107,7 +1108,8 @@ local LOOKS: { [string]: Look } = {
 		},
 	},
 	sky_islands = {
-		top = { Color3.fromHex("#EDE2C8"), Color3.fromHex("#E0D2B4") },
+		-- sandstone floor on a bluer cloud sea: the island edge no longer vanishes into the white
+		top = { Color3.fromHex("#D9C6A0"), Color3.fromHex("#CBB78C") },
 		edge = Color3.fromHex("#E0AE3A"),
 		lane = Color3.fromHex("#F2C85A"),
 		soil = Color3.fromHex("#9CB8EC"),
@@ -1117,7 +1119,7 @@ local LOOKS: { [string]: Look } = {
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
-		horizon = { ground = Color3.fromHex("#EEF4FF"), rock = {}, kind = "clouds", height = 30 },
+		horizon = { ground = Color3.fromHex("#D8E6FA"), rock = {}, kind = "clouds", height = 30 },
 	},
 	altered_world = {
 		top = { Color3.fromHex("#40266A"), Color3.fromHex("#36205C") },
