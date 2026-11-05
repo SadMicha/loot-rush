@@ -42,6 +42,9 @@ local MILE_H = 54
 local ROW_H = 46
 local POLL = 5 -- seconds between refreshes while open
 local BOARD_SIZE = Vector2.new(320, 92) -- board above the monument (pixels)
+local BOARD_MAX_HEIGHT = 0.11 -- the board covers at most this share of the screen height ...
+local BOARD_MAX_WIDTH = 0.28 -- ... and width
+local BOARD_MAX_DISTANCE = 90 -- studs; farther away the board is hidden
 
 type Donor = { userId: number, name: string, amount: number, me: boolean? }
 type Mine = { total: number, today: number, left: number, paid: { [string]: boolean } }
@@ -275,6 +278,16 @@ local function sizeBoard()
 	end
 	local N = Theme.Nameplate
 	local k = Kit.hudScale() * (if UserInputService.TouchEnabled then N.BoardTouch else N.Board)
+	-- Never dominate the screen, whatever the HUD size setting or camera angle
+	local cam = workspace.CurrentCamera
+	if cam then
+		local view = cam.ViewportSize
+		k = math.min(
+			k,
+			view.Y * BOARD_MAX_HEIGHT / BOARD_SIZE.Y,
+			view.X * BOARD_MAX_WIDTH / BOARD_SIZE.X
+		)
+	end
 	if math.abs(sc.Scale - k) > 0.001 then
 		sc.Scale = k
 		gui.Size = UDim2.fromOffset(math.ceil(BOARD_SIZE.X * k), math.ceil(BOARD_SIZE.Y * k))
@@ -322,6 +335,7 @@ local function updateBoardVisibility()
 	local gui, sc = boardGui, boardScale
 	local beacon = if gui then gui.Adornee else nil
 	if gui and sc and beacon and beacon:IsA("BasePart") then
+		sizeBoard() -- follows viewport changes (rotation, window resize)
 		gui.Enabled = not overlapsHud(gui, beacon, sc.Scale)
 	end
 end
@@ -348,7 +362,7 @@ local function buildBoard(beacon: BasePart)
 	gui.Adornee = beacon
 	gui.Size = UDim2.fromOffset(BOARD_SIZE.X, BOARD_SIZE.Y)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
-	gui.MaxDistance = 110
+	gui.MaxDistance = BOARD_MAX_DISTANCE
 	gui.LightInfluence = 0
 	gui.ResetOnSpawn = false
 	-- Drawn at design size and scaled as a whole (sizeBoard)
