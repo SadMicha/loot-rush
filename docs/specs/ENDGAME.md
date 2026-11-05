@@ -116,6 +116,9 @@ Server: an objective module per id under `Systems/Objectives/` with one interfac
 
 The concept promised "uniques with one signature effect"; today they are stat sticks.
 
+> Superseded in detail by [LOOT.md](LOOT.md) (2026-11-05): new unique stat budget, effects for
+> all 12, ranks, pity and drop numbers live there.
+
 - Each of the 12 uniques keeps its stats and gets **one effect that changes play**, e.g.
   *Stormcaller*: every 4th basic hit chains lightning to 3 enemies · *Cloud Steps*: a dodge roll
   leaves 3 brick mines · *Spore Mantle*: kills burst into a poison cloud · *Thread of Fate*: Rush
