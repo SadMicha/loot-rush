@@ -55,11 +55,11 @@ end
 function LevelUpController.skillLine(skill: Skills.Skill, bar: { string }, touch: boolean): string
 	local slot = table.find(bar, skill.id)
 	if not slot then
-		return "New skill: " .. skill.name .. " · equip it in Skills"
+		return "New skill: " .. skill.name .. " - equip it in Skills"
 	end
 	return "New skill: "
 		.. skill.name
-		.. (if touch then " · tap its new button" else " · press " .. (KEYS[slot] or "?"))
+		.. (if touch then " - tap its new button" else " - press " .. (KEYS[slot] or "?"))
 end
 
 -- Pure text of the card (also used by the spec): stats line for a jump from → to

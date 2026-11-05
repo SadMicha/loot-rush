@@ -1,5 +1,8 @@
 --!strict
 -- Rift flow: choose a region (Atlas) → waves → boss → choice "deeper" or "back to the Hub".
+-- From depth PathCards.FROM_DEPTH on, "deeper" picks one of three Path Cards (Shared/PathCards):
+-- each names the next depth's affixes (Shared/RiftAffixes) and its reward. The Altered World
+-- rotates its boss every depth (Atlas.bossFor).
 -- Every region starts at its own depth and rolls its waves from its enemy mix
 -- (Shared/Atlas). Cleared depths go into the save (atlas, per tier in reach) and unlock follow-up
 -- regions; a new run resumes at the first depth not cleared yet (or a lower one the player picks).
@@ -17,9 +20,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Config = require(ReplicatedStorage.Shared.Config)
+local EliteMods = require(ReplicatedStorage.Shared.EliteMods)
 local Net = require(ReplicatedStorage.Shared.Net)
+local PathCards = require(ReplicatedStorage.Shared.PathCards)
+local RiftAffixes = require(ReplicatedStorage.Shared.RiftAffixes)
 local RiftRun = require(ReplicatedStorage.Shared.RiftRun)
-local RiftVariants = require(ReplicatedStorage.Shared.RiftVariants)
 local Smoothing = require(ReplicatedStorage.Shared.Smoothing)
 local Trail = require(ReplicatedStorage.Shared.Trail)
 local WorldTiers = require(ReplicatedStorage.Shared.WorldTiers)
@@ -47,7 +52,10 @@ type Run = {
 	depth0: number, -- depth the run started at (region start, or deeper when resumed)
 	tier: number, -- World Tier (Shared/WorldTiers), chosen before the run
 	wave: number,
-	variant: string, -- rift variant of the current depth (Shared/RiftVariants, "" = normal)
+	affixes: { string }, -- affixes of the current depth (Shared/RiftAffixes, empty = plain)
+	card: PathCards.Card?, -- Path Card the current depth was picked with (nil = plain depth)
+	cards: { PathCards.Card }, -- cards offered after the boss for the next depth (empty = plain)
+	rng: Random, -- the run's own Random (Path Cards)
 	restored: number, -- The Smoothing: how far the owner restored this region (0..1)
 	tally: RiftRun.Tally,
 	died: RBXScriptConnection?,
@@ -61,7 +69,7 @@ type Run = {
 type EndReason = "left" | "abandoned" | "failed" | "gone"
 
 local Rift = {
-	forceVariant = nil :: string?, -- tests / debug: every depth gets this variant
+	forceAffixes = nil :: { string }?, -- tests / debug: every depth gets these affixes
 }
 
 local FAILED_SHOWN = 4 -- seconds "failed" stays in the HUD
@@ -192,6 +200,9 @@ end
 local function report(r: Run, kind: "clear" | "end", reason: ("left" | "abandoned" | "failed")?)
 	local summary =
 		RiftRun.summary(r.tally, kind, reason, r.depth, bestOf(r.owner), level(r.owner), os.clock())
+	if kind == "clear" and #r.cards > 0 then
+		summary.cards = r.cards
+	end
 	Net.RiftResult:FireClient(r.owner, summary)
 end
 
@@ -200,7 +211,8 @@ local function publish(r: Run, phase: string)
 	r.owner:SetAttribute("RiftDepth", r.depth)
 	r.owner:SetAttribute("RiftWave", r.wave)
 	r.owner:SetAttribute("RiftWaves", Config.TRAIL_CLEARINGS)
-	r.owner:SetAttribute("RiftVariant", r.variant)
+	r.owner:SetAttribute("RiftAffixes", RiftAffixes.encode(r.affixes))
+	r.owner:SetAttribute("RiftReward", PathCards.describe(r.card))
 	r.owner:SetAttribute("RiftPhase", phase)
 end
 
@@ -224,31 +236,107 @@ local function clearingPoint(lo: Vector3, hi: Vector3): Vector3
 	return Vector3.new(rng:NextNumber(lo.X + T, hi.X - T), 0, rng:NextNumber(lo.Z + T, hi.Z - T))
 end
 
-local function spawn(
-	r: Run,
-	kind: string,
-	pos: Vector3,
+type SpawnHow = {
 	elite: boolean?,
 	goblin: boolean?,
-	bounds: { min: Vector3, max: Vector3 }?
-)
-	mark(
-		r,
-		Enemies.spawn(kind, pos, r.depth, {
-			tier = r.tier,
-			center = r.center,
-			bounds = bounds,
-			run = r.id,
-			elite = elite,
-			goblin = goblin,
-			smoothed = not goblin and rng:NextNumber() < Smoothing.enemyChance(r.restored),
-			healthMult = if r.variant == "swarm"
-					and not elite
-					and not goblin
-				then RiftVariants.SWARM_HEALTH
-				else nil,
-		})
+	bounds: { min: Vector3, max: Vector3 }?,
+	leader: boolean?, -- first enemy of its pack (Shielded Packs)
+	champion: boolean?, -- the Champion affix's named elite
+	boss: boolean?,
+	altered: boolean?, -- Altered World boss (rotation)
+}
+
+local function has(r: Run, id: string): boolean
+	return RiftAffixes.has(r.affixes, id)
+end
+
+local function spawn(r: Run, kind: string, pos: Vector3, how: SpawnHow?): Model?
+	local o: SpawnHow = how or {}
+	local plain = not o.goblin and not o.boss -- affixes that change bodies skip goblin and boss
+	local health = 1
+	if has(r, "swarm") and plain and not o.elite then
+		health *= RiftAffixes.SWARM_HEALTH
+	end
+	if has(r, "big_builds") and plain then
+		health *= RiftAffixes.BIG_HEALTH
+	end
+	if o.champion then
+		health *= RiftAffixes.CHAMPION_HEALTH
+	end
+	local model = Enemies.spawn(kind, pos, r.depth, {
+		tier = r.tier,
+		center = r.center,
+		bounds = o.bounds,
+		run = r.id,
+		elite = o.elite,
+		mods = if o.champion
+			then EliteMods.roll(rng, math.max(RiftAffixes.CHAMPION_MODS, EliteMods.count(r.tier)))
+			else nil,
+		goblin = o.goblin,
+		smoothed = not o.goblin and not o.boss and rng:NextNumber() < Smoothing.enemyChance(
+			r.restored
+		),
+		healthMult = if health ~= 1 then health else nil,
+		damageMult = if has(r, "glass_cannon") then 1 + RiftAffixes.GLASS_DAMAGE / 100 else nil,
+		speedMult = if has(r, "rush_hour") and not o.boss then RiftAffixes.RUSH_SPEED else nil,
+		size = if has(r, "big_builds") and plain then RiftAffixes.BIG_SIZE else nil,
+		shield = if has(r, "shielded_packs")
+				and o.leader
+				and plain
+			then RiftAffixes.SHIELD
+			else nil,
+		champion = o.champion,
+		burning = has(r, "burning_trail") and plain,
+		altered = o.altered,
+	})
+	mark(r, model)
+	return model
+end
+
+-- Player side of the depth's affixes and card reward (Loot, Combat, Rush read these)
+local function applyDepth(r: Run)
+	local bonus = PathCards.bonus(r.card)
+	Loot.setRunBonus(r.owner, {
+		items = bonus.items,
+		gold = bonus.gold,
+		rolls = if has(r, "big_builds") then RiftAffixes.BIG_ITEMS else 0,
+	})
+	r.owner:SetAttribute(
+		"RiftDamageBonus",
+		if has(r, "glass_cannon") then RiftAffixes.GLASS_DAMAGE else nil
 	)
+	r.owner:SetAttribute("RiftRushFill", if has(r, "rush_hour") then RiftAffixes.RUSH_FILL else nil)
+end
+
+local function clearDepth(player: Player)
+	Loot.setRunBonus(player, nil)
+	player:SetAttribute("RiftDamageBonus", nil)
+	player:SetAttribute("RiftRushFill", nil)
+	player:SetAttribute("RiftAffixes", nil)
+	player:SetAttribute("RiftReward", nil)
+end
+
+-- Brick Rain: while the depth's packs are up, a volley falls around the owner every RAIN_EVERY
+-- seconds, but only while they stand inside the current clearing (never on the path between)
+local function brickRain(r: Run, depth: number)
+	while true do
+		task.wait(RiftAffixes.RAIN_EVERY)
+		if
+			runs[r.owner] ~= r
+			or r.depth ~= depth
+			or r.owner:GetAttribute("RiftPhase") ~= "wave"
+		then
+			return
+		end
+		local _, root = character(r.owner)
+		local lo, hi = World.clearing(r.slot, r.wave)
+		if root and lo and hi and not r.downed then
+			local p = root.Position
+			if p.X >= lo.X and p.X <= hi.X and p.Z >= lo.Z and p.Z <= hi.Z then
+				Enemies.brickRain(p, r.depth, r.tier, { min = lo, max = hi })
+			end
+		end
+	end
 end
 
 -- Waits until all enemies are dead. false = run was aborted.
@@ -338,6 +426,7 @@ local function finish(r: Run, reason: EndReason)
 		slots[r.slot] = nil
 	end
 	owner:SetAttribute("RiftRegion", nil)
+	clearDepth(owner)
 	owner:SetAttribute("RiftRevives", nil)
 	owner:SetAttribute("RiftDowned", nil)
 	if reason == "gone" or not owner.Parent then
@@ -451,8 +540,12 @@ end
 local function play(r: Run)
 	Metrics.begin(r.owner, r.id)
 	Analytics.riftStart(r.owner, r.depth, r.region.id)
-	r.variant = Rift.forceVariant or RiftVariants.roll(rng, r.depth)
-	local deadline = os.clock() + RiftVariants.TIMED_LIMIT
+	r.affixes = table.clone(Rift.forceAffixes or (if r.card then r.card.affixes else {}))
+	applyDepth(r)
+	if has(r, "brick_rain") then
+		task.spawn(brickRain, r, r.depth)
+	end
+	local deadline = os.clock() + RiftAffixes.TIMED_LIMIT
 	-- Rift Trail (Shared/Trail): one pack per clearing, in walking order. The next pack spawns
 	-- when the last one is down; it waits in its clearing (aggro radius) until the player arrives.
 	local waves = Config.TRAIL_CLEARINGS
@@ -469,17 +562,29 @@ local function play(r: Run)
 			Config.RIFT_WAVE_BASE + Config.RIFT_WAVE_STEP * ((wave - 1) + sinceStart),
 			Config.RIFT_WAVE_MAX
 		)
-		if r.variant == "swarm" then
-			count = math.floor(count * RiftVariants.SWARM_COUNT)
+		if has(r, "swarm") then
+			count = math.floor(count * RiftAffixes.SWARM_COUNT)
 		end
 		local mix = r.region.enemies
 		-- the last RIFT_ELITES packs open with elites: one, plus one per World Tier above Normal
-		local elite = r.variant == "elite_hunt" or wave > waves - Config.RIFT_ELITES
+		local elite = has(r, "elite_hunt") or wave > waves - Config.RIFT_ELITES
 		for i = 1, count do
-			spawn(r, mix[rng:NextInteger(1, #mix)], at(), elite and i <= r.tier, nil, bounds)
+			spawn(r, mix[rng:NextInteger(1, #mix)], at(), {
+				elite = elite and i <= r.tier,
+				bounds = bounds,
+				leader = i == 1,
+			})
 		end
-		if r.variant == "goblin" and wave == 1 then
-			spawn(r, mix[1], at(), false, true, bounds)
+		if has(r, "goblin") and wave == 1 then
+			spawn(r, mix[1], at(), { goblin = true, bounds = bounds })
+		end
+		if has(r, "champion") and wave == math.min(2, waves) then
+			spawn(
+				r,
+				mix[rng:NextInteger(1, #mix)],
+				at(),
+				{ elite = true, champion = true, bounds = bounds }
+			)
 		end
 		if not waitClear(r) then
 			return finish(r, "failed")
@@ -505,18 +610,32 @@ local function play(r: Run)
 
 	publish(r, "boss")
 	local bossAt = r.center + Config.ENEMY_ZONE
-	spawn(r, r.region.bossKind, bossAt)
+	local bossKind, rotating = Atlas.bossFor(r.region, r.depth)
+	local altered = rotating and bossKind ~= r.region.bossKind
+	local boss = spawn(r, bossKind, bossAt, { boss = true, altered = altered })
 	local intro = Smoothing.BossIntro[r.region.id]
+	if altered and boss then
+		intro = string.format(
+			Smoothing.ALTERED_INTRO,
+			(boss:GetAttribute("BaseName") or "boss") :: string
+		)
+	end
 	if intro then
 		Net.Fx:FireClient(r.owner, "intro", { text = intro, color = r.region.color })
 	end
 	if not waitClear(r) then
 		return finish(r, "failed")
 	end
-	if r.variant == "timed" and os.clock() <= deadline and r.owner.Parent then
-		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, RiftVariants.TIMED_ITEMS)
-		r.owner:SetAttribute("RiftVariantDone", r.variant)
+	if has(r, "timed") and os.clock() <= deadline and r.owner.Parent then
+		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, RiftAffixes.TIMED_ITEMS)
+		r.owner:SetAttribute("RiftAffixDone", "timed")
 	end
+	local cache = PathCards.bonus(r.card).cache
+	if cache > 0 and r.owner.Parent then
+		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, cache)
+	end
+	-- The next depth's choice: three Path Cards (none before PathCards.FROM_DEPTH)
+	r.cards = PathCards.roll(r.rng, r.depth + 1)
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
@@ -582,7 +701,10 @@ local function begin(player: Player, regionId: any, wanted: any)
 		depth0 = depth,
 		tier = tier,
 		wave = 0,
-		variant = "",
+		affixes = {},
+		card = nil,
+		cards = {},
+		rng = Random.new(),
 		restored = Smoothing.restored(region.depth, bestOf(player)(region.id)),
 		tally = RiftRun.newTally(id, depth, bestOf(player), level(player), os.clock()),
 		revives = Config.RIFT_REVIVES,
@@ -607,10 +729,20 @@ local function begin(player: Player, regionId: any, wanted: any)
 	Actions.fire(player, "rift")
 end
 
-local function deeper(player: Player)
+local function deeper(player: Player, index: any)
 	local r = runs[player]
 	if not r or r.downed or player:GetAttribute("RiftPhase") ~= "clear" then
 		return -- dead and respawning: the choice waits for the new character
+	end
+	-- Path Card: nil = the safe card, 1..3 = that card, anything else is refused
+	local card = PathCards.pick(r.cards, index)
+	if #r.cards > 0 and not card then
+		return
+	end
+	r.card = card
+	r.cards = {}
+	if card then
+		Analytics.custom(player, "PathCardPicked", card.weight)
 	end
 	r.depth += 1
 	r.wave = 0
@@ -672,7 +804,7 @@ local function onAction(player: Player, action: any, regionId: any, depth: any)
 	if action == "enter" then
 		begin(player, regionId, depth)
 	elseif action == "deeper" then
-		deeper(player)
+		deeper(player, regionId) -- second argument = Path Card index
 	end
 end
 
@@ -708,8 +840,23 @@ local function onLooted(player: any, delta: any)
 	end
 end
 
+-- Champion affix: its kill drops a Rare+ cache for the run's owner
+local function onEnemyDied(model: Model, pos: Vector3)
+	if model:GetAttribute("Champion") ~= true then
+		return
+	end
+	local id = model:GetAttribute("Run")
+	for owner, r in runs do
+		if r.id == id then
+			Loot.bonus(owner, pos, r.depth, r.region.id, RiftAffixes.CHAMPION_ITEMS)
+			return
+		end
+	end
+end
+
 function Rift.init()
 	Net.Rift.OnServerEvent:Connect(onAction)
+	Combat.EnemyDied.Event:Connect(onEnemyDied)
 	Combat.EnemyKilled.Event:Connect(onKilled)
 	Loot.Picked.Event:Connect(onPicked)
 	Progress.Looted.Event:Connect(onLooted)

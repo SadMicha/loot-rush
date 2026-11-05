@@ -45,7 +45,7 @@ describe("Nameplate rules", function()
 	it("shows the locked line only up close", function()
 		expect(Nameplate.subAlpha(10)).toBe(1)
 		expect(Nameplate.subAlpha(Nameplate.SUB_FAR)).toBe(0)
-		expect(Nameplate.lockText("Clear depth 5")).toBe("Locked · Clear depth 5")
+		expect(Nameplate.lockText("Clear depth 5")).toBe("Locked - Clear depth 5")
 	end)
 
 	it("fills bars safely", function()
@@ -129,7 +129,7 @@ describe("Nameplates in game", function()
 		-- the Forge is locked for a new hero
 		local forge = workspace.Lumenhaven:FindFirstChild("Station_Forge", true)
 		expect(forge.StationLabel.Sub.Visible).toBe(true)
-		expect(string.find(forge.StationLabel.Sub.Text, "^Locked · ")).toBeTruthy()
+		expect(string.find(forge.StationLabel.Sub.Text, "^Locked %- ")).toBeTruthy()
 
 		-- the stations' prompts are drawn by the game (Gilded Ink card), not Roblox's grey box
 		local prompt = gate:FindFirstChildOfClass("ProximityPrompt")

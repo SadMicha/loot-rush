@@ -18,6 +18,7 @@ export type PlayerAttributes = {
 -- Rift state as player attributes of the Rift owner (Systems/Rift)
 --   RiftPhase: "" (no Rift) | "wave" | "boss" | "clear" (boss dead, choice: deeper/back) | "failed"
 --   RiftDepth, RiftWave, RiftWaves: number · RiftLeft: enemies still alive
+--   RiftAffixes: comma list of the depth's affixes (Shared/RiftAffixes) · RiftReward: card reward line
 
 -- Enemy attributes (on the model, tag "Enemy")
 export type EnemyAttributes = {
@@ -32,6 +33,7 @@ export type EnemyAttributes = {
 --           crit = tier >= 1; critTier (optional, >= 1 only on crits) = overcrit tier, 2 = double crit
 --   proj    { from, to, time, color, size }
 --   nova    { pos, radius, color }
+--   lootburst { pos, flight, arcs: { { to, delay, color, big? } } } - boss loot fountain (owner only)
 --   chain   { points: {Vector3}, color }
 --   death   { pos, color }
 --   levelup { pos, level, who }

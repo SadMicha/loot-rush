@@ -38,7 +38,9 @@ type Drop = {
 local Loot = {
 	-- (player, gold: number, item: Items.Item?) after every pickup, for Systems/Rift
 	Picked = Instance.new("BindableEvent"),
-	VACUUM_DELAY = 1.2, -- seconds after the boss dies before the leftovers fly to the player
+	-- seconds after the boss dies before the leftovers fly to the player: the whole loot burst
+	-- (Config.LOOT_BURST_SPAN) has landed and bounced by then
+	VACUUM_DELAY = Config.LOOT_BURST_SPAN + 0.75,
 }
 
 local PICKUP_RADIUS = 6
@@ -49,7 +51,8 @@ local drops: { Drop } = {}
 local folder: Folder
 local rng = Random.new()
 
-local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.Item?)
+-- at = exact landing spot (boss burst); otherwise a random spot within 3 studs of pos
+local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.Item?, at: Vector3?)
 	local text: string
 	local color: Color3
 	local model: Model
@@ -65,7 +68,9 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	end
 	local part = model.PrimaryPart :: BasePart
 
-	local target = Vector3.new(pos.X + rng:NextNumber(-3, 3), 0.2, pos.Z + rng:NextNumber(-3, 3))
+	local target = if at
+		then Vector3.new(at.X, 0.2, at.Z)
+		else Vector3.new(pos.X + rng:NextNumber(-3, 3), 0.2, pos.Z + rng:NextNumber(-3, 3))
 	local yaw = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	model:PivotTo(CFrame.new(target + Vector3.new(0, 3, 0)) * yaw)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- label and box arrive together
@@ -127,6 +132,92 @@ local function makeDrop(pos: Vector3, owner: Player, gold: number, item: Items.I
 	})
 end
 
+-- Loot burst (boss kills, bonus items): the drops fountain out of `pos` one after another and land
+-- on a ring around it, the best item last. The server only sends one Net.Fx "lootburst" with the
+-- flight paths (the client draws the glowing arcs, FxController) and creates each real drop
+-- when its arc arrives, so nothing tweens over the network.
+type Planned = { gold: number, item: Items.Item?, owner: Player?, landed: boolean? }
+
+-- Burst drops still in the air: Loot.collect (run end, death, leave) takes them too, so nothing
+-- in flight is lost; `landed` stops the drop from also appearing afterwards
+local flying: { Planned } = {}
+
+-- Landing spots and start delays for `n` drops (pure, for tests): evenly spread angles with a
+-- little jitter, coins on the outer ring, items closer in; the delays fit in Config.LOOT_BURST_SPAN
+function Loot.burstPlan(
+	pos: Vector3,
+	n: number,
+	items: number,
+	r: Random
+): { { at: Vector3, delay: number } }
+	local out = {}
+	local flight = Config.LOOT_BURST_FLIGHT
+	local stagger = if n > 1
+		then math.min(Config.LOOT_BURST_STAGGER, (Config.LOOT_BURST_SPAN - flight) / (n - 1))
+		else 0
+	local turn = r:NextNumber(0, math.pi * 2)
+	local minR, maxR = Config.LOOT_BURST_RADIUS_MIN, Config.LOOT_BURST_RADIUS_MAX
+	for i = 1, n do
+		local isItem = i > n - items
+		local a = turn + (i - 1) / n * math.pi * 2 * 1.618 + r:NextNumber(-0.2, 0.2) -- golden spread
+		local dist = if isItem
+			then r:NextNumber(minR, (minR + maxR) / 2)
+			else r:NextNumber((minR + maxR) / 2, maxR)
+		out[i] = {
+			at = Vector3.new(pos.X + math.cos(a) * dist, 0.2, pos.Z + math.sin(a) * dist),
+			delay = (i - 1) * stagger,
+		}
+	end
+	return out
+end
+
+local function burst(pos: Vector3, owner: Player, list: { Planned })
+	-- Coins first, then items from worst to best: the best one lands last
+	table.sort(list, function(a, b)
+		local ra = if a.item then Items.rank(a.item.rarity) else 0
+		local rb = if b.item then Items.rank(b.item.rarity) else 0
+		return ra < rb
+	end)
+	local items = 0
+	for _, d in list do
+		if d.item then
+			items += 1
+		end
+	end
+	local plan = Loot.burstPlan(pos, #list, items, rng)
+	local arcs = {}
+	for i, d in list do
+		local item = d.item
+		arcs[i] = {
+			to = plan[i].at,
+			delay = plan[i].delay,
+			color = if item
+				then Theme.Rarity[item.rarity] or Theme.Rarity.normal
+				else Theme.Color.Gold,
+			big = if item and Items.rank(item.rarity) >= Items.rank("rare") then true else nil,
+		}
+	end
+	Net.Fx:FireClient(owner, "lootburst", {
+		pos = pos,
+		flight = Config.LOOT_BURST_FLIGHT,
+		arcs = arcs,
+	})
+	for i, d in list do
+		d.owner = owner
+		table.insert(flying, d)
+		task.delay(plan[i].delay + Config.LOOT_BURST_FLIGHT, function()
+			local at = table.find(flying, d)
+			if at then
+				table.remove(flying, at)
+			end
+			if not d.landed and owner.Parent then
+				d.landed = true
+				makeDrop(pos, owner, d.gold, d.item, plan[i].at)
+			end
+		end)
+	end
+end
+
 -- What an enemy drops at this depth in this region (pure, for tests)
 -- tier = World Tier of the run (Shared/WorldTiers): higher item level and rarity shift
 function Loot.forDepth(depth: number, regionId: string?, boss: boolean, tier: number?)
@@ -171,6 +262,19 @@ function Loot.starter(given: number, shift: number): Items.RollOpts?
 	return { shift = shift }
 end
 
+-- Bonus of the depth a player's rift is in (Path Card reward and affixes, Systems/Rift):
+-- items/gold = extra shares (0.3 = +30 %), rolls = extra item rolls per normal kill (Big Builds)
+export type RunBonus = { items: number, gold: number, rolls: number }
+local runBonus: { [Player]: RunBonus } = {}
+
+function Loot.setRunBonus(player: Player, bonus: RunBonus?)
+	runBonus[player] = bonus :: any -- nil clears
+end
+
+function Loot.runBonus(player: Player): RunBonus?
+	return runBonus[player]
+end
+
 local function onKilled(
 	player: any,
 	pos: any,
@@ -201,25 +305,49 @@ local function onKilled(
 		local v = owner:GetAttribute(attr)
 		return 1 + (if typeof(v) == "number" then v else 0) / 100
 	end
+	local rb = runBonus[owner]
 	local total = (if typeof(gold) == "number" then math.max(0, gold) else 0)
 		* t.goldMult
 		* bonus("BonusGold") -- pet, passes … (Systems/Boosts)
-	local itemChance = math.min(1, t.itemChance * bonus("BonusItems"))
+		* (1 + (if rb then rb.gold else 0))
+	local itemChance =
+		math.min(1, t.itemChance * bonus("BonusItems") * (1 + (if rb then rb.items else 0)))
 	if boss == true then
+		local list: { Planned } = {}
 		local coins = Config.LOOT_BOSS_GOLD_DROPS
 		for _ = 1, coins do
-			makeDrop(pos, owner, coin(total / coins), nil)
+			table.insert(list, { gold = coin(total / coins) })
 		end
 		-- Table: boss loot at least 1× Rare+
 		for i = 1, t.bossItems do
 			local opts =
 				{ shift = t.shift, min = if i == 1 then "rare" else nil, uniques = t.uniques }
-			makeDrop(pos, owner, 0, Items.roll(t.ilvl, rng, nil, forHero(owner, opts)))
+			table.insert(
+				list,
+				{ gold = 0, item = Items.roll(t.ilvl, rng, nil, forHero(owner, opts)) }
+			)
 		end
+		burst(pos, owner, list)
 		return
 	end
 	if total > 0 then
 		makeDrop(pos, owner, coin(total), nil)
+	end
+	-- Big Builds: extra item rolls per kill, elites included (never a starter drop)
+	for _ = 1, if rb then rb.rolls else 0 do
+		if rng:NextNumber() < itemChance then
+			makeDrop(
+				pos,
+				owner,
+				0,
+				Items.roll(
+					t.ilvl,
+					rng,
+					nil,
+					forHero(owner, { shift = t.shift, uniques = t.uniques })
+				)
+			)
+		end
 	end
 	if elite == true then
 		-- Table: elites drop a fixed number of items (at least Magic)
@@ -259,22 +387,16 @@ local function onKilled(
 	end
 end
 
--- Bonus items (rift variant "Against the Clock"): `count` items of Rare or better at `pos`
+-- Bonus items (rift affix "Against the Clock", Path Card caches, champions): `count` items of
+-- Rare or better at `pos`
 function Loot.bonus(owner: Player, pos: Vector3, depth: number, regionId: string?, count: number)
 	local t = Loot.forDepth(depth, regionId, true, owner:GetAttribute("WorldTier") :: number?)
+	local list: { Planned } = {}
 	for _ = 1, count do
-		makeDrop(
-			pos,
-			owner,
-			0,
-			Items.roll(
-				t.ilvl,
-				rng,
-				nil,
-				forHero(owner, { shift = t.shift, min = "rare", uniques = t.uniques })
-			)
-		)
+		local opts = forHero(owner, { shift = t.shift, min = "rare", uniques = t.uniques })
+		table.insert(list, { gold = 0, item = Items.roll(t.ilvl, rng, nil, opts) })
 	end
+	burst(pos, owner, list)
 end
 
 -- "Bag full" popup for an upgrade that stays on the ground: at most once per BAG_WARN seconds
@@ -359,6 +481,31 @@ function Loot.collect(player: Player): (number, { Items.Item })
 			table.remove(drops, i)
 		end
 	end
+	-- Still flying out of a boss: handed over the same way, and they will not land any more
+	for i = #flying, 1, -1 do
+		local f = flying[i]
+		if f.owner == player then
+			table.remove(flying, i)
+			f.landed = true
+			local d: Drop = {
+				model = nil :: any, -- not used by a silent pickup
+				part = nil :: any,
+				owner = player,
+				gold = f.gold,
+				item = f.item,
+				expires = 0,
+			}
+			if pickup(d, nil) then
+				if f.item then
+					table.insert(items, f.item)
+				else
+					gold += f.gold
+				end
+			elseif f.item then
+				Inventory.salvageLoot(player, f.item)
+			end
+		end
+	end
 	return gold, items
 end
 
@@ -413,6 +560,7 @@ function Loot.init()
 	Combat.EnemyKilled.Event:Connect(onKilled)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		warned[player] = nil
+		runBonus[player] = nil
 	end)
 end
 

@@ -28,6 +28,7 @@ export type Region = {
 	depth: number, -- starting depth of the Rift
 	enemies: { string }, -- enemy mix of the waves
 	bossKind: string, -- boss at the end of every depth
+	bossPool: { string }?, -- rotating bosses instead (Altered World): Atlas.bossFor
 	tint: Color3, -- base color of the region (arena look: Systems/World)
 	bonus: Bonus,
 	rewards: { { icon: string, rarity: string } },
@@ -173,19 +174,29 @@ Atlas.Regions = table.freeze({
 		id = "altered_world",
 		name = "Altered World",
 		levels = "51+",
-		boss = "The Rift",
+		boss = "Altered Bosses",
 		bossIcon = "portal",
 		mods = {
 			{ icon = "portal", text = "Unstable Rifts" },
 			{ icon = "trophy", text = "+20% Gold & Loot" },
 		},
-		desc = "Beyond the last Rift nothing is as it was. All that counts here is how deep you get.",
+		desc = "Beyond the last Rift nothing is as it was. Every depth an Altered boss "
+			.. "wears the face of another region.",
 		pos = Vector2.new(940, 680),
 		color = Color3.fromHex("#B98CFF"),
 		next = {},
 		depth = 26,
 		enemies = { "beetle", "lantern", "snail", "golem", "statue", "wisp" },
 		bossKind = "the_rift",
+		-- Every depth a different boss (docs/specs/ENDGAME.md E3), each with an Altered twist
+		bossPool = {
+			"the_rift",
+			"crystal_king",
+			"shard_worm",
+			"spore_mother",
+			"furnace_lord",
+			"cloud_queen",
+		},
 		tint = Color3.fromHex("#FF8AE0"),
 		bonus = { gold = 0.2, items = 0.2 },
 		rewards = {
@@ -282,6 +293,41 @@ end
 -- Attribute with the deepest start depth per region on the selected World Tier (Systems/Rift)
 function Atlas.startAttr(id: string): string
 	return "AtlasStart_" .. id
+end
+
+-- Boss of a depth in this region, and whether it is an Altered one (rotation). Regions without
+-- a pool always meet their own boss. With a pool, every block of #pool depths (counted from the
+-- region start) meets each boss once in an order seeded by the block, and a block never opens
+-- with the boss that closed the one before: two depths in a row never share a boss.
+local function shuffled(pool: { string }, block: number): { string }
+	local out = table.clone(pool)
+	local rng = Random.new(block * 7919 + 101)
+	for i = #out, 2, -1 do
+		local j = rng:NextInteger(1, i)
+		out[i], out[j] = out[j], out[i]
+	end
+	return out
+end
+
+local function order(pool: { string }, block: number): { string }
+	local out = shuffled(pool, block)
+	if block > 0 and #out > 1 then
+		local prev = shuffled(pool, block - 1)
+		if out[1] == prev[#prev] then
+			out[1], out[2] = out[2], out[1]
+		end
+	end
+	return out
+end
+
+function Atlas.bossFor(r: Region, depth: number): (string, boolean)
+	local pool = r.bossPool
+	if not pool or #pool == 0 then
+		return r.bossKind, false
+	end
+	local step = math.max(0, math.floor(depth) - r.depth)
+	local list = order(pool, step // #pool)
+	return list[step % #pool + 1], true
 end
 
 -- Attribute on the player with the best result per region (set by Systems/Rift)

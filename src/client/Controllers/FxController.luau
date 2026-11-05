@@ -5,9 +5,11 @@
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
@@ -215,6 +217,97 @@ function handlers.chain(d)
 end
 
 -- Kills: the enemy shatters into its own bricks (BrickController, FeelController)
+
+-- ------------------------------------------------------------------ Boss loot burst
+-- Systems/Loot sends the flight paths of a boss's drops; each one flies as a glowing orb on an arc
+-- and ends 3 studs above its spot, where the real drop appears and bounces down (same frame-ish).
+-- One Heartbeat loop moves all orbs and stops when none are left; trails only on medium/high.
+type Orb = { p: Part, from: Vector3, to: Vector3, t0: number, dur: number, big: boolean }
+
+local orbs: { Orb } = {}
+local orbStep: RBXScriptConnection? = nil
+
+local function stepOrbs()
+	local now = os.clock()
+	for i = #orbs, 1, -1 do
+		local o = orbs[i]
+		local u = math.clamp((now - o.t0) / o.dur, 0, 1)
+		local flat = o.from:Lerp(o.to, u)
+		local lift = Config.LOOT_BURST_ARC * 4 * u * (1 - u)
+		o.p.CFrame = CFrame.new(flat + Vector3.new(0, lift, 0))
+		if u >= 1 then
+			if o.big then
+				ring(Vector3.new(o.to.X, 0.3, o.to.Z), 4, o.p.Color, 0.35)
+			end
+			o.p:Destroy()
+			table.remove(orbs, i)
+		end
+	end
+	if #orbs == 0 and orbStep then
+		orbStep:Disconnect()
+		orbStep = nil
+	end
+end
+
+local function launchOrb(from: Vector3, to: Vector3, color: Color3, big: boolean, dur: number)
+	local p =
+		part(Vector3.one * (if big then 1.3 else 0.8), CFrame.new(from), color, Enum.PartType.Ball)
+	local level = Prefs.effectLevel()
+	if level ~= "low" then
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, 0.35, 0)
+		a0.Parent = p
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -0.35, 0)
+		a1.Parent = p
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Color = ColorSequence.new(color)
+		trail.LightEmission = 1
+		trail.FaceCamera = true
+		trail.Lifetime = if big then 0.35 else 0.2
+		trail.Transparency = NumberSequence.new(0.1, 1)
+		trail.Parent = p
+	end
+	if big and level == "high" then
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 10
+		light.Brightness = 2
+		light.Parent = p
+	end
+	table.insert(orbs, { p = p, from = from, to = to, t0 = os.clock(), dur = dur, big = big })
+	if not orbStep then
+		orbStep = RunService.Heartbeat:Connect(stepOrbs)
+	end
+	Debris:AddItem(p, dur + 1) -- safety net if the loop stopped early
+end
+
+function handlers.lootburst(d)
+	local pos, arcs = d.pos, d.arcs
+	if typeof(pos) ~= "Vector3" or typeof(arcs) ~= "table" then
+		return
+	end
+	local flight = if typeof(d.flight) == "number" then math.clamp(d.flight, 0.1, 2) else 0.55
+	local from = pos + Vector3.new(0, 1.5, 0)
+	ring(Vector3.new(pos.X, 0.3, pos.Z), Config.LOOT_BURST_RADIUS_MAX, C.Gold, 0.6)
+	for _, a in arcs do
+		if typeof(a) == "table" and typeof(a.to) == "Vector3" then
+			local color = if typeof(a.color) == "Color3" then a.color else C.Gold
+			local delay = if typeof(a.delay) == "number" then math.clamp(a.delay, 0, 3) else 0
+			task.delay(
+				delay,
+				launchOrb,
+				from,
+				a.to + Vector3.new(0, 3, 0),
+				color,
+				a.big == true,
+				flight
+			)
+		end
+	end
+end
 
 function handlers.levelup(d)
 	local pos = d.pos :: Vector3

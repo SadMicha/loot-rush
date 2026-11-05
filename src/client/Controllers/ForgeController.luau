@@ -17,6 +17,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Intro = require(script.Parent.Parent.UI.Intro)
 local Shape = require(script.Parent.Parent.UI.Shape)
 local Window = require(script.Parent.Parent.UI.Window)
 local InventoryController = require(script.Parent.InventoryController)
@@ -354,11 +355,11 @@ local function renderHeader(it: Items.Item, w: number, worn: boolean)
 	)
 	name.Name = "Name"
 	local sub = string.format(
-		"%s %s · Lv %d%s",
+		"%s %s - Lv %d%s",
 		Items.RarityName[it.rarity] or it.rarity,
 		Items.SlotName[it.slot] or it.slot,
 		it.ilvl,
-		if worn then " · Worn" else ""
+		if worn then " - Worn" else ""
 	)
 	textLine(col, sub, 17, C.Muted, colW, 2)
 	local charges = Items.chargesOf(it)
@@ -595,7 +596,7 @@ local function renderConfirm(it: Items.Item, w: number, h: number)
 	col.Parent = bar
 
 	local go, label = Flat.button(
-		string.format("Forge · %s", Flat.thousands(price)),
+		string.format("Forge - %s", Flat.thousands(price)),
 		"primary",
 		Vector2.new(btnW, 72),
 		Forge.MaterialIcon[action.material]
@@ -752,6 +753,11 @@ function ForgeController.init()
 		key = Enum.KeyCode.B,
 		unlock = "forge",
 		background = "bg_forge",
+	})
+	Intro.attach(win, "introForge", "FORGE", "forge", {
+		"Pick an item, then an action and an affix. Materials come from salvaging.",
+		"Each action uses 0-2 Forge charges. An item without charges is finished.",
+		"Seal locks one affix for good and frees its slot for a new one.",
 	})
 
 	local body = Window.BODY

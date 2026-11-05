@@ -18,6 +18,8 @@
 local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
+local Gear = require(script.Parent.Gear)
+local GearSkins = require(script.Parent.GearSkins)
 local GreatBuild = require(script.Parent.GreatBuild)
 local Items = require(script.Parent.Items)
 local Journey = require(script.Parent.Journey)
@@ -69,6 +71,8 @@ export type Account = {
 	cosmetics: { [string]: boolean }, -- owned cosmetics (Shared/Cosmetics ids)
 	wear: { [string]: string }, -- slot → worn cosmetic id ("" = none)
 	bought: { [string]: boolean }, -- one-time Robux products already bought (Monetization once)
+	gearSkins: { [string]: boolean }, -- owned gear skins (Shared/GearSkins ids)
+	gearWear: { [string]: string }, -- gear slot → worn skin id (missing = the class look)
 	daily: Daily.Data, -- daily reward calendar (Shared/Daily)
 	boards: { [string]: number }, -- best value per leaderboard (Shared/Leaderboard ids)
 	unsent: { [string]: number }, -- bests whose board write is not confirmed yet (retried on join)
@@ -128,6 +132,8 @@ local ACCOUNT_DEFAULTS = {
 	cosmetics = {},
 	wear = { trail = "", aura = "" },
 	bought = {},
+	gearSkins = {},
+	gearWear = {},
 	daily = Daily.fresh(), -- contents checked by Daily.reconcile
 	boards = {},
 	unsent = {},
@@ -374,6 +380,30 @@ function Profile.reconcileAccount(raw: any): Account
 			else ""
 	end
 	data.wear = wear
+	-- Gear skins: known ids kept, unknown ones (newer server) capped; worn skins must be owned and
+	-- fit their slot (the class is checked where it is shown: wear is account-wide)
+	local skins = {}
+	local unknownSkins = 0
+	for key, on in data.gearSkins do
+		if typeof(key) == "string" and #key > 0 and #key <= Profile.MAX_KEY_LEN and on == true then
+			if GearSkins.ById[key] == nil then
+				unknownSkins += 1
+				if unknownSkins > Profile.MAX_FLAGS then
+					continue
+				end
+			end
+			skins[key] = true
+		end
+	end
+	data.gearSkins = skins
+	local gearWear = {}
+	for _, slot in Gear.Slots do
+		local id = data.gearWear[slot]
+		if typeof(id) == "string" and skins[id] and GearSkins.fits(slot, id) then
+			gearWear[slot] = id
+		end
+	end
+	data.gearWear = gearWear
 	data.daily = Daily.reconcile(data.daily)
 	-- Leaderboard bests and unsent writes: only known boards, whole numbers
 	local function boardValues(input: any): { [string]: number }

@@ -1047,7 +1047,7 @@ local function renderBag()
 	local price = Bag.price(bagLevel())
 	bagButton.Visible = price ~= nil
 	if price then
-		bagButtonLabel.Text = `+{Bag.STEP} · {Format.currency(price)}`
+		bagButtonLabel.Text = `+{Bag.STEP} - {Format.currency(price)}`
 		Flat.setEnabled(bagButton, ((player:GetAttribute("Gold") or 0) :: number) >= price)
 	end
 end

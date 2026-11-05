@@ -13,6 +13,7 @@
 
 local Atlas = require(script.Parent.Atlas)
 local Items = require(script.Parent.Items)
+local PathCards = require(script.Parent.PathCards)
 
 export type Materials = { candy: number, shards: number, dust: number }
 
@@ -36,6 +37,7 @@ export type Summary = {
 	gold: number,
 	items: { Items.Item },
 	materials: Materials,
+	cards: { PathCards.Card }?, -- only kind "clear": the Path Cards for the next depth (Systems/Rift)
 }
 
 export type Tally = {

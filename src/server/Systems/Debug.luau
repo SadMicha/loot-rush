@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local CosmeticRules = require(ReplicatedStorage.Shared.Cosmetics)
+local SkinRules = require(ReplicatedStorage.Shared.GearSkins)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
@@ -27,6 +28,7 @@ local Combat = require(script.Parent.Combat)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
 local Data = require(script.Parent.Data)
+local GearSkins = require(script.Parent.GearSkins)
 local GreatBuild = require(script.Parent.GreatBuild)
 local Leaderboard = require(script.Parent.Leaderboard)
 local Inventory = require(script.Parent.Inventory)
@@ -196,6 +198,10 @@ local COMMANDS: { [string]: { range: { number }?, run: (Player, number) -> () } 
 				Cosmetics.give(player, c.id)
 			end
 			Cosmetics.sync(player)
+			for _, skin in SkinRules.List do -- every gear skin too (season ones included)
+				GearSkins.give(player, skin.id)
+			end
+			GearSkins.sync(player)
 		end,
 	},
 	stance = {

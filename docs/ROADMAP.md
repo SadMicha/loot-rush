@@ -22,7 +22,7 @@ Nothing counts as ✅ until it has been played (`docs/SMOKE-TEST.md`, `docs/TEST
 | Saving | ProfileStore 1.0.3, store `LootRush_Profile_v3`, account → heroes (v4) | 🔧 (`TEST-RELEASE` saving part open) |
 | Onboarding | Quest chain, waypoint beam, first drops, callout hints, loading screen, quest ticker, level-up card | 🔧 |
 | Retention | Leaderboard (§4.1), Daily rewards (§4.2), movement check | 🔧 |
-| Shop | Robux shop (all 11 products + 3 passes created), Market, cosmetics, pets | 🔧 |
+| Shop | Robux shop (all 11 products + 3 passes created), Market, cosmetics, pets; gear skins (28), sets, rotating Daily Shop (4 daily, 2 weekly), Beacon Dawn season shop (2026-11-05; 4 Robux set IDs pending) | 🔧 |
 | Audio and settings | All sound ids, music, settings window (volumes, shake, damage numbers, quality, HUD scale) | 🔧 |
 | Tooling | `tools/check.sh`, Lune sandbox, headless UI check, CI in 3 shards, auto-publish to the test place | ✅ runs in CI |
 
