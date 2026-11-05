@@ -354,11 +354,11 @@ local function renderHeader(it: Items.Item, w: number, worn: boolean)
 	)
 	name.Name = "Name"
 	local sub = string.format(
-		"%s %s · Lv %d%s",
+		"%s %s - Lv %d%s",
 		Items.RarityName[it.rarity] or it.rarity,
 		Items.SlotName[it.slot] or it.slot,
 		it.ilvl,
-		if worn then " · Worn" else ""
+		if worn then " - Worn" else ""
 	)
 	textLine(col, sub, 17, C.Muted, colW, 2)
 	local charges = Items.chargesOf(it)
@@ -595,7 +595,7 @@ local function renderConfirm(it: Items.Item, w: number, h: number)
 	col.Parent = bar
 
 	local go, label = Flat.button(
-		string.format("Forge · %s", Flat.thousands(price)),
+		string.format("Forge - %s", Flat.thousands(price)),
 		"primary",
 		Vector2.new(btnW, 72),
 		Forge.MaterialIcon[action.material]

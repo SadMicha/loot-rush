@@ -142,7 +142,7 @@ end
 
 -- Text under a locked station's name: the hint without a doubled "Locked"
 function Nameplate.lockText(hint: string): string
-	return "Locked · " .. hint
+	return "Locked - " .. hint
 end
 
 -- Bar fill 0..1 (life or shield over max life); bad numbers = empty
