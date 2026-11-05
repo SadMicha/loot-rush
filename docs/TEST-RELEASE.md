@@ -13,7 +13,7 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 5 | Rift | Fight an elite (name prefix, e.g. "Fast", "Shielded") | Modifier is visible and works (speed, shield, life steal, frozen aura, explosion on death); better loot |
 | 6 | Rift | Reach the boss | Intro line, phase changes at 66 % and 33 % (adds, enrage), boss phase sound only near you |
 | 7 | Rift result | Finish the run | Summary with loot; "Deeper (Depth N)" and "Back to Hub"; in the hub the **hub light** is back |
-| 8 | Several runs | Watch the run start toast | Variants show up (swarm, elite hunt, treasure goblin, timed) and play differently |
+| 8 | Several runs | Altered World: pick Path Cards after bosses | Affixes (swarm, elite hunt, goblin, timed, ...) play differently; other regions show only "Deeper" |
 | 9 | Rift after 5 cleared depths in a region | Look at the arena decoration and enemies | The Smoothing: fewer grey smooth enemies and props, studs and colour come back |
 | 10 | Rift | Dbg "Fill Rush" (or fill the meter by kills) | Stud Rush starts by itself: toast with the buffs, Rush icon with seconds in the buff bar, glow, faster movement and attacks, meter drains, ends after the timer; kills during the Rush extend it a little; leaving the rift ends it |
 | 11 | Hub | Dbg "Spell Stones", Skills window | Socket up to 3 stones into a skill; the effect shows in the next rift; a stone can only sit in one skill |

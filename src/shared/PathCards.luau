@@ -1,6 +1,7 @@
 --!strict
 -- Path Cards (docs/specs/ENDGAME.md E1, docs/GAMEPLAY.md "Path Cards"): after a boss the player
--- picks the next depth from three cards instead of one "Deeper" button. A card names the depth's
+-- picks the next depth from three cards instead of one "Deeper" button. End game only: Systems/Rift
+-- rolls cards just in regions with Atlas `pathCards` (the Altered World, from depth 26). A card names the depth's
 -- affixes (Shared/RiftAffixes) and the reward they pay; more (and harder) affixes pay more.
 --   card 1: always the safe one, no affix, a small gold bonus
 --   card 2: one affix
@@ -23,7 +24,7 @@ export type Bonus = { items: number, gold: number, cache: number }
 local PathCards = {}
 
 PathCards.COUNT = 3
-PathCards.FROM_DEPTH = 3 -- the first depths stay plain (onboarding): no cards before this depth
+PathCards.FROM_DEPTH = 3 -- floor for roll(); the Altered World starts far deeper (depth 26)
 PathCards.TWO_FROM = 10 -- the third card carries two affixes from this depth on
 PathCards.ITEMS_PER_WEIGHT = 0.15 -- item chance bonus per weight point
 PathCards.GOLD_PER_WEIGHT = 0.2 -- gold bonus per weight point

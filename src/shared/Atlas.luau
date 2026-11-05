@@ -29,6 +29,7 @@ export type Region = {
 	enemies: { string }, -- enemy mix of the waves
 	bossKind: string, -- boss at the end of every depth
 	bossPool: { string }?, -- rotating bosses instead (Altered World): Atlas.bossFor
+	pathCards: boolean?, -- Path Cards after every boss (end game only: Altered World, Shared/PathCards)
 	tint: Color3, -- base color of the region (arena look: Systems/World)
 	bonus: Bonus,
 	rewards: { { icon: string, rarity: string } },
@@ -188,6 +189,7 @@ Atlas.Regions = table.freeze({
 		depth = 26,
 		enemies = { "beetle", "lantern", "snail", "golem", "statue", "wisp" },
 		bossKind = "the_rift",
+		pathCards = true, -- the end game: pick the next depth from three Path Cards
 		-- Every depth a different boss (docs/specs/ENDGAME.md E3), each with an Altered twist
 		bossPool = {
 			"the_rift",
