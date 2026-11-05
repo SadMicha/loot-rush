@@ -67,7 +67,6 @@ Settings.VOLUMES = table.freeze({ "master", "music", "sfx", "ambience", "ui" })
 
 -- Shown under "About" in the window (the build number comes from game.PlaceVersion)
 Settings.GAME_VERSION = Changelog.latest().version
-Settings.CREDITS = "Made by SadMicha"
 
 -- Snaps a number to the step grid of `def` (from min) and clamps it
 local function snap(def: Def, v: number): number
