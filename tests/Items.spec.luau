@@ -246,15 +246,15 @@ describe("Items.upgradeMarks", function()
 		expect(ups).toBe(2)
 	end)
 
-	it("marks only the best upgrade per slot, other upgrades get no marker", function()
+	it("marks only the best upgrade per slot up, other upgrades side", function()
 		local worn = item("w", "ring", { { stat = "crit", value = 4 } })
 		local good = item("a", "ring", { { stat = "crit", value = 6 } })
 		local best = item("b", "ring", { { stat = "crit", value = 9 } })
 		local fine = item("c", "ring", { { stat = "crit", value = 5 } })
 		local marks, ups = Items.upgradeMarks({ good, best, fine }, { ring = worn })
 		expect(marks.b).toBe("up")
-		expect(marks.a).toBe(nil)
-		expect(marks.c).toBe(nil)
+		expect(marks.a).toBe("side")
+		expect(marks.c).toBe("side")
 		expect(ups).toBe(1)
 	end)
 
@@ -264,8 +264,8 @@ describe("Items.upgradeMarks", function()
 		local mid = item("c", "boots", { { stat = "speed", value = 2 } })
 		local marks, ups = Items.upgradeMarks({ low, high, mid }, {})
 		expect(marks.b).toBe("up")
-		expect(marks.a).toBe(nil)
-		expect(marks.c).toBe(nil)
+		expect(marks.a).toBe("side")
+		expect(marks.c).toBe("side")
 		expect(ups).toBe(1)
 	end)
 
@@ -317,7 +317,7 @@ describe("Items.upgradeMarks", function()
 					perSlot[it.slot] = it
 					count += 1
 				else
-					expect(marks[it.id]).toBe(nil)
+					expect(marks[it.id]).toBe("side") -- every wearable piece carries a marker
 				end
 			end
 			expect(ups).toBe(count)

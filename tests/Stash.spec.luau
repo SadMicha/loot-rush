@@ -201,6 +201,24 @@ describe("Stash server and window", function()
 		expect(sim.player.PlayerGui.LootRushStash.Enabled).toBe(true)
 		expect(cells("BagItem")).toBe(3)
 		expect(cells("StashItem")).toBe(0)
+		-- every wearable bag item carries an upgrade marker (up, side or down), never none
+		local gui = sim.player.PlayerGui.LootRushStash
+		local kinds = {}
+		for _, d in gui:GetDescendants() do
+			if d.Name == "BagItem" then
+				local mark = d:FindFirstChild("Upgrade")
+				expect(mark).never.toBeNil()
+				local k = mark:GetAttribute("Kind")
+				kinds[k] = (kinds[k] or 0) + 1
+			end
+		end
+		expect((kinds.up or 0) >= 1).toBe(true)
+		-- mouse: the hint talks about hovering, the bag grid has room for the edge glow
+		expect(gui:FindFirstChild("Meta", true).Text).toBe(
+			"Click an item to move it. Hover to see its stats."
+		)
+		local scroll = gui:FindFirstChild("BagScroll", true)
+		expect(scroll:FindFirstChildOfClass("UIPadding").PaddingLeft.Offset >= 10).toBe(true)
 
 		-- the same item twice in a row (double tap, lag, exploit): stored once
 		client(function(Net)
