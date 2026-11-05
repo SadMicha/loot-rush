@@ -39,6 +39,8 @@ export type Owner = {
 
 Store.Tabs = table.freeze({
 	{ id = "featured", name = "Featured", icon = "crown" },
+	-- Rotating offers for Soulstars (Shared/ShopRotation, gear skins: Shared/GearSkins)
+	{ id = "daily", name = "Daily Shop", icon = "chest" },
 	{ id = "soulstars", name = "Soulstars", icon = "soulstar" },
 	{ id = "gold", name = "Gold", icon = "gold" },
 	{ id = "cosmetics", name = "Cosmetics", icon = "wings" },

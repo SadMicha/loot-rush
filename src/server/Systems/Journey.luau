@@ -17,6 +17,7 @@ local Actions = require(script.Parent.Parent.Util.Actions)
 local RateLimit = require(script.Parent.Parent.Util.RateLimit)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Data = require(script.Parent.Data)
+local GearSkins = require(script.Parent.GearSkins)
 local Inventory = require(script.Parent.Inventory)
 local Progress = require(script.Parent.Progress)
 local Shop = require(script.Parent.Shop)
@@ -67,6 +68,7 @@ function Journey.grant(player: Player, reward: Rules.Reward, sku: string?): bool
 		Cosmetics.give(player, r.cosmetic)
 		Cosmetics.sync(player)
 	end
+	GearSkins.check(player) -- free gear skins of season track steps and Great Build totals
 	return true
 end
 
@@ -110,6 +112,7 @@ function Journey.touch(player: Player)
 		pending[player] = nil
 		local profile = Data.get(player)
 		if player.Parent and profile then
+			GearSkins.check(player) -- free gear skins for depth, bosses, guide, daily claims
 			local ready = Rules.readyCount(Rules.facts(profile), profile.journey)
 			if ready ~= lastReady[player] then
 				Journey.sync(player)

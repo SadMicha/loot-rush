@@ -23,6 +23,11 @@ Monetization.ProductIds = table.freeze({
 	pack_frost = 3727985015,
 	pack_void = 3727985016,
 	starter = 3727985017,
+	-- Gear skin sets (Shared/GearSkins.Sets): 0 until the "Create Robux products" workflow ran
+	skinset_paladin = 0,
+	skinset_wildwood = 0,
+	skinset_stormlord = 0,
+	skinset_elder_spore = 0,
 } :: { [string]: number })
 
 -- Game passes (bought once). Key = Monetization.Passes[].key
@@ -42,6 +47,7 @@ export type Product = {
 	soulstars: number?,
 	gold: number?, -- at depth 1
 	cosmetics: { string }?, -- Shared/Cosmetics ids
+	skins: { string }?, -- Shared/GearSkins ids (an owned piece is refunded at its Soulstar price)
 	once: boolean?, -- one per account (the shop shows "Owned" after it)
 	refund: number?, -- Soulstars for each cosmetic of the pack the player already owns
 }
@@ -75,6 +81,31 @@ local PRODUCTS: { Product } = {
 		cosmetics = { "void_trail", "void_aura" },
 		refund = 400,
 	},
+	-- Gear skin sets: Robux = GearSkins.robuxFor(set Soulstar price), checked in tests/GearSkins
+	{
+		key = "skinset_paladin",
+		id = 0,
+		robux = 549,
+		skins = { "paladin_helm", "paladin_plate", "paladin_gauntlets" },
+	},
+	{
+		key = "skinset_wildwood",
+		id = 0,
+		robux = 549,
+		skins = { "wildwood_hood", "wildwood_jerkin", "wildwood_boots" },
+	},
+	{
+		key = "skinset_stormlord",
+		id = 0,
+		robux = 549,
+		skins = { "stormlord_hat", "stormlord_robe", "stormlord_amulet" },
+	},
+	{
+		key = "skinset_elder_spore",
+		id = 0,
+		robux = 549,
+		skins = { "elder_spore_cap", "elder_spore_robe", "elder_spore_belt" },
+	},
 	{
 		key = "starter",
 		id = 0,
@@ -92,6 +123,9 @@ for _, p in PRODUCTS do
 	p.id = Monetization.ProductIds[p.key] or 0
 	if p.cosmetics then
 		table.freeze(p.cosmetics)
+	end
+	if p.skins then
+		table.freeze(p.skins)
 	end
 	productByKey[p.key] = table.freeze(p)
 end

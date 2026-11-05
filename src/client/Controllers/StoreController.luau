@@ -1,7 +1,9 @@
 --!strict
 -- Shop window = the Robux shop (bar button "Shop", key P, the + on the gold and Soulstar capsules).
--- Tabs: Featured (hero banner + hot offers), Soulstars, Gold, Cosmetics (preview + wardrobe + packs),
--- Passes. The Cosmetics tab starts with a turning 3D preview of the own hero (UI/CosmeticPreview):
+-- Tabs: Featured (hero banner + hot offers), Daily Shop (rotating Soulstar offers: 4 daily, 2 weekly
+-- sets, the season shop; Shared/ShopRotation), Soulstars, Gold, Cosmetics (preview + wardrobe +
+-- gear skins + packs), Passes. Gear skins (Shared/GearSkins) are bought for Soulstars via Net.Skin
+-- (the server checks rotation, season and price) or as a Robux set. The Cosmetics tab starts with a turning 3D preview of the own hero (UI/CosmeticPreview):
 -- it shows the worn look, or a pack's cosmetics after "Try on" on its card.
 -- Catalog and button states: Shared/Store; what a purchase gives and every Robux ID:
 -- Shared/Monetization. The client only opens the Roblox purchase dialog; the server books the
@@ -17,8 +19,13 @@ local TweenService = game:GetService("TweenService")
 
 local Assets = require(ReplicatedStorage.Shared.UI.Assets)
 local CosmeticRules = require(ReplicatedStorage.Shared.Cosmetics)
+local Gear = require(ReplicatedStorage.Shared.Gear)
+local Items = require(ReplicatedStorage.Shared.Items)
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Rotation = require(ReplicatedStorage.Shared.ShopRotation)
+local Seasons = require(ReplicatedStorage.Shared.Seasons)
+local SkinRules = require(ReplicatedStorage.Shared.GearSkins)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
@@ -29,6 +36,7 @@ local Shape = require(script.Parent.Parent.UI.Shape)
 local Spring = require(script.Parent.Parent.UI.Spring)
 local Window = require(script.Parent.Parent.UI.Window)
 local MarketController = require(script.Parent.MarketController)
+local QuestController = require(script.Parent.QuestController)
 
 local StoreController = {}
 
@@ -59,6 +67,17 @@ local bought: { [string]: boolean } = {}
 -- Cosmetics preview: built once, moved into each new render of the Cosmetics tab
 local preview: CosmeticPreview.Preview? = nil
 local trying: { [string]: string }? = nil -- slot → id of a pack being tried on (nil = own look)
+-- Gear skins (Net.SkinState): owned ids, worn slot → id, skins being tried on (nil = own look)
+local ownedSkins: { [string]: boolean } = {}
+local gearWear: { [string]: string } = {}
+local tryingGear: { [string]: string }? = nil
+local gearInfo = "" -- hint line above the gear wardrobe (tapped locked skin)
+-- Daily Shop countdowns (text refreshed once a second while the window is open)
+type Countdown = { label: TextLabel, text: () -> string }
+local countdowns: { Countdown } = {}
+local countdownAt = 0
+local renderedDay = -1
+local renderedWeek = -1
 
 local owner: Store.Owner = {
 	pass = function(key: string): boolean
@@ -97,6 +116,18 @@ local function tick()
 			wheel.Rotation = (t * S.RaySpin * speed) % 360
 		else
 			rays[wheel] = nil
+		end
+	end
+	if t - countdownAt >= 1 then
+		countdownAt = t
+		for _, cd in countdowns do
+			cd.label.Text = cd.text()
+		end
+		if tab == "daily" then
+			local now = workspace:GetServerTimeNow()
+			if Rotation.dayOf(now) ~= renderedDay or Rotation.weekOf(now) ~= renderedWeek then
+				task.defer(StoreController.render, true) -- the offers rotated
+			end
 		end
 	end
 	for _, p in pulses do
@@ -392,6 +423,7 @@ local function card(offer: Store.Offer, w: number, h: number): Frame
 			tab = "cosmetics"
 			tabs.select(tab)
 			trying = set
+			tryingGear = nil
 			StoreController.render() -- to the top: the preview is the first thing on the tab
 		end)
 		try.Parent = f
@@ -550,11 +582,23 @@ local function shown(slot: string): string
 	return wear[slot] or ""
 end
 
+-- Gear skins the preview shows: worn ones, or the ones being tried on over them
+local function shownGear(): { [string]: string }
+	local out = table.clone(gearWear)
+	if tryingGear then
+		for slot, id in tryingGear do
+			out[slot] = id
+		end
+	end
+	return out
+end
+
 -- Preview stage (left) with a caption of what it shows
 local function stage(): Frame
 	local p: CosmeticPreview.Preview = preview or CosmeticPreview.new(S.Preview)
 	preview = p
 	p.show(shown("aura"), shown("trail"))
+	p.showGear(shownGear())
 	local names = {}
 	for _, slot in CosmeticRules.Slots do
 		local c = CosmeticRules.ById[shown(slot)]
@@ -566,14 +610,22 @@ local function stage(): Frame
 	if caption then
 		caption:Destroy()
 	end
-	local text = if trying
+	if tryingGear then
+		for _, id in tryingGear do
+			local skin = SkinRules.ById[id]
+			if skin then
+				table.insert(names, skin.name)
+			end
+		end
+	end
+	local text = if trying or tryingGear
 		then "Trying on: " .. table.concat(names, " + ")
 		elseif #names > 0 then table.concat(names, " + ")
 		else "Nothing worn yet"
 	local label = Flat.text(
 		text,
 		18,
-		if trying then C.GoldHi else C.Text,
+		if trying or tryingGear then C.GoldHi else C.Text,
 		Theme.Font.UI,
 		Enum.TextXAlignment.Center
 	)
@@ -678,12 +730,495 @@ local function wardrobe(order: number): Frame
 	return outer
 end
 
+-- ------------------------------------------------------------------ Gear skins
+local function heroClass(): string?
+	local c = player:GetAttribute("Class")
+	return if typeof(c) == "string" then c else nil
+end
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+-- Try gear skins on in the preview (Cosmetics tab)
+local function tryGear(skins: { [string]: string })
+	tab = "cosmetics"
+	tabs.select(tab)
+	trying = nil
+	tryingGear = skins
+	StoreController.render()
+end
+
+local function buySkin(kind: string, id: string, price: number)
+	if os.clock() - promptAt < 1 then
+		return
+	end
+	promptAt = os.clock()
+	if number("Soulstars") < price then
+		StoreController.open("soulstars")
+		QuestController.toast("Not enough Soulstars", C.Danger)
+		return
+	end
+	Net.Skin:FireServer("buy", kind, id)
+end
+
+local function countdown(label: TextLabel, text: () -> string)
+	label.Text = text()
+	table.insert(countdowns, { label = label, text = text })
+end
+
+-- Small chip (top right of a card): "Leaves in 2d 4h", "Season only"
+local function chip(text: string, color: Color3): Frame
+	local f = Instance.new("Frame")
+	f.Name = "Chip"
+	f.AutomaticSize = Enum.AutomaticSize.X
+	f.Size = UDim2.fromOffset(0, 32)
+	f.BackgroundColor3 = F.Surface0
+	f.BackgroundTransparency = 0.15
+	f.BorderSizePixel = 0
+	f.ZIndex = 8
+	Flat.corner(f, F.Radius.M)
+	Flat.stroke(f, color, 1.5, 0.1)
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 12)
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.Parent = f
+	local t = Flat.text(text, 15, color, Theme.Font.UI, Enum.TextXAlignment.Center)
+	t.Name = "Text"
+	t.AutomaticSize = Enum.AutomaticSize.X
+	t.Size = UDim2.fromScale(0, 1)
+	t.ZIndex = 9
+	t.Parent = f
+	return f
+end
+
+type SkinOffer = {
+	kind: string, -- "skin" | "set" | "cosmetic"
+	id: string,
+	name: string,
+	rarity: string,
+	icon: string,
+	line: string, -- what it is ("Helmet · Knight only")
+	price: number, -- Soulstars for this player (0 = owned)
+	owned: boolean,
+	product: Monetization.Product?,
+	season: string?,
+	tryOn: (() -> ())?,
+}
+
+local function offerOf(kind: string, id: string): SkinOffer?
+	if kind == "skin" then
+		local s = SkinRules.ById[id]
+		if not s or not s.price then
+			return nil
+		end
+		local cls = SkinRules.className(s)
+		return {
+			kind = kind,
+			id = id,
+			name = s.name,
+			rarity = s.rarity,
+			icon = s.icon,
+			line = (Items.SlotName[s.slot] or s.slot)
+				.. (if cls then " · " .. cls .. " only" else ""),
+			price = s.price,
+			owned = ownedSkins[id] == true,
+			season = s.season,
+			tryOn = function()
+				tryGear({ [s.slot] = id })
+			end,
+		} :: SkinOffer
+	elseif kind == "set" then
+		local set = SkinRules.SetById[id]
+		if not set then
+			return nil
+		end
+		local price = SkinRules.setPrice(set, function(piece)
+			return ownedSkins[piece] == true
+		end)
+		return {
+			kind = kind,
+			id = id,
+			name = set.name,
+			rarity = set.rarity,
+			icon = set.icon,
+			line = set.text,
+			price = price,
+			owned = price <= 0,
+			product = if set.product then Monetization.ProductByKey[set.product] else nil,
+			season = set.season,
+			tryOn = function()
+				local skins = {}
+				for _, piece in set.pieces do
+					local s = SkinRules.ById[piece]
+					skins[s.slot] = piece
+				end
+				tryGear(skins)
+			end,
+		} :: SkinOffer
+	end
+	local c = CosmeticRules.ById[id]
+	if not c or not c.soulstars then
+		return nil
+	end
+	return {
+		kind = kind,
+		id = id,
+		name = c.name,
+		rarity = c.rarity,
+		icon = c.icon,
+		line = CosmeticRules.SlotName[c.slot] or c.slot,
+		price = c.soulstars,
+		owned = ownedCosmetics[id] == true,
+		tryOn = function()
+			local set: { [string]: string } = { trail = wear.trail or "", aura = wear.aura or "" }
+			set[c.slot] = id
+			tab = "cosmetics"
+			tabs.select(tab)
+			tryingGear = nil
+			trying = set
+			StoreController.render()
+		end,
+	} :: SkinOffer
+end
+
+-- Soulstar button (and a Robux button for sets with a bundle product)
+local function skinButtons(o: SkinOffer, width: number): Frame
+	local row = Flat.frame(UDim2.fromOffset(width, S.ButtonH))
+	row.Name = "Buttons"
+	local rl = Kit.list(row, Enum.FillDirection.Horizontal, 12, Enum.VerticalAlignment.Center)
+	rl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	if o.owned then
+		local b, label = Flat.button("Owned", "secondary", Vector2.new(width, S.ButtonH))
+		b.Name = "Buy"
+		Flat.setEnabled(b, false)
+		label.TextColor3 = S.Owned
+		label:SetAttribute("BaseColor", S.Owned)
+		b.Parent = row
+		return row
+	end
+	local product = o.product
+	local w = if product then math.floor((width - 12) / 2) else width
+	local b, label =
+		Flat.button(Format.currency(o.price), "primary", Vector2.new(w, S.ButtonH), "soulstar")
+	b.Name = "Buy"
+	b.LayoutOrder = 1
+	label.FontFace = Theme.Font.Number
+	label.TextSize = Kit.fontSize(math.min(24, S.ButtonH * 0.36))
+	b.Activated:Connect(function()
+		buySkin(o.kind, o.id, o.price)
+	end)
+	b.Parent = row
+	if product then
+		local live = product.id > 0
+		local rb, rlabel = Flat.button(
+			if live then Flat.thousands(product.robux) else "Soon",
+			if live then "secondary" else "ghost",
+			Vector2.new(w, S.ButtonH)
+		)
+		rb.Name = "BuyRobux"
+		rb.LayoutOrder = 2
+		rlabel.FontFace = Theme.Font.Number
+		local r = rb:FindFirstChild("Row")
+		if r then
+			local glyph = robuxGlyph(math.floor(S.ButtonH * 0.42), C.Text)
+			glyph.LayoutOrder = 1
+			glyph.Parent = r
+		end
+		if live then
+			rb.Activated:Connect(function()
+				if os.clock() - promptAt >= 1 then
+					promptAt = os.clock()
+					MarketplaceService:PromptProductPurchase(player, product.id)
+				end
+			end)
+		else
+			Flat.setEnabled(rb, false)
+		end
+		rb.Parent = row
+	end
+	return row
+end
+
+local function skinCard(
+	o: SkinOffer,
+	w: number,
+	h: number,
+	chipText: (() -> string)?,
+	chipColor: Color3?
+): Frame
+	local f = Instance.new("Frame")
+	f.Name = "Skin_" .. o.kind .. "_" .. o.id
+	f.Size = UDim2.fromOffset(w, h)
+	Shape.cell(f, 66, { rarity = o.rarity })
+	local inner = w - 2 * PAD
+	local col = Flat.frame(UDim2.fromOffset(inner, 0), UDim2.fromOffset(PAD, 14))
+	col.Name = "Info"
+	col.AutomaticSize = Enum.AutomaticSize.Y
+	col.ZIndex = 3
+	local layout = Kit.list(col, Enum.FillDirection.Vertical, 6, Enum.VerticalAlignment.Top)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local glow = F.Glow[o.rarity] or F.Glow.normal
+	local zone = art(o.icon, o.rarity, S.ArtSize, glow.spin)
+	zone.LayoutOrder = 1
+	zone.Parent = col
+	local name = Window.heading(o.name, 22, Theme.Rarity[o.rarity] or C.Text)
+	name.LayoutOrder = 2
+	name.Parent = col
+	local line = wrapText(o.line, 18, C.Muted, inner)
+	line.LayoutOrder = 3
+	line.Parent = col
+	col.Parent = f
+	if o.tryOn then
+		local try = Flat.button("Try on", "secondary", Vector2.new(124, 44), "wings")
+		try.Name = "TryOn"
+		try.AnchorPoint = Vector2.new(1, 0)
+		try.Position = UDim2.new(1, -14, 0, 14)
+		try.ZIndex = 6
+		try.Activated:Connect(o.tryOn)
+		try.Parent = f
+	end
+	if chipText then
+		local c = chip(chipText(), chipColor or C.GoldHi)
+		c.Position = UDim2.fromOffset(-8, -12)
+		c.Parent = f
+		local t = c:FindFirstChild("Text")
+		if t and t:IsA("TextLabel") then
+			countdown(t, chipText)
+		end
+	end
+	local buttons = skinButtons(o, inner)
+	buttons.AnchorPoint = Vector2.new(0.5, 1)
+	buttons.Position = UDim2.new(0.5, 0, 1, -PAD)
+	buttons.ZIndex = 5
+	buttons.Parent = f
+	return f
+end
+
+local function skinGrid(cards: { Frame }, order: number): Frame
+	local rows = math.max(1, math.ceil(#cards / 3))
+	local height = GRID_TOP + rows * S.CardH + (rows - 1) * (S.Gap + 8)
+	local g = Flat.frame(UDim2.fromOffset(PAGE_W, height))
+	g.Name = "Grid"
+	g.LayoutOrder = order
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, GRID_TOP)
+	pad.PaddingLeft = UDim.new(0, GRID_LEFT)
+	pad.Parent = g
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.fromOffset(CARD_W, S.CardH)
+	layout.CellPadding = UDim2.fromOffset(S.Gap, S.Gap + 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = g
+	for i, c in cards do
+		c.LayoutOrder = i
+		c.Parent = g
+	end
+	return g
+end
+
+-- Section title with a live countdown on the right ("Refreshes in 5h 12m")
+local function timedTitle(text: string, order: number, timer: () -> string): Frame
+	local f = sectionTitle(text, order)
+	local t = Flat.text(timer(), 18, C.GoldHi, Theme.Font.UI, Enum.TextXAlignment.Right)
+	t.Name = "RotationTimer"
+	t.AnchorPoint = Vector2.new(1, 0)
+	t.Position = UDim2.new(1, -16, 0, 6)
+	t.Parent = f
+	countdown(t, timer)
+	return f
+end
+
+local function dailyPage()
+	local t = now()
+	renderedDay, renderedWeek = Rotation.dayOf(t), Rotation.weekOf(t)
+	timedTitle("Today's offers", 1, function()
+		local d = Rotation.leavesIn(now())
+		return "Refreshes in " .. Seasons.countdown(d)
+	end).Parent =
+		page
+	local cards = {}
+	for _, e in Rotation.daily(renderedDay) do
+		local o = offerOf(e.kind, e.id)
+		if o then
+			table.insert(cards, skinCard(o, CARD_W, S.CardH))
+		end
+	end
+	skinGrid(cards, 2).Parent = page
+	timedTitle("Featured this week", 3, function()
+		local _, w = Rotation.leavesIn(now())
+		return "Leaves in " .. Seasons.countdown(w)
+	end).Parent =
+		page
+	local weekly = {}
+	for _, e in Rotation.weekly(renderedWeek) do
+		local o = offerOf(e.kind, e.id)
+		if o then
+			table.insert(
+				weekly,
+				skinCard(o, CARD_W, S.CardH, function()
+					local _, w = Rotation.leavesIn(now())
+					return "Leaves in " .. Seasons.countdown(w)
+				end)
+			)
+		end
+	end
+	skinGrid(weekly, 4).Parent = page
+	-- Season shop: only while the season is live, never in the rotation
+	local season = Seasons.Current
+	if SkinRules.available(season.id, t) then
+		local function seasonLeft(): string
+			if season.ends == nil then
+				return "Season only"
+			end
+			return "Season only, ends in "
+				.. Seasons.countdown(Seasons.secondsLeftFor(season.starts, season.ends, now()))
+		end
+		timedTitle(season.name .. ": " .. (season.theme or ""), 5, seasonLeft).Parent = page
+		local list = {}
+		for _, set in SkinRules.Sets do
+			if set.season == season.id then
+				for _, piece in set.pieces do
+					local o = offerOf("skin", piece)
+					if o then
+						table.insert(list, skinCard(o, CARD_W, S.CardH, seasonLeft, C.Cyan))
+					end
+				end
+				local o = offerOf("set", set.id)
+				if o then
+					table.insert(list, skinCard(o, CARD_W, S.CardH, seasonLeft, C.Cyan))
+				end
+			end
+		end
+		skinGrid(list, 6).Parent = page
+	end
+	local note = wrapText(
+		"Gear skins change only the look of a slot, never its stats. They show on equipped gear and keep its rarity glow.",
+		18,
+		C.Muted,
+		PAGE_W - 20
+	)
+	note.Name = "SkinNote"
+	note.LayoutOrder = 7
+	note.Parent = page
+end
+
+-- Wardrobe of gear skins (Cosmetics tab): per slot the class look, owned skins and locked ones
+local GEAR_CELL = 96
+local function gearWardrobe(order: number): Frame
+	local outer = Flat.frame(UDim2.fromOffset(PAGE_W, 0))
+	outer.Name = "GearSkins"
+	outer.LayoutOrder = order
+	outer.AutomaticSize = Enum.AutomaticSize.Y
+	local ol = Kit.list(outer, Enum.FillDirection.Vertical, 14, Enum.VerticalAlignment.Top)
+	ol.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	local pad0 = Instance.new("UIPadding")
+	pad0.PaddingLeft = UDim.new(0, 10)
+	pad0.Parent = outer
+	local info = Flat.text(
+		if gearInfo ~= "" then gearInfo else "Tap a skin to wear it. Locked ones: tap to try on.",
+		18,
+		if gearInfo ~= "" then C.GoldHi else C.Muted,
+		Theme.Font.Body
+	)
+	info.Name = "Info"
+	info.LayoutOrder = 0
+	info.Parent = outer
+	if tryingGear then
+		local back = Flat.button("Back to my look", "secondary", Vector2.new(260, 56), "close")
+		back.Name = "BackToGear"
+		back.LayoutOrder = 1
+		back.Activated:Connect(function()
+			tryingGear = nil
+			StoreController.render(true)
+		end)
+		back.Parent = outer
+	end
+	local class = heroClass()
+	for i, slot in Gear.Slots do
+		local row = Flat.frame(UDim2.fromOffset(PAGE_W - 20, 0))
+		row.Name = "Gear_" .. slot
+		row.LayoutOrder = 1 + i
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		local label = Flat.text(string.upper(Items.SlotName[slot] or slot), 20, C.Muted)
+		label.Size = UDim2.fromOffset(110, GEAR_CELL)
+		label.AutomaticSize = Enum.AutomaticSize.None
+		label.Parent = row
+		local cells = Flat.frame(UDim2.fromOffset(PAGE_W - 150, 0), UDim2.fromOffset(120, 0))
+		cells.Name = "Cells"
+		cells.AutomaticSize = Enum.AutomaticSize.Y
+		local cellGrid = Instance.new("UIGridLayout")
+		cellGrid.CellSize = UDim2.fromOffset(GEAR_CELL, GEAR_CELL + 22)
+		cellGrid.CellPadding = UDim2.fromOffset(18, 10)
+		cellGrid.SortOrder = Enum.SortOrder.LayoutOrder
+		cellGrid.Parent = cells
+		local worn = gearWear[slot] or ""
+		local base = Flat.cell(GEAR_CELL, "slot_" .. slot, {
+			selected = worn == "",
+			dim = true,
+			caption = "Class look",
+		})
+		base.Name = "Wear_" .. slot .. "_class"
+		base.LayoutOrder = 0
+		base.Activated:Connect(function()
+			tryingGear = nil
+			gearInfo = ""
+			if worn ~= "" then
+				gearWear[slot] = nil
+				Net.Skin:FireServer("wear", slot, "")
+			end
+			StoreController.render(true)
+		end)
+		base.Parent = cells
+		for j, skin in SkinRules.forSlot(slot, class) do
+			local owned = ownedSkins[skin.id] == true
+			-- season skins nobody can get any more are left out unless owned
+			if not owned and skin.season and not SkinRules.available(skin.season, now()) then
+				continue
+			end
+			local cell = Flat.cell(GEAR_CELL, skin.icon, {
+				rarity = skin.rarity,
+				selected = worn == skin.id,
+				caption = skin.name,
+				locked = if owned then nil else "Locked",
+			})
+			cell.Name = "Wear_" .. skin.id
+			cell.LayoutOrder = j
+			cell.Activated:Connect(function()
+				if owned then
+					tryingGear = nil
+					gearInfo = ""
+					if worn ~= skin.id then
+						gearWear[slot] = skin.id
+						Net.Skin:FireServer("wear", slot, skin.id)
+					end
+				else
+					local how = if skin.price
+						then (if skin.season then "Season shop" else "Daily Shop")
+							.. ", "
+							.. Format.currency(skin.price)
+							.. " Soulstars"
+						else skin.hint
+					gearInfo = skin.name .. ": " .. how
+					tryingGear = { [slot] = skin.id }
+				end
+				StoreController.render(true)
+			end)
+			cell.Parent = cells
+		end
+		cells.Parent = row
+		row.Parent = outer
+	end
+	return outer
+end
+
 -- ------------------------------------------------------------------ Pages
 -- keepScroll: stay where the player is (wardrobe clicks, server updates); tab changes start at the top
 function StoreController.render(keepScroll: boolean?)
 	local scroll = page.CanvasPosition
 	bobs = {}
 	pulses = {}
+	countdowns = {}
 	if preview then
 		preview.frame.Parent = nil -- kept across renders (no new hero copy on every click)
 	end
@@ -702,11 +1237,15 @@ function StoreController.render(keepScroll: boolean?)
 			end
 		end
 		grid(offers, 3).Parent = page
+	elseif tab == "daily" then
+		dailyPage()
 	else
 		if tab == "cosmetics" then
-			sectionTitle(if trying then "Try on" else "Your look", 1).Parent = page
+			sectionTitle(if trying or tryingGear then "Try on" else "Your look", 1).Parent = page
 			wardrobe(2).Parent = page
-			grid(Store.inTab(tab), 3).Parent = page
+			sectionTitle("Gear skins", 3).Parent = page
+			gearWardrobe(4).Parent = page
+			grid(Store.inTab(tab), 5).Parent = page
 		else
 			grid(Store.inTab(tab), 1).Parent = page
 		end
@@ -737,7 +1276,7 @@ end
 -- ------------------------------------------------------------------ Celebration
 local BURST_COLORS = { C.GoldHi, C.Gold, C.Cyan, Theme.Rarity.epic, Theme.Rarity.legend, C.Text }
 
-local function celebrate(offerId: string?, text: string)
+local function celebrate(offerId: string?, text: string, iconName: string?)
 	local offer = if offerId then Store.ById[offerId] else nil
 	local root = win.root
 	local old = root:FindFirstChild("Celebrate")
@@ -766,7 +1305,7 @@ local function celebrate(offerId: string?, text: string)
 	local wheel = rayWheel(640, color:Lerp(C.GoldHi, 0.4), 3)
 	wheel.Position = UDim2.new(0.5, 0, 0.5, -90)
 	wheel.Parent = center
-	local icon = Kit.icon(if offer then offer.icon else "soulstar", 220)
+	local icon = Kit.icon(iconName or (if offer then offer.icon else "soulstar"), 220)
 	icon.AnchorPoint = Vector2.new(0.5, 0.5)
 	icon.Position = UDim2.new(0.5, 0, 0.5, -90)
 	icon.ZIndex = 53
@@ -881,6 +1420,8 @@ local function buildTop()
 	tabs = Flat.tabs(defs, S.TopH - 4, function(id: string)
 		tab = id
 		trying = nil
+		tryingGear = nil
+		gearInfo = ""
 		StoreController.render()
 	end)
 	tabs.frame.Parent = top
@@ -950,6 +1491,8 @@ function StoreController.init()
 	win.onOpen(function()
 		updateWallet()
 		trying = nil
+		tryingGear = nil
+		gearInfo = ""
 		if preview then
 			preview.refresh() -- new copy of the hero: gear or character may have changed
 		end
@@ -994,6 +1537,53 @@ function StoreController.init()
 		end
 		refresh()
 	end)
+	Net.SkinState.OnClientEvent:Connect(function(data: any)
+		if typeof(data) ~= "table" then
+			return
+		end
+		ownedSkins = {}
+		for _, id in (if typeof(data.owned) == "table" then data.owned else {}) do
+			if typeof(id) == "string" then
+				ownedSkins[id] = true
+			end
+		end
+		gearWear = {}
+		if typeof(data.wear) == "table" then
+			for _, slot in Gear.Slots do
+				local id = data.wear[slot]
+				if typeof(id) == "string" then
+					gearWear[slot] = id
+				end
+			end
+		end
+		if typeof(data.unlocked) == "table" then
+			for _, id in data.unlocked do
+				local skin = if typeof(id) == "string" then SkinRules.ById[id] else nil
+				if skin then
+					QuestController.toast("New gear skin: " .. skin.name, Theme.Rarity[skin.rarity])
+				end
+			end
+		end
+		local result = data.result
+		if typeof(result) == "table" and typeof(result.text) == "string" then
+			if result.ok == true and win.isOpen() then
+				local icon = "soulstar"
+				local kind, id = result.kind, result.id
+				if kind == "skin" and typeof(id) == "string" and SkinRules.ById[id] then
+					icon = SkinRules.ById[id].icon
+				elseif kind == "set" and typeof(id) == "string" and SkinRules.SetById[id] then
+					icon = SkinRules.SetById[id].icon
+				elseif kind == "cosmetic" and typeof(id) == "string" and CosmeticRules.ById[id] then
+					icon = CosmeticRules.ById[id].icon
+				end
+				celebrate(nil, result.text, icon)
+			elseif result.ok ~= true then
+				QuestController.toast(result.text, C.Danger)
+			end
+		end
+		refresh()
+	end)
+	Net.Skin:FireServer("sync")
 	Net.ShopResult.OnClientEvent:Connect(function(data: any)
 		if typeof(data) ~= "table" or data.robux ~= true or typeof(data.text) ~= "string" then
 			return

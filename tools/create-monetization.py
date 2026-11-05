@@ -33,6 +33,15 @@ PRODUCTS = [
     ("pack_ember", "Ember Pack", "Ember Trail and Ember Aura.", 199),
     ("pack_frost", "Frost Pack", "Frost Trail and Frost Aura.", 199),
     ("pack_void", "Void Pack", "Void Trail and Void Aura.", 399),
+    ("skinset_paladin", "Paladin Set", "Paladin gear skins: helm, plate and gauntlets (Knight). Looks only.", 549),
+    ("skinset_wildwood", "Wildwood Set", "Wildwood gear skins: hood, jerkin and boots (Ranger). Looks only.", 549),
+    ("skinset_stormlord", "Stormlord Set", "Stormlord gear skins: hat, robe and amulet (Spark Mage). Looks only.", 549),
+    (
+        "skinset_elder_spore",
+        "Elder Spore Set",
+        "Elder Spore gear skins: cap, robe and belt (Mushroom Shaman). Looks only.",
+        549,
+    ),
     (
         "starter",
         "Starter Pack",

@@ -6,6 +6,8 @@
 -- swaps its body parts. While a helmet is worn, hat and hair accessories are hidden; the setting
 -- "Hide helmet" (account.settings.hideHelmet) leaves the helmet off the body (stats stay).
 -- Rarity shows on the body: Gear.pieces(style, slot, rarity) adds trim, gems and Neon edges.
+-- Gear skins (Shared/GearSkins, account.gearWear) swap the look of a slot, never the stats.
+-- The builder itself is shared (Shared/Models/GearBuild), so the shop preview can try skins on.
 -- Cost: no per-frame work, no particles; massless, non-colliding parts within Gear.MAX_PIECES per
 -- slot and Gear.MAX_SET per full set.
 
@@ -15,8 +17,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Classes = require(ReplicatedStorage.Shared.Classes)
 local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
-local Kit = require(ReplicatedStorage.Shared.Models.Kit)
-local Studs = require(ReplicatedStorage.Shared.Models.Studs)
+local GearBuild = require(ReplicatedStorage.Shared.Models.GearBuild)
+local SkinRules = require(ReplicatedStorage.Shared.GearSkins)
 local Data = require(script.Parent.Data)
 
 local GearSystem = {}
@@ -32,10 +34,20 @@ local HAIR_TYPES = {
 	[Enum.AccessoryType.Hair] = true,
 }
 
--- Gear skins per slot (cosmetic looks, docs/specs/GEAR-COSMETICS.md). Not saved yet: every
--- slot shows the hero's class look until the skins land in the save.
-local function skins(_player: Player): { [string]: string }
-	return {}
+-- Worn gear skins per slot (account.gearWear, docs/specs/GEAR-COSMETICS.md): only owned skins
+-- that fit the slot and the hero's class; every other slot shows the class look
+local function skins(player: Player, class: string): { [string]: string }
+	local out: { [string]: string } = {}
+	local account = Data.account(player)
+	if not account then
+		return out
+	end
+	for slot, id in account.gearWear do
+		if account.gearSkins[id] and SkinRules.fits(slot, id, class) then
+			out[slot] = id
+		end
+	end
+	return out
 end
 
 -- Worn items that show on the body (only gear the hero can wear right now, like Systems/Stats)
@@ -59,39 +71,6 @@ local function worn(player: Player): (string, { [string]: Items.Item })
 		end
 	end
 	return class, out
-end
-
--- Every piece goes through the stud rule (Studs.applyAllFaces: 1-stud tiles on all shapes and
--- faces like the world); glowing pieces (runes, rarity edges, gems) keep their Neon/Glass look.
-local function makePart(
-	model: Model,
-	piece: Gear.Piece,
-	size: Vector3,
-	color: Color3,
-	finish: Gear.Finish
-): BasePart
-	local material = if finish == "neon"
-		then Enum.Material.Neon
-		elseif finish == "glass" then Enum.Material.Glass
-		else nil
-	local p: BasePart
-	if piece.shape == "wedge" then
-		p = Kit.wedge(model, size, CFrame.new(), color, material)
-	elseif piece.shape == "ball" then
-		p = Kit.ball(model, size.X, Vector3.zero, color, material)
-	elseif piece.shape == "disc" then
-		p = Kit.cylinder(model, size, CFrame.new(), color, material)
-	else
-		p = Kit.block(model, size, CFrame.new(), color, material)
-	end
-	Studs.applyAllFaces(p)
-	p.Anchored = false
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.Massless = true
-	p.CastShadow = false
-	return p
 end
 
 -- Hat and hair accessories vanish under a helmet and come back without one
@@ -121,36 +100,7 @@ local function build(
 	items: { [string]: Items.Item },
 	skin: { [string]: string }
 )
-	local old = character:FindFirstChild(Gear.MODEL)
-	if old then
-		old:Destroy()
-	end
-	local model = Instance.new("Model")
-	model.Name = Gear.MODEL
-	for _, slot in Gear.Slots do
-		local item = items[slot]
-		local style = item and Gear.style(class, slot, skin[slot])
-		if not item or not style then
-			continue
-		end
-		for _, piece in Gear.pieces(style, slot, item.rarity) do
-			local body = character:FindFirstChild(piece.part)
-			if not body or not body:IsA("BasePart") then
-				continue -- R6 or a custom rig without this part: skip the piece
-			end
-			local size, offset = Gear.place(piece, body.Size)
-			local color = Gear.color(style, piece.role, item.rarity)
-			local p = makePart(model, piece, size, color, Gear.finish(piece.role, item.rarity))
-			p.Name = slot
-			p.CFrame = body.CFrame * offset
-			local weld = Instance.new("Weld")
-			weld.Part0 = body
-			weld.Part1 = p
-			weld.C0 = offset
-			weld.Parent = p
-		end
-	end
-	model.Parent = character
+	GearBuild.build(character, class, items, skin)
 	hideHair(character, items.helmet ~= nil)
 end
 
@@ -160,7 +110,7 @@ function GearSystem.apply(player: Player, force: boolean?)
 		return
 	end
 	local class, items = worn(player)
-	local skin = skins(player)
+	local skin = skins(player, class)
 	local sig = Gear.signature(class, items, skin)
 	if not force and built[character] == sig and character:FindFirstChild(Gear.MODEL) then
 		return
