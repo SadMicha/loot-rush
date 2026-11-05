@@ -15,6 +15,7 @@ local Shop = require(ReplicatedStorage.Shared.Shop)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Intro = require(script.Parent.Parent.UI.Intro)
 local Window = require(script.Parent.Parent.UI.Window)
 local Flat = require(script.Parent.Parent.UI.Flat)
 local HubController = require(script.Parent.HubController)
@@ -643,6 +644,11 @@ function PetWindowController.init()
 		name = "Pets",
 		title = "Pet Stable",
 		icon = "companion",
+	})
+	Intro.attach(win, "introPets", "PET STABLE", "companion", {
+		"Hatch eggs for pets. Each pet gives a bonus, like more gold or damage.",
+		"Equipped pets follow you. A duplicate levels its pet up, to level 5.",
+		"Meadow Eggs cost gold, Star Eggs cost Soulstars.",
 	})
 	panel = Kit.panel(Window.BODY)
 	panel.Parent = win.body

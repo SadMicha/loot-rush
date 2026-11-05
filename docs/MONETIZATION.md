@@ -27,6 +27,10 @@ value in `Monetization.luau` equal so the button shows the right number.
 | `pack_frost` | Frost Pack | Frost Trail + Frost Aura | 199 |
 | `pack_void` | Void Pack | Void Trail + Void Aura | 399 |
 | `starter` | Starter Pack | 300 Soulstars + 5,000 gold × depth factor + Gilded Trail | 99 |
+| `skinset_paladin` | Paladin Set | Paladin Helm, Plate, Gauntlets (gear skins, Knight) | 549 |
+| `skinset_wildwood` | Wildwood Set | Wildwood Hood, Jerkin, Boots (gear skins, Ranger) | 549 |
+| `skinset_stormlord` | Stormlord Set | Stormlord Hat, Robe, Amulet (gear skins, Mage) | 549 |
+| `skinset_elder_spore` | Elder Spore Set | Elder Spore Cap, Robe, Belt (gear skins, Shaman) | 549 |
 
 ### Game Passes (Monetization → Passes)
 
@@ -40,6 +44,9 @@ Gold packs grow with the best Rift depth like the Market's gold packs (`Balance.
 stay worth it; gold goes to the hero being played. Soulstars and cosmetics are account-wide.
 
 ## Status
+
+The four gear skin sets (`skinset_*`, 2026-11-05) still have ID 0: run the **Create Robux
+products** workflow once; until then their Robux button shows "Soon" (Soulstars work already).
 
 All 11 products and 3 passes exist (created 2026-11-03 by the **Create Robux products** workflow,
 `tools/create-monetization.py`, Open Cloud key with developer-product/game-pass write). Images can be

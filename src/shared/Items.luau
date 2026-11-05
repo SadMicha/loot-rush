@@ -335,17 +335,18 @@ function Items.lockOf(item: Item, level: number, class: string): (number | strin
 	return if Items.canWear(item, level) then nil else Items.requiredLevel(item)
 end
 
-export type UpgradeMark = "up" | "down"
+export type UpgradeMark = "up" | "side" | "down"
 
 -- Upgrade marker per bag item against the worn gear (same rule as the drop label), at most one
 -- "up" per slot: of all bag items that beat the worn piece, only the best one is marked (each
 -- candidate is compared with the best so far, so an empty slot picks its best item too). Other
--- items that would still beat the worn piece get no marker (a better one waits in the bag), items
--- that do not get "down", items without an equipment slot get none. Equipping the marked item
--- makes the rest "down" once the marks are recomputed against the new worn piece.
+-- items that would still beat the worn piece get "side" (better than what is worn, but a better
+-- one waits in the bag), items that do not get "down", items without an equipment slot get none.
+-- Every wearable gear piece therefore carries a marker. Equipping the marked item makes the rest
+-- "down" once the marks are recomputed against the new worn piece.
 -- Also returns how many bag items are marked "up" (= slots with an upgrade waiting).
 -- `level` given: items the hero cannot wear yet (Items.canWear, with `class` also other-class
--- weapons) get no marker.
+-- weapons) get no marker (the cell shows its lock instead).
 function Items.upgradeMarks(
 	bag: { Item },
 	equipped: { [string]: Item },
@@ -357,6 +358,7 @@ function Items.upgradeMarks(
 	for _, it in bag do
 		if Items.SlotName[it.slot] and (level == nil or Items.canWear(it, level, class)) then
 			if Items.isUpgrade(it, equipped[it.slot]) then
+				marks[it.id] = "side"
 				local top = best[it.slot]
 				if not top or Items.isUpgrade(it, top) then
 					best[it.slot] = it

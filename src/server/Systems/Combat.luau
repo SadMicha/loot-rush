@@ -497,6 +497,7 @@ local function applyDamage(
 			* (if weapon > 0 then weapon else 1)
 			* (1 + (level - 1) * Config.DAMAGE_PER_LEVEL + bonus)
 			* (1 + num(player, "BonusDamage") / 100) -- pet, passes … (Systems/Boosts)
+			* (1 + num(player, "RiftDamageBonus") / 100) -- rift affix Glass Cannon (Systems/Rift)
 			* taken(enemy),
 		tier,
 		critMult

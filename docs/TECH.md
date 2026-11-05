@@ -111,7 +111,7 @@ studded parts and `Kit.finish` re-applies it:
 | Mushroom Swamp | Spore Frog (charger), Poison Snail (summoner) | Spore Mother |
 | Fire Desert | Toast Golem (tank), Spark Imp (ranged) | Oven Lord Krust |
 | Sky Islands | Wind Spirit (ranged), Guardian Statue (tank) | Cloud Queen |
-| Altered World | mix of all | The Rift |
+| Altered World | mix of all | rotating: all six, Altered (`Atlas.bossFor`) |
 
 Enemy AI and values: `Systems/Enemies`; mix, start depth and unlocks: `Shared/Atlas`.
 
@@ -170,8 +170,37 @@ parts (no art assets). Looks: `Shared/Gear` (pure data); builder: `Systems/Gear`
   shadowless, welded, no per-frame work. The inventory figure is a clone of the character, so it shows the
   same gear; it refreshes when a new `WornGear` model arrives while the window is open.
 - R6 or custom rigs: pieces whose body part is missing are skipped.
-- Gear skins (cosmetics) are further styles in `Gear.Styles`: `Gear.style(class, slot, skin)`;
-  plan in `docs/specs/GEAR-COSMETICS.md`.
+- The builder is shared (`Shared/Models/GearBuild`): the server builds the replicated model, the
+  shop preview (`UI/CosmeticPreview.showGear`) rebuilds a still copy to try skins on. `WornGear`
+  carries what it shows as attributes (slot = rarity, `skin_<slot>`, `Class`).
+
+## Gear skins and the rotating shop
+
+Looks only (spec: `docs/specs/GEAR-COSMETICS.md`). Data: looks in `Gear.Skins` (one slot each, own
+palette; trim, gems and glow keep the item's rarity), catalog in `Shared/GearSkins` (price,
+rarity, class, season, set, free source), rotation in `Shared/ShopRotation`.
+
+- Save: `account.gearSkins` (owned ids) and `account.gearWear` (slot → id; missing = class look),
+  reconciled in `Shared/Profile` (unknown ids capped, worn = owned + right slot). Class skins only
+  show for their class (`GearSkins.fits`), checked in `Systems/Gear`.
+- `Systems/GearSkins`: Net.Skin `buy` (Soulstars), `wear`, `sync`; Net.SkinState back. A purchase
+  is valid only for a paid skin, set or trail/aura in today's or this week's rotation
+  (`ShopRotation.offered(kind, id, os.time())`) or, for season items, while the season is live
+  (`GearSkins.available`). Set price = missing pieces × 0.8 rounded to 100.
+- Free skins: `GearSkins.check` grants every earned one (`GearSkins.earned` over
+  `GearSkins.context(account)`: best Journey facts of any hero, daily claims, Great Build total,
+  claimed season track steps, playing in a live season). Runs on join, after every
+  `Journey.grant` (Journey, Season track, Great Build) and in `Journey.touch` (fact changes, daily
+  claims via Actions). Season skins are never granted outside their season.
+- Robux sets: products `skinset_*` with `skins` (Systems/Monetization); owned pieces are refunded
+  in Soulstars, capped at the set's Soulstar value (`GearSkins.setRefund`). A receipt cannot be
+  refused after payment, so Robux sets are not tied to the rotation on the server (the Shop shows
+  the button only while the set is in rotation). Prices: `GearSkins.robuxFor(set Soulstars)`.
+- Rotation: 4 daily offers (00:00 UTC) from 4 fixed groups of the pool (day % 4), so a piece is
+  never shown again within 3 days; 2 weekly sets (Monday 00:00 UTC). Deterministic per date,
+  same on every server and client; no DataStore.
+- UI: Shop tab "Daily Shop" (countdowns, season shop while live), Cosmetics tab "Gear skins"
+  wardrobe (class look, owned, locked with how to get them; tap locked = try on).
 
 ## Debug tools
 

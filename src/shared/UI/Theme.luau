@@ -314,6 +314,10 @@ Theme.Flat = table.freeze({
 	UpgradeMarkMin = 24, -- and at least this many design pixels
 	UpgradeMarkInset = 2, -- design pixels from the cell's top left corner
 	UpgradeMarkDownFade = 0.15, -- the "not an upgrade" arrow is a bit quieter than the green one
+	-- "also better than worn, but a better one waits": smaller, faded green arrow
+	UpgradeMarkSideScale = 0.72,
+	UpgradeMarkSideMin = 18,
+	UpgradeMarkSideFade = 0.45,
 	OpenScale = 0.96, -- window starts this small and springs to 1
 	OpenDrop = 18, -- and this many design pixels lower
 	MaxFit = 1.25, -- windows grow up to this factor to fill small screens

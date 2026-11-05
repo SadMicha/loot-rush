@@ -6,7 +6,7 @@
 --   Inv       (S→C): { items: { Item }, equipped: { [slot]: Item }, capacity: number, level: number }
 --                    capacity = bag slots (Shared/Bag), level = bag upgrade level
 --   Equip     (C→S): itemId: string · Unequip (C→S): slot: string · Sell (C→S): itemId: string
---   Rift      (C→S): action: "enter" (region id, start depth?) | "deeper" | "leave" | "tier" (World Tier number) - state comes via player attributes (Types.luau)
+--   Rift      (C→S): action: "enter" (region id, start depth?) | "deeper" (Path Card 1-3, nil = safe card) | "leave" | "tier" (World Tier number) - state comes via player attributes (Types.luau)
 --   RiftResult (S→C): RiftRun.Summary - after every boss (kind "clear") and at the end of the run (kind "end")
 --   Progress  (S→C): { progress: Progression.Data, materials: Progression.Materials }
 --   Bloom     (C→S): action: "spend" | "reset", skillId: string, key: string? (Skill Bloom)
@@ -18,6 +18,11 @@
 --                    Robux purchase (offerId = Shared/Store offer id, the Shop window celebrates)
 --   Wear      (C→S): slot: string, cosmeticId: string ("" = take off) - Systems/Cosmetics
 --   Store     (S→C): { cosmetics = { id }, wear = { [slot]: id }, bought = { key } } - Robux shop state
+--   Skin      (C→S): "buy", kind ("skin" | "set" | "cosmetic"), id - Soulstar purchase in the
+--                    Daily Shop or the season shop (Systems/GearSkins checks rotation and season) |
+--                    "wear", slot, skinId ("" = class look) | "sync"
+--   SkinState (S→C): { owned = { skinId }, wear = { [slot]: skinId }, unlocked? = { skinId },
+--                    result? = { ok, text, kind?, id? } } - gear skins of the account
 --   Pet       (C→S): action: "hatch" | "equip" | "unequip", id: string (egg or pet ID)
 --   Pets      (S→C): { owned, equipped, slots, odds } - pet state (Shared/Pets);
 --                    odds = { [eggId]: { { rarity, percent } } } from Pets.odds (odds before purchase)
@@ -80,6 +85,8 @@ local NAMES = {
 	"ShopResult",
 	"Wear",
 	"Store",
+	"Skin",
+	"SkinState",
 	"Pet",
 	"Pets",
 	"PetResult",
@@ -149,6 +156,8 @@ return table.freeze({
 	ShopResult = get("ShopResult"),
 	Wear = get("Wear"),
 	Store = get("Store"),
+	Skin = get("Skin"),
+	SkinState = get("SkinState"),
 	Pet = get("Pet"),
 	Pets = get("Pets"),
 	PetResult = get("PetResult"),

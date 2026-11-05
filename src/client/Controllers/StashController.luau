@@ -2,7 +2,9 @@
 -- Stash window (hub station "Stash", Systems/Stash, Shared/Stash): account-wide storage shared
 -- by every hero. Left: the stash with its tabs, right: the hero's bag. One tap moves an item to
 -- the other side (the server checks and answers with both snapshots); "Store All" empties the bag
--- into the open tab. Hover (PC) or the last tap (touch) shows the item's details at the bottom.
+-- into the open tab. Hover (PC) or press and hold (touch, a hold never moves the item) shows the
+-- item's details at the bottom, with its upgrade verdict. Upgrade markers are judged over bag and
+-- open tab together, so the best piece of a slot is marked "up" on whichever side it lies.
 -- The window closes by itself when the hero walks away from the stash.
 -- Items above this hero's level (Items.requiredLevel) can be stored and taken, but show a lock:
 -- the server refuses to equip them until the hero reaches that level.
@@ -10,6 +12,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Bag = require(ReplicatedStorage.Shared.Bag)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -46,6 +49,9 @@ local BAG_Y = 72 -- bag grid (no tabs on that side; "Store All" sits in the titl
 local COLS = 7
 local CELL = 92
 local GAP = 5
+-- Room around the bag grid inside its scrolling frame: halo rings of the rarity glow
+-- (Theme.Flat.Halo, up to 10 px) and the hover scale of edge cells would be clipped otherwise
+local GRID_PAD = 10
 local GRID_W = COLS * CELL + (COLS - 1) * GAP
 local PAD = math.floor((PANEL_W - GRID_W) / 2)
 -- Rows shown for the base bag; an upgraded bag (Shared/Bag, up to 100 slots) scrolls
@@ -53,6 +59,13 @@ local BAG_ROWS = math.ceil(Bag.BASE / COLS)
 local INFO_Y = BAG_Y + BAG_ROWS * (CELL + GAP) + 8
 local RESEND = 1.5 -- seconds a tapped item ignores more taps (waiting for the server)
 local CLOSE_CHECK = 0.5 -- seconds between "still at the stash?" checks while open
+local VERDICT_W = 230 -- design px kept free for the verdict right of the item name
+local HOLD = 0.35 -- seconds a finger rests on an item to show its stats instead of moving it
+local VERDICT: { [string]: { text: string, color: Color3 } } = {
+	up = { text = "Upgrade", color = C.Good },
+	side = { text = "Upgrade (not the best)", color = C.Good },
+	down = { text = "Not an upgrade", color = C.Danger },
+}
 
 local win: Window.Window
 local tabs: Flat.Tabs
@@ -62,6 +75,7 @@ local stashCount: TextLabel
 local bagCount: TextLabel
 local status: TextLabel
 local infoName: TextLabel
+local infoVerdict: TextLabel
 local infoMeta: TextLabel
 local infoAffixes: TextLabel
 local storeAll: TextButton
@@ -70,6 +84,7 @@ local stashTabs: { { Items.Item } } = {}
 local loaded = false
 local tab = 1
 local sent: { [string]: number } = {} -- item id → time of the last move request
+local marks: { [string]: Items.UpgradeMark } = {}
 
 local function clear(parent: Instance)
 	for _, child in parent:GetChildren() do
@@ -105,14 +120,36 @@ local function lockOf(item: Items.Item): (number | string)?
 	return Items.lockOf(item, heroLevel(), Kit.playerClass())
 end
 
+-- Touch screen without a mouse in use: no hover, stats come from press and hold
+local function touchMode(): boolean
+	local last = UserInputService:GetLastInputType()
+	if last == Enum.UserInputType.Touch then
+		return true
+	end
+	if last == Enum.UserInputType.Keyboard or string.sub(last.Name, 1, 5) == "Mouse" then
+		return UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+	end
+	return UserInputService.TouchEnabled
+end
+
+local function hint(): string
+	return if touchMode()
+		then "Tap an item to move it. Press and hold to see its stats."
+		else "Click an item to move it. Hover to see its stats."
+end
+
 local function showInfo(item: Items.Item?, note: string?)
 	if not item then
 		infoName.Text = ""
-		infoMeta.Text = note or "Tap an item to move it. Hover to see its stats."
+		infoVerdict.Text = ""
+		infoMeta.Text = note or hint()
 		infoMeta.TextColor3 = C.Muted
 		infoAffixes.Text = ""
 		return
 	end
+	local verdict = VERDICT[marks[item.id] or ""]
+	infoVerdict.Text = if verdict then verdict.text else ""
+	infoVerdict.TextColor3 = if verdict then verdict.color else C.Muted
 	infoName.Text = item.name
 	infoName.TextColor3 = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 	local slot = Items.SlotName[item.slot] or item.slot
@@ -157,7 +194,33 @@ local function itemCell(item: Items.Item, mark: Items.UpgradeMark?, toStash: boo
 	b.MouseEnter:Connect(function()
 		showInfo(item)
 	end)
+	-- Touch: a finger resting HOLD seconds shows the stats; the release after it does not move
+	local press = 0
+	local held = false
+	b.InputBegan:Connect(function(input: InputObject)
+		if input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		press += 1
+		held = false
+		local mine = press
+		task.delay(HOLD, function()
+			if press == mine and b.Parent then
+				held = true
+				showInfo(item)
+			end
+		end)
+	end)
+	b.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			press += 1 -- cancels a pending hold
+		end
+	end)
 	b.Activated:Connect(function()
+		if held then
+			held = false
+			return
+		end
 		if not canSend(item.id) then
 			return
 		end
@@ -174,8 +237,6 @@ end
 
 local function fill(parent: Frame, list: { Items.Item }, slots: number, toStash: boolean)
 	clear(parent)
-	local _, equipped = InventoryController.snapshot()
-	local marks = Items.upgradeMarks(list, equipped, heroLevel(), Kit.playerClass())
 	for i, item in list do
 		local b = itemCell(item, marks[item.id], toStash)
 		b.LayoutOrder = i
@@ -196,6 +257,11 @@ local function render()
 	local bag = InventoryController.snapshot()
 	local list = stashTabs[tab] or {}
 	local capacity = Bag.fromAttribute(player:GetAttribute("BagMax"))
+	-- One verdict over both sides: the best piece of a slot is "up" wherever it lies
+	local _, equipped = InventoryController.snapshot()
+	local both = table.clone(bag)
+	table.move(list, 1, #list, #both + 1, both)
+	marks = Items.upgradeMarks(both, equipped, heroLevel(), Kit.playerClass())
 	fill(stashGrid, list, Rules.TAB_SLOTS, false)
 	fill(bagGrid, bag, capacity, true)
 	stashCount.Text = `{Format.int(#list)} / {Format.int(Rules.TAB_SLOTS)}`
@@ -273,15 +339,31 @@ local function build()
 	scroll.Name = "BagScroll"
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
-	scroll.Position = UDim2.fromOffset(PAD, BAG_Y)
-	scroll.Size = UDim2.fromOffset(GRID_W + 12, BAG_ROWS * CELL + (BAG_ROWS - 1) * GAP)
+	scroll.Position = UDim2.fromOffset(PAD - GRID_PAD, BAG_Y - GRID_PAD)
+	scroll.Size = UDim2.fromOffset(
+		GRID_W + 2 * GRID_PAD + 4,
+		BAG_ROWS * CELL + (BAG_ROWS - 1) * GAP + 2 * GRID_PAD
+	)
+	scroll.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
 	scroll.ScrollBarThickness = 4
 	scroll.ScrollBarImageColor3 = F.EdgeHi
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
 	scroll.Parent = right
-	bagGrid = grid(scroll, BAG_ROWS, Vector2.zero)
+	-- Padded holder: AutomaticCanvasSize measures the holder (padding included), so the glow of
+	-- the last row stays inside the canvas once an upgraded bag scrolls
+	local holder = Flat.frame(UDim2.fromOffset(GRID_W + 2 * GRID_PAD, 0))
+	holder.Name = "BagHolder"
+	holder.AutomaticSize = Enum.AutomaticSize.Y
+	local sp = Instance.new("UIPadding")
+	sp.PaddingTop = UDim.new(0, GRID_PAD)
+	sp.PaddingBottom = UDim.new(0, GRID_PAD)
+	sp.PaddingLeft = UDim.new(0, GRID_PAD)
+	sp.PaddingRight = UDim.new(0, GRID_PAD)
+	sp.Parent = holder
+	holder.Parent = scroll
+	bagGrid = grid(holder, BAG_ROWS, Vector2.zero)
 	bagGrid.Name = "BagGrid"
 	bagGrid.AutomaticSize = Enum.AutomaticSize.Y
 
@@ -292,7 +374,16 @@ local function build()
 	infoName = Flat.text("", 22, C.Text, Theme.Font.UI)
 	infoName.Name = "Name"
 	infoName.Position = UDim2.fromOffset(18, 10)
+	-- Long names stop short of the verdict on the right of the same row
+	infoName.AutomaticSize = Enum.AutomaticSize.Y
+	infoName.Size = UDim2.fromOffset(PANEL_W - 2 * PAD - 36 - VERDICT_W, 0)
+	infoName.TextTruncate = Enum.TextTruncate.AtEnd
 	infoName.Parent = info
+	infoVerdict = Flat.text("", 18, C.Muted, Theme.Font.UI, Enum.TextXAlignment.Right)
+	infoVerdict.Name = "Verdict"
+	infoVerdict.AnchorPoint = Vector2.new(1, 0)
+	infoVerdict.Position = UDim2.new(1, -18, 0, 13)
+	infoVerdict.Parent = info
 	infoMeta = Flat.text("", 16, C.Muted, Theme.Font.Body)
 	infoMeta.Name = "Meta"
 	infoMeta.Position = UDim2.fromOffset(18, 40)

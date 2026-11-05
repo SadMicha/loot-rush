@@ -1,6 +1,7 @@
 -- Guaranteed first drops (docs/ROADMAP.md O3, Balance.FirstDrops): a new character's first
 -- normal kills always drop an item, the very first one a Magic+ weapon.
 local Balance = require("ReplicatedStorage.Shared.Balance")
+local Config = require("ReplicatedStorage.Shared.Config")
 local Items = require("ReplicatedStorage.Shared.Items")
 local Profile = require("ReplicatedStorage.Shared.Profile")
 
@@ -99,7 +100,10 @@ describe("First drops server", function()
 				end
 				local Loot = req("ServerScriptService.Server.Systems.Loot")
 				Loot.bonus(player, player.Character.HumanoidRootPart.Position, 3, nil, 3)
-				Loot.vacuum(player)
+			end)
+			sim:run(Config.LOOT_BURST_SPAN + 0.2) -- the burst lands first
+			server(function(req, player)
+				req("ServerScriptService.Server.Systems.Loot").vacuum(player)
 			end)
 			sim:run(0.3)
 		end

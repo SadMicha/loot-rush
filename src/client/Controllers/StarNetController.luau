@@ -15,6 +15,7 @@ local Progression = require(ReplicatedStorage.Shared.Progression)
 local StarNet = require(ReplicatedStorage.Shared.StarNet)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Intro = require(script.Parent.Parent.UI.Intro)
 local Window = require(script.Parent.Parent.UI.Window)
 local ProgressController = require(script.Parent.ProgressController)
 
@@ -274,7 +275,7 @@ local function renderSide()
 	line.RichText = true
 	line.Text = string.format(
 		'%s<font color="#%s">%s</font>',
-		if costText then costText .. "  ·  " else "",
+		if costText then costText .. " - " else "",
 		stateColor:ToHex(),
 		string.upper(state)
 	)
@@ -380,6 +381,11 @@ function StarNetController.init()
 		key = Enum.KeyCode.N,
 		unlock = "star_net",
 		background = "bg_starnet",
+	})
+	Intro.attach(win, "introStarWeb", "STAR WEB", "star_net", {
+		"Each level from 2 gives a star point. Spend it next to a star you own.",
+		"Small stars cost 1, big stars 2. Gold bridges lead to other classes.",
+		"Drag to look around. Pinch or use the buttons to zoom.",
 	})
 
 	-- The web in a pan area left of the panel (drag or swipe to pan, no visible scroll bars)

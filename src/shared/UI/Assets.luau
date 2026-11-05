@@ -428,10 +428,12 @@ Assets.Icon = table.freeze(icon)
 -- (upload package LootRush_Upload_v8_Fenster). Entries without an ID are ignored; the windows
 -- then show the flat style (nodes as slots, lines as thin strokes).
 local ART: { [string]: Fixed } = {
-	bg_skills = { id = "rbxassetid://124530469380025", size = Vector2.new(1024, 576) },
-	bg_starnet = { id = "rbxassetid://139376981558417", size = Vector2.new(1024, 576) },
-	bg_forge = { id = "rbxassetid://107475350254463", size = Vector2.new(1024, 576) },
-	bg_atlas = { id = "rbxassetid://70777486837402", size = Vector2.new(1024, 576) },
+	-- Window backgrounds and the forge anvil are retired (docs/ART-STYLE.md): empty id = plain
+	-- Gilded Ink graphite background like every other window.
+	bg_skills = { id = "", size = Vector2.new(1024, 576) },
+	bg_starnet = { id = "", size = Vector2.new(1024, 576) },
+	bg_forge = { id = "", size = Vector2.new(1024, 576) },
+	bg_atlas = { id = "", size = Vector2.new(1024, 576) },
 	node_ring = { id = "rbxassetid://111253634336460", size = Vector2.new(342, 344) },
 	node_ring_active = { id = "rbxassetid://77679967363235", size = Vector2.new(397, 399) },
 	node_ring_locked = { id = "rbxassetid://117172837136806", size = Vector2.new(341, 344) },
@@ -442,19 +444,19 @@ local ART: { [string]: Fixed } = {
 	star_core = { id = "rbxassetid://92507514261248", size = Vector2.new(426, 449) },
 	plaque_region = { id = "rbxassetid://117854959815810", size = Vector2.new(543, 230) },
 	plaque_status = { id = "rbxassetid://101106260708476", size = Vector2.new(818, 282) },
-	forge_anvil = { id = "rbxassetid://117223988059627", size = Vector2.new(1000, 536) },
+	forge_anvil = { id = "", size = Vector2.new(1000, 536) },
 	island_green_plains = { id = "rbxassetid://105645223665871", size = Vector2.new(494, 489) },
 	island_crystal_caves = { id = "rbxassetid://70766805869187", size = Vector2.new(484, 489) },
 	island_mushroom_swamp = { id = "rbxassetid://84661071441944", size = Vector2.new(510, 496) },
 	island_fire_desert = { id = "rbxassetid://115654270158828", size = Vector2.new(500, 502) },
 	island_sky_islands = { id = "rbxassetid://73005692141420", size = Vector2.new(484, 512) },
 	island_altered_world = { id = "rbxassetid://91049121021436", size = Vector2.new(509, 505) },
-	region_green_plains = { id = "rbxassetid://89294082178280", size = Vector2.new(768, 432) },
-	region_crystal_caves = { id = "rbxassetid://107712681289481", size = Vector2.new(768, 432) },
-	region_mushroom_swamp = { id = "rbxassetid://128283999127426", size = Vector2.new(768, 432) },
-	region_fire_desert = { id = "rbxassetid://110395739727001", size = Vector2.new(768, 432) },
-	region_sky_islands = { id = "rbxassetid://84354190494860", size = Vector2.new(768, 432) },
-	region_altered_world = { id = "rbxassetid://115295026536755", size = Vector2.new(768, 432) },
+	region_green_plains = { id = "rbxassetid://135686350093106", size = Vector2.new(768, 432) },
+	region_crystal_caves = { id = "rbxassetid://139956743153819", size = Vector2.new(768, 432) },
+	region_mushroom_swamp = { id = "rbxassetid://92117302530816", size = Vector2.new(768, 432) },
+	region_fire_desert = { id = "rbxassetid://90891086694536", size = Vector2.new(768, 432) },
+	region_sky_islands = { id = "rbxassetid://119302197732967", size = Vector2.new(768, 432) },
+	region_altered_world = { id = "rbxassetid://139742971752527", size = Vector2.new(768, 432) },
 }
 local art: { [string]: Fixed } = {}
 for name, a in ART do

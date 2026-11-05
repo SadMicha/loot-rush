@@ -175,7 +175,7 @@ describe("Skill unlocks in game", function()
 			line = LevelUp.skillLine(skill, Skills.DefaultBar, false)
 		end)
 		local keys = { "Q", "E", "R", "F" }
-		expect(line).toBe("New skill: " .. skill.name .. " · press " .. keys[slot])
+		expect(line).toBe("New skill: " .. skill.name .. " - press " .. keys[slot])
 		sim:run(9) -- cooldowns from the last test run out
 		server(function(req, player) -- Chain Lightning needs a target
 			local root = player.Character.HumanoidRootPart.Position
