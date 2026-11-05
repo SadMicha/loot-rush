@@ -18,6 +18,7 @@
 | [specs/WORLD-MAPS.md](specs/WORLD-MAPS.md) | Hub, horizon, Rift Trail, never-fall-off, colours |
 | [specs/SEASONS.md](specs/SEASONS.md) | Season framework, leagues, Great Build (built for the Beta) |
 | [specs/SEASON-1-BLUEPRINTS.md](specs/SEASON-1-BLUEPRINTS.md) | Season 1 Blueprints (plan) |
+| [specs/ENDGAME.md](specs/ENDGAME.md) | Endgame redesign: Path Cards, affixes, objectives, boss rotation, signature uniques, bounties (proposal) |
 | [specs/GEAR-COSMETICS.md](specs/GEAR-COSMETICS.md) | Gear skins: catalog idea, free vs paid, fairness (proposal) |
 
 Rules: one file per topic, update the existing section instead of adding a new file, and delete
