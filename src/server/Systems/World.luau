@@ -58,6 +58,11 @@ type Look = {
 	fill: (r: Random, i: number) -> Model, -- dense deco in the ring and at the edge
 	detail: (r: Random, i: number) -> Model, -- small ground details without collision
 	deco: (parent: Instance, rng: Random) -> (), -- fixed placements, obstacles, landmark
+	-- Room dressing (World.rooms): pieces against the walls of rooms and corridors (front +Z =
+	-- into the room), chance per wall tile, and landmarks in two corners of every clearing
+	walls: { (r: Random, i: number) -> Model }?,
+	wallChance: number?,
+	landmarks: { (r: Random, i: number) -> Model }?,
 	-- Endless surroundings beyond the ring (Shared/Models/Horizon); fill = look.fill
 	horizon: {
 		ground: Color3,
@@ -352,6 +357,18 @@ local function pylon(parent: Instance, x: number, z: number): BasePart
 	return core
 end
 
+-- Ground detail and room dressing never block movement or projectiles
+local function soften(model: Model): Model
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		end
+	end
+	return model
+end
+
 -- Dense deco: usually one object per environment tile, plus the edge strip of the playfield and
 -- small ground details everywhere (without collision, not on the path to the spawn)
 local function scatter(parent: Instance, look: Look, r: Random)
@@ -401,10 +418,152 @@ local function scatter(parent: Instance, look: Look, r: Random)
 		if not (math.abs(p.X) < 6 and p.Z > 0) then
 			place(
 				parent,
-				look.detail(r, k),
+				soften(look.detail(r, k)),
 				p + Vector3.new(0, groundAt(p), 0),
 				r:NextNumber(0, 360)
 			)
+		end
+	end
+end
+
+-- Rooms of the Rift Trail (docs/specs/WORLD-MAPS.md §4): wall dressing along every wall tile
+-- (broken columns, growth, banners, rails: look.walls), two landmarks in the corners of every
+-- clearing (look.landmarks) and ground detail on the clearing floors. Everything is soft (no
+-- collision, no queries); wall pieces hug the wall, landmarks stand in corners (never on the
+-- corridor mouths), floor detail skips the path through the room (lanes).
+local ROOM_DETAILS = 14 -- floor details per clearing (a clearing has 64 tiles)
+local CORRIDOR_WALLS = 0.4 -- share of the room wall chance along corridors
+local ARENA_WALLS = 0.35 -- … and on the arena edges (it already has its own deco)
+local DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+
+local function tileOf(key: number): (number, number)
+	local x = math.floor((key + 500) / 1000)
+	return x, key - x * 1000
+end
+
+-- Marks a path through every clearing (corridor mouth to corridor mouth) as lane tiles, so the
+-- way reads on the floor; same colour as the corridors, no extra parts. After layout().
+local function roomLanes(trail: Trail.Layout)
+	for _, room in trail.clearings do
+		local south: number? = nil
+		local north: number? = nil
+		for _, c in trail.corridors do
+			local overlap = c.x1 >= room.x0 and c.x0 <= room.x1
+			if overlap and c.z0 == room.z1 + 1 then
+				south = math.floor((c.x0 + c.x1) / 2)
+			elseif overlap and c.z1 == room.z0 - 1 then
+				north = math.floor((c.x0 + c.x1) / 2)
+			end
+		end
+		if south and north then
+			local mid = math.floor((room.z0 + room.z1) / 2)
+			for z = mid, room.z1 do
+				lanes[south * 1000 + z] = true
+			end
+			for z = room.z0, mid do
+				lanes[north * 1000 + z] = true
+			end
+			for x = math.min(south, north), math.max(south, north) do
+				lanes[x * 1000 + mid] = true
+			end
+			for dx = -1, 1 do -- the mouths are as wide as the corridors
+				lanes[math.clamp(south + dx, room.x0, room.x1) * 1000 + room.z1] = true
+				lanes[math.clamp(north + dx, room.x0, room.x1) * 1000 + room.z0] = true
+			end
+		end
+	end
+end
+
+local function rooms(parent: Instance, look: Look, r: Random, trail: Trail.Layout)
+	local inRoom: { [number]: boolean } = {}
+	local roomRects = { trail.start }
+	for _, rect in trail.clearings do
+		table.insert(roomRects, rect)
+	end
+	for _, rect in roomRects do
+		for x = rect.x0, rect.x1 do
+			for z = rect.z0, rect.z1 do
+				inRoom[x * 1000 + z] = true
+			end
+		end
+	end
+	local function flat(key: number): boolean
+		return trail.cells[key] == true and (heights[key] or 0) == 0
+	end
+
+	local pieces = look.walls
+	if pieces and #pieces > 0 then
+		local chance = look.wallChance or 0.4
+		local keys = {}
+		for key in trail.cells do
+			if flat(key) then
+				table.insert(keys, key)
+			end
+		end
+		table.sort(keys)
+		local n = 0
+		for _, key in keys do
+			local x, z = tileOf(key)
+			local arenaTile = math.abs(x) <= HX and math.abs(z) <= HZ
+			local share = if arenaTile then ARENA_WALLS elseif inRoom[key] then 1 else CORRIDOR_WALLS
+			for _, d in DIRS do
+				local dx, dz = d[1], d[2]
+				if not flat((x + dx) * 1000 + z + dz) and r:NextNumber() < chance * share then
+					n += 1
+					local along = r:NextNumber(-2.5, 2.5)
+					local pos = Vector3.new(
+						x * T + dx * (T / 2 - 1.2) + dz * along,
+						0,
+						z * T + dz * (T / 2 - 1.2) + dx * along
+					)
+					local yaw = math.deg(math.atan2(-dx, -dz))
+					place(parent, soften(pieces[r:NextInteger(1, #pieces)](r, n)), pos, yaw)
+				end
+			end
+		end
+	end
+
+	-- Landmarks: two corners per clearing, a different silhouette per room
+	local marks = look.landmarks
+	local cornerPlan = { { 1, -1 }, { -1, -1 }, { 1, 1 }, { -1, 1 } } -- sign of x, sign of z
+	for index, rect in trail.clearings do
+		if marks and #marks > 0 then
+			local placed = 0
+			local first = r:NextInteger(0, 3)
+			for k = 0, 3 do
+				local sx, sz = table.unpack(cornerPlan[(first + k) % 4 + 1])
+				local cx = if sx > 0 then rect.x1 else rect.x0
+				local cz = if sz > 0 then rect.z1 else rect.z0
+				-- a corner whose outer sides are both walls (not a corridor mouth)
+				if
+					placed < 2
+					and not flat((cx + sx) * 1000 + cz)
+					and not flat(cx * 1000 + cz + sz)
+				then
+					local build = marks[(index + placed) % #marks + 1]
+					local pos = Vector3.new((cx - sx * 0.2) * T, 0, (cz - sz * 0.2) * T)
+					local yaw = math.deg(math.atan2(-sx, -sz))
+					placed += 1
+					place(parent, soften(build(r, 100 * index + placed)), pos, yaw)
+				end
+			end
+		end
+		for k = 1, ROOM_DETAILS do
+			local x = r:NextInteger(rect.x0, rect.x1)
+			local z = r:NextInteger(rect.z0, rect.z1)
+			if not lanes[x * 1000 + z] then
+				local pos = Vector3.new(
+					x * T + r:NextNumber(-T / 2 + 1, T / 2 - 1),
+					0,
+					z * T + r:NextNumber(-T / 2 + 1, T / 2 - 1)
+				)
+				place(
+					parent,
+					soften(look.detail(r, 500 + index * 50 + k)),
+					pos,
+					r:NextNumber(0, 360)
+				)
+			end
 		end
 	end
 end
@@ -438,7 +597,7 @@ end
 
 -- Crystal Caves: glowing crack across the tile
 local function crystalCrack(r: Random, wet: boolean): Model?
-	if wet or r:NextNumber() > 0.18 then
+	if wet or r:NextNumber() > 0.28 then
 		return nil
 	end
 	local m = accentModel("CrystalCrack")
@@ -508,7 +667,7 @@ end
 
 -- Sky Islands: gold inlay frame on a marble tile
 local function goldInlay(r: Random, wet: boolean): Model?
-	if wet or r:NextNumber() > 0.14 then
+	if wet or r:NextNumber() > 0.22 then
 		return nil
 	end
 	local m = accentModel("GoldInlay")
@@ -633,12 +792,45 @@ local function meadowFill(r: Random, i: number): Model
 	return Props.pillar(r:NextNumber(1, 1.6))
 end
 
+local BLOOMS = { C.cream, C.gold, Color3.fromHex("#FF8AB8"), Color3.fromHex("#B98CFF") }
 local function meadowDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.7 then
-		return Props.flower(i, pick(r, { C.cream, C.gold, Color3.fromHex("#FF8AB8") }))
+	local k = r:NextNumber()
+	if k < 0.25 then
+		return Biomes.flowerBed(i, BLOOMS)
+	elseif k < 0.5 then
+		return Props.flower(i, pick(r, BLOOMS))
+	elseif k < 0.75 then
+		return Biomes.dirtPatch(i, C.dirt)
 	end
 	return Props.pebbles(i, C.stoneLight)
 end
+
+-- Walls: hedges, mossy columns, banners; landmarks: trilith, old oak, ruined gate
+local MEADOW_WALLS = {
+	function(_: Random, i: number)
+		return Biomes.hedge(i)
+	end,
+	function(_: Random, i: number)
+		return Biomes.hedge(i + 7)
+	end,
+	function(_: Random, i: number)
+		return Biomes.wallColumn(i, C.stone, C.moss)
+	end,
+	function(r: Random, _: number)
+		return Props.banner(pick(r, { Color3.fromHex("#2448A8"), C.roof, C.leafDark }))
+	end,
+}
+local MEADOW_LANDMARKS = {
+	function(_: Random, i: number)
+		return Biomes.standingStones(i, C.stone)
+	end,
+	function(_: Random, _i: number)
+		return Props.tree(2.6)
+	end,
+	function(_: Random, _i: number)
+		return Props.arch(0.9, C.stone)
+	end,
+}
 
 -- Crystal Caves: tall rock walls, stalagmites, glowing crystals and ponds
 local CAVE_ROCK = Color3.fromHex("#3A4462")
@@ -696,13 +888,49 @@ end
 
 local function cavesDetail(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.3 then
-		return Biomes.glowShrooms(i, if k < 0.15 then C.crystal else C.magic)
-	elseif k < 0.55 then
+	if k < 0.12 then
+		return Biomes.glowShrooms(i, if k < 0.06 then C.crystal else C.magic)
+	elseif k < 0.27 then
+		return Biomes.glowPool(i, if k < 0.2 then C.crystal else C.magic)
+	elseif k < 0.42 then
+		return Props.stalagmite(
+			r:NextNumber(0.45, 0.8),
+			CAVE_ROCK,
+			if k < 0.35 then C.crystal else nil
+		)
+	elseif k < 0.6 then
 		return Props.pebbles(i, C.crystal, true)
 	end
 	return Props.pebbles(i, Color3.fromHex("#5A6788"))
 end
+
+-- Walls: crystals growing out of the rock, stalagmites, mine timbers; landmarks: crystal heart,
+-- glowing spire, mine gate
+local CAVES_WALLS = {
+	function(_: Random, i: number)
+		return Biomes.crystalGrowth(i, C.crystal)
+	end,
+	function(_: Random, i: number)
+		return Biomes.crystalGrowth(i, C.magic)
+	end,
+	function(r: Random, _: number)
+		return Props.stalagmite(r:NextNumber(0.8, 1.3), CAVE_ROCK, nil)
+	end,
+	function(_: Random, _i: number)
+		return Biomes.supportFrame()
+	end,
+}
+local CAVES_LANDMARKS = {
+	function(_: Random, i: number)
+		return Props.crystalCluster(3, i, C.crystal)
+	end,
+	function(_: Random, _i: number)
+		return Props.stalagmite(2.4, CAVE_ROCK, C.crystal)
+	end,
+	function(_: Random, i: number)
+		return Props.crystalCluster(2.6, i, C.magic)
+	end,
+}
 
 -- Mushroom Swamp: boardwalk, giant mushrooms, dead trees, ponds, spores
 local CAPS = { Color3.fromHex("#B98CFF"), Color3.fromHex("#FF7BB0"), Color3.fromHex("#7FD96A") }
@@ -752,12 +980,46 @@ local function swampFill(r: Random, i: number): Model
 	return Props.reeds(r:NextNumber(1, 1.6), Color3.fromHex("#7A9A3A"), i)
 end
 
+local BOG_WATER = Color3.fromHex("#34E6B8")
 local function swampDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.5 then
+	local k = r:NextNumber()
+	if k < 0.22 then
+		return Biomes.bogPool(i, BOG_WATER)
+	elseif k < 0.5 then
+		return Props.reeds(r:NextNumber(0.6, 1), Color3.fromHex("#8FB04A"), i)
+	elseif k < 0.75 then
 		return Props.flower(i, pick(r, CAPS))
 	end
-	return Props.reeds(0.6, Color3.fromHex("#8FB04A"), i)
+	return Biomes.dirtPatch(i, Color3.fromHex("#5A3E2C"))
 end
+
+-- Walls: hanging vines, reeds, dead trees, mossy rocks; landmarks: spore mushroom, old willow,
+-- twisted dead tree
+local SWAMP_WALLS = {
+	function(_: Random, i: number)
+		return Biomes.vineCurtain(i)
+	end,
+	function(_: Random, i: number)
+		return Biomes.vineCurtain(i + 3)
+	end,
+	function(r: Random, i: number)
+		return Props.reeds(r:NextNumber(1.2, 1.7), Color3.fromHex("#7A9A3A"), i)
+	end,
+	function(r: Random, _: number)
+		return Props.deadTree(r:NextNumber(0.8, 1.2))
+	end,
+}
+local SWAMP_LANDMARKS = {
+	function(_: Random, i: number)
+		return Props.mushroom(2.4, CAPS[i % #CAPS + 1], i)
+	end,
+	function(_: Random, i: number)
+		return Biomes.willow(1.7, i)
+	end,
+	function(_: Random, _i: number)
+		return Props.deadTree(2.2)
+	end,
+}
 
 -- Fire Desert (lava bakery): crust sand, lava river, oven chimneys, basalt rocks, mesas
 local BASALT = Color3.fromHex("#4A2E26")
@@ -819,15 +1081,48 @@ local function desertFill(r: Random, i: number): Model
 	return Props.rock(r:NextNumber(1, 2), i, Color3.fromHex("#B07A48"))
 end
 
+local SANDSTONE = Color3.fromHex("#C99A5E")
 local function desertDetail(r: Random, i: number): Model
 	local k = r:NextNumber()
-	if k < 0.12 then
+	if k < 0.1 then
 		return Biomes.bones(i)
+	elseif k < 0.25 then
+		return Biomes.scorchedStones(i, BASALT)
 	elseif k < 0.35 then
+		return Biomes.brokenColumn(i, SANDSTONE)
+	elseif k < 0.55 then
 		return Props.pebbles(i, C.ember, true)
 	end
 	return Props.pebbles(i, Color3.fromHex("#8A5A3A"))
 end
+
+-- Walls: broken pillars, scorched stones, cacti; landmarks: giant rib arch, oven chimney,
+-- basalt boulder
+local DESERT_WALLS = {
+	function(_: Random, i: number)
+		return Biomes.brokenColumn(i, SANDSTONE)
+	end,
+	function(_: Random, i: number)
+		return Biomes.scorchedStones(i, BASALT)
+	end,
+	function(r: Random, _: number)
+		return Biomes.cactus(r:NextNumber(0.8, 1.2))
+	end,
+	function(r: Random, i: number)
+		return Props.rock(r:NextNumber(1.2, 1.8), i, BASALT)
+	end,
+}
+local DESERT_LANDMARKS = {
+	function(_: Random, _i: number)
+		return Biomes.ribArch(1.1)
+	end,
+	function(_: Random, _i: number)
+		return Props.chimney(2)
+	end,
+	function(_: Random, i: number)
+		return Props.rock(2.6, i, BASALT)
+	end,
+}
 
 -- Sky Islands: marble plateau above the sea of clouds, archways, castle in the background
 local MARBLE = Color3.fromHex("#D4CCBA")
@@ -908,12 +1203,47 @@ local function skyFill(r: Random, i: number): Model
 	return Props.tree(r:NextNumber(1, 1.4))
 end
 
+local SKY_BLOOMS = { Color3.new(1, 1, 1), C.gold, Color3.fromHex("#9CE5FF") }
 local function skyDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.6 then
-		return Props.flower(i, pick(r, { Color3.new(1, 1, 1), C.gold, Color3.fromHex("#9CE5FF") }))
+	local k = r:NextNumber()
+	if k < 0.3 then
+		return Props.flower(i, pick(r, SKY_BLOOMS))
+	elseif k < 0.5 then
+		return Biomes.flowerBed(i, SKY_BLOOMS)
 	end
 	return Props.pebbles(i, MARBLE)
 end
+
+-- Walls: gold-capped rails along the path, marble columns, lantern posts; landmarks: gateway,
+-- guardian, small tower
+local SKY_WALLS = {
+	function(_: Random, _i: number)
+		return Biomes.railing(MARBLE)
+	end,
+	function(_: Random, _i: number)
+		return Biomes.railing(MARBLE)
+	end,
+	function(_: Random, _i: number)
+		return Biomes.railing(MARBLE)
+	end,
+	function(_: Random, i: number)
+		return Biomes.wallColumn(i, MARBLE, C.gold)
+	end,
+	function(_: Random, i: number)
+		return Biomes.brokenColumn(i, MARBLE)
+	end,
+}
+local SKY_LANDMARKS = {
+	function(_: Random, _i: number)
+		return Props.arch(0.9, MARBLE)
+	end,
+	function(_: Random, _i: number)
+		return Biomes.statue(1.1, MARBLE)
+	end,
+	function(_: Random, _i: number)
+		return Props.tower(0.8, MARBLE, Color3.fromHex("#5FA8FF"))
+	end,
+}
 
 -- Altered World: violet rock, neon rifts, floating shards, rift portal as landmark
 local RIFT_GLOW = Color3.fromHex("#FF5AD0")
@@ -973,15 +1303,52 @@ local function riftFill(r: Random, i: number): Model
 end
 
 local function riftDetail(r: Random, i: number): Model
-	if r:NextNumber() < 0.4 then
+	local k = r:NextNumber()
+	if k < 0.3 then
+		return Biomes.driftShards(i, if k < 0.15 then RIFT_GLOW else C.crystal)
+	elseif k < 0.55 then
 		return Props.pebbles(i, RIFT_GLOW, true)
 	end
 	return Props.pebbles(i, Color3.fromHex("#4A3A66"))
 end
 
+-- Walls: rift growth, monoliths, glitching cubes, violet columns; landmarks: watching monolith,
+-- big shard, stairs into nothing, crystal cluster
+local RIFT_STONE = Color3.fromHex("#4A3A66")
+local RIFT_WALLS = {
+	function(_: Random, i: number)
+		return Biomes.crystalGrowth(i, RIFT_GLOW)
+	end,
+	function(_: Random, i: number)
+		return Biomes.glitchCubes(i, RIFT_GLOW)
+	end,
+	function(_: Random, i: number)
+		return Biomes.wallColumn(i, RIFT_STONE, RIFT_GLOW)
+	end,
+	function(_: Random, i: number)
+		return Props.riftShard(1.1, i, C.crystal)
+	end,
+}
+local RIFT_LANDMARKS = {
+	function(_: Random, _i: number)
+		return Biomes.eyeMonolith(0.9, RIFT_GLOW)
+	end,
+	function(_: Random, i: number)
+		return Props.riftShard(2.6, i, RIFT_GLOW)
+	end,
+	function(_: Random, i: number)
+		return Biomes.brokenStairs(i, RIFT_STONE)
+	end,
+}
+
 local LOOKS: { [string]: Look } = {
 	green_plains = {
-		top = { C.grass, C.grass2 },
+		-- calmer greens in soft patches (C.grass alone read as a neon test floor)
+		top = {
+			Color3.fromHex("#5DB83E"),
+			Color3.fromHex("#52AB38"),
+			Color3.fromHex("#6BC24A"),
+		},
 		edge = C.grassDark,
 		lane = Color3.fromHex("#E2BE7A"),
 		soil = C.dirt,
@@ -993,6 +1360,9 @@ local LOOKS: { [string]: Look } = {
 		fill = meadowFill,
 		detail = meadowDetail,
 		deco = meadow,
+		walls = MEADOW_WALLS,
+		wallChance = 0.45,
+		landmarks = MEADOW_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#3BAE2C"),
 			rock = {
@@ -1016,7 +1386,11 @@ local LOOKS: { [string]: Look } = {
 	},
 	crystal_caves = {
 		-- slate floor, violet walls: floor, walls and horizon no longer share one blue
-		top = { Color3.fromHex("#6672A0"), Color3.fromHex("#5A6694") },
+		top = {
+			Color3.fromHex("#6672A0"),
+			Color3.fromHex("#5A6694"),
+			Color3.fromHex("#727EAE"),
+		},
 		edge = Color3.fromHex("#2E2A66"),
 		lane = Color3.fromHex("#9AB0E8"),
 		soil = Color3.fromHex("#262250"),
@@ -1037,6 +1411,9 @@ local LOOKS: { [string]: Look } = {
 		fill = cavesFill,
 		detail = cavesDetail,
 		deco = caves,
+		walls = CAVES_WALLS,
+		wallChance = 0.5,
+		landmarks = CAVES_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#262250"),
 			rock = {
@@ -1059,15 +1436,20 @@ local LOOKS: { [string]: Look } = {
 		},
 	},
 	mushroom_swamp = {
-		top = { Color3.fromHex("#5C9A2C"), Color3.fromHex("#4E8826") },
+		-- greener, yellower floor (the violet fog turned the old tones blue) and clearer bog water
+		top = {
+			Color3.fromHex("#74B02C"),
+			Color3.fromHex("#65A126"),
+			Color3.fromHex("#82BC34"),
+		},
 		edge = Color3.fromHex("#2C5A20"),
 		lane = Color3.fromHex("#A8763E"),
 		soil = Color3.fromHex("#40283C"),
 		cliff = Color3.fromHex("#6A4590"),
 		liquid = {
-			color = Color3.fromHex("#2FE0B4"),
+			color = Color3.fromHex("#34E6B8"),
 			material = Enum.Material.Glass,
-			transparency = 0.25,
+			transparency = 0.1,
 			glow = false,
 		},
 		pool = function(x, z)
@@ -1081,6 +1463,9 @@ local LOOKS: { [string]: Look } = {
 		fill = swampFill,
 		detail = swampDetail,
 		deco = swamp,
+		walls = SWAMP_WALLS,
+		wallChance = 0.5,
+		landmarks = SWAMP_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#2E6A22"),
 			rock = {
@@ -1131,6 +1516,9 @@ local LOOKS: { [string]: Look } = {
 		fill = desertFill,
 		detail = desertDetail,
 		deco = desert,
+		walls = DESERT_WALLS,
+		wallChance = 0.45,
+		landmarks = DESERT_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#E6AF5A"),
 			rock = {
@@ -1145,7 +1533,12 @@ local LOOKS: { [string]: Look } = {
 	},
 	sky_islands = {
 		-- sandstone floor on a bluer cloud sea: the island edge no longer vanishes into the white
-		top = { Color3.fromHex("#D9C6A0"), Color3.fromHex("#CBB78C") },
+		top = {
+			Color3.fromHex("#D9C6A0"),
+			Color3.fromHex("#CBB78C"),
+			Color3.fromHex("#E2D2B0"),
+		},
+		patches = true,
 		edge = Color3.fromHex("#E0AE3A"),
 		lane = Color3.fromHex("#F2C85A"),
 		soil = Color3.fromHex("#9CB8EC"),
@@ -1155,6 +1548,9 @@ local LOOKS: { [string]: Look } = {
 		fill = skyFill,
 		detail = skyDetail,
 		deco = sky,
+		walls = SKY_WALLS,
+		wallChance = 0.7,
+		landmarks = SKY_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#D8E6FA"),
 			rock = {},
@@ -1170,7 +1566,12 @@ local LOOKS: { [string]: Look } = {
 		},
 	},
 	altered_world = {
-		top = { Color3.fromHex("#40266A"), Color3.fromHex("#36205C") },
+		top = {
+			Color3.fromHex("#40266A"),
+			Color3.fromHex("#36205C"),
+			Color3.fromHex("#4A2E7A"),
+		},
+		patches = true,
 		edge = Color3.fromHex("#B98CFF"),
 		lane = Color3.fromHex("#6A40B0"),
 		soil = Color3.fromHex("#180E30"),
@@ -1191,6 +1592,9 @@ local LOOKS: { [string]: Look } = {
 		fill = riftFill,
 		detail = riftDetail,
 		deco = rift,
+		walls = RIFT_WALLS,
+		wallChance = 0.45,
+		landmarks = RIFT_LANDMARKS,
 		horizon = {
 			ground = Color3.fromHex("#180E30"),
 			rock = {
@@ -1280,6 +1684,7 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 
 	local r = Random.new(#id * 31)
 	layout(look, r, trail)
+	roomLanes(trail)
 	local ground = Instance.new("Folder")
 	ground.Name = "Ground"
 	ground.Parent = folder
@@ -1292,6 +1697,7 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 	deco.Parent = folder
 	look.deco(deco, r)
 	scatter(deco, look, r)
+	rooms(deco, look, r, trail)
 	if look.particles then
 		sparkles(folder, look.particles)
 	end
