@@ -1,5 +1,9 @@
 # Test run before the release (Studio + phone)
 
+Where to play: Studio (`rojo serve`, Connect, Play) for everything with Dbg and free Robux test
+purchases; the private **test place** (`docs/PUBLISH.md` "Test place") for teleports, hero switch,
+real saves and the phone app. Order and go/no-go: `docs/RELEASE.md` §0.
+
 About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in Studio) → "+10k Gold",
 "Level 50", "Unlock Areas", "Kill All Enemies", "+500 Soulstars", "Pet Egg", "Next World Tier",
 "Spell Stones" (one of every stone), "Fill Rush" (full Stud Rush meter).
@@ -83,3 +87,41 @@ Launch basics:
 - [ ] **Beta Season config:** after #124: `Shared/Seasons` Beta active, no end date (`BETA_ENDS` nil) → Season window shows "Beta Season" without a countdown.
 - [ ] **Debug menu:** live place with a second account → no Dbg button, Debug remote ignored; `DEV_USERS` in `Systems/Debug` holds only Micha's UserId (the place owner is always allowed).
 - [ ] **Version label:** Settings shows `1.0 Beta` (`Settings.GAME_VERSION`).
+
+## Release candidate playtest (2026-11-05: PRs #168, #170-#181)
+
+Everything below was merged after the last full run and was **only checked in code** (Lune specs,
+layout matrix). Nobody has seen it in Studio or on a phone yet. Each row: do it on **PC** first, then
+on the **phone** (Studio *Test → Device* 844x390, then the Roblox app on the test place).
+"Spec" names the Lune test that covers the logic; **Studio only** means no automated check can see it.
+
+Fast setup: fresh save (Dbg "Reset Account"), Dbg "Level 50", "+10k Gold" (twice), "+500 Soulstars",
+"+10 Items", "Unlock Areas", "Next World Tier".
+
+| # | PR | What to do | What should happen (PC) | Phone extra | Spec / Studio only |
+|---|---|---|---|---|---|
+| R1 | #168 | Kill a boss (any region) | Orbs fountain out one by one, coins land outside, items inside a 5-11 stud ring, best item last with a ring pulse; leftovers fly to you before the clear card | Settings → Effects Low: no trails, still smooth, no frame drop | LootBurst (timing); **Studio only** for the look |
+| R2 | #168 | Open Star Web, Forge, Pet Stable the first time | Short 3-line card with "Got it"; reopening shows nothing; Settings → Defaults brings them back | Card fits, "Got it" tappable | Intro; **Studio only** for layout |
+| R3 | #170 | Open Skills, Star Web, Forge, Atlas | Plain graphite window background, no painted art or anvil; Atlas region panel shows the new region picture for each of the 6 regions | Picture not cut, text readable over it | **Studio only** (image ids load) |
+| R4 | #171 | Shop → Daily Shop tab | 4 daily offers + 2 weekly sets, "Refreshes in" / "Leaves in" countdowns; buy one with Soulstars | Tabs and countdowns fit 844x390 | GearSkins, Shop |
+| R5 | #171 | Shop → Cosmetics → Gear skins | Wardrobe shows class look, owned and locked skins with how to get them; Try on shows a locked skin on the 3D preview; wear an owned skin → shows on the hero in the hub; class skins only on their class | Preview turns, buttons tappable | GearSkins; **Studio only** for the 3D look |
+| R6 | #171 | Class set (e.g. Paladin) | Soulstar button works (1,400); the Robux button shows "Soon" until the set IDs exist (see `RELEASE.md` §6) | - | Monetization |
+| R7 | #173 | Look at nameplates, Forge item lines, bag upgrade button, level-up toast, Season window | Separator is " - ", no middle dot left | - | Nameplate, SkillUnlock |
+| R8 | #174 | Stash at the hub, open it | Edge cells not clipped (halo and hover visible on first/last row and column); every wearable item has an up / side / down marker, locked items a lock chip; info card says "Upgrade", "Upgrade, a better one waits" or "Not an upgrade" | **Hold** an item 0.35 s → stats show, item does not move; a tap still moves it; hint text says hold/tap | Stash, Items |
+| R9 | #175 | Pick up items, look at bag arrows | Arrows look plausible (deeper weapon is almost always up; a big life roll can beat a tiny damage roll); "Upgrades" sort, header chip, HUD dot and the UPGRADE pickup tag agree | - | Upgrade |
+| R10 | #175 + #181 | Tap a bag item (comparison card) | Big number labelled "Overall +N%: +X% damage, -Y% life, +Z% speed"; locked items show it muted "once worn" | Icon does not cover the item name; the line wraps up to 3 lines instead of "…"; a unique's effect still shows. **#181 is still open: test after it merges** | Upgrade, Inventory, matrix `inventory-compare` |
+| R11 | #176 | Dbg "Next World Tier" (Veteran), kill each region boss once | First kill of each boss kind on Veteran+ drops a unique (guaranteed); later kills sometimes; only bosses drop uniques | - | UniqueLoot |
+| R12 | #176 | Look at a unique in Inventory and Stash | Rank (I-V) and its signature effect text show | Text fits | UniqueLoot; **Studio only** for layout |
+| R13 | #176 | Wear a unique, play a Rift | Its effect actually happens in combat (on hit / kill / hurt / cast / dash; Thread of Fate during the Rush; Lumen Lantern on the Break meter) | - | UniqueLoot (math); **Studio only** for the feel |
+| R14 | #176 | Forge with a unique | Only Fuse (needs a duplicate in the bag) and Attune tiles; Fuse raises the rank, Attune raises the level to the best loot level the hero can wear; a normal item cannot go past its tier cap | Tiles tappable | Forge |
+| R15 | #176 | Full bag, kill a boss that drops a unique | The unique still lands in the bag (never salvaged) | - | UniqueLoot |
+| R16 | #172 + #178 | Atlas → Altered World (depth 26+), kill the boss | 3 Path Cards: Safe Path (+10% gold), one with one affix, one with two affixes (always two at depth 26+); the first depth of a run is plain; a toast names the affix; run card shows "twist - reward" | Card rows readable, nothing cut | PathCards, matrix `rift-cards` |
+| R17 | #178 | Clear a boss in Green Plains to Sky Islands | Plain "Deeper" button, no cards, no affixes | - | PathCards |
+| R18 | #172 | Several Altered World depths | Boss changes each depth ("Altered Crystal King" etc.), violet glow, one elite mod, never the same boss twice in a row | - | Bosses, PathCards |
+| R19 | #172 | Pick Brick Rain, Champion, Glass Cannon, Big Builds | Brick Rain: red circles in clearings; Champion appears in clearing 2; the others change damage / enemy size as described | Telegraphs readable | PathCards (rules); **Studio only** for telegraphs |
+| R20 | #180 | Inventory (I) doll, Shop gear skin preview, hub | Doll lit from the front; studs on helmet, chest, pauldrons; rivets sit on plates (not floating or buried) | Studs not too noisy at hub camera distance; frame time fine with 12 players' gear | Gear, Studs, Models; **Studio only** for the look |
+| R21 | #179 | Settings → About → What's New | Window shows "1.0 Beta - The Beta Season begins" with 5 lines; Settings shows version `1.0 Beta` | Window fits, OK tappable | Changelog, Settings |
+| R22 | #179 | Auto popup | A brand-new account never gets the popup; an account that saw an older build gets it once after joining (not in a Rift, no other window open). With only build 1 in the list this is only testable after the next release entry | - | Changelog; **live only** |
+| R23 | #179 | Merge anything to `main` | Actions → "Publish test place" runs and the test place shows the change; the live game is unchanged | Play the test place in the phone app | **GitHub + live only** |
+
+Not in this list on purpose: #177 (analytics workflow, no game change) and #169 / #167 (docs only).
