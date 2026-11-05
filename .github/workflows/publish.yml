@@ -1,30 +1,22 @@
 name: Publish
 
-# Builds the game with Rojo and uploads it to the place via Open Cloud.
+# LIVE game. Builds main with Rojo and uploads it to the live place via Open Cloud.
+# Manual only (Actions → Publish → Run workflow, type LIVE). Release flow: docs/PUBLISH.md
 # Secrets in the "Roblox" environment (Settings → Environments): ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
 # Guide: docs/PUBLISH.md
 #
 # Fast path: the full Lune suite (~9 min) already runs in CI on every PR, so this workflow only
 # runs the second-long gates (format, lint, types, build) and then uploads. Toolchain and Wally
-# packages come from the Actions cache. Only pushes that change what goes into the place trigger it.
+# packages come from the Actions cache.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - src/**
-      - default.project.json
-      - wally.toml
-      - wally.lock
-      - rokit.toml
-      - selene.toml
-      - stylua.toml
-      - tools/publish.sh
-      - tools/packages.sh
-      - tools/setup.sh
-      - .github/workflows/publish.yml
+  # Manual only: merges go to the test place (publish-test.yml); live ships when you decide.
   workflow_dispatch:
     inputs:
+      confirm:
+        description: "Type LIVE to upload main to the live game"
+        type: string
+        required: true
       versionType:
         description: "Published = playable right away, Saved = only save as a version"
         type: choice
@@ -35,13 +27,15 @@ on:
         type: boolean
         default: false
 
-# Per branch, only the newest commit matters: a newer push cancels an older run of the same branch.
+# One live release at a time; a second run waits instead of cancelling an upload in progress.
 concurrency:
-  group: publish-${{ github.ref }}
-  cancel-in-progress: true
+  group: publish-live
+  cancel-in-progress: false
 
 jobs:
   publish:
+    # Live only from main and only with the typed confirmation
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'LIVE'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: Roblox

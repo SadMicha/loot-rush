@@ -17,8 +17,8 @@ Publishing setup: `docs/PUBLISH.md`. Robux ids: `docs/MONETIZATION.md`.
 
 - [ ] `DEV_USERS` in `src/server/Systems/Debug.luau`: your own UserId only, so the debug menu works
   for you and nobody else in the live game.
-- [ ] Upload: push to `main` uploads to the test place. For the real place point the secrets
-  `ROBLOX_PLACE_ID`/`ROBLOX_UNIVERSE_ID` at the live game or publish once from Studio.
+- [ ] Upload: merges go to the test place (`publish-test.yml`); live only via Actions → Publish,
+  typed `LIVE` (release flow in [PUBLISH.md](PUBLISH.md)). Changelog entry added first.
 - [ ] Sounds: spot-check in Studio, Output shows `[Sound] N sound ids checked, M failed` with every
   failed hook named. Swap a sound by changing only its id in `src/shared/Sounds.luau`.
 - [ ] New art in `assets/`: run "Upload UI assets" and register the ids (`assets/ui-asset-ids.csv` →

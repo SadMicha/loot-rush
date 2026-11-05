@@ -1,12 +1,37 @@
-# Publishing to Roblox automatically
+# Publishing to Roblox (test place and live)
 
-On every push to `main` that changes the game (or via a button in GitHub), GitHub Actions checks the game, builds it with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud to an existing place as a **Published** version. After that it's playable in the Roblox app on phone and iPad.
+Two targets, two workflows:
+
+| Target | Workflow | When |
+|---|---|---|
+| **Test place** (private) | `publish-test.yml`, environment `Roblox-Test` | automatically on every merge to `main`, or on demand for a branch/PR |
+| **Live game** | `publish.yml`, environment `Roblox` | **only by hand**: Actions → **Publish** → Run workflow on `main`, type `LIVE` |
+
+Each run builds the game with Rojo into an `.rbxl` and uploads it via Roblox Open Cloud as a **Published** version.
+
+## Release flow
+
+1. Work lands on `main` through PRs as usual. Every merge goes to the **test place** only.
+2. Play the test place (`docs/SMOKE-TEST.md`; `docs/TEST-RELEASE.md` before a bigger release).
+3. When it's good: add the release to `src/shared/Changelog.luau` (see "Release notes" below) in a PR and merge it. The test place shows the new "What's New" card, so you see it exactly as players will.
+4. GitHub → Actions → **Publish** → Run workflow (branch `main`), type `LIVE` → the live game gets that `main`.
+5. Running live servers keep the old version until they empty; to force it: Creator Hub → the place → **⋯ → Shut down all servers** (or "Migrate to latest update").
+
+The live workflow refuses to run from any branch but `main` and skips without the typed `LIVE`.
+
+### Release notes
+
+`src/shared/Changelog.luau` is the single source. Newest release on top: `build` (whole number, +1 per live release), `version` (shown in Settings → About), `date`, `title`, `notes` (short player-facing lines, about 3-8, no internal jargon, each under ~90 characters). Players who knew the previous release see a "What's New" window once on their next join (seen-marker per account in their settings); brand-new players don't. Settings → **What's New** shows the list any time.
+
+Writing them: when asking Claude for a release, say "prepare release notes"; Claude reads the merged PR titles since the last release entry and drafts the lines for you to edit in the PR.
 
 **Speed:** the workflow runs only the fast gates (format, lint, types, Rojo build, about a second each) and then uploads; the toolchain comes from the Actions cache. The full Lune suite (~9 min) is not repeated here because CI already runs it on every PR. A run takes well under a minute. Pushes that only touch `docs/`, `tests/`, `assets/` or other non-game files don't publish at all, and a newer push cancels an older run that is still going. **Run workflow** has a `fullTests` box if you want the suite before an upload anyway.
 
-> **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. Still, use a **separate test game** instead of the later live game.
+> **Important:** The upload replaces the **whole** place. Everything that was only built in Studio and doesn't come through Rojo is gone there afterwards. Loot Rush builds arena and spawn in code, so that's fine. That is why every change goes to the test place first.
 
-## 1. Create the test game (once)
+Steps 1-5 below are how the **live** game (environment `Roblox`) was set up; the test place repeats them with its own names, see "Test place".
+
+## 1. Create the game (once)
 
 1. Roblox Studio → **New → Baseplate** → **File → Publish to Roblox As …** → new game, e.g. "Loot Rush Test".
 2. [Creator Hub](https://create.roblox.com/dashboard/creations) → the game → **⋯ → Copy Universe ID** → remember as `ROBLOX_UNIVERSE_ID`.
@@ -50,7 +75,38 @@ On the phone/iPad: Roblox app with **your** account, then open the link `https:/
 
 Running servers keep the old version. If you're already in: leave the game and rejoin, otherwise in Creator Hub at the place **⋯ → Shut down all servers**.
 
-From now on every merge to `main` publishes automatically. `Saved` in the Run workflow menu only saves a version without making it playable.
+The live workflow needs the typed `LIVE` and runs only on `main`. `Saved` in the Run workflow menu only saves a version without making it playable.
+
+## Test place (separate from the live game)
+
+The `Roblox` environment now points at the **live** game. Everything that should be tried first goes to a private test experience through its own workflow, `.github/workflows/publish-test.yml`, with its own environment `Roblox-Test`.
+
+**Why a separate experience (not a second place in the live one):** DataStores, analytics, badges, developer products and the Great Build pool all belong to the **universe**. A place inside the live universe would read and write live saves. A separate experience keeps all of that apart automatically, with no code change.
+
+### Set it up (once)
+
+1. Studio → **New → Baseplate** → **File → Publish to Roblox As … → New experience**, name it "Loot Rush Test". Keep it **Private** (Configure → Access); tick Phone and Tablet under Devices.
+2. Copy its **Universe ID** (Creations → ⋯ → Copy Universe ID) and the start place's **Place ID** (`…/places/<NUMBER>/configure`).
+3. Creator Hub → Open Cloud → API Keys → **Create API Key** `loot-rush-test`: API system **universe-places** → select **only the test experience** → **write**; Accepted IP `0.0.0.0/0`. (A separate key means a leaked test key can never touch the live game.)
+4. GitHub → Settings → Environments → **New environment** `Roblox-Test` → three secrets: `ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` (the values from steps 2-3).
+5. GitHub → Issues → Labels → **New label** `test-place`.
+
+### Use it
+
+| Want | Do |
+|---|---|
+| Test place = what is on `main` | automatic on every merge |
+| Try a PR before merging | add the label `test-place` to the PR; every new push to it re-publishes |
+| Try any branch | Actions → **Publish test place** → Run workflow → "Use workflow from" = the branch |
+
+Only one test place exists, so the newest upload wins. Play it at `https://www.roblox.com/games/<TEST_PLACE_ID>`.
+
+### What differs in the test place
+
+- **Saves, leaderboard, Great Build, analytics:** separate, start empty. Wipe freely.
+- **Debug commands:** work for you as the experience owner (same rule as Studio).
+- **Badges:** the IDs in `Shared/Badges` belong to the live experience, so they don't award here.
+- **Developer products** (Soulstars, gold): IDs belong to the live experience, the prompt fails here. **Game passes** can be prompted from any experience and **charge real Robux**, so don't buy them in the test place. Test purchases in Studio, where they are free.
 
 ## Making the game public (one click, done by you)
 
