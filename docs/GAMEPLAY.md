@@ -209,6 +209,16 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   Saved as `profile.autoSalvage`; `Net.AutoSalvage` (rate limited). The run summary still counts
   auto-salvaged items as collected.
 
+## Forge
+- Rules in `Shared/Forge` (Add Affix, Upgrade Tier, Reroll, Seal; 0-2 charges per action except
+  Seal). Only `Systems/Forge` rolls and deducts (`Net.ForgeAct` = action + item id + affix index).
+- Window (`ForgeController`), one flow: item grid (All / Worn / Bag, sort Best/Rarity/Slot/Level,
+  rarity filter; only the hero's class) → action tile → affix → preview bar with cost and one
+  Forge button. Cells show charges left, a gold diamond on worn gear, and fade when nothing works.
+- Defaults (`Forge.suggestItem/suggestAction/suggestAffix`): opens on the best candidate (works
+  now and has charges, worn first, then rarity/level). Upgrade Tier picks the cheapest affix,
+  Reroll the weakest roll, Seal the best one.
+
 ## Stud Rush
 
 Numbers in `Shared/Rush`; stud flight `STUD_HOME_*` in `Shared/Feel`. Server `Systems/Rush`.
