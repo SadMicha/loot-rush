@@ -456,8 +456,9 @@ local function buildDoll(parent: Frame)
 	viewport.BackgroundTransparency = 1
 	viewport.Position = UDim2.fromOffset(90, 8)
 	viewport.Size = UDim2.fromOffset(LEFT_W - 180, DOLL_H - 16)
-	viewport.Ambient = Color3.fromRGB(170, 175, 200)
-	viewport.LightColor = Color3.fromRGB(255, 240, 220)
+	viewport.Ambient = Theme.Store.PreviewAmbient
+	viewport.LightColor = Theme.Store.PreviewLight
+	viewport.LightDirection = Theme.Store.PreviewLightDir
 	viewport.ZIndex = 2
 	viewport.Parent = dollCard
 
