@@ -210,6 +210,10 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
 `UNIQUE_FROM`, `UniqueDrops`). Design and numbers: `docs/specs/LOOT.md`.
 - 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. A full bag salvages
   non-upgrades from loot; upgrades stay on the ground ("Bag full" popup).
+- **Empty slot**: loot the hero can wear for an empty gear slot goes on at once (popup "Equipped
+  <name>", counts for the "Equip an item" quest), even with a full bag. Worn gear is never
+  replaced. Reason: the Inventory button is hidden in the Rift, and the Nov 5 funnel lost half the
+  new players at the equip quest (`Inventory.add`, 4th return value).
 - **Upgrade verdict** (`Shared/Upgrade`): simulates the hero with and without the item, with the
   server's formulas (Systems/Stats → Combat): damage = weapon factor (`Balance.weaponFactor`) × (1 +
   level bonus + damage %) × average crit factor (`Crit.expectedMult`, Star Web crit damage); life =
