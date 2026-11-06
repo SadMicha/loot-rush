@@ -73,6 +73,7 @@ end
 -- Minimum sizes in real screen pixels (after UIScale). On small screens
 -- small text always grows, buttons marked with Kit.touchTarget only on touch devices.
 Kit.MIN_TEXT_PX = 9.5
+Kit.MAX_TEXT_SIZE = 100 -- the largest TextSize Roblox accepts
 Kit.MIN_TOUCH_PX = 33
 
 -- Make a button at least Kit.MIN_TOUCH_PX large on touch devices (offset sizes only)
@@ -111,8 +112,12 @@ local function minimums(root: Frame, scale: UIScale): () -> ()
 		if t.TextSize ~= t:GetAttribute("FitTextSize") then
 			t:SetAttribute("BaseTextSize", t.TextSize) -- size was set anew from outside
 		end
-		local want =
+		-- Roblox clamps TextSize to 100: asking for more would look like "set from outside" next
+		-- time and make the clamped value the design size for good
+		local want = math.min(
+			Kit.MAX_TEXT_SIZE,
 			math.max(t:GetAttribute("BaseTextSize"), math.ceil(Kit.MIN_TEXT_PX / scaleOf(t)))
+		)
 		t:SetAttribute("FitTextSize", want)
 		t.TextSize = want
 	end
@@ -310,8 +315,10 @@ end
 
 -- Runs `fn` whenever the window size changes. One shared watcher: the camera's ViewportSize signal
 -- alone goes stale (Roblox swaps the camera, and the window opens small and is resized later), so
--- it follows CurrentCamera and also compares the size once per frame.
+-- it follows CurrentCamera and also compares the size once per frame. Kit.watchArea does the same
+-- for the area a ScreenGui really covers, which can lag behind the viewport.
 local viewportFns: { () -> () } = {}
+local areaWatchers: { { gui: LayerCollector, fn: () -> (), last: Vector2 } } = {}
 local viewportWatching = false
 
 local function watchViewport()
@@ -324,6 +331,18 @@ local function watchViewport()
 			last = v
 			for _, fn in viewportFns do
 				fn()
+			end
+		end
+		for i = #areaWatchers, 1, -1 do
+			local w = areaWatchers[i]
+			if not w.gui.Parent then
+				table.remove(areaWatchers, i)
+			else
+				local area = Kit.guiArea(w.gui)
+				if area ~= w.last then
+					w.last = area
+					w.fn()
+				end
 			end
 		end
 	end
@@ -347,6 +366,15 @@ end
 
 function Kit.onViewport(fn: () -> ())
 	table.insert(viewportFns, fn)
+	if not viewportWatching then
+		watchViewport()
+	end
+end
+
+-- Runs `fn` whenever the area of `gui` changes (see Kit.guiArea), checked every frame because the
+-- AbsoluteSize signal can be missed or arrive after the viewport signal with the old size
+function Kit.watchArea(gui: LayerCollector, fn: () -> ())
+	table.insert(areaWatchers, { gui = gui, fn = fn, last = Kit.guiArea(gui) })
 	if not viewportWatching then
 		watchViewport()
 	end
@@ -382,8 +410,9 @@ end
 -- Screen area a ScreenGui really covers (screen pixels): position and size. Falls back to the whole
 -- viewport before the gui has been laid out.
 function Kit.guiArea(gui: LayerCollector): Vector2
+	-- a disabled gui is not laid out: its AbsoluteSize is whatever it was when it was last open
 	local size = gui.AbsoluteSize
-	if size.X > 0 and size.Y > 0 then
+	if gui.Enabled and size.X > 0 and size.Y > 0 then
 		return size
 	end
 	local camera = workspace.CurrentCamera
@@ -442,7 +471,9 @@ function Kit.scaledGui(
 		table.insert(hudRescalers, rescale)
 	end
 	Kit.onViewport(rescale)
+	Kit.watchArea(gui, rescale)
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
+	gui:GetPropertyChangedSignal("Enabled"):Connect(rescale)
 	return gui, root
 end
 
