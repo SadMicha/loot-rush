@@ -114,14 +114,28 @@ function Inventory.add(
 	player: Player,
 	item: Items.Item,
 	fromLoot: boolean?
-): (boolean, boolean, boolean)
+): (boolean, boolean, boolean, boolean)
 	local profile = Data.get(player)
 	if not profile then
-		return false, false, false
+		return false, false, false, false
 	end
 	if fromLoot and autoSalvages(player, profile, item) then
 		Inventory.salvageLoot(player, item)
-		return true, true, false
+		return true, true, false, false
+	end
+	-- A drop for an empty slot goes on at once (4th return true): a new hero wears its first
+	-- pieces without leaving the Rift, where the Inventory button is hidden (phones have no "I"
+	-- key). Nothing worn is replaced, so no choice is taken away.
+	if
+		fromLoot
+		and profile.equipped[item.slot] == nil
+		and Items.canWear(item, profile.level, profile.class)
+	then
+		profile.equipped[item.slot] = item
+		recompute(player, false)
+		snapshot(player)
+		Actions.fire(player, "equip")
+		return true, false, false, true
 	end
 	-- A unique from loot always fits, even over capacity (a full bag shows red, as after a season
 	-- reset): boss uniques are rare and booked as found (pity, Veteran firsts, Systems/Loot), so
@@ -131,13 +145,13 @@ function Inventory.add(
 		local hero = if fromLoot then Stats.hero(player) else nil
 		if hero and not Upgrade.isUpgrade(hero, item) then
 			Inventory.salvageLoot(player, item)
-			return true, true, true
+			return true, true, true, false
 		end
-		return false, false, true
+		return false, false, true, false
 	end
 	table.insert(profile.inventory, item)
 	snapshot(player)
-	return true, false, false
+	return true, false, false, false
 end
 
 -- txn (Analytics transaction type) logs the change as one economy event; loot pickups pass none

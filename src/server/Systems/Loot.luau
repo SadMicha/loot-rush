@@ -491,7 +491,7 @@ local function pickup(d: Drop, at: Vector3?): boolean
 	local color: Color3
 	local upgrade = false
 	if item then
-		local stored, salvaged, full = Inventory.add(d.owner, item, true)
+		local stored, salvaged, full, worn = Inventory.add(d.owner, item, true)
 		if not stored then
 			if at then
 				warnFull(d.owner, item, at)
@@ -501,10 +501,11 @@ local function pickup(d: Drop, at: Vector3?): boolean
 		text = if full
 			then "Bag full - Salvaged " .. item.name
 			elseif salvaged then "Salvaged " .. item.name
+			elseif worn then "Equipped " .. item.name
 			else item.name
 		color = Theme.Rarity[item.rarity] or Theme.Rarity.normal
 		-- Beats the worn piece of its slot (or the slot is empty): the client adds the "UPGRADE" tag
-		local hero = if salvaged then nil else Stats.hero(d.owner)
+		local hero = if salvaged or worn then nil else Stats.hero(d.owner)
 		upgrade = hero ~= nil
 			and Items.canWear(item, hero.level, hero.class)
 			and Upgrade.isUpgrade(hero, item)
