@@ -497,10 +497,7 @@ function Window.new(opts: Options): Window
 	scale:GetPropertyChangedSignal("Scale"):Connect(arrange)
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange)
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
-	end
+	Kit.onViewport(arrange)
 
 	if opts.key then
 		local key = opts.key

@@ -192,10 +192,7 @@ function DebugController.init()
 	end
 	relayout()
 	player:GetAttributeChangedSignal("DebugTools"):Connect(relayout)
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(relayout)
-	end
+	Kit.onViewport(relayout)
 
 	local button = Kit.button("Dbg", Theme.Color.Bg3, Vector2.new(48, 30))
 	dbgButton = button

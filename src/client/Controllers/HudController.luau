@@ -1596,10 +1596,7 @@ function HudController.init()
 	questGroup:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
 	xpChip:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutHud)
 	layoutHud()
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutHud)
-	end
+	Kit.onViewport(layoutHud)
 end
 
 function HudController.start()

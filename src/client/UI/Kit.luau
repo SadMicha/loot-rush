@@ -9,6 +9,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Skills = require(ReplicatedStorage.Shared.Skills)
@@ -307,6 +308,50 @@ function Kit.hudBlockRects(): { { number } }
 	return out
 end
 
+-- Runs `fn` whenever the window size changes. One shared watcher: the camera's ViewportSize signal
+-- alone goes stale (Roblox swaps the camera, and the window opens small and is resized later), so
+-- it follows CurrentCamera and also compares the size once per frame.
+local viewportFns: { () -> () } = {}
+local viewportWatching = false
+
+local function watchViewport()
+	viewportWatching = true
+	local last = Vector2.zero
+	local function check()
+		local camera = workspace.CurrentCamera
+		local v = if camera then camera.ViewportSize else Vector2.zero
+		if v ~= last then
+			last = v
+			for _, fn in viewportFns do
+				fn()
+			end
+		end
+	end
+	RunService.Heartbeat:Connect(check)
+	-- the signal answers at once; the per-frame check above catches what it misses
+	local connection: RBXScriptConnection? = nil
+	local function follow()
+		if connection then
+			connection:Disconnect()
+			connection = nil
+		end
+		local camera = workspace.CurrentCamera
+		if camera then
+			connection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(check)
+		end
+		check()
+	end
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(follow)
+	follow()
+end
+
+function Kit.onViewport(fn: () -> ())
+	table.insert(viewportFns, fn)
+	if not viewportWatching then
+		watchViewport()
+	end
+end
+
 -- Re-apply minimum sizes after an inner UIScale has changed
 function Kit.refit(root: Frame)
 	local fn = refitters[root]
@@ -396,10 +441,7 @@ function Kit.scaledGui(
 	if design then
 		table.insert(hudRescalers, rescale)
 	end
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
-	end
+	Kit.onViewport(rescale)
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
 	return gui, root
 end
