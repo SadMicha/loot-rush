@@ -21,4 +21,6 @@ Raw answers: one JSON file per query next to this file. Source: tools/fetch-anal
 | revenue-total | DailyRevenue | 200 | ok |
 | funnel-users | FunnelUserTotalCount | 200 | ok |
 | custom-events | CustomEventCountUser | 200 | ok |
+| rift-fails-by-depth | CustomEventCountUser | 400 | {"done": true, "error": {"code": 2001, "message": "Dimension CustomField02 is not supported for metric CustomEventCountUser."}} |
+| rift-clears-by-depth | CustomEventCountUser | 400 | {"done": true, "error": {"code": 2001, "message": "Dimension CustomField02 is not supported for metric CustomEventCountUser."}} |
 | economy | EconomyTransactionAmount | 200 | ok |

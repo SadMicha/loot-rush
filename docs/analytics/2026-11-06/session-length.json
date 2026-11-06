@@ -8,9 +8,9 @@
   "response": {
     "done": true,
     "metadata": {
-      "createdTime": "2026-11-06T05:11:16.1380038+00:00"
+      "createdTime": "2026-11-06T16:53:04.380651+00:00"
     },
-    "path": "v1/universes/10773139945/operations/metrics/7e8f7d0b1a132c2e34e2e5d93b9a1524a14024fbb807ac198d82abb4f43cf643",
+    "path": "v1/universes/10773139945/operations/metrics/27ec21a876ae5d76049ee2a57c1fc60c5742df2e13bd12dd1da39e8c7419e4f5",
     "response": {
       "values": [
         {
@@ -39,6 +39,10 @@
             {
               "time": "2026-11-04T00:00:00+00:00",
               "value": 3.4003546237945557
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 4.673837184906006
             }
           ]
         }
