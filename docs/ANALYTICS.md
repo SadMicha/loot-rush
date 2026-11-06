@@ -27,8 +27,11 @@ publish/badges). The key needs the API system **universe-analytics** with the op
 2. Access Permissions → add API system **universe-analytics** → choose the experience → tick
    **universe.analytics:read** → Save. (Editing keeps the secret; no GitHub change needed.)
 
-`ROBLOX_UNIVERSE_ID` points at the test place. For the live game, enter its universe ID as the
-workflow input (the key must have the scope for that universe too).
+The workflow runs in the environment `Roblox`, whose `ROBLOX_UNIVERSE_ID` is the **live** game
+(universe `10773139945`; the test place is its own universe in the environment `Roblox-Test`). So
+the default fetch, including the Monday schedule, already reads the live game. To read another
+universe (for example the test place), enter its universe ID as the workflow input (the key must
+have the scope for that universe too).
 
 ## Limits
 
