@@ -28,7 +28,7 @@ HOST = "https://apis.roblox.com"
 BASE = HOST + "/analytics-query-api/v1"
 QUERIES = "tools/analytics-queries.json"
 POLL_SECONDS = 90
-MAX_SPLIT = 40  # sub-queries per split query
+MAX_SPLIT = 60  # sub-queries per split query; more are reported as an error in summary.md
 
 
 def request(method, url, key, body=None):
@@ -116,6 +116,7 @@ def run_split(universe, key, query, body):
     combos = [[]]
     for dim in dims:
         combos = [c + [(dim, v)] for c in combos for v in seen.get(dim, [])]
+    total = len(combos)
     combos = combos[:MAX_SPLIT]
     results = []
     for combo in combos:
@@ -127,8 +128,13 @@ def run_split(universe, key, query, body):
         results.append({"filter": dict(combo), "status": s, "ok": ok, "response": d.get("response", d) if ok else d})
     failed = sum(1 for r in results if not r["ok"])
     out = {"dimensionValues": data.get("response"), "results": results}
+    problems = []
     if failed:
-        out["error"] = f"{failed} of {len(results)} sub-queries failed"
+        problems.append(f"{failed} of {len(results)} sub-queries failed")
+    if total > len(combos):
+        problems.append(f"only the first {len(combos)} of {total} combinations were queried (MAX_SPLIT)")
+    if problems:
+        out["error"] = "; ".join(problems)
     return dict(body, split=dims), 200, out
 
 
