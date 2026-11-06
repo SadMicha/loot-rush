@@ -100,6 +100,7 @@ return table.freeze({
 	TRAIL_REGION_SHAPE = TRAIL_REGION_SHAPE,
 	HUB_HALF = 80, -- half size of the walkable Hub plan (20 cells × 8 studs)
 	HUB_TOP = 15, -- root higher than this above the Hub floor = on a roof or cliff, back to spawn
+	HUB_RAIL_GUARD = 40, -- height of the invisible wall on the south railing (a jump or dash cleared the knee-high rail)
 	-- Never fall off a map: invisible walls around every map (Util/Fence) + FallGuard rescue
 	BOUNDARY_HEIGHT = 200, -- studs of invisible wall, starting FALL_DEPTH below the floor
 	BOUNDARY_THICK = 8, -- studs; thick enough that no dash or physics step tunnels through
