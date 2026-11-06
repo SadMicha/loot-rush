@@ -498,6 +498,7 @@ function Window.new(opts: Options): Window
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(arrange)
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
 	Kit.onViewport(arrange)
+	Kit.watchArea(gui, arrange)
 
 	if opts.key then
 		local key = opts.key
