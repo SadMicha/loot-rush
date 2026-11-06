@@ -2138,10 +2138,7 @@ function InventoryController.init()
 	if rootScale then
 		rootScale:GetPropertyChangedSignal("Scale"):Connect(arrange)
 	end
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(arrange)
-	end
+	Kit.onViewport(arrange)
 	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(arrange)
 	Window.onReserve(arrange)
 	arrange()
