@@ -25,6 +25,19 @@ Changelog.MAX_NOTE = 90 -- characters per line (fits two rows on a phone)
 
 Changelog.Releases = table.freeze({
 	{
+		build = 3,
+		version = "1.0.2 Beta",
+		date = "2026-11-06",
+		title = "Resizable window and fresh colours",
+		notes = {
+			"Resize the game window any time: the UI and text now follow right away.",
+			"Crystal Caves glows violet, and the Mushroom Swamp is a green bog again.",
+			"The Rift title no longer runs under the Leave button.",
+			"Loot for an empty gear slot is equipped at once.",
+			"The equip quest finishes when your hero already wears gear.",
+		},
+	},
+	{
 		build = 2,
 		version = "1.0.1 Beta",
 		date = "2026-11-06",
