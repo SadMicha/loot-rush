@@ -413,6 +413,20 @@ local function walls(parent: Instance)
 			C.stone
 		)
 	end
+	-- The railing is only knee-high: a jump or dash cleared it and landed on the countryside outside.
+	-- An invisible wall on top of it makes it the town edge like the walls on the other sides.
+	local guard = Instance.new("Part")
+	guard.Name = "RailGuard"
+	guard.Anchored = true
+	guard.CanCollide = true
+	guard.CanQuery = true -- dash probes stop in front of it
+	guard.CanTouch = false
+	guard.CastShadow = false
+	guard.Transparency = 1
+	guard.Size = Vector3.new(N * T, Config.HUB_RAIL_GUARD, 1.2)
+	guard:SetAttribute("NoStuds", true)
+	guard.CFrame = at(Vector3.new(0, H.G + Config.HUB_RAIL_GUARD / 2, cell(1, 1.5).Z))
+	guard.Parent = parent
 end
 
 local function buildGround(parent: Instance)
