@@ -2,17 +2,48 @@
   "query": {
     "endTime": "2026-11-06T00:00:00Z",
     "granularity": "OneDay",
-    "metric": "PlaytimePerUser",
+    "metric": "AveragePlayTimeMinutesPerDAU",
     "startTime": "2026-10-23T00:00:00Z"
   },
   "response": {
-    "error": {
-      "done": true,
-      "error": {
-        "code": 2001,
-        "message": "Query Error: The metric with name PlaytimePerUser was not found."
-      }
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-06T05:11:18.9713767+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/be862d338a3badbf0b7ab84299fa2a1500106e79e7f961854c8192c02fbdf9c2",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 107.61666870117188
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 4.349999904632568
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 0.6166666746139526
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 27.799999237060547
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 87.9000015258789
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 159.81666564941406
+            }
+          ]
+        }
+      ]
     }
   },
-  "status": 400
+  "status": 200
 }

@@ -8,13 +8,18 @@ Raw answers: one JSON file per query next to this file. Source: tools/fetch-anal
 | dau | DailyActiveUsers | 200 | ok |
 | dau-by-platform | DailyActiveUsers | 200 | ok |
 | dau-by-country | DailyActiveUsers | 200 | ok |
-| new-users | NewUsers | 400 | {"done": true, "error": {"code": 2001, "message": "Query Error: The metric with name NewUsers was not found."}} |
 | mau | MonthlyActiveUsers | 200 | ok |
-| session-length | AverageSessionLength | 400 | {"done": true, "error": {"code": 2001, "message": "Query Error: The metric with name AverageSessionLength was not found."}} |
-| playtime-per-user | PlaytimePerUser | 400 | {"done": true, "error": {"code": 2001, "message": "Query Error: The metric with name PlaytimePerUser was not found."}} |
+| new-vs-returning | DailyActiveUsers | 200 | ok |
+| session-length | AverageSessionLengthMinutes | 200 | ok |
+| playtime-per-user | AveragePlayTimeMinutesPerDAU | 200 | ok |
+| sessions | Visits | 200 | ok |
 | retention-d1 | D1Retention | 200 | ok |
 | retention-d7 | D7Retention | 200 | ok |
 | retention-d30 | D30Retention | 200 | ok |
 | revenue | DailyRevenue | 200 | ok |
-| revenue-total | Revenue | 400 | {"done": true, "error": {"code": 2001, "message": "Query Error: The metric with name Revenue was not found."}} |
 | paying-users | PayingUsers | 200 | ok |
+| revenue-total | DailyRevenue | 200 | ok |
+| funnel-users | FunnelUserTotalCount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension FunnelName is filter-only for metric FunnelUserTotalCount and cannot be used as a breakdown. Please u |
+| funnel-step-completion | FunnelUserStepCompletionRate | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension FunnelName is filter-only for metric FunnelUserStepCompletionRate and cannot be used as a breakdown.  |
+| custom-events | CustomEventCount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension CustomEventName is filter-only for metric CustomEventCount and cannot be used as a breakdown. Please  |
+| economy | EconomyTransactionAmount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension CurrencyType is filter-only for metric EconomyTransactionAmount and cannot be used as a breakdown. Pl |

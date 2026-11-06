@@ -1,0 +1,22 @@
+{
+  "query": {
+    "breakdown": [
+      "FunnelName",
+      "FunnelStep"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "None",
+    "metric": "FunnelUserStepCompletionRate",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "error": {
+      "done": true,
+      "error": {
+        "code": 2001,
+        "message": "Query Validation Errors: Query Error: Dimension FunnelName is filter-only for metric FunnelUserStepCompletionRate and cannot be used as a breakdown. Please use dimension-values to obtain available values for this dimension.\nQuery Error: Dimension FunnelName is required as a filter for metric FunnelUserStepCompletionRate."
+      }
+    }
+  },
+  "status": 400
+}

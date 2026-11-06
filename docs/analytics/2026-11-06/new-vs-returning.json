@@ -1,0 +1,67 @@
+{
+  "query": {
+    "breakdown": [
+      "IsNewUser"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-06T05:11:13.1834191+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/c87a1f59151445d848c7d0e877035b4cc52614967bd42e78b80c9b5a174f4c3c",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "IsNewUser",
+              "value": "Returning"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "IsNewUser",
+              "value": "New"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

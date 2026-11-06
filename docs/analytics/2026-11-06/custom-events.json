@@ -1,0 +1,21 @@
+{
+  "query": {
+    "breakdown": [
+      "CustomEventName"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "None",
+    "metric": "CustomEventCount",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "error": {
+      "done": true,
+      "error": {
+        "code": 2001,
+        "message": "Query Validation Errors: Query Error: Dimension CustomEventName is filter-only for metric CustomEventCount and cannot be used as a breakdown. Please use dimension-values to obtain available values for this dimension."
+      }
+    }
+  },
+  "status": 400
+}

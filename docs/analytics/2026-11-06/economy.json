@@ -1,0 +1,23 @@
+{
+  "query": {
+    "breakdown": [
+      "CurrencyType",
+      "FlowType",
+      "TransactionType"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "None",
+    "metric": "EconomyTransactionAmount",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "error": {
+      "done": true,
+      "error": {
+        "code": 2001,
+        "message": "Query Validation Errors: Query Error: Dimension CurrencyType is filter-only for metric EconomyTransactionAmount and cannot be used as a breakdown. Please use dimension-values to obtain available values for this dimension."
+      }
+    }
+  },
+  "status": 400
+}
