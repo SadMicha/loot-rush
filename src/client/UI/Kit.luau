@@ -410,9 +410,8 @@ end
 -- Screen area a ScreenGui really covers (screen pixels): position and size. Falls back to the whole
 -- viewport before the gui has been laid out.
 function Kit.guiArea(gui: LayerCollector): Vector2
-	-- a disabled gui is not laid out: its AbsoluteSize is whatever it was when it was last open
 	local size = gui.AbsoluteSize
-	if gui.Enabled and size.X > 0 and size.Y > 0 then
+	if size.X > 0 and size.Y > 0 then
 		return size
 	end
 	local camera = workspace.CurrentCamera
