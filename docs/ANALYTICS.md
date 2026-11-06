@@ -12,7 +12,7 @@ commit yes/no). It also runs every Monday 06:00 UTC.
 - Script: `tools/fetch-analytics.py`; queries: `tools/analytics-queries.json` (metric, granularity,
   optional breakdown such as `Platform` or `Country`).
 - Output: `docs/analytics/<YYYY-MM-DD>/` with one JSON per query (`query`, `status`, `response`) and
-  `summary.md`, committed to main. The same folder is a 90-day run artifact.
+  `summary.md`, committed to the branch `analytics` (main only takes PRs that pass CI) and printed in the job log. The same folder is a 90-day run artifact.
 - Window: the last N whole UTC days; today is left out because it is incomplete.
 - A metric or breakdown Roblox rejects shows its error in `summary.md`; the other queries still
   run. Fix the name in `tools/analytics-queries.json`.

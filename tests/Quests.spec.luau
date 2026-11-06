@@ -168,3 +168,22 @@ describe("Quests in game", function()
 		expect(table.find(q.unlocks, "star_net")).never.toBeNil()
 	end)
 end)
+
+describe("Equip quest with gear already on", function()
+	it("finishes together with the pickup quest when loot went straight onto the hero", function()
+		local step = server(function(req, player)
+			local p = req("ServerScriptService.Server.Systems.Data").get(player)
+			local Items = req("ReplicatedStorage.Shared.Items")
+			p.quests.step = 3 -- "Pick up 3 items"; "Equip an item" follows
+			p.quests.count = 2
+			p.equipped.gloves = Items.roll(1, Random.new(2), nil, { slot = "gloves" })
+			req("ServerScriptService.Server.Systems.Quests").advance(player, "pickup", 1)
+			return p.quests.step
+		end)
+		expect(Quests.Chain[3].id).toBe("first_loot")
+		expect(Quests.Chain[4].id).toBe("equip")
+		-- past "Equip an item" (earlier tests already reached depth 3 and level 5, so more follow)
+		expect(step).toBeGreaterThan(4)
+	end)
+end)
+

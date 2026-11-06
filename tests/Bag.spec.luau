@@ -269,7 +269,7 @@ describe("Bag upgrade on the server", function()
 	end)
 
 	it("a bag over its capacity keeps every item and takes nothing new", function()
-		local stored, full, count, unequipped
+		local stored, full, count, unequipped, worn
 		server(player, function(req, p)
 			local Data = req(SYSTEMS .. "Data")
 			local Inventory = req(SYSTEMS .. "Inventory")
@@ -277,9 +277,10 @@ describe("Bag upgrade on the server", function()
 			local profile = Data.get(p)
 			profile.inventory = rolls(50, 6)
 			profile.equipped.boots = nil
-			-- an empty slot makes the drop an upgrade: it stays on the ground
-			stored, _, full =
-				Inventory.add(p, Items.roll(1, Random.new(4), nil, { slot = "boots" }), true)
+			-- an empty slot takes the drop directly (Inventory.add): the full bag stays as it is
+			local boots = Items.roll(1, Random.new(4), nil, { slot = "boots" })
+			stored, _, full = Inventory.add(p, boots, true)
+			worn = profile.equipped.boots == boots
 			count = #profile.inventory
 			profile.equipped.ring = Items.roll(1, Random.new(7), nil, { slot = "ring" })
 		end)
@@ -290,8 +291,9 @@ describe("Bag upgrade on the server", function()
 		unequipped = server(player, function(req, p)
 			return req(SYSTEMS .. "Data").get(p).equipped.ring == nil
 		end)
-		expect(stored).toBe(false)
-		expect(full).toBe(true)
+		expect(stored).toBe(true)
+		expect(worn).toBe(true)
+		expect(full).toBe(false)
 		expect(count).toBe(50)
 		expect(unequipped).toBe(false) -- no room: stays worn
 		local _, _, _, _, after = bagState(player)

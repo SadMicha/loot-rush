@@ -276,10 +276,10 @@ describe("Full bag", function()
 			local gold0 = p.gold
 			stored, salvaged, full = Inventory.add(player, weak, true)
 			goldGain = p.gold - gold0
-			-- an empty slot: anything is an upgrade there
-			p.equipped.boots = nil
+			-- weak boots worn: much better boots are an upgrade (an empty slot would equip them)
+			p.equipped.boots = Items.roll(1, rng, nil, { slot = "boots" })
 			upStored, _, upFull =
-				Inventory.add(player, Items.roll(1, rng, nil, { slot = "boots" }), true)
+				Inventory.add(player, Items.roll(55, rng, nil, { slot = "boots" }), true)
 			count = #p.inventory
 		end)
 		expect(stored).toBe(true)
@@ -487,5 +487,48 @@ describe("Inventory clicks", function()
 		expect(upgradeMark(grid[1])).toBe("down")
 		expect(upgradeMark(grid[2])).toBeNil()
 		expect(inv:FindFirstChild("Upgrades", true).Visible).toBe(false)
+	end)
+end)
+
+describe("Loot for an empty slot", function()
+	it("goes on at once, counts as equip and never replaces worn gear", function()
+		local worn, kept, bag, bag0, actions, ret4, ret4b = nil, nil, 0, 0, 0, nil, nil
+		sim:runAs("server", function(req)
+			local player = game:GetService("Players"):GetPlayers()[1]
+			local Items = req("ReplicatedStorage.Shared.Items")
+			local Data = req("ServerScriptService.Server.Systems.Data")
+			local Inventory = req("ServerScriptService.Server.Systems.Inventory")
+			local Actions = req("ServerScriptService.Server.Util.Actions")
+			local p = Data.get(player)
+			p.autoSalvage = ""
+			table.clear(p.inventory)
+			player:SetAttribute("Level", 10)
+			p.level = 10
+			local conn = Actions.Event.Event:Connect(function(_, kind)
+				if kind == "equip" then
+					actions += 1
+				end
+			end)
+			local rng = Random.new(5)
+			p.equipped.gloves = nil
+			local gloves = Items.roll(1, rng, nil, { slot = "gloves" })
+			gloves.class = nil
+			bag0 = #p.inventory
+			_, _, _, ret4 = Inventory.add(player, gloves, true)
+			worn = p.equipped.gloves == gloves
+			-- a second pair goes to the bag, the first stays on
+			local more = Items.roll(1, rng, nil, { slot = "gloves" })
+			more.class = nil
+			_, _, _, ret4b = Inventory.add(player, more, true)
+			kept = p.equipped.gloves == gloves
+			bag = #p.inventory
+			conn:Disconnect()
+		end)
+		expect(ret4).toBe(true)
+		expect(worn).toBe(true)
+		expect(ret4b).toBe(false)
+		expect(kept).toBe(true)
+		expect(bag).toBe(bag0 + 1)
+		expect(actions).toBe(1)
 	end)
 end)

@@ -5,7 +5,10 @@
 --   • Onboarding funnel: 1 "joined" (first join, hero not set up yet), 2 "hero_created" (setup
 --     done), then one step per finished guide quest (Systems/Quests: step = chain index + 2).
 --   • Progression "Rift": start / complete / fail per depth, level = depth, levelName = region id.
---     Leaving mid-depth is not a fail (only a death without revives is).
+--     Leaving mid-depth is not a fail (only a death without revives is). Roblox does not chart
+--     progression events (AnalyticsService docs), so each one is also a custom event RiftStart /
+--     RiftClear / RiftFail (value = depth, CustomField01 = region id, CustomField02 = "Depth N"):
+--     Creator Hub → Analytics → Custom events, split by the custom fields.
 --   • Custom event "LevelUp" (value = new hero level), logged by Combat when XP crosses a level
 --     (not on the Level attribute: the join restore writes it too).
 --   • Economy: Gold, Shards, Soulstars with transaction type (Enum.AnalyticsEconomyTransactionType
@@ -61,16 +64,26 @@ function Analytics.quest(player: Player, index: number, id: string)
 	Analytics.funnel(player, Analytics.FUNNEL_QUESTS + index - 1, id)
 end
 
+-- The charted twin of a progression event (keys = Enum.AnalyticsCustomFieldKeys names)
+local function riftEvent(player: Player, name: string, depth: number, region: string)
+	call("LogCustomEvent", player, name, depth, {
+		CustomField01 = region,
+		CustomField02 = "Depth " .. depth,
+	})
+end
+
 function Analytics.riftStart(player: Player, depth: number, region: string)
 	open[player] = depth
 	remember({ kind = "rift_start", userId = player.UserId, value = depth, name = region })
 	call("LogProgressionStartEvent", player, Analytics.RIFT_PATH, depth, region)
+	riftEvent(player, "RiftStart", depth, region)
 end
 
 function Analytics.riftClear(player: Player, depth: number, region: string)
 	open[player] = nil
 	remember({ kind = "rift_clear", userId = player.UserId, value = depth, name = region })
 	call("LogProgressionCompleteEvent", player, Analytics.RIFT_PATH, depth, region)
+	riftEvent(player, "RiftClear", depth, region)
 end
 
 -- Run ended: a fail only when it ended by death while a depth was still open
@@ -80,6 +93,7 @@ function Analytics.riftEnd(player: Player, failed: boolean, region: string)
 	if depth and failed then
 		remember({ kind = "rift_fail", userId = player.UserId, value = depth, name = region })
 		call("LogProgressionFailEvent", player, Analytics.RIFT_PATH, depth, region)
+		riftEvent(player, "RiftFail", depth, region)
 	end
 end
 
