@@ -216,6 +216,15 @@ Balance.FirstDrops = table.freeze({
 	firstSlot = "weapon",
 })
 
+-- Early upgrades (early-game pass 2026-11-06, Systems/Loot.earlyUpgrade): the guaranteed Rare of
+-- a hero's first `bosses` boss kills goes to an empty gear slot while one is open, else it is
+-- rerolled (up to `tries` rolls) until it beats the worn piece and the hero can wear it. So every
+-- early boss is a visible power step instead of a random slot roll.
+Balance.EarlyUpgrades = table.freeze({
+	bosses = 5,
+	tries = 12,
+})
+
 -- Bag upgrades (Shared/Bag, docs/GAMEPLAY.md "Bag"): capacity = base + step × level, level 0 to
 -- maxLevel, bought with gold. Level L → L + 1 costs price × growth^L (rounded like shop prices),
 -- a fixed price: the curve itself is the gold sink, it does not follow Balance.shopFactor.

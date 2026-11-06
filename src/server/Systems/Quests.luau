@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Atlas = require(ReplicatedStorage.Shared.Atlas)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Progression = require(ReplicatedStorage.Shared.Progression)
 local Rules = require(ReplicatedStorage.Shared.Quests)
 local SpellStones = require(ReplicatedStorage.Shared.SpellStones)
 local Actions = require(script.Parent.Parent.Util.Actions)
@@ -100,6 +101,14 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	local active = Rules.active(data)
 	if active and active.goal == "equip" and next(profile.equipped) ~= nil then
 		for _, more in Rules.advance(data, "equip", 1, level, depth) do
+			table.insert(finished, more)
+		end
+	end
+	-- "Place a star" is already done when a star was placed before the quest came up (the Star Web
+	-- unlocks at level 4, the quest follows "Reach level 5")
+	active = Rules.active(data)
+	if active and active.goal == "star" and Progression.starSpent(profile.progress) > 0 then
+		for _, more in Rules.advance(data, "star", active.target, level, depth) do
 			table.insert(finished, more)
 		end
 	end

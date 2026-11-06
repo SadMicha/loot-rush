@@ -56,6 +56,7 @@ type Run = {
 	affixes: { string }, -- affixes of the current depth (Shared/RiftAffixes, empty = plain)
 	card: PathCards.Card?, -- Path Card the current depth was picked with (nil = plain depth)
 	cards: { PathCards.Card }, -- cards offered after the boss for the next depth (empty = plain)
+	tutorial: boolean, -- the offered cards are the first-boss tutorial (PathCards.tutorial)
 	rng: Random, -- the run's own Random (Path Cards)
 	restored: number, -- The Smoothing: how far the owner restored this region (0..1)
 	tally: RiftRun.Tally,
@@ -635,8 +636,13 @@ local function play(r: Run)
 	if cache > 0 and r.owner.Parent then
 		Loot.bonus(r.owner, bossAt, r.depth, r.region.id, cache)
 	end
-	-- The next depth's choice: three Path Cards, only in the end game (Atlas pathCards)
-	r.cards = if r.region.pathCards then PathCards.roll(r.rng, r.depth + 1) else {}
+	-- The next depth's choice: three Path Cards in the end game (Atlas pathCards), and once as a
+	-- tutorial on the hero's first depth 1 clear (PathCards.tutorial)
+	r.cards = if r.region.pathCards
+		then PathCards.roll(r.rng, r.depth + 1)
+		elseif PathCards.tutorialDue(r.depth, r.tally.bestBefore) then PathCards.tutorial()
+		else {}
+	r.tutorial = #r.cards > 0 and not r.region.pathCards
 	record(r)
 	r.tally.cleared += 1
 	Metrics.report(r.owner, string.format("Depth %d cleared", r.depth))
@@ -705,6 +711,7 @@ local function begin(player: Player, regionId: any, wanted: any)
 		affixes = {},
 		card = nil,
 		cards = {},
+		tutorial = false,
 		rng = Random.new(),
 		restored = Smoothing.restored(region.depth, bestOf(player)(region.id)),
 		tally = RiftRun.newTally(id, depth, bestOf(player), level(player), os.clock()),
@@ -743,8 +750,14 @@ local function deeper(player: Player, index: any)
 	r.card = card
 	r.cards = {}
 	if card then
-		Analytics.custom(player, "PathCardPicked", card.weight)
+		-- the tutorial pick is its own event, so it does not skew the end game numbers
+		Analytics.custom(
+			player,
+			if r.tutorial then "TutorialPathPicked" else "PathCardPicked",
+			card.weight
+		)
 	end
+	r.tutorial = false
 	r.depth += 1
 	r.wave = 0
 	r.checkpoint = nil

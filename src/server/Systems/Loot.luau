@@ -310,6 +310,37 @@ function Loot.starter(given: number, shift: number): Items.RollOpts?
 	return { shift = shift }
 end
 
+-- Early upgrades (Balance.EarlyUpgrades): the guaranteed Rare of an early boss kill. `roll(slot)`
+-- rolls one item (slot nil = any). Picks a random empty gear slot while one is open, then rerolls
+-- until the item is wearable and beats the worn piece (Shared/Upgrade); after `tries` rolls the last
+-- one stays. Pure apart from the rolls.
+function Loot.earlyUpgrade(
+	hero: Upgrade.Hero,
+	random: Random,
+	roll: (slot: string?) -> Items.Item
+): Items.Item
+	local empty = {}
+	for _, slot in Items.Slots do
+		if hero.equipped[slot] == nil then
+			table.insert(empty, slot)
+		end
+	end
+	local slot = if #empty > 0 then empty[random:NextInteger(1, #empty)] else nil
+	local item = roll(slot)
+	for _ = 2, math.max(1, Balance.EarlyUpgrades.tries) do
+		if Items.canWear(item, hero.level, hero.class) and Upgrade.isUpgrade(hero, item) then
+			return item
+		end
+		item = roll(slot)
+	end
+	return item
+end
+
+-- Is this boss kill (the hero's n-th, counted before it) still an early one? Pure.
+function Loot.earlyDue(bossKillsBefore: number): boolean
+	return bossKillsBefore < Balance.EarlyUpgrades.bosses
+end
+
 -- Bonus of the depth a player's rift is in (Path Card reward and affixes, Systems/Rift):
 -- items/gold = extra shares (0.3 = +30 %), rolls = extra item rolls per normal kill (Big Builds)
 export type RunBonus = { items: number, gold: number, rolls: number }
@@ -367,14 +398,25 @@ local function onKilled(
 			table.insert(list, { gold = coin(total / coins) })
 		end
 		-- Table: boss loot at least 1× Rare+ (random rolls never give uniques, see below)
-		for i = 1, t.bossItems do
-			local opts = { shift = t.shift, min = if i == 1 then "rare" else t.min }
-			table.insert(
-				list,
-				{ gold = 0, item = Items.roll(t.ilvl, rng, nil, forHero(owner, opts)) }
-			)
-		end
 		local profile = Data.get(owner)
+		local hero = if profile and Loot.earlyDue(profile.luck.bosses)
+			then Stats.hero(owner)
+			else nil
+		for i = 1, t.bossItems do
+			local opts: Items.RollOpts = { shift = t.shift, min = if i == 1 then "rare" else t.min }
+			local item: Items.Item
+			if i == 1 and hero then
+				-- An early boss: the Rare fills an empty slot or beats the worn piece
+				item = Loot.earlyUpgrade(hero, rng, function(slot: string?): Items.Item
+					local o = table.clone(opts)
+					o.slot = slot
+					return Items.roll(t.ilvl, rng, nil, forHero(owner, o))
+				end)
+			else
+				item = Items.roll(t.ilvl, rng, nil, forHero(owner, opts))
+			end
+			table.insert(list, { gold = 0, item = item })
+		end
 		if profile then
 			local luck = profile.luck
 			luck.bosses += 1
