@@ -94,6 +94,15 @@ function Quests.advance(player: Player, goal: Rules.Goal?, amount: number)
 	local stepBefore, countBefore = data.step, data.count
 	local had = table.clone(data.unlocks)
 	local finished = Rules.advance(data, goal, amount, level, depth)
+	-- "Equip an item" is already done when the hero wears gear: empty-slot loot goes on at once
+	-- (Inventory.add), often while an earlier quest is still active, and the Inventory button is
+	-- hidden in the Rift
+	local active = Rules.active(data)
+	if active and active.goal == "equip" and next(profile.equipped) ~= nil then
+		for _, more in Rules.advance(data, "equip", 1, level, depth) do
+			table.insert(finished, more)
+		end
+	end
 	Rules.refreshUnlocks(data, level, depth)
 	-- only windows that were locked before this call (no repeated "New:" toast)
 	local unlocked = {}
