@@ -25,6 +25,22 @@ Changelog.MAX_NOTE = 90 -- characters per line (fits two rows on a phone)
 
 Changelog.Releases = table.freeze({
 	{
+		build = 2,
+		version = "1.0.1 Beta",
+		date = "2026-11-06",
+		title = "Phone-ready windows and richer worlds",
+		notes = {
+			"Lock your favorite items so they are never salvaged by accident.",
+			"Salvage all downgrades in one tap; auto-salvage now keeps your upgrades.",
+			"Every window fits small phones: Inventory, Atlas, Shop, Skills, Forge and more.",
+			"Each region has its own horizon, and the hub has farms, a road and a stream.",
+			"Rift rooms are more varied, with bends, landmarks and no dead ends.",
+			"Armor looks right on every hero; Crystal Caves and Sky Islands got new lighting.",
+			"Clearer item comparison card, and Star Web mouse dragging works again.",
+			"New What's New window: open it any time from Settings.",
+		},
+	},
+	{
 		build = 1,
 		version = "1.0 Beta",
 		date = "2026-11-05",
