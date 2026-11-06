@@ -1,0 +1,57 @@
+{
+  "query": {
+    "breakdown": [
+      "Country"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-06T05:07:13.0482649+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/6f178aa33e7acc36a6f11eb4462e7dc94943baf4d8922c8752d75dd234b55bd4",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "DE"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

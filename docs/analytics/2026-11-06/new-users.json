@@ -1,0 +1,18 @@
+{
+  "query": {
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "NewUsers",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "error": {
+      "done": true,
+      "error": {
+        "code": 2001,
+        "message": "Query Error: The metric with name NewUsers was not found."
+      }
+    }
+  },
+  "status": 400
+}

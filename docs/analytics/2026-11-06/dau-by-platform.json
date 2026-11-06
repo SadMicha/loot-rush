@@ -1,0 +1,97 @@
+{
+  "query": {
+    "breakdown": [
+      "Platform"
+    ],
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-06T05:07:10.2009058+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/25327733e5b21b0e0e1b8f0e8b896bf44c8cd363f81213fc2eb61ebb7c62c0b0",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Tablet"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Phone"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Computer"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

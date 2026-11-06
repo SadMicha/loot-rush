@@ -1,0 +1,49 @@
+{
+  "query": {
+    "endTime": "2026-11-06T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "D30Retention",
+    "startTime": "2026-10-23T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-06T05:07:32.5770851+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/edbe358fccb10db4e80e47943209434436468c56295e8c3006b33929907de17d",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}
