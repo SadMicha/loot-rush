@@ -36,7 +36,7 @@ local RiftController = {}
 local player = Players.LocalPlayer
 local C = Theme.Color
 
-local INFO_W, INFO_H = 230, 68 -- run card (top left)
+local INFO_W, INFO_H = 256, 68 -- run card (top left)
 local BOSS_W = 360 -- boss bar (top center)
 local CHOICE_W, CHOICE_BTN = 330, 38 -- compact card after the boss (width, button height)
 local PATH_H = 46 -- one Path Card row
@@ -312,6 +312,10 @@ local function buildInfo()
 	head.LayoutOrder = 1
 	head.Parent = body
 	infoTitle = Flat.text("", 13, C.GoldHi)
+	-- stops short of the Leave button (64 px) so long region names never run under it
+	infoTitle.AutomaticSize = Enum.AutomaticSize.None
+	infoTitle.Size = UDim2.new(1, -72, 1, 0)
+	infoTitle.TextTruncate = Enum.TextTruncate.AtEnd
 	infoTitle.Parent = head
 	local leave
 	leave, leaveLabel = Flat.button("Leave", "ghost", Vector2.new(64, 24))

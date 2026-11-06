@@ -1387,14 +1387,14 @@ local LOOKS: { [string]: Look } = {
 	crystal_caves = {
 		-- slate floor, violet walls: floor, walls and horizon no longer share one blue
 		top = {
-			Color3.fromHex("#6672A0"),
-			Color3.fromHex("#5A6694"),
-			Color3.fromHex("#727EAE"),
+			Color3.fromHex("#7A6C94"),
+			Color3.fromHex("#6E6088"),
+			Color3.fromHex("#86789F"),
 		},
-		edge = Color3.fromHex("#2E2A66"),
-		lane = Color3.fromHex("#9AB0E8"),
-		soil = Color3.fromHex("#262250"),
-		cliff = Color3.fromHex("#443C80"),
+		edge = Color3.fromHex("#32224E"),
+		lane = Color3.fromHex("#B8A4E0"),
+		soil = Color3.fromHex("#2A1E48"),
+		cliff = Color3.fromHex("#52347E"),
 		liquid = {
 			color = Color3.fromHex("#4FD8F5"),
 			material = Enum.Material.Neon,
@@ -1415,11 +1415,11 @@ local LOOKS: { [string]: Look } = {
 		wallChance = 0.5,
 		landmarks = CAVES_LANDMARKS,
 		horizon = {
-			ground = Color3.fromHex("#262250"),
+			ground = Color3.fromHex("#2A1E48"),
 			rock = {
-				Color3.fromHex("#443C80"),
-				Color3.fromHex("#3A3474"),
-				Color3.fromHex("#302A68"),
+				Color3.fromHex("#52347E"),
+				Color3.fromHex("#462C70"),
+				Color3.fromHex("#3A2462"),
 			},
 			cap = Color3.fromHex("#4FD8F5"),
 			capMaterial = Enum.Material.Neon,
