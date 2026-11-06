@@ -19,7 +19,6 @@ Raw answers: one JSON file per query next to this file. Source: tools/fetch-anal
 | revenue | DailyRevenue | 200 | ok |
 | paying-users | PayingUsers | 200 | ok |
 | revenue-total | DailyRevenue | 200 | ok |
-| funnel-users | FunnelUserTotalCount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension FunnelName is filter-only for metric FunnelUserTotalCount and cannot be used as a breakdown. Please u |
-| funnel-step-completion | FunnelUserStepCompletionRate | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension FunnelName is filter-only for metric FunnelUserStepCompletionRate and cannot be used as a breakdown.  |
-| custom-events | CustomEventCount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension CustomEventName is filter-only for metric CustomEventCount and cannot be used as a breakdown. Please  |
-| economy | EconomyTransactionAmount | 400 | {"done": true, "error": {"code": 2001, "message": "Query Validation Errors: Query Error: Dimension CurrencyType is filter-only for metric EconomyTransactionAmount and cannot be used as a breakdown. Pl |
+| funnel-users | FunnelUserTotalCount | 200 | ok |
+| custom-events | CustomEventCountUser | 200 | ok |
+| economy | EconomyTransactionAmount | 200 | ok |

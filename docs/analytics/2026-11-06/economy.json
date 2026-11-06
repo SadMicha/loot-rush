@@ -1,23 +1,127 @@
 {
   "query": {
-    "breakdown": [
-      "CurrencyType",
-      "FlowType",
-      "TransactionType"
-    ],
     "endTime": "2026-11-06T00:00:00Z",
     "granularity": "None",
     "metric": "EconomyTransactionAmount",
+    "split": [
+      "CurrencyType",
+      "FlowType"
+    ],
     "startTime": "2026-10-23T00:00:00Z"
   },
   "response": {
-    "error": {
-      "done": true,
-      "error": {
-        "code": 2001,
-        "message": "Query Validation Errors: Query Error: Dimension CurrencyType is filter-only for metric EconomyTransactionAmount and cannot be used as a breakdown. Please use dimension-values to obtain available values for this dimension."
+    "dimensionValues": {
+      "values": [
+        {
+          "dimension": "CurrencyType",
+          "values": [
+            {
+              "value": "Gold"
+            },
+            {
+              "value": "Shards"
+            }
+          ]
+        },
+        {
+          "dimension": "FlowType",
+          "values": [
+            {
+              "value": "Source"
+            },
+            {
+              "value": "Sink"
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "filter": {
+          "CurrencyType": "Gold",
+          "FlowType": "Source"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": 1843221
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Gold",
+          "FlowType": "Sink"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": -2280530
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Shards",
+          "FlowType": "Source"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": 14404
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Shards",
+          "FlowType": "Sink"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": -899
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
       }
-    }
+    ]
   },
-  "status": 400
+  "status": 200
 }

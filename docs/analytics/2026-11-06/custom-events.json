@@ -1,21 +1,94 @@
 {
   "query": {
-    "breakdown": [
-      "CustomEventName"
-    ],
     "endTime": "2026-11-06T00:00:00Z",
     "granularity": "None",
-    "metric": "CustomEventCount",
+    "metric": "CustomEventCountUser",
+    "split": [
+      "CustomEventName"
+    ],
     "startTime": "2026-10-23T00:00:00Z"
   },
   "response": {
-    "error": {
-      "done": true,
-      "error": {
-        "code": 2001,
-        "message": "Query Validation Errors: Query Error: Dimension CustomEventName is filter-only for metric CustomEventCount and cannot be used as a breakdown. Please use dimension-values to obtain available values for this dimension."
+    "dimensionValues": {
+      "values": [
+        {
+          "dimension": "CustomEventName",
+          "values": [
+            {
+              "value": "LevelUp"
+            },
+            {
+              "value": "PathCardPicked"
+            },
+            {
+              "value": "unique_found"
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "filter": {
+          "CustomEventName": "LevelUp"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": 43
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "PathCardPicked"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "unique_found"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-23T00:00:00+00:00",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
       }
-    }
+    ]
   },
-  "status": 400
+  "status": 200
 }
