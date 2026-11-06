@@ -158,8 +158,9 @@ banner "Crystal King defeated · Boss 0:42 · 2 Breaks · 3 Counters"). `Net.Fx`
 
 ## Path Cards
 
-Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. From depth 3
-(`PathCards.FROM_DEPTH`) the "Deeper" button after a boss becomes **three Path Cards** for the next
+Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. **End game only:** in the
+Altered World (region flag `pathCards` in `Shared/Atlas`, depth 26+) the "Deeper" button after a
+boss becomes **three Path Cards** for the next
 depth (`Shared/PathCards`, rolled by `Systems/Rift` with the run's own `Random` when the boss dies):
 
 | Card | Affixes | Reward |
@@ -205,7 +206,8 @@ line `Smoothing.ALTERED_INTRO`.
 
 ## Loot
 
-Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity.unique`, `UNIQUE_FROM`).
+Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rarity`, `MAGIC_FROM`,
+`UNIQUE_FROM`, `UniqueDrops`). Design and numbers: `docs/specs/LOOT.md`.
 - 9 slots (`Items.Slots`), rarities Normal → Magic → Rare → Epic → Unique. A full bag salvages
   non-upgrades from loot; upgrades stay on the ground ("Bag full" popup).
 - **Upgrade verdict** (`Shared/Upgrade`): simulates the hero with and without the item, with the
@@ -249,17 +251,72 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   outer half, items inside, the best item last (`Loot.burstPlan`, `Config.LOOT_BURST_*`). The server
   sends one `Net.Fx` "lootburst" with the paths and creates each real drop when its arc lands
   (`FxController` draws the orbs; trails only on medium/high effects). `Loot.VACUUM_DELAY` waits for it.
-- **Uniques:** from depth 10 (`UNIQUE_FROM`) or Veteran; 12 fixed items in `Items.Uniques`, scale
-  with item level, no Forge charges, never auto-salvaged, sell ×25, beam in `Theme.Glow.unique`.
+- **Drop table:** no Normal items from depth `MAGIC_FROM` 10 (`Loot.forDepth().min`); Rare and Epic
+  grow faster with depth (`Rarity` exp 1.3 / 2). Every 5th boss kill of a hero adds a guaranteed
+  Epic (`UniqueDrops.epicEvery`, counted in `profile.luck.bosses`).
+- **Uniques** (`Items.Uniques`, effects `Shared/UniqueEffects`): 12 items, each with a three-stat
+  package (headline ×3.4, ×2.4, ×1.8 of the roll range; T1 is ×2.4) and one signature effect.
+  **Only bosses drop them**, each boss kind its own two (`Items.Uniques[i].source`; the Altered World's
+  rotating bosses drop their own, `Atlas.bossFor`,
+  `Items.uniquesFrom`), from depth 10 (`UNIQUE_FROM`) or on Veteran+. Chance per boss kill 8 %
+  +2 % per World Tier +1 % per kill of that boss without one (pity, `profile.luck.pity`); the first
+  kill of each boss kind on Veteran+ always drops one (`profile.luck.firsts`). `Loot.uniqueChance`,
+  `Loot.rollBossUnique`. Never auto-salvaged, and a unique from loot always fits the bag (even over
+  capacity, `Inventory.add`), sell ×25, beam in `Theme.Glow.unique`.
+- **Unique ranks I-V** (`item.rank`, `Items.rankOf`): +5 % on the package per rank and stronger
+  effect numbers. Gained by **Fuse** in the Forge (a duplicate from the bag, ranks add up). The
+  tooltip (Inventory, Stash, Forge) shows the rank and the effect text at that rank.
+
+  | Unique | Boss | Effect (rank I) | Hook |
+  |---|---|---|---|
+  | Stormcaller | Cloud Queen | every 4th basic hit chains lightning to 3 enemies (60 %) | `Combat.applyDamage` |
+  | Cloud Steps | Cloud Queen | dodge roll drops 3 brick mines (80 %) | `Combat.dash` |
+  | Crown of King Glibber | Crystal King | hit over 15 % life: slime splash (100 %, 6 s) | `Combat.hurtPlayer` |
+  | Warden's Girdle | Crystal King | below 40 % life: heal 20 %, 30 % armor 4 s (20 s) | `Combat.hurtPlayer` |
+  | Geode Heart | Shard Worm | crits store shards (max 5), next skill fires them (40 % each) | hit + cast |
+  | Thread of Fate | Shard Worm | Rush +4 s, crits in a Rush +0.2 s | `Systems/Rush` |
+  | Spore Mantle | Spore Mother | direct kills burst a poison cloud (120 % over 3 s) | kill |
+  | Moonlit Tome | Spore Mother | every 3rd skill cast starts no cooldown | `Combat.cast` |
+  | Ovenlord Mitts | Furnace Lord | skills leave burning ground 3 s (40 %/s) | `Combat.cast` |
+  | Ember Band | Furnace Lord | burning enemies take +15 % from you | `Combat.applyDamage` |
+  | Shard of the Stormkeeper | The Rift | +1 % damage per 1 % move speed | `Combat.applyDamage` |
+  | Lumen Lantern | The Rift | Break meter +25 % faster, Broken bosses +30 % | `Systems/Enemies` |
+
+  Percentages are of the hero's basic attack damage (`procBase`); procs never crit and trigger
+  nothing further. Worn uniques reach Combat through `Stats.refresh` → `Combat.setUniques`
+  (effect id → rank; two copies do not stack).
 - **First drops:** a new character's first kills each drop an item (`Balance.FirstDrops`,
   `Loot.starter`, counted in `profile.starters`); the first boss drops a Rare.
-- **Auto-salvage:** unlocks at depth 10; inventory footer cycles Off → Normal → Magic → Rare.
-  Saved as `profile.autoSalvage`; `Net.AutoSalvage` (rate limited). The run summary still counts
-  auto-salvaged items as collected.
+- **Auto-salvage:** unlocks at depth 10; the "Auto" button in the salvage footer opens a dialog:
+  rarity limit (Off, ≤ Normal … ≤ Epic) and "Keep upgrades" (default on: loot that beats the worn
+  piece stays). Saved as `profile.autoSalvage` + `profile.autoKeep`; `Net.AutoSalvage(rarity, keep?)`
+  (rate limited, attributes `AutoSalvage`/`AutoKeep`). Never uniques or locked items (`Shared/Salvage`).
+  The run summary still counts auto-salvaged items as collected.
+- **Item lock:** "Lock" in the bag footer locks the selected bag or worn item (`Item.locked`, saved on
+  the item, so it travels into the stash). A locked item shows a gold lock badge and is never
+  salvaged: not by a tap, quick or bulk salvage, auto-salvage, nor used up as a Forge Fuse duplicate.
+  `Net.ItemLock(id, on)`.
+- **Salvage all downgrades:** "Downgrades" in the salvage footer opens a confirm dialog with the count
+  and the expected gold/materials (`Salvage.expected`), then sends `Net.SalvageMany(ids)`. The server
+  salvages only ids that are still a downgrade for the hero (`Salvage.isDowngrade` = the red arrow),
+  never locked items, uniques or items the hero cannot wear yet.
+- **Grid arrows:** green arrows always show; the red "down" arrow only on the selected or hovered
+  cell (held on touch in the stash), and on every cell while salvage mode is on (`Upgrade.shownMark`).
 
 ## Forge
 - Rules in `Shared/Forge` (Add Affix, Upgrade Tier, Reroll, Seal; 0-2 charges per action except
   Seal). Only `Systems/Forge` rolls and deducts (`Net.ForgeAct` = action + item id + affix index).
+- **Upgrade Tier cap:** an affix can reach at most one tier above the item level's drop cap
+  (`Forge.maxTier` = `Items.tierCap(ilvl) − 1`, T1 only from item level 55). Older affixes above
+  the cap keep their tier.
+- **Uniques** take only their own actions (`Forge.UniqueActions`, `Forge.actionsFor`), no charges:
+  **Fuse** (50 shards) fuses the lowest-rank duplicate from the bag (`Forge.duplicateOf`, `Items.fuse`:
+  ranks add up to V, higher item level and better rolls win, the duplicate is removed);
+  **Attune** raises the item level to the boss loot level of the hero's best depth on its highest
+  unlocked tier, capped at hero level + `equip_level_grace` so it stays wearable
+  (`Forge.attuneLevel`, from `BestDepth` / `WorldTierUnlocked` / `Level`), price
+  `Forge.attuneCost` (3 shards per level × (1 + level / 30)). The context (bag, attune level) is
+  built the same way on client and server (`Forge.Context`).
 - Window (`ForgeController`), one flow: item grid (All / Worn / Bag, sort Best/Rarity/Slot/Level,
   rarity filter; only the hero's class) → action tile → affix → preview bar with cost and one
   Forge button. Cells show charges left, a gold diamond on worn gear, and fade when nothing works.
@@ -359,8 +416,8 @@ The server owns the whole run (`Systems/Rift`); the UI reads attributes and send
    `reach["<tier>:<region>"]`); the depth picker can start lower. Resumed runs skip leaderboards.
 2. **Rift Trail → boss:** start pad, 3 clearings with one pack each (`RiftWave` = current area),
    then the boss arena (`docs/specs/WORLD-MAPS.md` §4). One revive per depth at the last waypoint.
-3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"` (with `cards` from
-   depth 3). Then `"deeper"` (Path Card index) or `"leave"`.
+3. **Boss dead:** phase `clear`, best saved, `RiftResult` `kind = "clear"` (with `cards` in
+   the Altered World). Then `"deeper"` (Path Card index) or `"leave"`.
 4. **End** (`RiftResult` `kind = "end"`): `reason` = `left` (after a boss), `abandoned` (mid-depth),
    `failed` (died; phase stays `failed` 4 s, respawn in the hub). Loot on the ground is collected
    automatically at the end. `ReplayController` offers "Play again".

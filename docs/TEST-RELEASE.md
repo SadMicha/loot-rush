@@ -13,7 +13,7 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 5 | Rift | Fight an elite (name prefix, e.g. "Fast", "Shielded") | Modifier is visible and works (speed, shield, life steal, frozen aura, explosion on death); better loot |
 | 6 | Rift | Reach the boss | Intro line, phase changes at 66 % and 33 % (adds, enrage), boss phase sound only near you |
 | 7 | Rift result | Finish the run | Summary with loot; "Deeper (Depth N)" and "Back to Hub"; in the hub the **hub light** is back |
-| 8 | Several runs | Watch the run start toast | Variants show up (swarm, elite hunt, treasure goblin, timed) and play differently |
+| 8 | Several runs | Altered World: pick Path Cards after bosses | Affixes (swarm, elite hunt, goblin, timed, ...) play differently; other regions show only "Deeper" |
 | 9 | Rift after 5 cleared depths in a region | Look at the arena decoration and enemies | The Smoothing: fewer grey smooth enemies and props, studs and colour come back |
 | 10 | Rift | Dbg "Fill Rush" (or fill the meter by kills) | Stud Rush starts by itself: toast with the buffs, Rush icon with seconds in the buff bar, glow, faster movement and attacks, meter drains, ends after the timer; kills during the Rush extend it a little; leaving the rift ends it |
 | 11 | Hub | Dbg "Spell Stones", Skills window | Socket up to 3 stones into a skill; the effect shows in the next rift; a stone can only sit in one skill |
@@ -30,6 +30,7 @@ About 30–40 minutes. Getting there fast: **Dbg** bottom left (always there in 
 | 21 | Rift in the Altered World (Dbg "Unlock Areas") | "Back to Hub" / HUD Hub / Leave, once per phase (waves, boss, after the boss, dead with a revive left); also on the phone and with a high ping | Always lands in Lumenhaven (spawn), never in an empty Green Plains map; Output has no `[Movement] ... pulled back` line |
 | 22 | Hub edge | Sprint and roll into every hub wall and corner (also with Dbg "Fill Rush" speed and the terrace stairs) | Never past the wall; if a lag spike carries you out, you are back inside within a moment |
 | 23 | Dbg | "Reset Account", tap twice | Kicked with "Account reset - rejoin to start over."; rejoin → hero setup, first quest, hints, fresh stash and heroes |
+| 24 | Rift, each region (Dbg "Unlock Areas"), a few depths | Walk the trail start → boss; enter every side alcove; roll into the walls of the jogs, necks and alcoves | Path bends sideways at least once (Fire Desert may stay straight), the last clearing before the boss is wider, alcoves are dead ends with walls all round; packs stay in their clearing, the waypoint shrine never blocks a neck, the minimap shows the shape; never out of bounds, no FallGuard rescue |
 
 
 Studio tests Robux purchases for free (`docs/MONETIZATION.md`).

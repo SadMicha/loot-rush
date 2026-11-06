@@ -15,6 +15,7 @@
 -- Renaming/restructuring a field? Bump VERSION and add a step to MIGRATIONS.
 -- JSON-safe values only: numbers, strings, bools, lists and tables with string keys.
 
+local Atlas = require(script.Parent.Atlas)
 local Classes = require(script.Parent.Classes)
 local Cosmetics = require(script.Parent.Cosmetics)
 local Daily = require(script.Parent.Daily)
@@ -28,6 +29,7 @@ local Monetization = require(script.Parent.Monetization)
 local Pets = require(script.Parent.Pets)
 local Progression = require(script.Parent.Progression)
 local Quests = require(script.Parent.Quests)
+local Salvage = require(script.Parent.Salvage)
 local Seasons = require(script.Parent.Seasons)
 local Settings = require(script.Parent.Settings)
 local Stash = require(script.Parent.Stash)
@@ -56,10 +58,17 @@ export type Data = {
 	quests: Quests.Data, -- onboarding quest chain and window unlocks (Shared/Quests)
 	class: string, -- class of this character (Shared/Classes id), locked after setup
 	autoSalvage: string, -- "" = off, else loot up to this rarity is salvaged on pickup
+	autoKeep: boolean, -- auto-salvage keeps loot that is an upgrade (Shared/Salvage)
 	debugged: boolean, -- a test command (Systems/Debug) touched it: never written to leaderboards
 	starters: number, -- guaranteed first drops already given (Balance.FirstDrops, Systems/Loot)
 	journey: Journey.Data, -- Journey milestones claimed (Shared/Journey)
+	-- Boss loot luck (Systems/Loot, docs/specs/LOOT.md P4): pity = boss kind → kills without a
+	-- unique, firsts = boss kinds whose Veteran-first unique was given, bosses = boss kills (Epic
+	-- every Balance.UniqueDrops.epicEvery)
+	luck: Luck,
 }
+
+export type Luck = { pity: { [string]: number }, firsts: { [string]: boolean }, bosses: number }
 
 -- The whole save of one Roblox account
 export type Account = {
@@ -118,9 +127,11 @@ local DEFAULTS: Data = {
 	quests = Quests.fresh(),
 	class = Classes.DEFAULT,
 	autoSalvage = "",
+	autoKeep = true,
 	debugged = false,
 	starters = 0,
 	journey = {},
+	luck = { pity = {}, firsts = {}, bosses = 0 },
 }
 
 local ACCOUNT_DEFAULTS = {
@@ -260,6 +271,36 @@ local function depths(raw: { [any]: any }): { [string]: number }
 	return out
 end
 
+-- Boss loot luck: only known boss kinds (Atlas bossKind), whole counts
+function Profile.reconcileLuck(raw: any): Luck
+	local out: Luck = { pity = {}, firsts = {}, bosses = 0 }
+	if typeof(raw) ~= "table" then
+		return out
+	end
+	local kinds: { [string]: boolean } = {}
+	for _, r in Atlas.Regions do
+		kinds[r.bossKind] = true
+	end
+	if typeof(raw.pity) == "table" then
+		for k, n in raw.pity do
+			if typeof(k) == "string" and kinds[k] and typeof(n) == "number" then
+				out.pity[k] = whole(n)
+			end
+		end
+	end
+	if typeof(raw.firsts) == "table" then
+		for k, v in raw.firsts do
+			if typeof(k) == "string" and kinds[k] and v == true then
+				out.firsts[k] = true
+			end
+		end
+	end
+	if typeof(raw.bosses) == "number" then
+		out.bosses = whole(raw.bosses)
+	end
+	return out
+end
+
 -- Sanitizes one character (in place where possible)
 function Profile.reconcile(raw: any): Data
 	local data = if typeof(raw) == "table" then raw else {}
@@ -282,6 +323,7 @@ function Profile.reconcile(raw: any): Data
 	data.tier = WorldTiers.reconcile(data.tier)
 	data.quests = Quests.reconcile(data.quests)
 	data.journey = Journey.reconcile(data.journey)
+	data.luck = Profile.reconcileLuck(data.luck)
 	data.class = Classes.valid(data.class)
 	-- Gear this hero owns belongs to its class (Item.class): older items had none and took the
 	-- look of whoever viewed them in the shared stash
@@ -292,15 +334,17 @@ function Profile.reconcile(raw: any): Data
 	end
 	for _, item in data.inventory do
 		stamp(item)
+		Salvage.cleanLock(item)
 	end
 	for _, item in data.equipped do
 		stamp(item)
+		Salvage.cleanLock(item)
 	end
-	if
-		data.autoSalvage ~= ""
-		and (Items.rank(data.autoSalvage) == 0 or data.autoSalvage == "unique")
-	then
+	if not Salvage.validLimit(data.autoSalvage) then
 		data.autoSalvage = ""
+	end
+	if typeof(data.autoKeep) ~= "boolean" then
+		data.autoKeep = true
 	end
 	return data :: Data
 end

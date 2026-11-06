@@ -522,6 +522,7 @@ function StarNetController.init()
 	-- input (a star button sinks the press before the ScrollingFrame sees it) and only counts as a
 	-- pan after PAN_THRESHOLD pixels, so a plain click still selects a star.
 	local pressAt: Vector2? = nil
+	local lastAt: Vector2? = nil -- cursor position at the previous pan step
 	local dragging = false
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local t = input.UserInputType
@@ -541,6 +542,13 @@ function StarNetController.init()
 			if touchPan then
 				touchPan = false
 				updateScrolling()
+			end
+			-- A press inside the web may become a pan once the mouse moves PAN_THRESHOLD pixels
+			local m = UserInputService:GetMouseLocation()
+			if win.isOpen() and inView(m) then
+				pressAt = m
+				lastAt = m
+				dragging = false
 			end
 		elseif t == Enum.UserInputType.Keyboard and not processed and win.isOpen() then
 			local k = input.KeyCode
@@ -570,9 +578,11 @@ function StarNetController.init()
 				panning = true
 			end
 			if dragging then
-				local d = input.Delta
-				local p = view.CanvasPosition
-					- Vector2.new(d.X, d.Y) / math.max(windowScale(), 0.01)
+				-- From the cursor itself, not input.Delta: identical for a real mouse, and it
+				-- also pans when the pointer is moved by absolute position (tools, remote desktop)
+				local d = m - (lastAt or m)
+				lastAt = m
+				local p = view.CanvasPosition - d / math.max(windowScale(), 0.01)
 				local size = canvas * zoom
 				view.CanvasPosition = Vector2.new(
 					math.clamp(p.X, 0, math.max(0, size.X - area.X)),

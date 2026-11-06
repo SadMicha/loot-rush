@@ -18,7 +18,9 @@ local Gear = require(ReplicatedStorage.Shared.Gear)
 local Items = require(ReplicatedStorage.Shared.Items)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
+local Salvage = require(ReplicatedStorage.Shared.Salvage)
 local Theme = require(ReplicatedStorage.Shared.UI.Theme)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Upgrade = require(ReplicatedStorage.Shared.Upgrade)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Flat = require(script.Parent.Parent.UI.Flat)
@@ -43,6 +45,7 @@ local CONFIRM_TIME = 3 -- seconds a "tap again" confirmation stays armed
 -- screens (tablets) down to the menu dock: the figure gets taller and the bag cells bigger.
 local WIN_W, WIN_H = 1460, 650 -- WIN_H = smallest height (phones)
 local WIN_H_MAX = 1000
+local WIN_H_MIN = 520 -- shortest window (very low phone screens); below WIN_H the layout is compact
 local WINDOW_TOP = 84
 local HEAD_H = 48
 local BODY_Y = HEAD_H + 12
@@ -140,6 +143,8 @@ local stageLight: Frame
 local countLabel: TextLabel
 local capLabel: TextLabel
 local ipLabel: TextLabel
+local footFrame: Frame
+local footH = FOOT_H -- footer height: touch-sized buttons need more on phones
 local footNormal: Frame
 local footSalvage: Frame
 local salvageLabel: TextLabel
@@ -147,7 +152,11 @@ local quickNormal: TextLabel
 local quickMagic: TextLabel
 local autoButton: TextButton
 local autoLabel: TextLabel
-local AUTO_CYCLE = { "", "normal", "magic", "rare" } -- auto-salvage on pickup (never uniques)
+local downButton: TextButton -- "Downgrades": bulk salvage of every downgrade (confirm dialog)
+local lockButton: TextButton -- locks / unlocks the selected item (Item.locked, Shared/Salvage)
+local lockLabel: TextLabel
+local dialogLayer: GuiObject? = nil -- open confirm / auto-salvage dialog over the window
+local stage: Frame -- the scaled window (built in init)
 local sortLabel: TextLabel
 local filterLabel: TextLabel
 local upgradeChip: Frame
@@ -179,6 +188,7 @@ local seenIds: { [string]: boolean }? = nil -- item ids known so far (nil until 
 local freshIds: { [string]: boolean } = {} -- new loot that gets a reveal when its cell is shown
 local salvaging = false
 local salvageItems: (list: { Items.Item }) -> ()
+local hoverId: string? = nil -- bag cell under the mouse: shows its red "down" arrow
 
 -- Hero for upgrade comparisons (Shared/Upgrade), rebuilt only when the worn gear snapshot, the
 -- level, the class or the Star Web snapshot changed; its per-item cache survives between renders
@@ -335,6 +345,7 @@ end
 -- ------------------------------------------------------------------ Equipment (left top)
 local dollTop = 12 -- y of the first equipment row (centered when the card grows)
 local dollStep = DOLL_STEP -- row pitch of the equipment slots (grows with touch-sized slots)
+local dollSlot = DOLL_CELL -- slot size on screen terms (grows with touch-sized slots)
 -- Phones: the window is scaled so far down that text and slots grow to their minimum sizes. The
 -- left column then shows either the figure or (while an item is picked) the comparison, each with
 -- the full column height, instead of both stacked.
@@ -367,7 +378,8 @@ local function renderDoll()
 	local function place(slot: string, x: number, row: number, side: "left" | "right")
 		local item = equipped[slot]
 		local isSel = item ~= nil and selected ~= nil and selected.id == item.id
-		local key = if item then item.id .. "|" .. item.rarity else ""
+		local key = (if item then item.id .. "|" .. item.rarity else "")
+			.. (if compact then "|c" else "")
 		local entry: DollEntry? = dollCells[slot]
 		if entry and (entry.key ~= key or not entry.cell.Parent) then
 			entry.cell:Destroy()
@@ -379,7 +391,8 @@ local function renderDoll()
 				selected = isSel,
 				dim = item == nil,
 				locked = if item then lockOf(item) else nil,
-				caption = Items.SlotName[slot] or slot,
+				kept = item ~= nil and Salvage.isLocked(item),
+				caption = if compact then nil else (Items.SlotName[slot] or slot),
 				captionSide = side,
 			})
 			b.Name = "Slot"
@@ -397,11 +410,12 @@ local function renderDoll()
 			entry = { cell = b, key = key }
 			dollCells[slot] = entry
 		elseif item then
-			Flat.setCell(
-				entry.cell,
-				DOLL_CELL,
-				{ rarity = item.rarity, selected = isSel, locked = lockOf(item) }
-			)
+			Flat.setCell(entry.cell, DOLL_CELL, {
+				rarity = item.rarity,
+				selected = isSel,
+				locked = lockOf(item),
+				kept = Salvage.isLocked(item),
+			})
 		end
 		local e = entry :: DollEntry
 		e.cell.Position = UDim2.fromOffset(x, dollTop + (row - 1) * dollStep)
@@ -413,7 +427,7 @@ local function renderDoll()
 		place(slot, PAD + 2, i, "right")
 	end
 	for i, slot in DOLL_RIGHT do
-		place(slot, LEFT_W - PAD - 2 - DOLL_CELL, i, "left")
+		place(slot, LEFT_W - PAD - 2 - dollSlot, i, "left")
 	end
 
 	local sum = 0
@@ -455,8 +469,9 @@ local function buildDoll(parent: Frame)
 	viewport.BackgroundTransparency = 1
 	viewport.Position = UDim2.fromOffset(90, 8)
 	viewport.Size = UDim2.fromOffset(LEFT_W - 180, DOLL_H - 16)
-	viewport.Ambient = Color3.fromRGB(170, 175, 200)
-	viewport.LightColor = Color3.fromRGB(255, 240, 220)
+	viewport.Ambient = Theme.Store.PreviewAmbient
+	viewport.LightColor = Theme.Store.PreviewLight
+	viewport.LightDirection = Theme.Store.PreviewLightDir
 	viewport.ZIndex = 2
 	viewport.Parent = dollCard
 
@@ -481,27 +496,41 @@ end
 -- ------------------------------------------------------------------ Comparison (left bottom)
 local COL_W = (LEFT_W - 3 * PAD) // 2
 
+-- Height of the three header text lines (name, rarity · slot, item power); the icon cell is
+-- as tall, so on phones (where small text grows) the text column moves right with it
+local function headerH(): number
+	local t, line = rhythm()
+	return math.max(52, math.max(22, t + 4) + line + t)
+end
+
 -- Header of one comparison column: icon cell, name, rarity · slot, item power
 local function itemHeader(parent: Frame, item: Items.Item)
 	local color = rarityColor(item.rarity)
 	local t, line = rhythm()
 	local top = line + 4 -- below the caption
-	local cell = Flat.cell(52, slotArt(item.slot, item), { rarity = item.rarity })
+	local size = headerH()
+	local cell = Flat.cell(size, slotArt(item.slot, item), { rarity = item.rarity })
 	cell.Active = false
+	-- display only: no touch-size growth (it would push the cell under the text beside it)
+	cell:SetAttribute("TouchTarget", nil)
 	cell.Position = UDim2.fromOffset(0, top + 2)
 	cell.Parent = parent
-	local textW = COL_W - 64
+	local textX = size + 10
+	local textW = COL_W - textX
 	local name = Flat.text(item.name, 14, color, Theme.Font.Title)
 	name.AutomaticSize = Enum.AutomaticSize.None
 	name.Size = UDim2.fromOffset(textW, math.max(20, t + 2))
 	name.TextTruncate = Enum.TextTruncate.AtEnd
-	name.Position = UDim2.fromOffset(64, top)
+	name.Position = UDim2.fromOffset(textX, top)
 	name.Parent = parent
 	local sub = Flat.text(
 		string.format(
-			"%s %s",
+			"%s %s%s",
 			Items.RarityName[item.rarity] or item.rarity,
-			Items.SlotName[item.slot] or item.slot
+			Items.SlotName[item.slot] or item.slot,
+			if item.rarity == "unique"
+				then " · Rank " .. Forge.rankName(Items.rankOf(item))
+				else ""
 		),
 		11,
 		C.Muted,
@@ -510,21 +539,43 @@ local function itemHeader(parent: Frame, item: Items.Item)
 	sub.AutomaticSize = Enum.AutomaticSize.None
 	sub.Size = UDim2.fromOffset(textW, t)
 	sub.TextTruncate = Enum.TextTruncate.AtEnd
-	sub.Position = UDim2.fromOffset(64, top + math.max(22, t + 4))
+	sub.Position = UDim2.fromOffset(textX, top + math.max(22, t + 4))
 	sub.Parent = parent
 	local ip =
 		Flat.text("Item Power " .. Format.int(Items.itemPower(item)), 11, C.Text, Theme.Font.Body)
 	ip.AutomaticSize = Enum.AutomaticSize.None
 	ip.Size = UDim2.fromOffset(textW, t)
 	ip.TextTruncate = Enum.TextTruncate.AtEnd
-	ip.Position = UDim2.fromOffset(64, top + math.max(22, t + 4) + line)
+	ip.Position = UDim2.fromOffset(textX, top + math.max(22, t + 4) + line)
 	ip.Parent = parent
 end
 
 -- y of the first stat row below a caption + item header (or caption + one hint line)
 local function statsTop(): number
-	local t, line = rhythm()
-	return line + 4 + math.max(56, math.max(22, t + 4) + line + t) + 8
+	local _, line = rhythm()
+	return line + 4 + math.max(56, headerH() + 2) + 8
+end
+
+-- Signature effect of a unique under its stat rows (Shared/UniqueEffects): two lines at the
+-- normal pitch, one line when the rows are tightened (`pitch`); `y` overrides where it starts
+local function effectLine(parent: Frame, item: Items.Item, pitch: number?, y: number?)
+	local text = if item.rarity == "unique" and item.unique
+		then UniqueEffects.text(item.unique, Items.rankOf(item))
+		else ""
+	if text == "" then
+		return
+	end
+	local _, line = rhythm()
+	local step = pitch or math.max(22, line)
+	local fx = Flat.text(text, 11, Theme.Rarity.unique, Theme.Font.Body)
+	fx.Name = "UniqueEffect"
+	fx.AutomaticSize = Enum.AutomaticSize.None
+	fx.Size = UDim2.fromOffset(COL_W, if pitch then line else 2 * line)
+	fx.TextWrapped = true
+	fx.TextScaled = true
+	fx.TextYAlignment = Enum.TextYAlignment.Top
+	fx.Position = UDim2.fromOffset(0, y or (statsTop() + #STAT_ORDER * step + 2))
+	fx.Parent = parent
 end
 
 -- Stat rows with bars; `other` = values to compare against (deltas shown when given); `pitch`
@@ -640,12 +691,17 @@ local function renderCompare()
 	local fit = math.floor((cmpH - 2 * PAD - buttonH() - 4 - line - statsTop()) / #STAT_ORDER)
 	local showEffect = bagItem ~= nil and fit >= t + 2
 	local pitch = if showEffect then math.min(math.max(22, line), fit) else nil
+	-- Free height between the stat rows and the action bar (phones have plenty: the card takes
+	-- the whole column); the upgrade line wraps into it instead of being cut off
+	local rowsEnd = statsTop() + #STAT_ORDER * (pitch or math.max(22, line))
+	local room = cmpH - 2 * PAD - buttonH() - 6 - rowsEnd
 
 	-- Left column: the worn piece of the selected slot, or the character totals
 	if worn then
 		caption(left, "Equipped")
 		itemHeader(left, worn)
 		statRows(left, statTotals({ worn }), nil, C.Cyan, pitch)
+		effectLine(left, worn, pitch)
 		if selectedEquipped then
 			local w = if compact then COL_W - 118 else COL_W
 			local b = Flat.button("Unequip", "secondary", Vector2.new(w, buttonH()))
@@ -683,10 +739,13 @@ local function renderCompare()
 		-- life / speed change below the stat rows
 		local delta = Upgrade.compare(hero(), bagItem)
 		local better = Upgrade.isUpgrade(hero(), bagItem)
+		local verdict = if better then C.Good else C.Danger
+		-- Big number = the weighted overall change (Upgrade.scoreText); the line under the stat
+		-- rows names it ("Overall +16%: ...") and breaks it down into damage / life / speed
 		local big = Flat.text(
 			if delta.empty then "NEW" else Upgrade.scoreText(delta),
 			22,
-			if better then C.Good else C.Danger,
+			verdict,
 			Theme.Font.Title,
 			Enum.TextXAlignment.Right
 		)
@@ -701,20 +760,33 @@ local function renderCompare()
 			color,
 			pitch
 		)
+		local fxY = rowsEnd + 2
 		if showEffect then
 			local locked = lockOf(bagItem) ~= nil
+			-- up to three lines, wrapped, when the card has the room (phones); one line otherwise
+			local lines = math.clamp(math.floor(room / line), 1, 3)
+			local summary = if delta.empty
+				then Upgrade.text(delta)
+				else `Overall {Upgrade.scoreText(delta)}: {Upgrade.text(delta)}`
 			local effect = Flat.text(
-				if locked then `{Upgrade.text(delta)} once worn` else Upgrade.text(delta),
+				if locked then `{summary} once worn` else summary,
 				11,
-				if locked then C.Muted elseif better then C.Good else C.Danger,
+				if locked then C.Muted else verdict,
 				Theme.Font.UI
 			)
 			effect.Name = "Effect"
 			effect.AutomaticSize = Enum.AutomaticSize.None
-			effect.Size = UDim2.fromOffset(COL_W, line)
+			effect.Size = UDim2.fromOffset(COL_W, lines * line)
+			effect.TextWrapped = lines > 1
 			effect.TextTruncate = Enum.TextTruncate.AtEnd
-			effect.Position = UDim2.fromOffset(0, statsTop() + #STAT_ORDER * (pitch or line))
+			effect.TextYAlignment = Enum.TextYAlignment.Top
+			effect.Position = UDim2.fromOffset(0, rowsEnd + 2)
 			effect.Parent = right
+			-- a unique's own effect still fits below when the wrapped line leaves two lines free
+			fxY = if room - lines * line >= 2 * line + 6 then rowsEnd + lines * line + 8 else -1
+		end
+		if fxY >= 0 then
+			effectLine(right, bagItem, nil, if showEffect then fxY else nil)
 		end
 
 		local actions = Flat.frame(UDim2.fromOffset(COL_W, buttonH()), UDim2.fromScale(0, 1))
@@ -923,6 +995,16 @@ end
 
 -- Salvage right away: the cells vanish at once, the server confirms with its next snapshot
 local function salvageNow(list: { Items.Item })
+	local open: { Items.Item } = {}
+	for _, item in list do
+		if Salvage.canSalvage(item) then
+			table.insert(open, item)
+		end
+	end
+	if #open < #list then
+		QuestController.toast(Salvage.Text.locked, Theme.Color.Danger)
+	end
+	list = open
 	if #list == 0 then
 		return
 	end
@@ -959,6 +1041,10 @@ local function onItemTap(id: string)
 		selectItem(item, false)
 		return
 	end
+	if Salvage.isLocked(item) then
+		QuestController.toast(Salvage.Text.locked, Theme.Color.Danger)
+		return
+	end
 	-- Epic and unique items need a second tap, everything else goes on the first
 	if (RARITY_RANK[item.rarity] or 0) >= RARITY_RANK.epic and not marked[id] then
 		marked[id] = true
@@ -991,8 +1077,10 @@ local function renderItems(): number
 			rarity = item.rarity,
 			selected = isSel,
 			marked = isMarked,
-			upgrade = marks[item.id],
+			-- red arrow only on the selected / hovered cell (all of them while salvaging)
+			upgrade = Upgrade.shownMark(marks[item.id], isSel or hoverId == item.id, salvageMode),
 			locked = lockOf(item),
+			kept = Salvage.isLocked(item),
 		}
 		-- Only a new look (rarity, slot icon, cell size) builds a new cell; selection, salvage
 		-- mark and upgrade icon change in place, so its light sweep and glow keep running
@@ -1010,6 +1098,26 @@ local function renderItems(): number
 			local id = item.id
 			b.Activated:Connect(function()
 				onItemTap(id)
+			end)
+			-- Mouse over a cell shows its red arrow; leaving hides it again (changed in place)
+			b.MouseEnter:Connect(function()
+				hoverId = id
+				if b.Parent then
+					Flat.setCellUpgrade(b, cellSize, Upgrade.shownMark(marks[id], true))
+				end
+			end)
+			b.MouseLeave:Connect(function()
+				if hoverId == id then
+					hoverId = nil
+				end
+				local picked = selected ~= nil and not selectedEquipped and selected.id == id
+				if b.Parent then
+					Flat.setCellUpgrade(
+						b,
+						cellSize,
+						Upgrade.shownMark(marks[id], picked and not salvageMode, salvageMode)
+					)
+				end
 			end)
 			b.Parent = gridFrame
 			entry = { cell = b, key = key }
@@ -1046,7 +1154,7 @@ local function quickCount(rarity: string): number
 	local limit = RARITY_RANK[rarity] or 0
 	local n = 0
 	for _, item in items do
-		if (RARITY_RANK[item.rarity] or 0) <= limit then
+		if (RARITY_RANK[item.rarity] or 0) <= limit and not Salvage.isLocked(item) then
 			n += 1
 		end
 	end
@@ -1091,9 +1199,14 @@ local function renderGrid()
 	footNormal.Visible = not salvageMode
 	footSalvage.Visible = salvageMode
 	salvageLabel.Text = if salvagedCount > 0
-		then string.format("Salvaged %d - +%s Gold", salvagedCount, Format.currency(salvagedGold))
-		else "Tap items to salvage"
+		then string.format("%d salvaged\n+%s Gold", salvagedCount, Format.currency(salvagedGold))
+		else "Tap items\nto salvage"
 	salvageLabel.TextColor3 = if salvagedCount > 0 then C.Gold else F.Faint
+	Flat.setEnabled(downButton, #Salvage.downgrades(items, hero()) > 0)
+	-- Lock button: the selected item (bag or worn)
+	local sel = selected
+	Flat.setEnabled(lockButton, sel ~= nil)
+	lockLabel.Text = if sel and Salvage.isLocked(sel) then "Unlock" else "Lock"
 	quickNormal.Text = if quickArmed == "normal"
 		then string.format("Confirm %d?", quickCount("normal"))
 		else "All Normal"
@@ -1133,11 +1246,228 @@ local function quickSalvage(rarity: string)
 	local limit = RARITY_RANK[rarity] or 0
 	local list: { Items.Item } = {}
 	for _, item in items do
-		if (RARITY_RANK[item.rarity] or 0) <= limit then
+		if (RARITY_RANK[item.rarity] or 0) <= limit and not Salvage.isLocked(item) then
 			table.insert(list, item)
 		end
 	end
 	salvageNow(list)
+end
+
+-- ------------------------------------------------------------------ Dialogs (bulk salvage, auto)
+local DIALOG_W = 640
+local DIALOG_Z = 60 -- above every cell, card and the compare panel
+
+local function closeDialog()
+	local layer = dialogLayer
+	dialogLayer = nil
+	if layer then
+		layer:Destroy()
+	end
+end
+
+-- Dim layer over the window with a centered card: title, body lines, then `build` fills a
+-- content row (returns its height). A tap on the dim layer closes it. Built inside the scaled stage,
+-- so it grows with the window on phones like every other part.
+local function openDialog(
+	title: string,
+	lines: { string },
+	build: (card: Frame, y: number) -> number
+)
+	closeDialog()
+	local layer = Instance.new("TextButton")
+	layer.Name = "Dialog"
+	layer.Text = ""
+	layer.AutoButtonColor = false
+	layer.BackgroundColor3 = F.Surface0
+	layer.BackgroundTransparency = 0.35
+	layer.BorderSizePixel = 0
+	layer.Size = UDim2.fromScale(1, 1)
+	layer.ZIndex = DIALOG_Z
+	layer.Activated:Connect(closeDialog)
+	local card = Flat.card(UDim2.fromOffset(DIALOG_W, 200))
+	card.Name = "Card"
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.Active = true -- taps on the card do not reach the dim layer
+	card.Parent = layer
+	local t, line = rhythm()
+	local head = Window.gilded(title, 24)
+	head.Position = UDim2.fromOffset(2 * PAD, 2 * PAD)
+	head.Parent = card
+	local y = 2 * PAD + 40
+	for i, text in lines do
+		local body = Flat.text(text, 13, if i == 1 then C.Text else C.Muted, Theme.Font.Body)
+		body.AutomaticSize = Enum.AutomaticSize.None
+		body.TextWrapped = true
+		body.Size = UDim2.fromOffset(DIALOG_W - 4 * PAD, 2 * line)
+		body.TextYAlignment = Enum.TextYAlignment.Top
+		body.Position = UDim2.fromOffset(2 * PAD, y)
+		body.Parent = card
+		y += math.max(2 * line, 2 * t) + 4
+	end
+	y += build(card, y + 6) + 6 + 2 * PAD
+	card.Size = UDim2.fromOffset(DIALOG_W, y)
+	for _, d in layer:GetDescendants() do
+		if d:IsA("GuiObject") then
+			d.ZIndex += DIALOG_Z
+		end
+	end
+	layer.Parent = stage
+	Flat.pop(card)
+	dialogLayer = layer
+end
+
+-- Row of buttons right-aligned at `y` in a dialog card; returns the row height
+local function dialogButtons(
+	card: Frame,
+	y: number,
+	defs: {
+		{
+			text: string,
+			kind: Flat.ButtonKind,
+			width: number,
+			run: () -> (),
+		}
+	}
+): number
+	local h = buttonH()
+	local row = Flat.frame(UDim2.fromOffset(DIALOG_W - 4 * PAD, h), UDim2.fromOffset(2 * PAD, y))
+	row.Name = "Buttons"
+	local l = Kit.list(row, Enum.FillDirection.Horizontal, 10)
+	l.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	for i, def in defs do
+		local b = Flat.button(def.text, def.kind, Vector2.new(def.width, h))
+		b.LayoutOrder = i
+		b.Activated:Connect(def.run)
+		b.Parent = row
+	end
+	row.Parent = card
+	return h
+end
+
+-- "Salvage all downgrades": every bag item that is no upgrade (the red arrow), never locked items
+-- or uniques. The dialog shows the count and the expected yield; the server checks each item again.
+local function bulkDowngrades()
+	local list = Salvage.downgrades(items, hero())
+	if #list == 0 then
+		QuestController.toast(Salvage.Text.none, C.Muted)
+		return
+	end
+	local mods = Progression.starMods(ProgressController.data())
+	local y = Salvage.expected(list, mods.shardFind)
+	local function approx(v: number): string
+		return if v == math.floor(v) then Format.int(v) else "~" .. string.format("%.1f", v)
+	end
+	local gains = {
+		`+{Format.currency(y.gold)} Gold`,
+		`+{Format.currency(y.shards)} {Forge.MaterialName.shards}`,
+	}
+	if y.candy > 0 then
+		table.insert(gains, `{approx(y.candy)} {Forge.MaterialName.candy}`)
+	end
+	if y.dust > 0 then
+		table.insert(gains, `{approx(y.dust)} {Forge.MaterialName.dust}`)
+	end
+	local noun = if y.count == 1 then "item" else "items"
+	openDialog("SALVAGE DOWNGRADES", {
+		`Salvage {Format.int(y.count)} {noun} that are no upgrade for your hero?`,
+		table.concat(gains, "  ·  "),
+		"Locked items, uniques, upgrades and worn gear are kept.",
+	}, function(card: Frame, top: number): number
+		return dialogButtons(card, top, {
+			{ text = "Cancel", kind = "secondary", width = 150, run = closeDialog },
+			{
+				text = `Salvage {Format.int(y.count)}`,
+				kind = "danger",
+				width = 190,
+				run = function()
+					closeDialog()
+					local ids: { string } = {}
+					local gone: { [string]: boolean } = {}
+					local clock = os.clock()
+					for _, item in list do
+						table.insert(ids, item.id)
+						gone[item.id] = true
+						pending[item.id] = clock
+						marked[item.id] = nil
+					end
+					local rest: { Items.Item } = {}
+					for _, it in items do
+						if not gone[it.id] then
+							table.insert(rest, it)
+						end
+					end
+					items = rest
+					salvagedCount += y.count
+					salvagedGold += y.gold
+					Net.SalvageMany:FireServer(ids)
+					Flat.sound("ui_click")
+					InventoryController.render()
+				end,
+			},
+		})
+	end)
+end
+
+-- Auto-salvage settings (unlocked at depth 10): rarity limit and "keep upgrades"
+local function autoDialog()
+	if not QuestController.isOpen("auto_salvage") then
+		QuestController.toast("Locked - " .. (QuestController.lockHint("auto_salvage") or ""))
+		return
+	end
+	local limit = (player:GetAttribute("AutoSalvage") or "") :: string
+	local keep = player:GetAttribute("AutoKeep") ~= false
+	local function send()
+		Net.AutoSalvage:FireServer(limit, keep)
+	end
+	openDialog("AUTO-SALVAGE", {
+		"Loot up to the chosen rarity is salvaged when you pick it up.",
+		"Locked items and uniques are never salvaged.",
+	}, function(card: Frame, top: number): number
+		local h = buttonH()
+		local row =
+			Flat.frame(UDim2.fromOffset(DIALOG_W - 4 * PAD, h), UDim2.fromOffset(2 * PAD, top))
+		row.Name = "Limit"
+		local l = Kit.list(row, Enum.FillDirection.Horizontal, 8)
+		l.HorizontalAlignment = Enum.HorizontalAlignment.Left
+		local w =
+			math.floor((DIALOG_W - 4 * PAD - 8 * (#Salvage.AUTO_LIMITS - 1)) / #Salvage.AUTO_LIMITS)
+		local buttons: { [string]: { b: TextButton, label: TextLabel } } = {}
+		local function paint()
+			for id, e in buttons do
+				local on = id == limit
+				e.b.BackgroundTransparency = if on then 0 else 0.55
+				e.label.TextColor3 = if on then C.Gold else C.Muted
+			end
+		end
+		for i, id in Salvage.AUTO_LIMITS do
+			local text = if id == "" then "Off" else "≤ " .. (Items.RarityName[id] or id)
+			local b, label = Flat.button(text, "secondary", Vector2.new(w, h))
+			b.Name = "Limit_" .. (if id == "" then "off" else id)
+			b.LayoutOrder = i
+			b.Activated:Connect(function()
+				limit = id
+				paint()
+				send()
+			end)
+			b.Parent = row
+			buttons[id] = { b = b, label = label }
+		end
+		paint()
+		row.Parent = card
+		local toggle = Flat.toggle("Keep upgrades", "upgrade", C.Good, function(on: boolean)
+			keep = on
+			send()
+		end)
+		toggle.set(keep)
+		toggle.frame.Name = "KeepUpgrades"
+		toggle.frame.Position = UDim2.fromOffset(2 * PAD, top + h + 12)
+		toggle.frame.Parent = card
+		local done = dialogButtons(card, top + h + 12 + math.max(44, h) + 12, {
+			{ text = "Done", kind = "primary", width = 150, run = closeDialog },
+		})
+		return h + 12 + math.max(44, h) + 12 + done
+	end)
 end
 
 local function footButton(
@@ -1199,6 +1529,20 @@ local function buildGrid(parent: Frame)
 		InventoryController.render()
 	end)
 	search.Parent = card
+	-- Once the tab row is laid out, shrink or hide the search field by its real width (the glyph
+	-- estimate in relayout can be short on phones); design px = screen px / card scale
+	local function fitSearch()
+		local cardW = card.AbsoluteSize.X
+		local tabsW = tabs.frame.AbsoluteSize.X
+		if cardW <= 0 or tabsW <= 0 then
+			return
+		end
+		local room = RIGHT_W - 2 * PAD - tabsW * RIGHT_W / cardW - 18
+		search.Visible = room >= 120
+		search.Size = UDim2.fromOffset(math.clamp(room, 120, 190), TAB_H)
+	end
+	tabs.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitSearch)
+	card:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitSearch)
 
 	local gridY = PAD + TAB_H + 6
 	local gridH = WIN_H - BODY_Y - gridY - FOOT_H - PAD - 6
@@ -1230,6 +1574,7 @@ local function buildGrid(parent: Frame)
 	-- salvage switch on the right
 	local foot = Flat.frame(UDim2.new(1, -2 * PAD, 0, FOOT_H), UDim2.new(0, PAD, 1, -PAD - FOOT_H))
 	foot.Name = "Footer"
+	footFrame = foot
 	foot.Parent = card
 	local rule = Flat.rule(RIGHT_W - 2 * PAD)
 	rule.Position = UDim2.fromOffset(0, -6)
@@ -1253,12 +1598,12 @@ local function buildGrid(parent: Frame)
 	capLabel.Parent = cap
 	cap.Parent = foot
 
-	footNormal = Flat.frame(UDim2.fromOffset(400, FOOT_H), UDim2.fromOffset(132, 0))
+	footNormal = Flat.frame(UDim2.fromOffset(440, FOOT_H), UDim2.fromOffset(132, 0))
 	footNormal.Name = "Normal"
 	local nl = Kit.list(footNormal, Enum.FillDirection.Horizontal, 8)
 	nl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local sort
-	sort, sortLabel = footButton("Sort: Rarity", 190)
+	sort, sortLabel = footButton("Sort: Rarity", 170)
 	sort.LayoutOrder = 1
 	sort.Activated:Connect(function()
 		local i = table.find(SORTS, sortMode) or 1
@@ -1267,7 +1612,7 @@ local function buildGrid(parent: Frame)
 	end)
 	sort.Parent = footNormal
 	local filterBtn
-	filterBtn, filterLabel = footButton("All Rarities", 170)
+	filterBtn, filterLabel = footButton("All Rarities", 150)
 	filterBtn.LayoutOrder = 2
 	filterBtn.Activated:Connect(function()
 		local i = if rarityFilter then table.find(RARITY_CYCLE, rarityFilter) or 0 else 0
@@ -1275,15 +1620,32 @@ local function buildGrid(parent: Frame)
 		InventoryController.render()
 	end)
 	filterBtn.Parent = footNormal
+	-- Lock / unlock the selected item: a locked item is never salvaged (Shared/Salvage)
+	lockButton, lockLabel = footButton("Lock", 92, "lock")
+	lockButton.Name = "LockItem"
+	lockButton.LayoutOrder = 3
+	lockButton.Activated:Connect(function()
+		local sel = selected
+		if not sel then
+			QuestController.toast("Pick an item to lock first.", C.Muted)
+			return
+		end
+		local on = not Salvage.isLocked(sel)
+		sel.locked = if on then true else nil -- shown at once, the next snapshot confirms it
+		Net.ItemLock:FireServer(sel.id, on)
+		Flat.sound("ui_click")
+		InventoryController.render()
+	end)
+	lockButton.Parent = footNormal
 	footNormal.Parent = foot
 
-	footSalvage = Flat.frame(UDim2.fromOffset(470, FOOT_H), UDim2.fromOffset(132, 0))
+	footSalvage = Flat.frame(UDim2.fromOffset(490, FOOT_H), UDim2.fromOffset(132, 0))
 	footSalvage.Name = "Salvage"
 	footSalvage.Visible = false
 	local sl = Kit.list(footSalvage, Enum.FillDirection.Horizontal, 8)
 	sl.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local markNormal
-	markNormal, quickNormal = footButton("All Normal", 110, nil, "ghost")
+	markNormal, quickNormal = footButton("All Normal", 92, nil, "ghost")
 	quickNormal.TextSize = Kit.fontSize(12)
 	markNormal.LayoutOrder = 1
 	markNormal.Activated:Connect(function()
@@ -1291,31 +1653,35 @@ local function buildGrid(parent: Frame)
 	end)
 	markNormal.Parent = footSalvage
 	local markMagic
-	markMagic, quickMagic = footButton("All ≤ Magic", 110, nil, "ghost")
+	markMagic, quickMagic = footButton("All ≤ Magic", 92, nil, "ghost")
 	quickMagic.TextSize = Kit.fontSize(12)
 	markMagic.LayoutOrder = 2
 	markMagic.Activated:Connect(function()
 		quickSalvage("magic")
 	end)
 	markMagic.Parent = footSalvage
-	-- Auto-salvage on pickup (unlocked at depth 10): cycles Off → Normal → Magic → Rare
-	autoButton, autoLabel = footButton("Auto: Off", 118, nil, "ghost")
+	-- Bulk: every downgrade at once, after a confirm dialog with the count and the yield
+	local downLabel
+	downButton, downLabel = footButton("Downgrades", 112, nil, "danger")
+	downLabel.TextSize = Kit.fontSize(12)
+	downButton.Name = "SalvageDowngrades"
+	downButton.LayoutOrder = 3
+	downButton.Activated:Connect(bulkDowngrades)
+	downButton.Parent = footSalvage
+	-- Auto-salvage on pickup (unlocked at depth 10): rarity limit + keep upgrades (dialog)
+	autoButton, autoLabel = footButton("Auto: Off", 104, nil, "ghost")
 	autoLabel.TextSize = Kit.fontSize(12)
 	autoButton.Name = "AutoSalvage"
-	autoButton.LayoutOrder = 3
-	autoButton.Activated:Connect(function()
-		if not QuestController.isOpen("auto_salvage") then
-			QuestController.toast("Locked - " .. (QuestController.lockHint("auto_salvage") or ""))
-			return
-		end
-		local now = (player:GetAttribute("AutoSalvage") or "") :: string
-		local i = table.find(AUTO_CYCLE, now) or 1
-		Net.AutoSalvage:FireServer(AUTO_CYCLE[i % #AUTO_CYCLE + 1])
-	end)
+	autoButton.LayoutOrder = 4
+	autoButton.Activated:Connect(autoDialog)
 	autoButton.Parent = footSalvage
 	-- Tally of this salvage session (epic/unique cells ask for a second tap)
-	salvageLabel = Flat.text("Tap items to salvage", 12, F.Faint, Theme.Font.Body)
-	salvageLabel.LayoutOrder = 4
+	salvageLabel = Flat.text("Tap items\nto salvage", 11, F.Faint, Theme.Font.Body)
+	salvageLabel.AutomaticSize = Enum.AutomaticSize.None
+	salvageLabel.Size = UDim2.fromOffset(52, FOOT_H)
+	salvageLabel.TextWrapped = true
+	salvageLabel.TextScaled = false
+	salvageLabel.LayoutOrder = 5
 	salvageLabel.Parent = footSalvage
 	footSalvage.Parent = foot
 
@@ -1338,7 +1704,6 @@ end
 -- ------------------------------------------------------------------ Header
 local titleRow: Frame
 
-local stage: Frame
 local fit: UIScale
 local guiRoot: Frame
 local closeButton: GuiButton
@@ -1351,7 +1716,7 @@ local shownCompact = false
 local shownUnit = 0
 local function relayout(h: number)
 	h = math.floor(h)
-	local isCompact = lastUnit > 0 and lastUnit < COMPACT_UNIT
+	local isCompact = (lastUnit > 0 and lastUnit < COMPACT_UNIT) or h < WIN_H
 	if h == shownH and isCompact == shownCompact and math.abs(lastUnit - shownUnit) < 0.005 then
 		return
 	end
@@ -1364,7 +1729,10 @@ local function relayout(h: number)
 	-- Compact: figure and comparison each take the whole left column (one shows at a time)
 	local dollH = if compact then h - BODY_Y else DOLL_H + extra
 	dollCard.Size = UDim2.fromOffset(LEFT_W, dollH)
-	viewport.Size = UDim2.fromOffset(LEFT_W - 180, dollH - 16)
+	-- Compact: no slot captions; the figure keeps clear of both (touch-sized) slot columns
+	local inset = if compact then dollSlot + 2 * PAD else 90
+	viewport.Position = UDim2.fromOffset(inset, 8)
+	viewport.Size = UDim2.fromOffset(LEFT_W - 2 * inset, dollH - 16)
 	stageLight.Position = UDim2.new(0.5, 0, 0, math.floor(dollH * 0.45))
 	stageLight.Size = UDim2.fromOffset(300 + extra // 2, 300 + extra // 2)
 	-- Slot rows: at least a touch-sized slot apart, the column centered in the card
@@ -1373,7 +1741,12 @@ local function relayout(h: number)
 		DOLL_CELL,
 		if UserInputService.TouchEnabled then math.ceil(Kit.MIN_TOUCH_PX / unit) else 0
 	)
+	dollSlot = slotH
 	dollStep = math.max(DOLL_STEP, slotH + 4)
+	if compact then
+		-- the column must fit the card: squeeze the pitch before the slots overlap
+		dollStep = math.max(slotH + 2, math.min(dollStep, (dollH - 24 - slotH) // (#DOLL_LEFT - 1)))
+	end
 	local column = (#DOLL_LEFT - 1) * dollStep + slotH
 	dollTop = math.max(12, math.floor((dollH - column) / 2))
 	if compact then
@@ -1385,11 +1758,17 @@ local function relayout(h: number)
 	end
 	cmpCard.Size = UDim2.fromOffset(LEFT_W, cmpH)
 	-- Search field takes what the tabs leave (their text grows on phones); hidden below a usable width
-	local room = RIGHT_W - 2 * PAD - tabs.width() - 10
+	local room = RIGHT_W - 2 * PAD - tabs.width() - 18
 	searchFrame.Visible = room >= 120
 	searchFrame.Size = UDim2.fromOffset(math.clamp(room, 120, 190), TAB_H)
 	bagCard.Size = UDim2.fromOffset(RIGHT_W, h - BODY_Y)
-	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - FOOT_H - PAD - 6
+	-- Footer: touch-sized buttons are taller than the design row, so the grid reserves their height
+	footH = if UserInputService.TouchEnabled then math.max(FOOT_H, buttonH() + 8) else FOOT_H
+	footFrame.Size = UDim2.new(1, -2 * PAD, 0, footH)
+	footFrame.Position = UDim2.new(0, PAD, 1, -PAD - footH)
+	footNormal.Size = UDim2.fromOffset(footNormal.Size.X.Offset, footH)
+	footSalvage.Size = UDim2.fromOffset(footSalvage.Size.X.Offset, footH)
+	local gridH = h - BODY_Y - (PAD + TAB_H + 6) - footH - PAD - 6
 	gridFrame.Size = UDim2.fromOffset(gridFrame.Size.X.Offset, gridH)
 	-- Fewest columns (= biggest cells) whose rows for a full bag still fit the grid height
 	local inner = gridFrame.Size.X.Offset - 2 * GRID_PAD - 8 -- 8: scroll bar inset + rounding
@@ -1446,9 +1825,11 @@ local function arrange()
 	if roomH / k >= WIN_H then
 		h = math.min(roomH / k, WIN_H_MAX)
 	else
-		k = math.min(k, roomH / WIN_H)
+		-- low screen: a shorter window at the width-fitted scale; scale down only below the minimum
+		h = math.max(WIN_H_MIN, roomH / k)
+		k = math.min(k, roomH / h)
 	end
-	k = math.max(k, 0.5)
+	k = math.max(k, 0.3)
 	local unit = s * k -- screen pixels per window design pixel
 	-- Scale and touch / text minimums first, then the new height (its re-render reads sizes)
 	if math.abs(fit.Scale - k) > 0.001 or math.abs(unit - lastUnit) > 0.0001 then
@@ -1692,6 +2073,8 @@ function InventoryController.toggle()
 		salvageMode = false
 		marked = {}
 		quickArmed = nil
+		hoverId = nil
+		closeDialog()
 		salvageToggle.set(false)
 		InventoryController.render()
 	end
@@ -1860,6 +2243,9 @@ function InventoryController.start()
 		upgradeEvent:Fire()
 	end)
 	player:GetAttributeChangedSignal("AutoSalvage"):Connect(function()
+		InventoryController.render()
+	end)
+	player:GetAttributeChangedSignal("AutoKeep"):Connect(function()
 		InventoryController.render()
 	end)
 	-- Bag size and its price (Shared/Bag): a new size re-renders the grid, gold only the button

@@ -1,0 +1,95 @@
+name: Publish test place
+
+# Builds the game with Rojo and uploads it to the private TEST place (separate universe from the
+# live game, so its DataStores, analytics, badges and products are separate too).
+# Secrets in the "Roblox-Test" environment: ROBLOX_API_KEY, ROBLOX_UNIVERSE_ID, ROBLOX_PLACE_ID
+# Guide: docs/PUBLISH.md ("Test place")
+#
+# Triggers:
+#   - push to main (the test place always runs what is merged)
+#   - Actions → Publish test place → Run workflow → pick any branch ("Use workflow from")
+#   - add the label "test-place" to a PR: publishes the PR branch, and again on every new push
+# Without the Roblox-Test secrets it skips with a warning.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - default.project.json
+      - wally.toml
+      - wally.lock
+      - rokit.toml
+      - tools/publish.sh
+      - tools/packages.sh
+      - tools/setup.sh
+      - .github/workflows/publish-test.yml
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+    inputs:
+      versionType:
+        description: "Published = playable right away, Saved = only save as a version"
+        type: choice
+        options: [Published, Saved]
+        default: Published
+
+# One test place: the newest upload wins, an older run still going is cancelled.
+# PR events without the label get their own group, so they never cancel a real upload.
+concurrency:
+  group: >-
+    ${{ (github.event_name != 'pull_request' ||
+    contains(github.event.pull_request.labels.*.name, 'test-place'))
+    && 'publish-test' || format('publish-test-skip-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    # PRs only with the "test-place" label, and only from this repo (forks get no secrets)
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'test-place') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Roblox-Test
+    env:
+      ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+      ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+      ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secrets present?
+        id: secrets
+        run: |
+          if [[ -n "$ROBLOX_API_KEY" && -n "$ROBLOX_UNIVERSE_ID" && -n "$ROBLOX_PLACE_ID" ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Roblox-Test secrets missing, test publish skipped (docs/PUBLISH.md, Test place)."
+          fi
+
+      - name: Cache toolchain and Wally packages
+        if: steps.secrets.outputs.ok == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bin
+            .tools/roblox
+            .tools/out/packages.stamp
+            Packages
+            ServerPackages
+            ~/.cache/selene
+          key: publish-tools-${{ runner.os }}-${{ hashFiles('rokit.toml', 'wally.toml', 'wally.lock') }}
+
+      - name: Install tools and Wally packages
+        if: steps.secrets.outputs.ok == 'true'
+        run: bash tools/setup.sh
+
+      - name: Fast checks (format, lint, types, build)
+        if: steps.secrets.outputs.ok == 'true'
+        run: bash tools/check.sh format lint types build
+
+      - name: Upload to the test place
+        if: steps.secrets.outputs.ok == 'true'
+        run: bash tools/publish.sh "${{ inputs.versionType || 'Published' }}"

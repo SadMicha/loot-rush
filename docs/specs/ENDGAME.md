@@ -58,7 +58,9 @@ depth's twist and its reward tag. Tap = go deeper with it.
 - A card = 1 **objective** (E2) + 0-2 **affixes** (below) + 1 **reward tag**: `+X % items`,
   `+X % gold`, `Rare+ cache`, `+1 spell stone chance`, `Fragment` (E6), `Unique from <boss>` (E4).
   More affixes = bigger reward. One card is always the "safe" one (no affix, small reward).
-- From depth 3 (onboarding stays plain); before depth 10 cards carry at most 1 affix.
+- **End game only** (Micha, 2026-11-05): cards appear only in the Altered World (from depth 26,
+  Atlas `pathCards`); the leveling regions keep the plain "Deeper". Before depth 10 cards carry at
+  most 1 affix (only matters if a shallower region ever gets cards).
 - Rift variants become affixes on cards instead of a hidden roll.
 - Server: `Systems/Rift` rolls the 3 cards when the boss dies (seeded per run), sends them in the
   `RiftResult` `clear` summary, `Net.Rift "deeper", cardIndex` (1-3, validated, nil = safe card).
@@ -250,6 +252,8 @@ Answered 2026-11-05: build ranks 1-3 first; Path Cards **replace** the random va
 far: E1 with 11 affixes (`smooth_zones` and Fragment/Unique reward tags wait for E4/E6) and the
 Altered rotation without the "borrowed attack" (the twist is a violet glow + one elite mod + The
 Rift's toughness).
+Answered 2026-11-05: Path Cards are **end game only** (Altered World); the leveling regions
+(Green Plains to Sky Islands) keep the plain "Deeper" button and no affixes.
 
 
 1. Which pieces to build first? Recommended: ranks 1-3 (Path Cards, Altered boss rotation,

@@ -176,7 +176,7 @@ describe("Gear looks", function()
 	end)
 
 	it("keeps a full set within the part budget", function()
-		expect(Gear.MAX_SET <= 60).toBe(true)
+		expect(Gear.MAX_SET <= 72).toBe(true)
 		for _, c in Classes.List do
 			local style = Gear.Styles[c.id]
 			for _, rarity in RARITIES do

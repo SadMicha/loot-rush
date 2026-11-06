@@ -28,6 +28,8 @@ local function audit(folder: Instance): (number, number)
 	return n, bad
 end
 
+local PART_BUDGET = 450 -- ~+5% over the old maximum of 430 parts per horizon
+
 describe("Horizon", function()
 	it("surrounds the Hub and every arena with scenery that never blocks", function()
 		sim:boot({ seconds = 1 })
@@ -45,7 +47,28 @@ describe("Horizon", function()
 				return a, b
 			end)
 			expect(rn).toBeGreaterThan(20)
+			expect(rn).toBeLessThan(PART_BUDGET) -- phone budget: before the redesign the max was 430
 			expect(rb).toBe(0)
 		end
 	end)
+
+	it(
+		"gives each region its own horizon kind (only the Rifts that share a look may repeat)",
+		function()
+			local kinds = server(function(req)
+				local World = req("ServerScriptService.Server.Systems.World")
+				local seen = {}
+				local distinct = 0
+				for _, region in Atlas.Regions do
+					local kind = World.Looks[region.id].horizon.kind or "mountains"
+					if not seen[kind] then
+						seen[kind] = true
+						distinct += 1
+					end
+				end
+				return distinct
+			end)
+			expect(kinds).toBe(#Atlas.Regions)
+		end
+	)
 end)

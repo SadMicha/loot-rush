@@ -10,6 +10,8 @@
 -- New setting? Add it to Settings.Defs (append to Settings.Order for the window). Saved keys are
 -- stable English ids; unknown keys in a save are dropped on load.
 
+local Changelog = require(script.Parent.Changelog)
+
 local Settings = {}
 
 export type Kind = "number" | "bool" | "choice"
@@ -53,6 +55,9 @@ Settings.Defs = table.freeze({
 	introStarWeb = { kind = "bool", default = false },
 	introForge = { kind = "bool", default = false },
 	introPets = { kind = "bool", default = false },
+	-- Newest release build (Shared/Changelog) whose "What's New" the player has seen; 0 = never
+	-- (new account or after Defaults: set silently to the newest build, no window)
+	changelogSeen = { kind = "number", default = 0, min = 0, max = 1000000, step = 1 },
 } :: { [string]: Def })
 
 -- Net.Setting key that puts every setting back to its default in one request (Defaults button)
@@ -61,8 +66,7 @@ Settings.RESET = "defaults"
 Settings.VOLUMES = table.freeze({ "master", "music", "sfx", "ambience", "ui" })
 
 -- Shown under "About" in the window (the build number comes from game.PlaceVersion)
-Settings.GAME_VERSION = "1.0 Beta"
-Settings.CREDITS = "Made by SadMicha"
+Settings.GAME_VERSION = Changelog.latest().version
 
 -- Snaps a number to the step grid of `def` (from min) and clamps it
 local function snap(def: Def, v: number): number

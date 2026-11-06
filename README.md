@@ -59,4 +59,4 @@ bash tools/check.sh test ui      # only selected steps
 
 ## Publishing
 
-Every push to `main` automatically uploads the game to the test place (workflow `Publish`, locally `bash tools/publish.sh`). Setup and secrets: [docs/PUBLISH.md](docs/PUBLISH.md).
+Every merge to `main` uploads the game to the private test place (workflow `Publish test place`); the live game is published only by hand (workflow `Publish`, type `LIVE`). Setup and secrets: [docs/PUBLISH.md](docs/PUBLISH.md).

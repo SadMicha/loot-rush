@@ -37,7 +37,10 @@
 --   Bag       (C→S): "upgrade", level: number - buy that bag level (must be the next one; Shared/Bag,
 --                    Systems/Inventory). Player attributes BagLevel / BagMax carry the state.
 --   BagResult (S→C): { ok, text, level, capacity, price? } - upgrade feedback (price = gold paid)
---   AutoSalvage (C→S): rarity: string ("" = off) - loot up to it is salvaged on pickup
+--   AutoSalvage (C→S): rarity: string ("" = off), keepUpgrades: boolean? - loot up to it is
+--                    salvaged on pickup, upgrades kept while keepUpgrades (attributes AutoSalvage/AutoKeep)
+--   ItemLock  (C→S): itemId: string, on: boolean - lock a bag or worn item (Shared/Salvage)
+--   SalvageMany (C→S): { itemId } - bulk "Salvage all downgrades" (server re-checks every item)
 --   Loadout   (C→S): "equip", slot: number, skillId: string | "auto", skillId: string, on: boolean
 --   SkillCast (S→C): skillId: string, cooldown: number - a skill fired (manual or auto-cast)
 --   SkillCooldown (S→C): { [skillId]: secondsLeft } - running cooldowns got shorter (Shared/Momentum)
@@ -95,6 +98,8 @@ local NAMES = {
 	"Characters",
 	"CharacterResult",
 	"AutoSalvage",
+	"ItemLock",
+	"SalvageMany",
 	"Bag",
 	"BagResult",
 	"Loadout",
@@ -166,6 +171,8 @@ return table.freeze({
 	Characters = get("Characters"),
 	CharacterResult = get("CharacterResult"),
 	AutoSalvage = get("AutoSalvage"),
+	ItemLock = get("ItemLock"),
+	SalvageMany = get("SalvageMany"),
 	Bag = get("Bag"),
 	BagResult = get("BagResult"),
 	Loadout = get("Loadout"),

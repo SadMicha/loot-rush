@@ -1,6 +1,9 @@
 # Loot rebalance and unique rework (proposal)
 
-Status: **proposal, waiting for Micha's approval** (2026-11-05). Nothing here is built yet.
+Status: **A + B approved and built** (Micha, 2026-11-05: "A + B together"). Open questions in §5
+answered with the recommended defaults: uniques only take Fuse and Attune, no uniques from trash.
+C (class uniques + Codex) and D (affix pool) are still proposals. How it works now:
+`docs/GAMEPLAY.md` "Loot" and "Forge".
 Builds on [ENDGAME.md](ENDGAME.md) E4 (signature uniques, targeted drops) and replaces its stat
 numbers. Numbers below come from a Monte Carlo that mirrors `Items.roll`, `Items.makeUnique`,
 `Forge.apply` and `Loot.forDepth` (20,000 rolls each, scratch script, not a spec). Nothing was
@@ -91,7 +94,7 @@ Effects for the existing 12 (first numbers, tuned in the build PR):
 | Stormcaller | weapon | damage | Every 4th basic hit chains lightning to 3 enemies (60 % hit damage) |
 | Shard of the Stormkeeper | weapon | speed | +1 % damage per 1 % move speed |
 | Crown of King Glibber | helmet | life | A hit over 15 % life bounces you back with a slime splash (100 % damage, 6 s cooldown) |
-| Spore Mantle | armor | life | Kills burst into a poison cloud (25 % of the enemy's life over 3 s to others) |
+| Spore Mantle | armor | life | Direct kills burst into a poison cloud (120 % hit damage over 3 s to others) |
 | Ovenlord Mitts | gloves | damage | Skills leave burning ground for 3 s |
 | Warden's Girdle | belt | life | Below 40 % life: heal 20 % and take 30 % less damage for 4 s (20 s cooldown) |
 | Cloud Steps | boots | speed | A dodge roll drops 3 brick mines |
@@ -179,7 +182,7 @@ Tests: `tests/Items.spec.luau` (budget, ranks), `tests/Forge.spec.luau` (Masterw
 a new `tests/Loot.spec.luau` (pity math, source tables, no Normal from 10), and the Balancing sim
 re-run with the new rarity table. Analytics: `unique_found` (id, source, pity), `unique_fused`.
 
-## 5. Open questions for Micha
+## 5. Open questions for Micha (answered 2026-11-05: 1 = A + B, 2 and 3 = recommended)
 
 1. Approve A + B as the first build (recommended), or only A first?
 2. Uniques never take regular Forge actions, only Fuse and Attune (recommended), or allow a

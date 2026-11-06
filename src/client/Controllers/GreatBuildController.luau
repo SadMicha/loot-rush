@@ -8,6 +8,8 @@
 -- The server checks every donation (Net.GreatBuildState answers); the client only asks.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -40,6 +42,9 @@ local MILE_H = 54
 local ROW_H = 46
 local POLL = 5 -- seconds between refreshes while open
 local BOARD_SIZE = Vector2.new(320, 92) -- board above the monument (pixels)
+local BOARD_MAX_HEIGHT = 0.11 -- the board covers at most this share of the screen height ...
+local BOARD_MAX_WIDTH = 0.28 -- ... and width
+local BOARD_MAX_DISTANCE = 90 -- studs; farther away the board is hidden
 
 type Donor = { userId: number, name: string, amount: number, me: boolean? }
 type Mine = { total: number, today: number, left: number, paid: { [string]: boolean } }
@@ -273,9 +278,65 @@ local function sizeBoard()
 	end
 	local N = Theme.Nameplate
 	local k = Kit.hudScale() * (if UserInputService.TouchEnabled then N.BoardTouch else N.Board)
+	-- Never dominate the screen, whatever the HUD size setting or camera angle
+	local cam = workspace.CurrentCamera
+	if cam then
+		local view = cam.ViewportSize
+		k = math.min(
+			k,
+			view.Y * BOARD_MAX_HEIGHT / BOARD_SIZE.Y,
+			view.X * BOARD_MAX_WIDTH / BOARD_SIZE.X
+		)
+	end
 	if math.abs(sc.Scale - k) > 0.001 then
 		sc.Scale = k
 		gui.Size = UDim2.fromOffset(math.ceil(BOARD_SIZE.X * k), math.ceil(BOARD_SIZE.Y * k))
+	end
+end
+
+-- The board is a world billboard, drawn under every ScreenGui: when the camera frames the
+-- monument at the top right it ended up behind the minimap and the quest card. Hide it while its
+-- screen rectangle touches either HUD block (the HUD stays readable, the board returns once the
+-- camera moves on).
+local HUD_BLOCKS = { "Minimap", "Quests" }
+local BOARD_MARGIN = 8 -- px of air around a HUD block
+
+local function overlapsHud(gui: BillboardGui, beacon: BasePart, k: number): boolean
+	local cam = workspace.CurrentCamera
+	local player = Players.LocalPlayer
+	local hud = if player then player:FindFirstChild("PlayerGui") else nil
+	local root = if hud then hud:FindFirstChild("LootRushHUD") else nil
+	if not cam or not root then
+		return false
+	end
+	local center, onScreen = cam:WorldToViewportPoint(beacon.Position + gui.StudsOffsetWorldSpace)
+	if not onScreen then
+		return false
+	end
+	local halfW, halfH = BOARD_SIZE.X * k / 2 + BOARD_MARGIN, BOARD_SIZE.Y * k / 2 + BOARD_MARGIN
+	for _, name in HUD_BLOCKS do
+		local block = root:FindFirstChild(name, true)
+		if block and block:IsA("GuiObject") and block.Visible then
+			local p, s = block.AbsolutePosition, block.AbsoluteSize
+			if
+				center.X + halfW > p.X
+				and center.X - halfW < p.X + s.X
+				and center.Y + halfH > p.Y
+				and center.Y - halfH < p.Y + s.Y
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function updateBoardVisibility()
+	local gui, sc = boardGui, boardScale
+	local beacon = if gui then gui.Adornee else nil
+	if gui and sc and beacon and beacon:IsA("BasePart") then
+		sizeBoard() -- follows viewport changes (rotation, window resize)
+		gui.Enabled = not overlapsHud(gui, beacon, sc.Scale)
 	end
 end
 
@@ -301,7 +362,7 @@ local function buildBoard(beacon: BasePart)
 	gui.Adornee = beacon
 	gui.Size = UDim2.fromOffset(BOARD_SIZE.X, BOARD_SIZE.Y)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
-	gui.MaxDistance = 110
+	gui.MaxDistance = BOARD_MAX_DISTANCE
 	gui.LightInfluence = 0
 	gui.ResetOnSpawn = false
 	-- Drawn at design size and scaled as a whole (sizeBoard)
@@ -314,6 +375,7 @@ local function buildBoard(beacon: BasePart)
 	back.Parent = gui
 	if not boardGui then
 		Kit.onHudScale(sizeBoard)
+		RunService.Heartbeat:Connect(updateBoardVisibility)
 	end
 	boardGui, boardScale = gui, sc
 	local title = Window.gilded(string.upper(Rules.NAME), 22)

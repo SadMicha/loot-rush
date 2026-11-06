@@ -26,10 +26,13 @@ export type Item = {
 	affixes: { Affix },
 	charges: number?,
 	unique: string?, -- id in Items.Uniques (rarity "unique")
+	rank: number?, -- unique rank 2-5 (Items.rankOf; missing = rank I)
 	-- Class that found the item (Shared/Classes id). Fixed for life: the item keeps its look and
 	-- name in the shared stash, and only that class can wear it (Items.ClassLocked).
 	-- Missing on old stash items = fits every class (Profile.reconcile stamps hero-owned ones).
 	class: string?,
+	-- Locked by the player (Shared/Salvage): never salvaged, never used up by the Forge
+	locked: boolean?,
 }
 
 local Items = {}
@@ -306,96 +309,211 @@ export type RollOpts = {
 	class: string?, -- class of the hero it drops for (Item.class, class base names)
 }
 
--- Uniques: fixed name, slot and stat package (factor on the normal roll range, like a tier).
--- Their values roll inside the package and grow with the item level like other items.
+-- Uniques (docs/specs/LOOT.md P2): fixed name, slot, a three-stat package (factor on the normal
+-- roll range, like a tier) and a signature effect (Shared/UniqueEffects, same id). The headline stat
+-- (first, ×3.4) beats any tier-1 affix (×2.4): no Epic matches a unique in its niche, while a
+-- perfect Epic still has the higher total. Values roll inside the package and grow with the item
+-- level like other items. `source` = the boss kind that drops it (Atlas bossKind, Systems/Loot).
 export type Unique = {
 	id: string,
 	name: string,
 	slot: string,
+	source: string,
 	stats: { { stat: string, mult: number } },
 }
+
+local function pkg(
+	headline: string,
+	second: string,
+	third: string
+): { { stat: string, mult: number } }
+	return {
+		{ stat = headline, mult = 3.4 },
+		{ stat = second, mult = 2.4 },
+		{ stat = third, mult = 1.8 },
+	}
+end
 
 Items.Uniques = table.freeze({
 	{
 		id = "stormcaller",
 		name = "Stormcaller",
 		slot = "weapon",
-		stats = { { stat = "damage", mult = 3.2 }, { stat = "crit", mult = 2.4 } },
+		source = "cloud_queen",
+		stats = pkg("damage", "crit", "speed"),
 	},
 	{
 		id = "glibber_crown",
 		name = "Crown of King Glibber",
 		slot = "helmet",
-		stats = { { stat = "life", mult = 3 }, { stat = "damage", mult = 1.8 } },
+		source = "crystal_king",
+		stats = pkg("life", "damage", "crit"),
 	},
 	{
 		id = "geode_heart",
 		name = "Geode Heart",
 		slot = "amulet",
-		stats = { { stat = "crit", mult = 3 }, { stat = "life", mult = 2 } },
+		source = "shard_worm",
+		stats = pkg("crit", "life", "damage"),
 	},
 	{
 		id = "spore_mantle",
 		name = "Spore Mantle",
 		slot = "armor",
-		stats = { { stat = "life", mult = 3.4 }, { stat = "speed", mult = 1.8 } },
+		source = "spore_mother",
+		stats = pkg("life", "speed", "damage"),
 	},
 	{
 		id = "oven_mitts",
 		name = "Ovenlord Mitts",
 		slot = "gloves",
-		stats = { { stat = "damage", mult = 2.4 }, { stat = "crit", mult = 2.4 } },
+		source = "furnace_lord",
+		stats = pkg("damage", "crit", "life"),
 	},
 	{
 		id = "cloud_steps",
 		name = "Cloud Steps",
 		slot = "boots",
-		stats = { { stat = "speed", mult = 3.2 }, { stat = "life", mult = 1.8 } },
+		source = "cloud_queen",
+		stats = pkg("speed", "life", "damage"),
 	},
 	{
 		id = "thread_of_fate",
 		name = "Thread of Fate",
 		slot = "ring",
-		stats = { { stat = "crit", mult = 2.8 }, { stat = "speed", mult = 2.2 } },
+		source = "shard_worm",
+		stats = pkg("crit", "speed", "life"),
 	},
 	{
 		id = "ember_band",
 		name = "Ember Band",
 		slot = "ring",
-		stats = { { stat = "damage", mult = 2.8 }, { stat = "life", mult = 1.8 } },
+		source = "furnace_lord",
+		stats = pkg("damage", "life", "crit"),
 	},
 	{
 		id = "warden_girdle",
 		name = "Warden's Girdle",
 		slot = "belt",
-		stats = { { stat = "life", mult = 3.6 }, { stat = "crit", mult = 1.6 } },
+		source = "crystal_king",
+		stats = pkg("life", "crit", "speed"),
 	},
 	{
 		id = "moonlit_tome",
 		name = "Moonlit Tome",
 		slot = "offhand",
-		stats = { { stat = "damage", mult = 2.6 }, { stat = "crit", mult = 2 } },
+		source = "spore_mother",
+		stats = pkg("damage", "crit", "life"),
 	},
 	{
 		id = "storm_shard",
 		name = "Shard of the Stormkeeper",
 		slot = "weapon",
-		stats = { { stat = "damage", mult = 2.6 }, { stat = "speed", mult = 2.4 } },
+		source = "the_rift",
+		stats = pkg("speed", "damage", "crit"),
 	},
 	{
 		id = "lumen_lantern",
 		name = "Lumen Lantern",
 		slot = "offhand",
-		stats = { { stat = "life", mult = 2.4 }, { stat = "speed", mult = 2.4 } },
+		source = "the_rift",
+		stats = pkg("life", "speed", "damage"),
 	},
 } :: { Unique })
 
 local uniqueById: { [string]: Unique } = {}
+local uniquesFrom: { [string]: { Unique } } = {}
 for _, u in Items.Uniques do
 	assert(IMPLICIT[u.slot], `unique {u.id}: unknown slot`)
 	uniqueById[u.id] = u
+	uniquesFrom[u.source] = uniquesFrom[u.source] or {}
+	table.insert(uniquesFrom[u.source], u)
 end
 Items.UniqueById = table.freeze(uniqueById)
+
+-- Uniques a boss kind drops (Atlas bossKind), empty for others
+function Items.uniquesFrom(bossKind: string): { Unique }
+	return uniquesFrom[bossKind] or {}
+end
+
+-- Unique ranks I-V (docs/specs/LOOT.md P3): a duplicate fuses into the unique (Shared/Forge "fuse").
+-- Every rank above I adds RANK_STEP to its package stats (not the implicit) and strengthens the
+-- effect (Shared/UniqueEffects).
+Items.UNIQUE_RANK_MAX = 5
+Items.RANK_STEP = 0.05
+
+function Items.rankOf(item: Item): number
+	local r = item.rank
+	if typeof(r) ~= "number" or r ~= r then
+		return 1
+	end
+	return math.clamp(math.floor(r), 1, Items.UNIQUE_RANK_MAX)
+end
+
+local function rankMult(rank: number): number
+	return 1 + Items.RANK_STEP * (rank - 1)
+end
+
+-- An affix value without its item level and rank part (for comparing two copies of a unique)
+local function normal(a: Affix, ilvl: number, rank: number): number
+	local f = levelScale(a.stat, ilvl) * (if a.implicit then 1 else rankMult(rank))
+	return if typeof(a.value) == "number" and a.value == a.value then a.value / f else 0
+end
+
+-- The same unique at another item level and/or rank (Attune, Fuse): every value keeps its roll
+function Items.rescaleUnique(item: Item, ilvl: number, rank: number?): Item
+	local newRank = math.clamp(math.floor(rank or Items.rankOf(item)), 1, Items.UNIQUE_RANK_MAX)
+	local oldRank = Items.rankOf(item)
+	local out = table.clone(item)
+	out.affixes = {}
+	for i, a in item.affixes do
+		local c = table.clone(a)
+		local f = if a.implicit then 1 else rankMult(newRank)
+		c.value = round(a.stat, normal(a, item.ilvl, oldRank) * levelScale(a.stat, ilvl) * f)
+		out.affixes[i] = c
+	end
+	out.ilvl = ilvl
+	out.rank = if newRank > 1 then newRank else nil
+	return out
+end
+
+-- Fuses a duplicate into a unique (pure): ranks add up (max V), the higher item level wins and every
+-- affix keeps the better roll of the two. nil when they are not copies of the same unique.
+function Items.fuse(target: Item, dup: Item): Item?
+	if target.rarity ~= "unique" or not target.unique or dup.unique ~= target.unique then
+		return nil
+	end
+	if target.id == dup.id then
+		return nil
+	end
+	local rank = math.min(Items.UNIQUE_RANK_MAX, Items.rankOf(target) + Items.rankOf(dup))
+	local ilvl = math.max(target.ilvl, dup.ilvl)
+	-- An older unique (two-stat package) fused with a new copy takes the newer, longer package
+	local layout, other = target, dup
+	if #dup.affixes > #target.affixes then
+		layout, other = dup, target
+	end
+	local out = Items.rescaleUnique(layout, ilvl, rank)
+	out.id = target.id
+	out.class = target.class
+	out.name = target.name
+	-- Rolls are compared only between copies of the same package: an older package weighted its
+	-- stats differently (Stormkeeper swapped its headline), so its rolls are on another scale and
+	-- the newer package's rolls stand
+	local samePackage = #other.affixes == #layout.affixes
+	for i, a in out.affixes do
+		local o = other.affixes[i]
+		if samePackage and o and o.stat == a.stat and o.implicit == a.implicit then
+			local mine = normal(layout.affixes[i], layout.ilvl, Items.rankOf(layout))
+			local theirs = normal(o, other.ilvl, Items.rankOf(other))
+			if theirs > mine then
+				local f = if a.implicit then 1 else rankMult(rank)
+				a.value = round(a.stat, theirs * levelScale(a.stat, ilvl) * f)
+			end
+		end
+	end
+	return out
+end
 
 -- find: bonus on the weights of all rarities above normal (0.5 = +50%)
 function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): Item
@@ -480,12 +598,16 @@ function Items.roll(ilvl: number, rng: Random, find: number?, opts: RollOpts?): 
 end
 
 -- A unique item at this level: implicit of the slot plus its fixed stat package
-function Items.makeUnique(u: Unique, ilvl: number, rng: Random, class: string?): Item
+function Items.makeUnique(u: Unique, ilvl: number, rng: Random, class: string?, rank: number?): Item
 	local implicit = IMPLICIT[u.slot]
+	local r = math.clamp(math.floor(rank or 1), 1, Items.UNIQUE_RANK_MAX)
 	local affixes: { Affix } =
 		{ { stat = implicit, value = value(implicit, ilvl, rng, 1.5), implicit = true } }
 	for _, s in u.stats do
-		table.insert(affixes, { stat = s.stat, value = value(s.stat, ilvl, rng, s.mult), tier = 1 })
+		table.insert(
+			affixes,
+			{ stat = s.stat, value = value(s.stat, ilvl, rng, s.mult * rankMult(r)), tier = 1 }
+		)
 	end
 	return {
 		id = HttpService:GenerateGUID(false),
@@ -496,6 +618,7 @@ function Items.makeUnique(u: Unique, ilvl: number, rng: Random, class: string?):
 		affixes = affixes,
 		charges = 0,
 		unique = u.id,
+		rank = if r > 1 then r else nil,
 		class = if class and Classes.ById[class] then class else nil,
 	}
 end

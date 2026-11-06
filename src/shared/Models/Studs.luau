@@ -61,23 +61,23 @@ function Studs.apply(part: BasePart)
 	end
 end
 
--- Stud look for parts that get resized or are small and worn (gear on the hero's body). Native
--- surface studs sit on the top face only and are cut off on thin pieces, so with the variant
--- every shape and every face gets the same 1-stud tiling as the ball/cylinder world parts
--- (StudsPerTile 1 does not depend on the part size). Without the variant it falls back to
--- Studs.apply (surface studs).
+-- Stud look for worn gear (armor on the hero's body, shop and inventory previews). Blocks and
+-- wedges get the native classic studs on every face except the bottom (Inlet): high contrast,
+-- they render in ViewportFrames and need no MaterialVariant or upload. Balls and discs (where
+-- surfaces do not render) use the LootStuds variant when it is there, else plain Plastic.
+-- (The variant's soft 1-stud tiling was too faint to read on small armor plates.)
 function Studs.applyAllFaces(part: BasePart)
 	if Studs.keeps(part) then
 		return
 	end
-	if not variantReady() then
-		Studs.apply(part)
-		return
-	end
 	part.Material = Enum.Material.Plastic
-	part.TopSurface = Enum.SurfaceType.Smooth -- the variant draws the studs, no doubled surface studs
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.MaterialVariant = Studs.VARIANT
+	part.TopSurface = Enum.SurfaceType.Studs
+	part.FrontSurface = Enum.SurfaceType.Studs
+	part.BackSurface = Enum.SurfaceType.Studs
+	part.LeftSurface = Enum.SurfaceType.Studs
+	part.RightSurface = Enum.SurfaceType.Studs
+	part.BottomSurface = Enum.SurfaceType.Inlet
+	part.MaterialVariant = if curved(part) and variantReady() then Studs.VARIANT else ""
 end
 
 -- Gives every part under `root` (and root itself) the stud look. Returns how many parts got it.
@@ -102,7 +102,7 @@ function Studs.styled(part: BasePart): boolean
 		return true
 	end
 	if part.Material == Enum.Material.Plastic and part.MaterialVariant == Studs.VARIANT then
-		return true -- Studs.applyAllFaces
+		return true -- curved part with the variant
 	end
 	return part.Material == Enum.Material.Plastic
 		and part.TopSurface == Enum.SurfaceType.Studs

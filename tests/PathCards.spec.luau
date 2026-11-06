@@ -69,14 +69,12 @@ describe("Path Card rules", function()
 		expect(PathCards.describe({ affixes = {}, reward = "gold", amount = 0.1, weight = 0 })).toBe(
 			"+10% gold"
 		)
-		expect(
-			PathCards.describe({
-				affixes = { "swarm" },
-				reward = "items",
-				amount = 0.15,
-				weight = 1,
-			})
-		).toBe("+15% items")
+		expect(PathCards.describe({
+			affixes = { "swarm" },
+			reward = "items",
+			amount = 0.15,
+			weight = 1,
+		})).toBe("+15% items")
 		expect(PathCards.describe({ affixes = {}, reward = "cache", amount = 3, weight = 4 })).toBe(
 			"Rare+ cache x3"
 		)
@@ -118,6 +116,12 @@ describe("Altered World boss rotation", function()
 				expect(kind ~= prev).toBe(true)
 				prev = kind
 			end
+		end
+	end)
+
+	it("keeps Path Cards to the end game (Altered World only)", function()
+		for _, r in Atlas.Regions do
+			expect(r.pathCards == true).toBe(r.id == "altered_world")
 		end
 	end)
 
@@ -276,6 +280,22 @@ describe("Path Cards in a run", function()
 		end)
 		rift("leave")
 		expect(sim.player:GetAttribute("RiftDamageBonus")).toBeNil()
+	end)
+
+	it("keeps the plain Deeper button outside the end game", function()
+		sim:run(3) -- past the re-enter delay
+		rift("enter", "green_plains", 1)
+		expect(phase()).toBe("wave")
+		until_("clear")
+		expect(phase()).toBe("clear")
+		local summary = lastClear()
+		expect(summary).never.toBeNil()
+		expect((summary :: any).cards).toBeNil()
+		rift("deeper", 2) -- a card index without cards is ignored, the depth stays plain
+		sim:run(1)
+		expect(sim.player:GetAttribute("RiftDepth")).toBe(2)
+		expect(sim.player:GetAttribute("RiftAffixes")).toBe("")
+		rift("leave")
 	end)
 
 	it("runs without runtime errors", function()

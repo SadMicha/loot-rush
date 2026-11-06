@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Net = require(ReplicatedStorage.Shared.Net)
 local RushRules = require(ReplicatedStorage.Shared.Rush)
+local UniqueEffects = require(ReplicatedStorage.Shared.UniqueEffects)
 local Combat = require(script.Parent.Combat)
 local Rift = require(script.Parent.Rift)
 local Status = require(script.Parent.Status)
@@ -73,12 +74,34 @@ end
 
 local trigger: (Player) -> boolean
 
+-- Longest a Rush can be chained to: Thread of Fate adds its bonus on top of the cap
+local function maxDuration(player: Player): number
+	local fate = Combat.uniqueRank(player, "thread_of_fate")
+	return RushRules.MAX_DURATION
+		+ (if fate then UniqueEffects.value("thread_of_fate", "bonus", fate) else 0)
+end
+
+-- Thread of Fate: a crit during a Rush extends it a little (capped like kills)
+local function onCrit(player: Player)
+	local fate = Combat.uniqueRank(player, "thread_of_fate")
+	if not fate or not Rush.isRushing(player) then
+		return
+	end
+	local st = state(player)
+	st.untilT = math.min(
+		st.untilT + UniqueEffects.value("thread_of_fate", "extend", fate),
+		st.startedAt + maxDuration(player)
+	)
+	player:SetAttribute("RushUntil", st.untilT)
+	Status.setUntil(player, "rush", st.untilT, nil, st.startedAt)
+end
+
 -- Adds meter (kills); during a Rush the kill extends it instead (chain, capped).
 -- The kill that fills the meter starts the Rush.
 function Rush.add(player: Player, amount: number)
 	local st = state(player)
 	if Rush.isRushing(player) then
-		st.untilT = math.min(st.untilT + RushRules.CHAIN, st.startedAt + RushRules.MAX_DURATION)
+		st.untilT = math.min(st.untilT + RushRules.CHAIN, st.startedAt + maxDuration(player))
 		player:SetAttribute("RushUntil", st.untilT)
 		Status.setUntil(player, "rush", st.untilT, nil, st.startedAt)
 		return
@@ -116,7 +139,11 @@ function trigger(player: Player): boolean
 	end
 	st.meter = 0
 	st.startedAt = now()
-	st.untilT = st.startedAt + RushRules.DURATION
+	-- Thread of Fate (Shared/UniqueEffects): a longer Rush
+	local fate = Combat.uniqueRank(player, "thread_of_fate")
+	st.untilT = st.startedAt
+		+ RushRules.DURATION
+		+ (if fate then UniqueEffects.value("thread_of_fate", "bonus", fate) else 0)
 	player:SetAttribute("RushMeter", 0)
 	player:SetAttribute("RushUntil", st.untilT)
 	player:SetAttribute("Rushing", true)
@@ -139,6 +166,7 @@ local function onPlayer(player: Player)
 end
 
 function Rush.init()
+	Combat.Crit.Event:Connect(onCrit)
 	Combat.EnemyDied.Event:Connect(function(enemy: Model, _pos: Vector3, killer: Player?)
 		if typeof(killer) ~= "Instance" or not killer:IsA("Player") or not killer.Parent then
 			return

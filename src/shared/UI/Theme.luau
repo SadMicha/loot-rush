@@ -49,6 +49,8 @@ Theme.HudDesignTouch = Vector2.new(1100, 620)
 -- quest card and result cards do not blow up past phone proportions (iPad 1180×820 ≈ 0.84).
 Theme.HudDesignTablet = Vector2.new(1400, 860)
 Theme.TabletMinSide = 600
+-- Smallest phones (shorter side under this): windows with dense option rows stack label above control
+Theme.SmallPhoneMaxSide = 450
 
 -- Font size: the screen is scaled down to 1600×900, small windows make text tiny.
 -- All text therefore goes through Kit.label / Kit.fontSize and is enlarged by this factor.
@@ -318,6 +320,8 @@ Theme.Flat = table.freeze({
 	UpgradeMarkSideScale = 0.72,
 	UpgradeMarkSideMin = 18,
 	UpgradeMarkSideFade = 0.45,
+	KeepMarkScale = 0.28, -- lock badge of an item the player locked (top right of the cell)
+	KeepMarkMin = 20,
 	OpenScale = 0.96, -- window starts this small and springs to 1
 	OpenDrop = 18, -- and this many design pixels lower
 	MaxFit = 1.25, -- windows grow up to this factor to fill small screens
@@ -337,6 +341,7 @@ Theme.Store = table.freeze({
 	Robux = hex("#F2EEE4"), -- tint of the Robux glyph on the gold buy button (multiplied)
 	Owned = hex("#7FD96A"),
 	CardH = 410,
+	CardHCompact = 660, -- phones: raised text and touch sizes need more room per card
 	Gap = 28,
 	HeroH = 340,
 	TopH = 80, -- tab row
@@ -354,8 +359,12 @@ Theme.Store = table.freeze({
 	-- Cosmetics preview (client/UI/CosmeticPreview): turning hero on a studded pedestal
 	Preview = Vector2.new(440, 470), -- design pixels of the stage
 	PreviewSpin = 0.7, -- radians per second the hero turns
-	PreviewAmbient = hex("#9A94B8"),
+	-- Hero figures in ViewportFrames (this preview and the inventory doll): a warm key light from
+	-- the upper left in FRONT of the hero (the cameras look along +Z at the chest), so plates,
+	-- studs and edges shade; a cooler, lower ambient keeps the unlit sides readable but darker.
+	PreviewAmbient = hex("#7E7A9C"),
 	PreviewLight = hex("#FFF0DC"),
+	PreviewLightDir = Vector3.new(-0.5, -0.9, 0.75),
 	PreviewPedestal = hex("#3A3350"),
 	PreviewRim = hex("#C9A14A"),
 })

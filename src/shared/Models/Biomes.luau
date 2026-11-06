@@ -568,4 +568,238 @@ function Biomes.brokenStairs(seed: number, color: Color3): Model
 	return Kit.finish(m, true)
 end
 
+-- ------------------------------------------------------------------ Room dressing
+-- Small, cheap pieces for the Rift Trail rooms (World.rooms): wall dressing (front +Z, the side
+-- that faces into the room), floor detail and landmarks. Deco: no collision, no queries.
+
+-- Clipped hedge along a wall (8 studs along X).
+function Biomes.hedge(seed: number): Model
+	local m = Instance.new("Model")
+	m.Name = "Hedge"
+	local rng = Random.new(seed)
+	block(m, v(7.6, 2.2, 1.8), CFrame.new(0, 1.1, 0), C.leafDark)
+	block(m, v(5.4, 1, 1.9), CFrame.new(rng:NextNumber(-1, 1), 2.5, 0), C.leaf)
+	ball(m, 0.5, v(rng:NextNumber(-3, 3), 2.4, 1), Color3.fromHex("#FF6B8A"))
+	return Kit.finish(m, true, 1)
+end
+
+-- Upright trilith: two standing stones and a lintel (landmark silhouette).
+function Biomes.standingStones(seed: number, stone: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "StandingStones"
+	local rng = Random.new(seed)
+	for _, x in { -2.6, 2.6 } do
+		block(
+			m,
+			v(1.8, rng:NextNumber(6.4, 7.6), 1.6),
+			CFrame.new(x, 3.6, 0) * CFrame.Angles(0, 0, rng:NextNumber(-0.05, 0.05)),
+			Kit.shade(stone, rng:NextNumber(-0.06, 0.06))
+		)
+	end
+	block(m, v(7.6, 1.2, 2), CFrame.new(0, 7.9, 0), Kit.shade(stone, 0.05))
+	block(m, v(8, 0.4, 2.4), CFrame.new(0, 0.2, 0), C.moss)
+	return Kit.finish(m, true, 1)
+end
+
+-- Flat patch of bare ground (two overlapping discs).
+function Biomes.dirtPatch(seed: number, color: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "DirtPatch"
+	local rng = Random.new(seed)
+	for i = 1, 2 do
+		local d = rng:NextNumber(2.6, 4.6) / i
+		Kit.cylinder(
+			m,
+			v(0.12, d, d * rng:NextNumber(0.7, 1)),
+			CFrame.new(rng:NextNumber(-0.6, 0.6), 0.05 + i * 0.03, rng:NextNumber(-0.6, 0.6)) * UP,
+			Kit.shade(color, rng:NextNumber(-0.05, 0.03))
+		)
+	end
+	return Kit.finish(m, true, 3)
+end
+
+-- Flower bed: a leafy disc with a few blooms.
+function Biomes.flowerBed(seed: number, colors: { Color3 }): Model
+	local m = Instance.new("Model")
+	m.Name = "FlowerBed"
+	local rng = Random.new(seed)
+	Kit.cylinder(m, v(0.15, 3.2, 3.2), CFrame.new(0, 0.08, 0) * UP, C.grassDark)
+	for _ = 1, 4 do
+		ball(
+			m,
+			rng:NextNumber(0.5, 0.8),
+			v(rng:NextNumber(-1.1, 1.1), rng:NextNumber(0.5, 0.9), rng:NextNumber(-1.1, 1.1)),
+			colors[rng:NextInteger(1, #colors)]
+		)
+	end
+	return Kit.finish(m, true, 2)
+end
+
+-- Wall column: base, shaft and capital (stone) with a coloured cap stripe.
+function Biomes.wallColumn(seed: number, stone: Color3, trim: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "WallColumn"
+	local rng = Random.new(seed)
+	local h = rng:NextNumber(5, 8)
+	block(m, v(2.6, 0.8, 2.6), CFrame.new(0, 0.4, 0), Kit.shade(stone, -0.08))
+	block(m, v(1.8, h, 1.8), CFrame.new(0, 0.8 + h / 2, 0), stone)
+	block(m, v(2.6, 0.7, 2.6), CFrame.new(0, 0.8 + h + 0.35, 0), Kit.shade(stone, 0.06))
+	block(m, v(1.9, 0.25, 1.9), CFrame.new(0, 0.8 + h - 0.6, 0), trim)
+	return Kit.finish(m, true, 1)
+end
+
+-- Crystals growing out of the wall, leaning into the room.
+function Biomes.crystalGrowth(seed: number, color: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "CrystalGrowth"
+	local rng = Random.new(seed)
+	for i = 1, 3 do
+		local h = rng:NextNumber(2.4, 4.6)
+		block(
+			m,
+			v(0.9, h, 0.9),
+			CFrame.new((i - 2) * 1.5, 0, -0.4)
+				* CFrame.Angles(rng:NextNumber(0.25, 0.55), rng:NextNumber(0, 1), 0)
+				* CFrame.new(0, h / 2, 0),
+			if i == 2 then color else Kit.shade(color, -0.15),
+			Enum.Material.Neon
+		)
+	end
+	return Kit.finish(m, true, 1)
+end
+
+-- Glowing pool on the floor: a flat neon disc with a few rim stones.
+function Biomes.glowPool(seed: number, color: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "GlowPool"
+	local rng = Random.new(seed)
+	local d = rng:NextNumber(3.4, 5.2)
+	local disc =
+		Kit.cylinder(m, v(0.15, d, d), CFrame.new(0, 0.1, 0) * UP, color, Enum.Material.Neon)
+	disc.Transparency = 0.25
+	for i = 1, 3 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		block(
+			m,
+			v(0.9, 0.7, 1.1),
+			CFrame.new(math.cos(a) * d * 0.5, 0.3, math.sin(a) * d * 0.5) * CFrame.Angles(0, i, 0),
+			C.stoneDark
+		)
+	end
+	return Kit.finish(m, true, 2)
+end
+
+-- Hanging vines and a mossy ledge on a wall.
+function Biomes.vineCurtain(seed: number): Model
+	local m = Instance.new("Model")
+	m.Name = "VineCurtain"
+	local rng = Random.new(seed)
+	block(m, v(5, 0.7, 1.4), CFrame.new(0, 4.6, -0.3), Color3.fromHex("#6E8E3A"))
+	for i = -1, 1 do
+		local h = rng:NextNumber(2, 4)
+		block(m, v(0.4, h, 0.3), CFrame.new(i * 1.6, 4.3 - h / 2, 0.4), C.leaf)
+	end
+	return Kit.finish(m, true, 1)
+end
+
+-- Bog puddle: translucent water disc, a lily pad and reeds.
+function Biomes.bogPool(seed: number, water: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "BogPool"
+	local rng = Random.new(seed)
+	local d = rng:NextNumber(3.6, 5.6)
+	local disc = Kit.cylinder(m, v(0.2, d, d), CFrame.new(0, 0.1, 0) * UP, water)
+	disc.Transparency = 0.2
+	Kit.cylinder(m, v(0.12, 1.6, 1.6), CFrame.new(d * 0.15, 0.22, 0) * UP, C.leaf)
+	block(m, v(0.2, 2.2, 0.2), CFrame.new(-d * 0.45, 1.1, 0.3), C.leafLight)
+	block(m, v(0.2, 1.7, 0.2), CFrame.new(-d * 0.4, 0.85, -0.2), C.leaf)
+	return Kit.finish(m, true, 2)
+end
+
+-- Giant rib arch of a long dead beast (landmark, passage along Z).
+function Biomes.ribArch(s: number): Model
+	local m = Instance.new("Model")
+	m.Name = "RibArch"
+	block(m, v(1, 0.8, 9 * s), CFrame.new(0, 0.4, 0), C.cream)
+	for _, i in { -1, 1 } do
+		for _, sx in { -1, 1 } do
+			block(
+				m,
+				v(0.8, 8 * s, 0.9),
+				CFrame.new(sx * 2.6 * s, 4 * s, i * 3 * s) * CFrame.Angles(0, 0, math.rad(-14 * sx)),
+				C.cream
+			)
+			block(
+				m,
+				v(0.8, 3 * s, 0.9),
+				CFrame.new(sx * 0.9 * s, 8.4 * s, i * 3 * s)
+					* CFrame.Angles(0, 0, math.rad(-62 * sx)),
+				C.cream
+			)
+		end
+	end
+	return Kit.finish(m, true, 1)
+end
+
+-- Scorched stones with a glowing seam between them.
+function Biomes.scorchedStones(seed: number, stone: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "ScorchedStones"
+	local rng = Random.new(seed)
+	for i = 1, 3 do
+		local d = rng:NextNumber(1.2, 2.4)
+		block(
+			m,
+			v(d, d * rng:NextNumber(0.6, 1.1), d),
+			CFrame.new((i - 2) * 1.8, d * 0.3, rng:NextNumber(-0.6, 0.6))
+				* CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+			Kit.shade(stone, rng:NextNumber(-0.05, 0.05))
+		)
+	end
+	block(m, v(0.3, 0.1, 3.6), CFrame.new(0, 0.05, 0), C.ember, Enum.Material.Neon)
+	return Kit.finish(m, true, 1.5)
+end
+
+-- Low railing with posts (8 studs along X), gold top rail; marks the edge of a floating path.
+function Biomes.railing(stone: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "Railing"
+	for _, x in { -3.6, 0, 3.6 } do
+		block(m, v(0.7, 2.4, 0.7), CFrame.new(x, 1.2, 0), stone)
+	end
+	block(m, v(8, 0.35, 0.45), CFrame.new(0, 2.2, 0), C.gold)
+	block(m, v(8, 0.25, 0.3), CFrame.new(0, 1.2, 0), Kit.shade(stone, -0.08))
+	return Kit.finish(m, true, 1)
+end
+
+-- Shards drifting above a glowing floor seam (Altered World floor detail).
+function Biomes.driftShards(seed: number, glow: Color3): Model
+	local m = Instance.new("Model")
+	m.Name = "DriftShards"
+	local rng = Random.new(seed)
+	block(
+		m,
+		v(0.3, 0.1, rng:NextNumber(3, 5)),
+		CFrame.new(0, 0.05, 0) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+		glow,
+		Enum.Material.Neon
+	)
+	for _ = 1, 3 do
+		local d = rng:NextNumber(0.5, 1.1)
+		block(
+			m,
+			v(d, d * 1.4, d),
+			CFrame.new(
+				rng:NextNumber(-1.4, 1.4),
+				rng:NextNumber(1.2, 3.2),
+				rng:NextNumber(-1.4, 1.4)
+			)
+				* CFrame.Angles(rng:NextNumber(0, 1), rng:NextNumber(0, 3), rng:NextNumber(0, 1)),
+			if rng:NextNumber() < 0.5 then C.ink else Color3.fromHex("#4A3A66"),
+			nil
+		)
+	end
+	return Kit.finish(m, true, 1)
+end
+
 return Biomes

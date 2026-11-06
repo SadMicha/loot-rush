@@ -237,6 +237,16 @@ function Upgrade.marks(bag: { Items.Item }, hero: Hero): ({ [string]: Mark }, nu
 	return marks, ups
 end
 
+-- The marker a grid cell shows: green arrows always, the red "down" arrow only on the item the
+-- player is looking at (selected, hovered, held on touch) or while `all` is set (salvage mode),
+-- so a full bag is not a wall of red
+function Upgrade.shownMark(mark: Mark?, focused: boolean, all: boolean?): Mark?
+	if mark == "down" and not focused and not all then
+		return nil
+	end
+	return mark
+end
+
 local LABEL = { damage = "damage", life = "life", speed = "speed" }
 
 local function pct(v: number): string

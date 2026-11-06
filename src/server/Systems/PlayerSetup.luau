@@ -1,6 +1,7 @@
 --!strict
--- Sets base values for every character: walk speed, no jumping (space = dash), and switches off
--- Roblox's own name/health overlay (the client draws Gilded Ink nameplates, Shared/Nameplate).
+-- Sets base values for every character: walk speed, no jumping (space = dash), strips the avatar
+-- shirt and pants, paints one skin tone (Config.SKIN_COLOR), and switches off Roblox's own name/health overlay (the client draws Gilded Ink
+-- nameplates, Shared/Nameplate).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,7 +10,43 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local PlayerSetup = {}
 
+-- Flat shirt/pants/T-shirt textures of the player's own avatar show through the gaps between the
+-- armor plates and fight the studded look, so they are removed (and again when the avatar loader
+-- adds them after the spawn). Accessories and hair stay.
+local function isAvatarClothing(child: Instance): boolean
+	return child:IsA("Shirt") or child:IsA("Pants") or child:IsA("ShirtGraphic")
+end
+
+local function paintSkin(colors: BodyColors)
+	local skin = Config.SKIN_COLOR
+	colors.HeadColor3 = skin
+	colors.TorsoColor3 = skin
+	colors.LeftArmColor3 = skin
+	colors.RightArmColor3 = skin
+	colors.LeftLegColor3 = skin
+	colors.RightLegColor3 = skin
+end
+
+local function stripClothing(character: Model)
+	for _, child in character:GetChildren() do
+		if isAvatarClothing(child) then
+			child:Destroy()
+		elseif child:IsA("BodyColors") then
+			paintSkin(child)
+		end
+	end
+	character.ChildAdded:Connect(function(child: Instance)
+		if child:IsA("BodyColors") then
+			task.defer(paintSkin, child)
+		elseif isAvatarClothing(child) then
+			-- deferred: the engine is still parenting the child while this event fires
+			task.defer(child.Destroy, child)
+		end
+	end)
+end
+
 local function onCharacter(character: Model)
+	stripClothing(character)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	local player = Players:GetPlayerFromCharacter(character)
 	local speed = if player then (player:GetAttribute("StatSpeed") or 0) :: number else 0
