@@ -15,9 +15,8 @@
     { "name": "revenue", "metric": "DailyRevenue", "granularity": "OneDay" },
     { "name": "paying-users", "metric": "PayingUsers", "granularity": "OneDay" },
     { "name": "revenue-total", "metric": "DailyRevenue", "granularity": "None" },
-    { "name": "funnel-users", "metric": "FunnelUserTotalCount", "granularity": "None", "breakdown": ["FunnelName", "FunnelStep"] },
-    { "name": "funnel-step-completion", "metric": "FunnelUserStepCompletionRate", "granularity": "None", "breakdown": ["FunnelName", "FunnelStep"] },
-    { "name": "custom-events", "metric": "CustomEventCount", "granularity": "None", "breakdown": ["CustomEventName"] },
-    { "name": "economy", "metric": "EconomyTransactionAmount", "granularity": "None", "breakdown": ["CurrencyType", "FlowType", "TransactionType"] }
+    { "name": "funnel-users", "metric": "FunnelUserTotalCount", "granularity": "None", "split": ["FunnelName", "FunnelStep"] },
+    { "name": "custom-events", "metric": "CustomEventCountUser", "granularity": "None", "split": ["CustomEventName"] },
+    { "name": "economy", "metric": "EconomyTransactionAmount", "granularity": "None", "split": ["CurrencyType", "FlowType"] }
   ]
 }

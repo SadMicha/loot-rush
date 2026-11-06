@@ -5,7 +5,9 @@ one JSON file per query plus summary.md into docs/analytics/<YYYY-MM-DD>/.
 Queries: tools/analytics-queries.json. Each query is POSTed to
 /analytics-query-api/v1/universes/{u}/metrics; a pending answer (done = false) is polled through
 the operation path it returns. A query Roblox rejects (unknown metric, unsupported breakdown or
-granularity) is written with its error and does not stop the others.
+granularity) is written with its error and does not stop the others. A query with "split" (a
+list of filter-only dimensions such as FunnelName) first reads the dimension values, then runs
+once per value combination.
 
 Env: ROBLOX_API_KEY (needs the "universe-analytics" system, scope universe.analytics:read, on the
 universe), ROBLOX_UNIVERSE_ID. Optional: ANALYTICS_DAYS (default 28), ANALYTICS_UNIVERSE_ID
@@ -26,6 +28,7 @@ HOST = "https://apis.roblox.com"
 BASE = HOST + "/analytics-query-api/v1"
 QUERIES = "tools/analytics-queries.json"
 POLL_SECONDS = 90
+MAX_SPLIT = 40  # sub-queries per split query
 
 
 def request(method, url, key, body=None):
@@ -71,22 +74,62 @@ def operation_url(universe, path):
     return f"{BASE}/universes/{universe}/operations/metrics/{path}"
 
 
-def run_query(universe, key, query, start, end):
-    body = {"metric": query["metric"], "startTime": start, "endTime": end}
-    for field in ("granularity", "breakdown", "filter", "limit"):
-        if field in query:
-            body[field] = query[field]
-    status, data = request("POST", f"{BASE}/universes/{universe}/metrics", key, body)
+def post_and_poll(universe, key, endpoint, body):
+    status, data = request("POST", f"{BASE}/universes/{universe}/{endpoint}", key, body)
     deadline = time.time() + POLL_SECONDS
     wait = 2
     # Large queries answer 202 Accepted with done = false and an operation path to poll.
     while 200 <= status < 300 and isinstance(data, dict) and data.get("done") is False and data.get("path"):
         if time.time() > deadline:
-            return body, 0, {"error": "operation still pending after %ds" % POLL_SECONDS, "last": data}
+            return 0, {"error": "operation still pending after %ds" % POLL_SECONDS, "last": data}
         time.sleep(wait)
         wait = min(wait * 2, 10)
         status, data = request("GET", operation_url(universe, data["path"]), key)
-    return body, status, data
+    return status, data
+
+
+def answer_ok(status, data):
+    return 200 <= status < 300 and not (isinstance(data, dict) and ("error" in data or data.get("done") is False))
+
+
+def run_query(universe, key, query, start, end):
+    body = {"metric": query["metric"], "startTime": start, "endTime": end}
+    for field in ("granularity", "breakdown", "filter", "limit"):
+        if field in query:
+            body[field] = query[field]
+    if "split" not in query:
+        status, data = post_and_poll(universe, key, "metrics", body)
+        return body, status, data
+    return run_split(universe, key, query, body)
+
+
+def run_split(universe, key, query, body):
+    """For filter-only dimensions (FunnelName, FunnelStep, CustomEventName, CurrencyType, ...):
+    asks dimension-values for the values seen in the window, then runs the metric once per value
+    combination with an In filter. Answer: {"dimensionValues": ..., "results": [{filter, status, response}]}."""
+    dims = query["split"]
+    dim_body = {"metric": body["metric"], "dimensions": dims, "startTime": body["startTime"], "endTime": body["endTime"]}
+    status, data = post_and_poll(universe, key, "dimension-values", dim_body)
+    if not answer_ok(status, data):
+        return body, status, data
+    seen = {d.get("dimension"): [v.get("value") for v in d.get("values", [])] for d in data.get("response", {}).get("values", [])}
+    combos = [[]]
+    for dim in dims:
+        combos = [c + [(dim, v)] for c in combos for v in seen.get(dim, [])]
+    combos = combos[:MAX_SPLIT]
+    results = []
+    for combo in combos:
+        time.sleep(2.5)  # each sub-query counts against the 30 queries/minute limit
+        sub = dict(body)
+        sub["filter"] = list(body.get("filter", [])) + [{"dimension": d, "values": [v], "operation": "In"} for d, v in combo]
+        s, d = post_and_poll(universe, key, "metrics", sub)
+        ok = answer_ok(s, d)
+        results.append({"filter": dict(combo), "status": s, "ok": ok, "response": d.get("response", d) if ok else d})
+    failed = sum(1 for r in results if not r["ok"])
+    out = {"dimensionValues": data.get("response"), "results": results}
+    if failed:
+        out["error"] = f"{failed} of {len(results)} sub-queries failed"
+    return dict(body, split=dims), 200, out
 
 
 def short_error(data):
@@ -120,7 +163,7 @@ def main():
     denied = 0
     for q in queries:
         body, status, data = run_query(universe, key, q, start, end)
-        ok = 200 <= status < 300 and not (isinstance(data, dict) and ("error" in data or data.get("done") is False))
+        ok = answer_ok(status, data)
         if status in (401, 403):
             denied += 1
         with open(os.path.join(out, q["name"] + ".json"), "w", encoding="utf-8") as f:
