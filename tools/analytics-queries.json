@@ -17,6 +17,8 @@
     { "name": "revenue-total", "metric": "DailyRevenue", "granularity": "None" },
     { "name": "funnel-users", "metric": "FunnelUserTotalCount", "granularity": "None", "split": ["FunnelName", "FunnelStep"] },
     { "name": "custom-events", "metric": "CustomEventCountUser", "granularity": "None", "split": ["CustomEventName"] },
+    { "name": "rift-fails-by-depth", "metric": "CustomEventCountUser", "granularity": "None", "filter": [{ "dimension": "CustomEventName", "values": ["RiftFail"], "operation": "In" }], "split": ["CustomField02"] },
+    { "name": "rift-clears-by-depth", "metric": "CustomEventCountUser", "granularity": "None", "filter": [{ "dimension": "CustomEventName", "values": ["RiftClear"], "operation": "In" }], "split": ["CustomField02"] },
     { "name": "economy", "metric": "EconomyTransactionAmount", "granularity": "None", "split": ["CurrencyType", "FlowType"] }
   ]
 }

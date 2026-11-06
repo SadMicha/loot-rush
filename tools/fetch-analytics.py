@@ -109,6 +109,8 @@ def run_split(universe, key, query, body):
     combination with an In filter. Answer: {"dimensionValues": ..., "results": [{filter, status, response}]}."""
     dims = query["split"]
     dim_body = {"metric": body["metric"], "dimensions": dims, "startTime": body["startTime"], "endTime": body["endTime"]}
+    if body.get("filter"):
+        dim_body["filter"] = body["filter"]
     status, data = post_and_poll(universe, key, "dimension-values", dim_body)
     if not answer_ok(status, data):
         return body, status, data
