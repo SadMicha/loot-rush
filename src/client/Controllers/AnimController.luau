@@ -32,7 +32,13 @@ type Joint = {
 	base: CFrame, -- the Transform the Animator wrote (without our layer)
 	written: CFrame?, -- what we wrote last frame (nil = untouched)
 }
-type Layer = { move: Anim.Move, t: number, target: Vector3? }
+type Layer = {
+	move: Anim.Move,
+	t: number,
+	target: Vector3?,
+	rank: number, -- Anim.RANK_* (0 = reaction)
+	free: boolean, -- started during a hitstop: plays on (new input is never frozen)
+}
 type Rig = {
 	character: Model,
 	player: Player?,
@@ -53,6 +59,9 @@ type Rig = {
 	emptyAt: number, -- since when joint searches find nothing (0 = joints found)
 	searchedAt: number,
 	warned: boolean,
+	nextTick: number, -- next stop-motion pose (Anim.LIMB_FPS)
+	kick: boolean, -- pose on the next frame (new move, dash, new move direction)
+	moveDir: Vector3, -- own character: Humanoid.MoveDirection at the last pose
 }
 
 local player = Players.LocalPlayer
@@ -196,21 +205,37 @@ local function classColor(rig: Rig): Color3
 	return if w then w.accent else Color3.new(1, 1, 1)
 end
 
-local function play(rig: Rig, moveId: string, target: Vector3?)
+-- Starts a move. Brick style: a move cuts every running move of the same or a lower rank right
+-- away (no old swing blending into the new one), a lower rank never interrupts a higher one, and
+-- reactions just play on top. Nothing here waits or locks anything: moves are only poses.
+local function play(rig: Rig, moveId: string, target: Vector3?, rank: number?)
 	local m = Anim.Moves[moveId]
 	if not m or (rig.deadAt > 0 and moveId ~= "death") then
 		return
 	end
-	for i, layer in rig.layers do
+	local r = if m.react then 0 else rank or Anim.RANK_ACTION
+	for i = #rig.layers, 1, -1 do
+		local layer = rig.layers[i]
 		if layer.move == m then
 			table.remove(rig.layers, i) -- the same move again starts over
-			break
+		elseif r > 0 and layer.rank > 0 then
+			if layer.rank > r then
+				return -- an auto attack does not cut a skill or a roll short
+			end
+			table.remove(rig.layers, i)
 		end
 	end
 	if #rig.layers >= Anim.LAYERS_MAX then
 		table.remove(rig.layers, 1)
 	end
-	table.insert(rig.layers, { move = m, t = 0, target = target })
+	table.insert(rig.layers, {
+		move = m,
+		t = 0,
+		target = target,
+		rank = r,
+		free = own(rig) and FeelController.frozen(),
+	})
+	rig.kick = true
 end
 
 local function onDied(rig: Rig)
@@ -252,6 +277,9 @@ local function addRig(character: Model, owner: Player?)
 		emptyAt = 0,
 		searchedAt = 0,
 		warned = false,
+		nextTick = 0,
+		kick = true,
+		moveDir = Vector3.zero,
 	}
 	rigs[character] = rig
 	table.insert(
@@ -304,8 +332,18 @@ end
 function AnimController.play(character: Model?, moveId: string, target: Vector3?)
 	local rig = character and rigs[character]
 	if rig then
-		play(rig, moveId, target)
+		play(rig, moveId, target, Anim.RANK_ACTION)
 	end
+end
+
+-- Own skill casts start on the key press (SkillController), not when the server's "act" comes
+-- back; the echo of the same skill is skipped
+local predicted: { [string]: number } = {}
+local PREDICT_WINDOW = 1
+
+function AnimController.cast(kind: string, skillId: string, target: Vector3?)
+	predicted[skillId] = os.clock()
+	AnimController.attack(player, kind, skillId, false, target)
 end
 
 -- An attack of player `p`: the move follows the class weapon and the skill kind
@@ -326,7 +364,7 @@ function AnimController.attack(
 	if basic then
 		rig.combo += 1
 	end
-	play(rig, id, target)
+	play(rig, id, target, if basic then Anim.RANK_BASIC else Anim.RANK_ACTION)
 end
 
 local function angles(cf: CFrame): string
@@ -597,14 +635,16 @@ local function animate(rig: Rig, dt: number, now: number)
 		Anim.hold(weaponId, rig.stance, rig.r6, arm, armMix)
 	end
 	local yaw = 0
+	local vel = root.AssemblyLinearVelocity
+	local moveLegs = Anim.moveLegs(math.sqrt(vel.X * vel.X + vel.Z * vel.Z))
 	for i = #rig.layers, 1, -1 do
 		local layer = rig.layers[i]
-		layer.t += step
+		layer.t += if layer.free then dt else step
 		local m = layer.move
 		if layer.t >= m.time and not m.hold then
 			table.remove(rig.layers, i)
 		else
-			lift += Anim.sample(m, layer.t, pose)
+			lift += Anim.sample(m, layer.t, pose, 1, moveLegs)
 			if m.face and layer.target then
 				yaw += yawTo(root, layer.target) * Anim.faceWeight(m, layer.t)
 			end
@@ -620,6 +660,33 @@ local function animate(rig: Rig, dt: number, now: number)
 				addVec(into, x)
 				pose[from] = nil
 			end
+		end
+	end
+	-- Stop motion (Anim.LIMB_FPS): between poses every joint keeps the last written frame (the
+	-- Animator's walk included); only the limbs step, the body moves every frame
+	local stepped = Anim.LIMB_FPS > 0
+	if stepped and own(rig) and rig.humanoid then
+		local dir = (rig.humanoid :: Humanoid).MoveDirection
+		if (dir - rig.moveDir).Magnitude > 0.35 then
+			rig.kick = true -- started, stopped or turned: show it now
+		end
+	end
+	if stepped and not rig.kick and now < rig.nextTick then
+		for _, j in rig.joints do
+			local held = j.written
+			if held then
+				j.motor.Transform = held
+			end
+		end
+		return
+	end
+	if stepped then
+		rig.kick = false
+		rig.nextTick = if now - rig.nextTick > 0.5 / Anim.LIMB_FPS
+			then now + 1 / Anim.LIMB_FPS
+			else rig.nextTick + 1 / Anim.LIMB_FPS
+		if rig.humanoid then
+			rig.moveDir = (rig.humanoid :: Humanoid).MoveDirection
 		end
 	end
 	for name, j in rig.joints do
@@ -648,6 +715,9 @@ local function animate(rig: Rig, dt: number, now: number)
 			local value = j.rotInv * delta * j.rot * from
 			motor.Transform = value
 			j.written = value
+		elseif stepped then
+			motor.Transform = base
+			j.written = base -- held until the next pose
 		elseif j.written then
 			motor.Transform = base
 			j.written = nil
@@ -777,13 +847,15 @@ function handlers.act(d)
 		end
 		return
 	end
-	AnimController.attack(
-		p,
-		d.kind,
-		if typeof(d.skill) == "string" then d.skill else nil,
-		d.basic == true,
-		target
-	)
+	local skillId = if typeof(d.skill) == "string" then d.skill else nil
+	if p == player and skillId and d.basic ~= true then
+		local at = predicted[skillId]
+		if at and os.clock() - at < PREDICT_WINDOW then
+			predicted[skillId] = nil -- already playing since the key press
+			return
+		end
+	end
+	AnimController.attack(p, d.kind, skillId, d.basic == true, target)
 end
 
 function handlers.dmg(d)

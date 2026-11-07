@@ -23,6 +23,8 @@ export type Move = {
 	time: number, -- seconds
 	face: boolean, -- turn the body toward the target point while it plays
 	hold: boolean?, -- keep the last key until the character is gone (death)
+	body: boolean?, -- whole-body move (roll, leap, spin): keeps its legs and lift while moving
+	react: boolean?, -- reaction (hurt, cheer): plays on top, never cancels or gets canceled
 	keys: { Key },
 }
 
@@ -96,6 +98,29 @@ Anim.JOINT_RETRY = 0.5 -- seconds between joint searches while a rig has none (a
 Anim.JOINT_WARN = 4 -- seconds without joints on the own character: warn once in the Output
 Anim.DEATH_BREAK = 0.95 -- seconds after death: the fallen body breaks into bricks
 
+-- Brick style (docs/TECH.md "Animations"): toy-figure motion instead of smooth tweening.
+--   LIMB_FPS  the whole rig (Roblox's walk/idle included) is posed in steps like stop motion;
+--            the body itself still moves every frame, so movement input is never delayed.
+--            A new move, a dash or a change of the move direction (own character) poses at once.
+--   MOVE_FPS  move time is sampled in these steps, rounded UP: the first frame after a press
+--            already shows the first step, the pose never lags behind the input.
+--   POP       share of a key segment in which the limbs click into the next key pose; they hold
+--            it for the rest (pose to pose). POP_SNAP for strike keys. The last segment works the
+--            other way round: the strike pose holds, then drops back to rest at the end.
+--   MOVE_LEGS studs/s from which an attack's legs and crouch are gone: walking keeps the walk
+--            cycle and the feet follow the stick, the upper body still swings.
+-- 0 for LIMB_FPS / MOVE_FPS turns stepping off (smooth).
+Anim.LIMB_FPS = 15
+Anim.MOVE_FPS = 15
+Anim.POP = 0.5
+Anim.POP_SNAP = 0.3
+Anim.MOVE_LEGS = 6
+-- Priorities: a new move cancels every running move of the same or a lower rank right away
+-- (no blending of an old swing into the new one); a lower rank does not interrupt a higher one.
+-- Reactions (react) play on top of anything.
+Anim.RANK_BASIC = 1 -- auto attacks
+Anim.RANK_ACTION = 2 -- skills and the dodge roll (direct input)
+
 -- Enemy body language (server, Systems/Enemies; pivot rotation only)
 Anim.ENEMY_WINDUP_LEAN = 14 -- degrees leaning back while winding up an attack
 Anim.ENEMY_LUNGE = 20 -- degrees snapping forward when the attack lands
@@ -104,6 +129,7 @@ Anim.ENEMY_RECOIL = 11 -- degrees knocked back by a direct hit
 Anim.ENEMY_RECOIL_TIME = 0.18
 Anim.ENEMY_WADDLE = 5 -- degrees side to side while walking
 Anim.ENEMY_WALK_RATE = 7 -- same rhythm as the walking hop
+Anim.ENEMY_STEP = 4 -- degrees: the lean clicks in steps of this size (0 = smooth)
 
 local function v(x: number, y: number, z: number): Vector3
 	return Vector3.new(x, y, z)
@@ -111,6 +137,14 @@ end
 
 local function move(id: string, time: number, face: boolean, keys: { Key }, hold: boolean?): Move
 	return table.freeze({ id = id, time = time, face = face, hold = hold, keys = keys })
+end
+
+-- Same with flags (body / react)
+local function flagged(m: Move, flags: { body: boolean?, react: boolean? }): Move
+	local copy = table.clone(m)
+	copy.body = flags.body
+	copy.react = flags.react
+	return table.freeze(copy)
 end
 
 local Z: Pose = {}
@@ -171,19 +205,22 @@ Anim.Moves = table.freeze({
 		{ t = 1, pose = Z },
 	}),
 	-- Whirlwind-like novas: one full turn with the arms out
-	spin = move("spin", 0.45, false, {
-		{ t = 0, pose = Z },
-		{
-			t = 0.5,
-			pose = { root = v(0, 180, 0), rShoulder = v(0, 0, 65), lShoulder = v(0, 0, -65) },
-			lift = v(0, -0.2, 0),
-		},
-		{
-			t = 0.9,
-			pose = { root = v(0, 360, 0), rShoulder = v(0, 0, 30), lShoulder = v(0, 0, -30) },
-		},
-		{ t = 1, pose = { root = v(0, 360, 0) } },
-	}),
+	spin = flagged(
+		move("spin", 0.45, false, {
+			{ t = 0, pose = Z },
+			{
+				t = 0.5,
+				pose = { root = v(0, 180, 0), rShoulder = v(0, 0, 65), lShoulder = v(0, 0, -65) },
+				lift = v(0, -0.2, 0),
+			},
+			{
+				t = 0.9,
+				pose = { root = v(0, 360, 0), rShoulder = v(0, 0, 30), lShoulder = v(0, 0, -30) },
+			},
+			{ t = 1, pose = { root = v(0, 360, 0) } },
+		}),
+		{ body = true }
+	),
 	-- Novas: raise both arms, slam down into a crouch
 	slam = move("slam", 0.55, false, {
 		{ t = 0, pose = Z },
@@ -292,36 +329,39 @@ Anim.Moves = table.freeze({
 		{ t = 1, pose = Z },
 	}),
 	-- Leaps (Charge): crouch, launch forward, land
-	leap = move("leap", 0.5, true, {
-		{ t = 0, pose = Z },
-		{
-			t = 0.3,
-			pose = {
-				waist = v(-25, 0, 0),
-				rShoulder = v(-40, 0, 0),
-				lShoulder = v(-40, 0, 0),
-				rHip = v(30, 0, 0),
-				lHip = v(30, 0, 0),
-				rKnee = v(-40, 0, 0),
-				lKnee = v(-40, 0, 0),
+	leap = flagged(
+		move("leap", 0.5, true, {
+			{ t = 0, pose = Z },
+			{
+				t = 0.3,
+				pose = {
+					waist = v(-25, 0, 0),
+					rShoulder = v(-40, 0, 0),
+					lShoulder = v(-40, 0, 0),
+					rHip = v(30, 0, 0),
+					lHip = v(30, 0, 0),
+					rKnee = v(-40, 0, 0),
+					lKnee = v(-40, 0, 0),
+				},
+				lift = v(0, -0.4, 0),
 			},
-			lift = v(0, -0.4, 0),
-		},
-		{
-			t = 0.6,
-			snap = true,
-			pose = {
-				root = v(-20, 0, 0),
-				rShoulder = v(30, 0, 20),
-				lShoulder = v(-30, 0, -20),
-				rHip = v(50, 0, 0),
-				lHip = v(-20, 0, 0),
-				rKnee = v(-60, 0, 0),
+			{
+				t = 0.6,
+				snap = true,
+				pose = {
+					root = v(-20, 0, 0),
+					rShoulder = v(30, 0, 20),
+					lShoulder = v(-30, 0, -20),
+					rHip = v(50, 0, 0),
+					lHip = v(-20, 0, 0),
+					rKnee = v(-60, 0, 0),
+				},
+				lift = v(0, 1.2, 0),
 			},
-			lift = v(0, 1.2, 0),
-		},
-		{ t = 1, pose = Z },
-	}),
+			{ t = 1, pose = Z },
+		}),
+		{ body = true }
+	),
 	-- Bow zones (Arrow Rain, Trap): lean back, raise the bow from the low carry to aim at the sky
 	-- (limbs stay within 40° of vertical), draw, release
 	volley = move("volley", 0.5, true, {
@@ -401,39 +441,45 @@ Anim.Moves = table.freeze({
 		{ t = 1, pose = Z },
 	}),
 	-- Dodge roll: forward somersault, tucked
-	roll = move("roll", 0.32, false, {
-		{ t = 0, pose = Z },
-		{
-			t = 0.5,
-			pose = {
-				root = v(-180, 0, 0),
-				rShoulder = v(40, 0, 0),
-				lShoulder = v(40, 0, 0),
-				rHip = v(70, 0, 0),
-				lHip = v(70, 0, 0),
-				rKnee = v(-90, 0, 0),
-				lKnee = v(-90, 0, 0),
+	roll = flagged(
+		move("roll", 0.32, false, {
+			{ t = 0, pose = Z },
+			{
+				t = 0.5,
+				pose = {
+					root = v(-180, 0, 0),
+					rShoulder = v(40, 0, 0),
+					lShoulder = v(40, 0, 0),
+					rHip = v(70, 0, 0),
+					lHip = v(70, 0, 0),
+					rKnee = v(-90, 0, 0),
+					lKnee = v(-90, 0, 0),
+				},
+				lift = v(0, -1.2, 0),
 			},
-			lift = v(0, -1.2, 0),
-		},
-		{ t = 1, pose = { root = v(-360, 0, 0) } },
-	}),
+			{ t = 1, pose = { root = v(-360, 0, 0) } },
+		}),
+		{ body = true }
+	),
 	-- Hit reaction
-	hurt = move("hurt", 0.28, false, {
-		{ t = 0, pose = Z },
-		{
-			t = 0.3,
-			snap = true,
-			pose = {
-				waist = v(14, 0, 0),
-				neck = v(18, 0, 0),
-				rShoulder = v(0, 0, 12),
-				lShoulder = v(0, 0, -12),
+	hurt = flagged(
+		move("hurt", 0.28, false, {
+			{ t = 0, pose = Z },
+			{
+				t = 0.3,
+				snap = true,
+				pose = {
+					waist = v(14, 0, 0),
+					neck = v(18, 0, 0),
+					rShoulder = v(0, 0, 12),
+					lShoulder = v(0, 0, -12),
+				},
+				lift = v(0, -0.1, 0),
 			},
-			lift = v(0, -0.1, 0),
-		},
-		{ t = 1, pose = Z },
-	}),
+			{ t = 1, pose = Z },
+		}),
+		{ react = true }
+	),
 	-- Death: knees give way, fall forward, stay down (then breaks into bricks)
 	death = move("death", 0.75, false, {
 		{ t = 0, pose = Z },
@@ -464,30 +510,33 @@ Anim.Moves = table.freeze({
 		},
 	}, true),
 	-- Level up: both arms up, small jump
-	cheer = move("cheer", 0.75, false, {
-		{ t = 0, pose = Z },
-		{
-			t = 0.25,
-			pose = { rShoulder = v(10, 0, 0), lShoulder = v(10, 0, 0) },
-			lift = v(0, -0.3, 0),
-		},
-		{
-			t = 0.45,
-			snap = true,
-			pose = {
-				rShoulder = v(70, 0, 20),
-				lShoulder = v(165, 0, -15),
-				neck = v(12, 0, 0),
-				waist = v(8, 0, 0),
+	cheer = flagged(
+		move("cheer", 0.75, false, {
+			{ t = 0, pose = Z },
+			{
+				t = 0.25,
+				pose = { rShoulder = v(10, 0, 0), lShoulder = v(10, 0, 0) },
+				lift = v(0, -0.3, 0),
 			},
-			lift = v(0, 0.6, 0),
-		},
-		{
-			t = 0.75,
-			pose = { rShoulder = v(60, 0, 20), lShoulder = v(150, 0, -15), neck = v(8, 0, 0) },
-		},
-		{ t = 1, pose = Z },
-	}),
+			{
+				t = 0.45,
+				snap = true,
+				pose = {
+					rShoulder = v(70, 0, 20),
+					lShoulder = v(165, 0, -15),
+					neck = v(12, 0, 0),
+					waist = v(8, 0, 0),
+				},
+				lift = v(0, 0.6, 0),
+			},
+			{
+				t = 0.75,
+				pose = { rShoulder = v(60, 0, 20), lShoulder = v(150, 0, -15), neck = v(8, 0, 0) },
+			},
+			{ t = 1, pose = Z },
+		}),
+		{ react = true }
+	),
 } :: { [string]: Move })
 
 -- Weapon style per held weapon (Shared/Weapons ids)
@@ -528,7 +577,7 @@ Anim.STYLE = table.freeze({
 --            spread low over the ground, head bowed
 Anim.STANCE_MOVING = 0.45 -- stance share while running at full speed
 Anim.STANCE_ACTING = 0.25 -- stance share while an attack or other move plays
-Anim.STANCE_BLEND = 6 -- per second: how fast the stance weight follows (no snapping)
+Anim.STANCE_BLEND = 12 -- per second: how fast the stance weight follows (quick, toy-like)
 Anim.STANCE_DROP = 30 -- per second: how fast it gives way when a move starts (the move keeps its shape)
 Anim.STANCE_SWAY = 2.5 -- degrees the weapon arm sways while standing
 Anim.STANCE_SWAY_RATE = 1.3 -- radians per second
@@ -794,30 +843,64 @@ local function snapOut(a: number): number
 	return 1 - b * b * b
 end
 
-local function lerpPose(a: Pose, b: Pose, w: number, out: Pose, weight: number)
+local LEG_SET: { [string]: boolean } = {}
+for _, j in Anim.LEGS do
+	LEG_SET[j] = true
+end
+
+local function lerpPose(a: Pose, b: Pose, w: number, out: Pose, weight: number, legs: number)
 	for _, j in Anim.JOINTS do
 		local va = a[j]
 		local vb = b[j]
 		if va or vb then
-			local x = (va or Vector3.zero):Lerp(vb or Vector3.zero, w) * weight
-			out[j] = (out[j] or Vector3.zero) + x
+			local k = if LEG_SET[j] then weight * legs else weight
+			if k ~= 0 then
+				local x = (va or Vector3.zero):Lerp(vb or Vector3.zero, w) * k
+				out[j] = (out[j] or Vector3.zero) + x
+			end
 		end
 	end
 end
 
+-- Brick-style easing of one key segment: the limbs click into the next pose within `share` of the
+-- segment (fast ease-out) and hold it for the rest
+function Anim.pop(f: number, share: number): number
+	if share <= 0 or f >= share then
+		return if f > 0 then 1 else 0
+	end
+	local b = 1 - math.max(f, 0) / share
+	return 1 - b * b
+end
+
+-- Move time in MOVE_FPS steps, rounded up (never behind the real time; 0 stays 0)
+function Anim.stepTime(elapsed: number): number
+	local fps = Anim.MOVE_FPS
+	if fps <= 0 or elapsed <= 0 then
+		return math.max(elapsed, 0)
+	end
+	return math.ceil(elapsed * fps - 1e-6) / fps
+end
+
+-- Share of an attack's legs and crouch at ground `speed` (studs/s): walking takes them out
+function Anim.moveLegs(speed: number): number
+	return 1 - math.clamp(speed / Anim.MOVE_LEGS, 0, 1)
+end
+
 -- Adds the move's pose at `elapsed` seconds (times `weight`) into `out`; returns the body lift.
--- Past the end the pose is zero, except for hold moves (they keep the last key).
-function Anim.sample(m: Move, elapsed: number, out: Pose, weight: number?): Vector3
+-- Past the end the pose is zero, except for hold moves (they keep the last key). `legs` (0..1,
+-- Anim.moveLegs) scales hips, knees, ankles and the lift, except on whole-body moves.
+function Anim.sample(m: Move, elapsed: number, out: Pose, weight: number?, legs: number?): Vector3
 	local w = weight or 1
+	local l = if m.body then 1 else math.clamp(legs or 1, 0, 1)
 	local keys = m.keys
-	local t = elapsed / m.time
+	local t = Anim.stepTime(elapsed) / m.time
 	if t >= 1 then
 		if not m.hold then
 			return Vector3.zero
 		end
 		local last = keys[#keys]
-		lerpPose(last.pose, last.pose, 0, out, w)
-		return (last.lift or Vector3.zero) * w
+		lerpPose(last.pose, last.pose, 0, out, w, l)
+		return (last.lift or Vector3.zero) * w * l
 	end
 	t = math.max(t, 0)
 	for i = 2, #keys do
@@ -826,9 +909,11 @@ function Anim.sample(m: Move, elapsed: number, out: Pose, weight: number?): Vect
 			local a = keys[i - 1]
 			local span = b.t - a.t
 			local f = if span > 0 then (t - a.t) / span else 1
-			f = if b.snap then snapOut(f) else smooth(f)
-			lerpPose(a.pose, b.pose, f, out, w)
-			return (a.lift or Vector3.zero):Lerp(b.lift or Vector3.zero, f) * w
+			local share = if b.snap then Anim.POP_SNAP else Anim.POP
+			-- the last segment holds the strike pose and drops back to rest at its end
+			f = if i == #keys then 1 - Anim.pop(1 - f, share) else Anim.pop(f, share)
+			lerpPose(a.pose, b.pose, f, out, w, l)
+			return (a.lift or Vector3.zero):Lerp(b.lift or Vector3.zero, f) * w * l
 		end
 	end
 	return Vector3.zero
@@ -861,7 +946,9 @@ function Anim.enemyPitch(windup: number?, sinceLunge: number, sinceHit: number):
 	if sinceHit >= 0 and sinceHit < Anim.ENEMY_RECOIL_TIME then
 		pitch += Anim.ENEMY_RECOIL * (1 - smooth(sinceHit / Anim.ENEMY_RECOIL_TIME))
 	end
-	return pitch
+	-- brick style: the body clicks between a few fixed tilts instead of gliding
+	local step = Anim.ENEMY_STEP
+	return if step > 0 then math.round(pitch / step) * step else pitch
 end
 
 return table.freeze(Anim)
