@@ -70,7 +70,21 @@ Avatar Joint Upgrade → Disabled by hand once; the published place is built fro
 - **Triggers:** server `Combat` fires `Net.Fx("act", …)` for every attack, cast and dash;
   `Anim.moveFor` picks the move (`Anim.SKILL_MOVE` overrides). On death the body stays whole, then
   breaks into bricks after `Anim.DEATH_BREAK`.
-- **Enemies** are anchored part models: lean back on wind-up, snap forward, recoil, waddle (`Anim.ENEMY_*`).
+- **Brick style** (Micha, 2026-11-07: "blockier, more like Lego, never in the way of input"):
+  characters move like toy figures. The whole rig, Roblox's walk included, is posed in stop-motion
+  steps (`Anim.LIMB_FPS`) while the body itself moves every frame; move time steps round up
+  (`Anim.MOVE_FPS`), so the first frame after a press already shows the move. Limbs click into each
+  key pose (`Anim.POP`, `POP_SNAP` for strikes) and hold it; the last segment holds the strike pose
+  and drops back to rest at the end. A new move cuts running moves of the same or lower rank at once
+  (`Anim.RANK_*`: auto attacks < skills and the roll; `hurt`/`cheer` are `react` and play on top).
+- **Input is never held up by an animation:** moves are only poses on the joints, nothing locks
+  movement, skills or the dash. Own skill casts start on the key press (`AnimController.cast`, the
+  server's echo is skipped), the roll on the dash key. Walking takes an attack's legs and crouch out
+  (`Anim.MOVE_LEGS`, not for whole-body `body` moves: spin, leap, roll), so the feet follow the stick.
+  A move started during a hitstop plays on; a new move, a dash or a new move direction poses the own
+  character on that frame instead of waiting for the next step.
+- **Enemies** are anchored part models: lean back on wind-up, snap forward, recoil, waddle (`Anim.ENEMY_*`),
+  the lean clicks in `Anim.ENEMY_STEP` degree steps.
 - **Budget:** only characters within `Anim.RANGE` (140 studs), max `Anim.MAX_CHARACTERS` (16).
 - Tune degrees in `src/shared/Anim.luau` (axes explained at the top).
 

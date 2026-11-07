@@ -12,6 +12,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local Progression = require(ReplicatedStorage.Shared.Progression)
 local Skills = require(ReplicatedStorage.Shared.Skills)
 local ProgressController = require(script.Parent.ProgressController)
+local AnimController = require(script.Parent.AnimController)
 
 local SkillController = {}
 
@@ -129,7 +130,10 @@ function SkillController.cast(slot: number)
 	cdUntil[skill.id] = now + skill.cooldown
 	local root = rootPart()
 	if root then
-		Net.CastSkill:FireServer(slot, aimPoint(), root.Position)
+		local aim = aimPoint()
+		Net.CastSkill:FireServer(slot, aim, root.Position)
+		-- the cast move starts on this frame, not when the server answers (AnimController)
+		AnimController.cast(skill.kind, skill.id, aim)
 	end
 end
 

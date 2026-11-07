@@ -103,6 +103,55 @@ describe("Animations", function()
 		)
 	end)
 
+	it("poses in brick-style steps without ever lagging behind the input", function()
+		-- move time steps round up: the first frame after a press already shows the first step
+		expect(Anim.stepTime(0)).toBe(0)
+		if Anim.MOVE_FPS > 0 then
+			expect(Anim.stepTime(0.001)).toBe(1 / Anim.MOVE_FPS)
+			expect(Anim.stepTime(1 / Anim.MOVE_FPS)).toBe(1 / Anim.MOVE_FPS)
+		end
+		for i = 0, 50 do
+			local e = i / 50
+			expect(Anim.stepTime(e) >= e - 1e-9).toBe(true)
+		end
+		-- pose to pose: click in early, then hold
+		expect(Anim.pop(0, Anim.POP)).toBe(0)
+		expect(Anim.pop(Anim.POP, Anim.POP)).toBe(1)
+		expect(Anim.pop(0.95, Anim.POP)).toBe(1)
+		expect(Anim.pop(Anim.POP * 0.5, Anim.POP)).toBeGreaterThan(0.5)
+		expect(Anim.POP_SNAP).toBeLessThan(Anim.POP)
+		-- an attack is already visible on its first frame
+		for _, m in Anim.Moves do
+			local first: Anim.Pose = {}
+			Anim.sample(m, 1 / 60, first)
+			expect(size(first) > 0.5).toBe(true)
+		end
+	end)
+
+	it("lets walking take an attack's legs while whole-body moves keep theirs", function()
+		expect(Anim.moveLegs(0)).toBe(1)
+		expect(Anim.moveLegs(Anim.MOVE_LEGS)).toBe(0)
+		local slam = Anim.Moves.slam
+		local still: Anim.Pose = {}
+		local stillLift = Anim.sample(slam, slam.time * 0.62, still, 1, 1)
+		local walking: Anim.Pose = {}
+		local walkLift = Anim.sample(slam, slam.time * 0.62, walking, 1, 0)
+		expect(still.rKnee).toBeTruthy()
+		expect(walking.rKnee).toBeNil()
+		expect(walkLift.Magnitude).toBe(0)
+		expect(stillLift.Magnitude).toBeGreaterThan(0)
+		expect(walking.waist).toBeTruthy() -- the upper body still swings
+		local roll = Anim.Moves.roll
+		local rolled: Anim.Pose = {}
+		Anim.sample(roll, roll.time * 0.5, rolled, 1, 0)
+		expect(rolled.rKnee).toBeTruthy()
+		-- reactions play on top, actions outrank auto attacks
+		expect(Anim.Moves.hurt.react).toBe(true)
+		expect(Anim.Moves.cheer.react).toBe(true)
+		expect(Anim.Moves.slash.react).toBeNil()
+		expect(Anim.RANK_ACTION).toBeGreaterThan(Anim.RANK_BASIC)
+	end)
+
 	it("turns the body toward the target only while the move plays", function()
 		local m = Anim.Moves.slash
 		expect(Anim.faceWeight(m, 0)).toBe(0)
