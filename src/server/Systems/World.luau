@@ -11,6 +11,8 @@
 -- environment tiles (slopes, cave walls, clouds …) with dense deco and a landmark
 -- behind the north edge, so every arena feels like a place and not like a board.
 -- Props come from Shared/Models (part builders with the classic stud look); placement stays here.
+-- Uploaded Meshy meshes (Shared/WorldMeshes) dress the props in place (Util/MeshKit); ground,
+-- walls and cliffs stay parts.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,6 +23,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Models = require(ReplicatedStorage.Shared.Models)
 local Bounds = require(ReplicatedStorage.Shared.Util.Bounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
+local MeshKit = require(script.Parent.Parent.Util.MeshKit)
 
 local World = {}
 
@@ -90,9 +93,11 @@ local trailRim: { [number]: boolean } = {} -- cliff tiles along the trail (deco 
 local lanes: { [number]: boolean } = {} -- corridor tiles of the trail (path colour)
 local layouts: { [number]: Trail.Layout } = {} -- slot → trail layout of the built map
 local seeds: { [number]: number } = {}
+local zone: string? = nil -- region id of the map being built (mesh lookup, Shared/WorldMeshes)
 
 -- ------------------------------------------------------------------ Building blocks
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
+	MeshKit.swap(model, zone) -- uploaded mesh for this prop, else it keeps its parts
 	model:PivotTo(CFrame.new(pos) * CFrame.Angles(0, math.rad(yaw or 0), 0))
 	model.Parent = parent
 	return model
@@ -1676,6 +1681,7 @@ function World.build(region: Atlas.Region?, slot: number?, seed: number?)
 	end
 	currentId[n] = id
 	seeds[n] = trailSeed
+	zone = id
 	local trail = Trail.layout(trailSeed, id) -- region flavour: Config.TRAIL_REGION_SHAPE
 	layouts[n] = trail
 	rng = Random.new(7)
@@ -1894,6 +1900,7 @@ end
 function World.start()
 	arena = Instance.new("Folder")
 	arena.Name = "Arena"
+	MeshKit.preload() -- uploaded world meshes (none yet = no wait)
 	World.build(nil)
 	arena.Parent = workspace
 	print("[LootRush] arena built")

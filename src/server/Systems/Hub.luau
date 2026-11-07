@@ -26,6 +26,7 @@ local Nameplate = require(ReplicatedStorage.Shared.Nameplate)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Fence = require(script.Parent.Parent.Util.Fence)
 local HubScenery = require(script.Parent.Parent.Util.HubScenery)
+local MeshKit = require(script.Parent.Parent.Util.MeshKit)
 
 local Hub = {}
 
@@ -211,6 +212,7 @@ end
 
 -- Put a model flush on the ground: bottom of the bounding box at `pos` (local)
 local function place(parent: Instance, model: Model, pos: Vector3, yaw: number?): Model
+	MeshKit.swap(model, "hub") -- uploaded mesh for this prop, else it keeps its parts
 	model:PivotTo(CFrame.new() * CFrame.Angles(0, math.rad(yaw or 0), 0))
 	local box, size = model:GetBoundingBox()
 	local bottom = box.Position - Vector3.new(0, size.Y / 2, 0)
@@ -699,6 +701,7 @@ function Hub.init()
 	rng = Random.new(11)
 	root = Instance.new("Model")
 	root.Name = "Lumenhaven"
+	MeshKit.preload() -- uploaded world meshes (none yet = no wait)
 	buildGround(root)
 	buildTown(root)
 	buildCountry(root)

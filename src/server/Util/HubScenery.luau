@@ -8,6 +8,7 @@
 
 local Config = require(game:GetService("ReplicatedStorage").Shared.Config)
 local Models = require(game:GetService("ReplicatedStorage").Shared.Models)
+local MeshKit = require(script.Parent.MeshKit)
 
 local HubScenery = {}
 
@@ -73,6 +74,7 @@ function HubScenery.build(parent: Instance, origin: Vector3, groundTop: number)
 	end
 
 	local function put(m: Model, x: number, z: number, yawDeg: number?, y: number?)
+		MeshKit.swap(m, "hub") -- uploaded mesh for this prop, else it keeps its parts
 		m:PivotTo(
 			CFrame.new(origin.X + x, origin.Y + (y or g), origin.Z + z)
 				* CFrame.Angles(0, math.rad(yawDeg or 0), 0)

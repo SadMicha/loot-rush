@@ -93,6 +93,9 @@ Avatar Joint Upgrade → Disabled by hand once; the published place is built fro
 **Rule (Micha, 2026-11-02): the whole world is Roblox parts built in code, every part carries the
 classic stud texture.** No Blender meshes or `.rbxm` imports. Map layout, horizon and colours:
 `docs/specs/WORLD-MAPS.md`.
+**Update 2026-11-07 (owner):** props, trees, rocks and landmarks can be dressed with uploaded Meshy
+meshes (`Shared/WorldMeshes` ids, `Util/MeshKit`; id 0 = the part model stays). Ground, walls,
+cliffs and functional models stay parts. Prompts and pipeline: `docs/specs/WORLD-MESHES.md`.
 
 `Shared/Models/Studs` decides the look; `Kit.block/wedge/cornerWedge/ball/cylinder/truss` create
 studded parts and `Kit.finish` re-applies it:
