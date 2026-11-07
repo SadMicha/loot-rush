@@ -29,7 +29,7 @@ can be overturned at any time. Where the concept already answers a question, the
 | Basic attack | Always automatic; skills are manual (no auto-cast: that was an idle feature). |
 | Dash | Becomes a **dodge roll**: 2 charges, i-frames, cancels skill recovery (concept: "Dash has 2 charges and short invulnerability"). |
 | Title, platform, language | Loot Rush, mobile-first + PC, English game text localized via the Roblox translator (owner). |
-| World / UI | Map from parts with stud texture (owner). UI look is owned by a separate thread; this plan does not change the look. |
+| World / UI | Map from parts with stud texture (owner). Update 2026-11-07 (owner): props, trees, rocks and landmarks may be Meshy meshes in the Painted Brick Relics look; ground, walls and cliffs stay parts (`docs/specs/WORLD-MESHES.md`). UI look is owned by a separate thread; this plan does not change the look. |
 | Trading | No player trading (owner). |
 | Co-op | Party play stays post-launch (D3 dropped co-op for now); several solo rifts per server keep working. |
 | Own identity | From the idea list in §7 (owner, 2026-11-02): **Brick Break** (kills and hits shatter models into studded bricks, breakable props), **Stud VFX** (skill effects built from bricks for visual impact), **The Smoothing** (story: studless smooth enemies; cleared depths restore studs and colour). Not built: class floor verbs, Loot Tower, Snap Crafting. The Forge stays as it is. **Stud Rush** (owner, 2026-11-02: in 1.0): kills and broken props pop studs that fill a Rush meter; full meter = 8 s Rush burst. Backlog ideas in §7. |

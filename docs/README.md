@@ -16,6 +16,7 @@
 | [SMOKE-TEST.md](SMOKE-TEST.md) | 5-minute check after any merge |
 | [TEST-RELEASE.md](TEST-RELEASE.md) | 30–40 minute Studio + phone test before a release, saving checks |
 | [specs/WORLD-MAPS.md](specs/WORLD-MAPS.md) | Hub, horizon, Rift Trail, never-fall-off, colours |
+| [specs/WORLD-MESHES.md](specs/WORLD-MESHES.md) | Meshy world kit: prompt list per zone, mesh id table, part fallback |
 | [specs/SEASONS.md](specs/SEASONS.md) | Season framework, leagues, Great Build (built for the Beta) |
 | [specs/SEASON-1-BLUEPRINTS.md](specs/SEASON-1-BLUEPRINTS.md) | Season 1 Blueprints (plan) |
 | [specs/ENDGAME.md](specs/ENDGAME.md) | Endgame redesign: Path Cards, affixes, objectives, boss rotation, signature uniques, bounties (proposal) |
