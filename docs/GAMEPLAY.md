@@ -158,7 +158,7 @@ banner "Crystal King defeated · Boss 0:42 · 2 Breaks · 3 Counters"). `Net.Fx`
 
 ## Path Cards
 
-Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. **End game only:** in the
+Spec: `docs/specs/ENDGAME.md` E1. Replaces the old random rift variants. **End game**, plus one tutorial pick: in the
 Altered World (region flag `pathCards` in `Shared/Atlas`, depth 26+) the "Deeper" button after a
 boss becomes **three Path Cards** for the next
 depth (`Shared/PathCards`, rolled by `Systems/Rift` with the run's own `Random` when the boss dies):
@@ -168,6 +168,10 @@ depth (`Shared/PathCards`, rolled by `Systems/Rift` with the run's own `Random` 
 | 1 "Safe Path" | none | +10 % gold |
 | 2 | one | by weight (below) |
 | 3 | one, two from depth 10 (`TWO_FROM`) | by weight |
+
+**Tutorial pick** (early-game pass 2026-11-06): a hero's first clear of depth 1 (region best 0)
+offers fixed cards for depth 2 (`PathCards.tutorial`): Safe Path (+10 % gold), Swarm (+15 % items),
+Gold Goblin (+20 % gold). Same UI and `"deeper"` request; analytics event `TutorialPathPicked`.
 
 Reward per weight point (sum of the affix weights): `+15 % items` or `+20 % gold` (items = item drop
 chance, gold = gold per drop, both for the whole depth, `Loot.setRunBonus`); from weight 3 a card
@@ -291,6 +295,9 @@ Numbers in `Balance` (`elite_hp`, `elite_dmg`, `elite_loot`, `drops_elite`, `Rar
   (effect id → rank; two copies do not stack).
 - **First drops:** a new character's first kills each drop an item (`Balance.FirstDrops`,
   `Loot.starter`, counted in `profile.starters`); the first boss drops a Rare.
+- **Early upgrades** (`Balance.EarlyUpgrades`, `Loot.earlyUpgrade`): on a hero's first 5 boss kills
+  (`profile.luck.bosses`) the guaranteed Rare goes to an empty gear slot while one is open (it goes on
+  at once), else it is rerolled (up to 12 rolls) until it is wearable and beats the worn piece.
 - **Auto-salvage:** unlocks at depth 10; the "Auto" button in the salvage footer opens a dialog:
   rarity limit (Off, ≤ Normal … ≤ Epic) and "Keep upgrades" (default on: loot that beats the worn
   piece stays). Saved as `profile.autoSalvage` + `profile.autoKeep`; `Net.AutoSalvage(rarity, keep?)`
@@ -395,12 +402,13 @@ assumptions; models from `Shared/Models/Creatures` via `Pets.look`).
 Rules `Shared/Quests`, server `Systems/Quests`, client `QuestController` + HUD quest panel,
 `QuestTickerController` (progress line in combat), `WaypointController` (beam to the station),
 `HintsController` (callouts next to the button they explain, `client/UI/Callout`). Tests `tests/Quests.spec.luau`.
-- Fixed quest chain (enter Rift → kills → pick up → equip → depth 3 → level 5 → star → depth 5 →
+- Fixed quest chain (enter Rift → kills → pick up → equip → depth 3 → level 5 → star (already done
+  when a star was placed earlier) → depth 5 →
   Forge → salvage → depth 8 → hatch → level 15 → depth 15 → depth 20 …). Rewards: gold, plus the
   thing a quest teaches (`Quests.reward`, e.g. a spell stone at depth 3, materials at depth 5).
 - Counts from `Util/Actions` (`Actions.fire(player, kind)`), kills (`Combat.EnemyKilled`), pickups
   (`Loot.Picked`); level/depth goals from `Level` / `BestDepth`.
-- Unlocks (`Quests.Unlocks`): Star Web level 5, Forge depth 5, Pets depth 8, auto-salvage depth 10.
+- Unlocks (`Quests.Unlocks`): Star Web level 4 (3 points: a major star plus a small one), Forge depth 5, Pets depth 8, auto-salvage depth 10.
   Saved in `profile.quests.unlocks`. Locked = dimmed button + "Locked · <condition>" toast. Pacing
   only: the server does not refuse requests for locked windows.
 - Hints are account settings (`hintSkills`, `hintDodge`, `hintRush`, `hintBreak`, `hintCounter`,

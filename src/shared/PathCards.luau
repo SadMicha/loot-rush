@@ -98,6 +98,37 @@ function PathCards.roll(rng: Random, depth: number): { Card }
 	return cards
 end
 
+-- Tutorial choice (early-game pass 2026-11-06): a hero's first depth 1 clear offers fixed, gentle
+-- cards for depth 2, so the first boss already teaches the end game's Path Card pick. Systems/Rift
+-- calls this outside the Path Card regions; the pick goes through the same "deeper" request.
+--   card 1: Safe Path (+10 % gold)  card 2: Swarm (+15 % items)  card 3: Gold Goblin (+20 % gold)
+PathCards.TUTORIAL_DEPTH = 1 -- the depth whose first clear offers the tutorial cards
+PathCards.TUTORIAL = table.freeze({
+	table.freeze({ affix = "swarm", reward = "items" :: Reward }),
+	table.freeze({ affix = "goblin", reward = "gold" :: Reward }),
+})
+
+function PathCards.tutorial(): { Card }
+	local cards =
+		{ { affixes = {}, reward = "gold" :: Reward, amount = PathCards.SAFE_GOLD, weight = 0 } }
+	for _, t in PathCards.TUTORIAL do
+		local weight = RiftAffixes.weight({ t.affix })
+		local per = if t.reward == "items"
+			then PathCards.ITEMS_PER_WEIGHT
+			else PathCards.GOLD_PER_WEIGHT
+		table.insert(
+			cards,
+			{ affixes = { t.affix }, reward = t.reward, amount = weight * per, weight = weight }
+		)
+	end
+	return cards
+end
+
+-- Does clearing `depth` (region best `bestBefore` before the run) offer the tutorial cards? Pure.
+function PathCards.tutorialDue(depth: number, bestBefore: number): boolean
+	return depth == PathCards.TUTORIAL_DEPTH and bestBefore < depth
+end
+
 -- The card a "deeper" request picks: nil = the safe card (first), 1..#cards = that card,
 -- anything else (wrong type, NaN, fraction, out of range) = nil (request refused)
 function PathCards.pick(cards: { Card }, index: any): Card?

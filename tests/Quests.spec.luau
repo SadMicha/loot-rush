@@ -186,4 +186,3 @@ describe("Equip quest with gear already on", function()
 		expect(step).toBeGreaterThan(4)
 	end)
 end)
-

@@ -133,7 +133,9 @@ end
 -- Windows behind an unlock: reached by level OR best depth (whatever comes first), or by
 -- finishing the quest that names them. Windows not listed are always open.
 Quests.Unlocks = table.freeze({
-	star_net = { level = 5, caption = "Reach level 5" },
+	-- Level 4 (early-game pass 2026-11-06): 3 points banked by then, enough for a major star (2) and
+	-- a small one, so the first Star Web visit is a real build pick, well before depth 26 Path Cards
+	star_net = { level = 4, caption = "Reach level 4" },
 	forge = { depth = 5, caption = "Clear depth 5" },
 	pets = { depth = 8, caption = "Clear depth 8" },
 	auto_salvage = { depth = 10, caption = "Clear depth 10" },
