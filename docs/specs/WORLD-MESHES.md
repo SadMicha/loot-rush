@@ -19,8 +19,9 @@ Status: code ready, **no mesh uploaded yet**. Every id is 0, so the game looks e
   invisible stand-ins, so movement, dash probes and enemy paths are the same as with parts. The
   mesh itself has no collision.
 - **Lights and particles stay.** Parts that hold a light, emitter, attachment or prompt stay as
-  invisible holders. With `glow = true` the Neon parts (crystal cores, lamp glass, embers) stay
-  visible on top of the mesh.
+  invisible holders. With `glow = true` small Neon accents (lamp glass, embers, cores no longer than
+  30% of the prop's height) stay visible on top of the mesh; Neon bodies such as crystal spikes are
+  hidden, so the mesh must paint its own glow colour.
 - **Size comes from the part model.** The mesh is scaled to the part model's height and capped at
   1.25× its footprint (`WorldMeshes.fit`), so `Props.tree(1.9)` still makes a bigger tree than
   `Props.tree(1.1)`. Real-world size in Meshy does not matter; proportions do.

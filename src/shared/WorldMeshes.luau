@@ -13,7 +13,7 @@
 -- Entry fields: model = Model asset id (Meshy FBX uploaded through "Upload UI assets"),
 -- texture = optional colour texture id for MeshParts without one, yaw = turn in degrees if the
 -- import faces the wrong way, scale = extra size factor (1 = fit the part model's height),
--- glow = keep the part model's Neon parts visible on top of the mesh (crystal cores, lamps).
+-- glow = keep the part model's small Neon accents visible on top of the mesh (cores, lamp glass).
 
 local WorldMeshes = {}
 
@@ -175,6 +175,16 @@ function WorldMeshes.fit(parts: Vector3, mesh: Vector3): number
 		s *= room / wide
 	end
 	return s
+end
+
+-- With glow = true a Neon part stays visible only if it is a small accent: its longest side is at
+-- most this share of the prop's height. Neon bodies (crystal spikes, glowing caps) are hidden,
+-- else they would draw through the mesh.
+WorldMeshes.GLOW_MAX_SHARE = 0.3
+
+function WorldMeshes.glows(partSize: Vector3, height: number): boolean
+	return height > 0
+		and math.max(partSize.X, partSize.Y, partSize.Z) <= height * WorldMeshes.GLOW_MAX_SHARE
 end
 
 -- Entries with an uploaded id (what the server loads)

@@ -8,7 +8,8 @@
 --    on the part model's footprint, in a child Model "Mesh" (no collision, no queries);
 --  * parts that collide, are queried, or hold lights/particles/prompts stay as invisible
 --    stand-ins, so movement, dash probes and effects work exactly as with the part look;
---  * Neon parts stay visible when the entry has glow = true (crystal cores, lamps);
+--  * small Neon parts stay visible when the entry has glow = true (crystal cores, lamp glass);
+--    Neon that makes up the body (crystal spikes) is hidden like any other part;
 --  * every other part is removed.
 -- An id of 0, a failed load or an unknown name returns the part model untouched.
 
@@ -141,11 +142,16 @@ function MeshKit.clear()
 	state = "idle"
 end
 
-local function keeps(p: BasePart, glow: boolean): boolean
-	if p.CanCollide or p.CanQuery then
-		return true
-	end
-	if glow and p.Material == Enum.Material.Neon and p.Transparency < 1 then
+-- Neon part that stays visible on top of the mesh (entry.glow and small: WorldMeshes.glows)
+local function shines(p: BasePart, glow: boolean, height: number): boolean
+	return glow
+		and p.Material == Enum.Material.Neon
+		and p.Transparency < 1
+		and WorldMeshes.glows(p.Size, height)
+end
+
+local function keeps(p: BasePart, shown: boolean): boolean
+	if shown or p.CanCollide or p.CanQuery then
 		return true
 	end
 	for _, d in p:GetDescendants() do
@@ -183,8 +189,9 @@ function MeshKit.swap(model: Model, zone: string?): Model
 
 	local glow = entry.glow == true
 	for _, p in own do
-		if keeps(p, glow) then
-			if not (glow and p.Material == Enum.Material.Neon) then
+		local shown = shines(p, glow, hi.Y - lo.Y)
+		if keeps(p, shown) then
+			if not shown then
 				p.Transparency = 1
 				p.CastShadow = false
 			end

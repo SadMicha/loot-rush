@@ -65,6 +65,13 @@ describe("WorldMeshes", function()
 		expect(WorldMeshes.key("RiftPortal", nil, has)).toBe(nil)
 	end)
 
+	it("keeps only small Neon accents visible with glow", function()
+		local WorldMeshes = require("ReplicatedStorage.Shared.WorldMeshes")
+		expect(WorldMeshes.glows(Vector3.new(0.7, 0.9, 0.7), 6)).toBe(true) -- lamp glass
+		expect(WorldMeshes.glows(Vector3.new(1.1, 4.2, 1.1), 5)).toBe(false) -- crystal spike
+		expect(WorldMeshes.glows(Vector3.new(1, 1, 1), 0)).toBe(false)
+	end)
+
 	it("fits the mesh to the part height and caps its footprint", function()
 		local WorldMeshes = require("ReplicatedStorage.Shared.WorldMeshes")
 		expect(WorldMeshes.fit(Vector3.new(4, 10, 4), Vector3.new(1, 5, 1))).toBe(2)
@@ -117,6 +124,27 @@ describe("MeshKit", function()
 		expect(visible).toBe(0)
 		expect(name).toBe("Tree")
 		expect(math.abs(drop) < 1e-3).toBe(true) -- the mesh stands where the parts stood
+	end)
+
+	it("hides Neon bodies under the mesh even with glow", function()
+		local shown = server(function(req)
+			local MeshKit = req("ServerScriptService.Server.Util.MeshKit")
+			local Models = req("ReplicatedStorage.Shared.Models")
+			MeshKit.clear()
+			MeshKit.setTemplate("CrystalCluster", fakeAsset(), { model = 0, glow = true })
+			local m = Models.Props.crystalCluster(1, 3)
+			MeshKit.swap(m, nil)
+			local mesh = m:FindFirstChild(MeshKit.MESH) :: Instance
+			local n = 0
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") and not d:IsDescendantOf(mesh) and d.Transparency < 1 then
+					n += 1
+				end
+			end
+			MeshKit.clear()
+			return n
+		end)
+		expect(shown).toBe(0)
 	end)
 
 	it("dresses arena props from a zone template", function()
