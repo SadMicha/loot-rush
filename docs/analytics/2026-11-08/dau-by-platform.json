@@ -1,0 +1,105 @@
+{
+  "query": {
+    "breakdown": [
+      "Platform"
+    ],
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-08T12:01:28.3071383+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/1b9e39bad372586c23f009823cb24118a3acc27d320d4e0b4fb101841e73f4cb",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Computer"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 36
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 33
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Phone"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 29
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 13
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Platform",
+              "value": "Tablet"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 6
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 3
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

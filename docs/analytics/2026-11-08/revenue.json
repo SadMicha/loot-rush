@@ -1,0 +1,45 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyRevenue",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-08T12:02:02.7093093+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/510d2846573dbf7594187e8bfce1fc3d043a73afccc877a917da41e4da678aa0",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

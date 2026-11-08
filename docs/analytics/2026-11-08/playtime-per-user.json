@@ -1,0 +1,45 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "AveragePlayTimeMinutesPerDAU",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-08T12:01:43.2882261+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/df99d74dde1eba384e2fc02d2c4751caf50ce51026c4d61abab95391e4c43550",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 27.799999237060547
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 87.9000015258789
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 159.81666564941406
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 5.825362205505371
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 6.230555534362793
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

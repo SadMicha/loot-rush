@@ -1,0 +1,12 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "PayingUsers",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "error": "gave up after retries"
+  },
+  "status": 0
+}

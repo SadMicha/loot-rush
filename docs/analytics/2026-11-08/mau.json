@@ -1,0 +1,45 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "MonthlyActiveUsers",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-08T12:01:34.5395889+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/69ff1395933f1800848208247dabbe768d70e275c8043eb38cacc08a51241ffa",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 69
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 116
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

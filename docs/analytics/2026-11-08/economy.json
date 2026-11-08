@@ -1,0 +1,127 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "granularity": "None",
+    "metric": "EconomyTransactionAmount",
+    "split": [
+      "CurrencyType",
+      "FlowType"
+    ],
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "dimensionValues": {
+      "values": [
+        {
+          "dimension": "CurrencyType",
+          "values": [
+            {
+              "value": "Gold"
+            },
+            {
+              "value": "Shards"
+            }
+          ]
+        },
+        {
+          "dimension": "FlowType",
+          "values": [
+            {
+              "value": "Source"
+            },
+            {
+              "value": "Sink"
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "filter": {
+          "CurrencyType": "Gold",
+          "FlowType": "Source"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-11-01T00:00:00+00:00",
+                  "value": 1914311
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Gold",
+          "FlowType": "Sink"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-11-01T00:00:00+00:00",
+                  "value": -2287144
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Shards",
+          "FlowType": "Source"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-11-01T00:00:00+00:00",
+                  "value": 19716
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CurrencyType": "Shards",
+          "FlowType": "Sink"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-11-01T00:00:00+00:00",
+                  "value": -1503
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      }
+    ]
+  },
+  "status": 200
+}

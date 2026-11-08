@@ -1,0 +1,27 @@
+{
+  "query": {
+    "endTime": "2026-11-08T00:00:00Z",
+    "filter": [
+      {
+        "dimension": "CustomEventName",
+        "operation": "In",
+        "values": [
+          "RiftFail"
+        ]
+      }
+    ],
+    "granularity": "None",
+    "metric": "CustomEventCountUser",
+    "startTime": "2026-11-01T00:00:00Z"
+  },
+  "response": {
+    "error": {
+      "done": true,
+      "error": {
+        "code": 2001,
+        "message": "Dimension CustomField02 is not supported for metric CustomEventCountUser."
+      }
+    }
+  },
+  "status": 400
+}
