@@ -1,0 +1,61 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "D1Retention",
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-09T14:50:27.6834675+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/ef0a64c52809d3e39bb60489deb7ba3e041e88e4b6a72f19bca3007130f3b178",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-07T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

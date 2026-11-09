@@ -1,0 +1,409 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "None",
+    "metric": "FunnelUserTotalCount",
+    "split": [
+      "FunnelName",
+      "FunnelStep"
+    ],
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "dimensionValues": {
+      "values": [
+        {
+          "dimension": "FunnelName",
+          "values": [
+            {
+              "value": "FUNNEL_TYPE_ONBOARDING"
+            }
+          ]
+        },
+        {
+          "dimension": "FunnelStep",
+          "values": [
+            {
+              "displayValue": "joined",
+              "value": "1"
+            },
+            {
+              "displayValue": "hero_created",
+              "value": "2"
+            },
+            {
+              "displayValue": "enter_rift",
+              "value": "3"
+            },
+            {
+              "displayValue": "first_kills",
+              "value": "4"
+            },
+            {
+              "displayValue": "first_loot",
+              "value": "5"
+            },
+            {
+              "displayValue": "equip",
+              "value": "6"
+            },
+            {
+              "displayValue": "depth_3",
+              "value": "7"
+            },
+            {
+              "displayValue": "level_5",
+              "value": "8"
+            },
+            {
+              "displayValue": "first_star",
+              "value": "9"
+            },
+            {
+              "displayValue": "depth_5",
+              "value": "10"
+            },
+            {
+              "displayValue": "first_forge",
+              "value": "11"
+            },
+            {
+              "displayValue": "salvage",
+              "value": "12"
+            },
+            {
+              "displayValue": "depth_8",
+              "value": "13"
+            },
+            {
+              "displayValue": "first_pet",
+              "value": "14"
+            },
+            {
+              "displayValue": "depth_20",
+              "value": "15"
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "1"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 116
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "2"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 99
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "3"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 79
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "4"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 64
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "5"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 58
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "6"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 37
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "7"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 21
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "8"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 21
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "9"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 15
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "10"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 12
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "11"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 9
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "12"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 7
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "13"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 5
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "14"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 5
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "FunnelName": "FUNNEL_TYPE_ONBOARDING",
+          "FunnelStep": "15"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      }
+    ]
+  },
+  "status": 200
+}

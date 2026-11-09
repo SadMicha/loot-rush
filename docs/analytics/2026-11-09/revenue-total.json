@@ -1,0 +1,29 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "None",
+    "metric": "DailyRevenue",
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-09T14:50:47.8590036+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/830df12e9b163d3ccb81c02b129a80660af362f70986f42da789535bee9d584c",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-12T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

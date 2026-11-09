@@ -1,0 +1,140 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "None",
+    "metric": "CustomEventCountUser",
+    "split": [
+      "CustomEventName"
+    ],
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "dimensionValues": {
+      "values": [
+        {
+          "dimension": "CustomEventName",
+          "values": [
+            {
+              "value": "LevelUp"
+            },
+            {
+              "value": "RiftStart"
+            },
+            {
+              "value": "RiftClear"
+            },
+            {
+              "value": "PathCardPicked"
+            },
+            {
+              "value": "unique_found"
+            }
+          ]
+        }
+      ]
+    },
+    "results": [
+      {
+        "filter": {
+          "CustomEventName": "LevelUp"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 64
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "RiftStart"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 13
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "RiftClear"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 10
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "PathCardPicked"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "filter": {
+          "CustomEventName": "unique_found"
+        },
+        "ok": true,
+        "response": {
+          "values": [
+            {
+              "breakdowns": [],
+              "dataPoints": [
+                {
+                  "time": "2026-10-12T00:00:00+00:00",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        },
+        "status": 200
+      }
+    ]
+  },
+  "status": 200
+}

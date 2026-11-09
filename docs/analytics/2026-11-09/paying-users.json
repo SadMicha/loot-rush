@@ -1,0 +1,61 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "PayingUsers",
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-09T14:50:44.9261608+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/6be53f60e1bbcac8f68dbb2e57826891e916587f0f7d57f8f5e2d637f9e67c00",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 0
+            },
+            {
+              "time": "2026-11-07T00:00:00+00:00",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

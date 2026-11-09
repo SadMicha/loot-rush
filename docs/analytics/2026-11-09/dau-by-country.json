@@ -1,0 +1,655 @@
+{
+  "query": {
+    "breakdown": [
+      "Country"
+    ],
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "DailyActiveUsers",
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-09T14:50:03.7413417+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/9fff4abef125760e4f89f6389b8080ebf6e5c66b396fbaaaa9323113b6a69eac",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "RU"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 12
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 13
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "US"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 11
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "DE"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 2
+            },
+            {
+              "time": "2026-11-07T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "TH"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 5
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "TR"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "FR"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "BR"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "CA"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "KZ"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "SA"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "HK"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "ID"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "NZ"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "PH"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "PL"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "VN"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "UA"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "AU"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "BO"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "BN"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "TW"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "BJ"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "DO"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "EC"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "IN"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "IQ"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "IL"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "JP"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "KE"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "KR"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "KW"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "MY"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "MU"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "NL"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "PK"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "PA"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "PR"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "SG"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "ZA"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "Country",
+              "value": "SE"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}

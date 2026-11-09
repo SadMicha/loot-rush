@@ -1,0 +1,61 @@
+{
+  "query": {
+    "endTime": "2026-11-09T00:00:00Z",
+    "granularity": "OneDay",
+    "metric": "Visits",
+    "startTime": "2026-10-12T00:00:00Z"
+  },
+  "response": {
+    "done": true,
+    "metadata": {
+      "createdTime": "2026-11-09T14:50:24.6285006+00:00"
+    },
+    "path": "v1/universes/10773139945/operations/metrics/177e75058811bbfb7a2fda9a64900ca91d1d20b08d2e9fb43bf9f58921a26d62",
+    "response": {
+      "values": [
+        {
+          "breakdowns": [],
+          "dataPoints": [
+            {
+              "time": "2026-10-28T00:00:00+00:00",
+              "value": 9
+            },
+            {
+              "time": "2026-10-29T00:00:00+00:00",
+              "value": 4
+            },
+            {
+              "time": "2026-10-30T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-11-02T00:00:00+00:00",
+              "value": 13
+            },
+            {
+              "time": "2026-11-03T00:00:00+00:00",
+              "value": 25
+            },
+            {
+              "time": "2026-11-04T00:00:00+00:00",
+              "value": 47
+            },
+            {
+              "time": "2026-11-05T00:00:00+00:00",
+              "value": 86
+            },
+            {
+              "time": "2026-11-06T00:00:00+00:00",
+              "value": 55
+            },
+            {
+              "time": "2026-11-07T00:00:00+00:00",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "status": 200
+}
